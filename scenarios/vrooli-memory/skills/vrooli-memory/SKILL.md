@@ -1,6 +1,6 @@
 ---
 name: "vrooli-memory"
-description: "Use vrooli-memory as the durable, scoped memory behind a skill's learning spine: create a scope with a facet vocabulary, journal one structured entry per attempt, recall by wake or by query, and curate with pins, supersession, corrections, and dry-run classification rules."
+description: "Capture observations for future agents, recall related context, and inspect source evidence. Use scoped journals, wake, and curation for structured learning workflows."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -14,13 +14,25 @@ metadata:
   updatedAt: "2026-09-02T20:00:00Z"
   requires:
     scenarios: ["vrooli-memory"]
-    commands: ["vrooli-memory scopes create", "vrooli-memory scopes list", "vrooli-memory journal note", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory recall siblings", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli-memory facets correct", "vrooli-memory facets candidates", "vrooli-memory facets proposals", "vrooli-memory rules create", "vrooli-memory rules dry-run", "vrooli-memory rules enable", "vrooli-memory rules list", "vrooli-memory forest frontier"]
+    commands: ["vrooli-memory remember", "vrooli-memory recall zoom", "vrooli-memory scopes create", "vrooli-memory scopes list", "vrooli-memory journal note", "vrooli-memory recall wake", "vrooli-memory recall", "vrooli-memory recall siblings", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli-memory facets correct", "vrooli-memory facets candidates", "vrooli-memory facets proposals", "vrooli-memory rules create", "vrooli-memory rules dry-run", "vrooli-memory rules enable", "vrooli-memory rules list", "vrooli-memory forest frontier"]
   origin:
     kind: "authored"
 ---
 ## Tools focus: Vrooli Memory
 
 Use vrooli-memory when a skill needs to remember what happened across sessions in a form the next agent can recall under a fixed line budget. It is the mechanics behind every learning spine (`path:docs/agent-system/SKILL_AUTHORING.md` §"The learning spine"): other skills cite this one and say only which scope and which entry kinds they use. The engine underneath is source-ledger; the append-only journal is the sole authority, and every derived view is rebuildable.
+
+### Shared observations
+
+Use `vrooli-memory remember "<observation>"` for defects, capability gaps,
+friction, and other facts another agent can use. Give each observation its
+own argument. Add `--evidence` when a run, command, or artifact helps verify it.
+Use a specific topic, symptom, or environment in `vrooli-memory recall "<query>"`.
+Add `--category "bug reports"` when you need a category filter. Treat ranking
+as a way to choose what to inspect. Run the printed `recall zoom` command to
+verify the original evidence. Check any fallback or pending-index notice
+before drawing conclusions from missing results. Append corrections with the
+environment or condition they cover. [Command examples](../../README.md#shared-observations) [R7, R8]
 
 ### 1. Scope
 
@@ -71,7 +83,7 @@ I need memory for a skill or a program
 │
 ├─ Before acting: what do I need to know?
 │   ├─ "what usually matters here"  → recall wake --scope <scope>                 [S1]
-│   ├─ "what happened with <subject>" → recall recall "<subject>" --scope <scope> --limit 5   [S1]
+│   ├─ "what happened with <subject>" → recall "<subject>" --scope <scope> --limit 5   [S1]
 │   └─ "what else did this run record" → recall siblings <entry-id>               [S1]
 │
 ├─ After acting: one entry per attempt, success or not                             [S1]
@@ -201,7 +213,7 @@ report capture unavailable without changing the operation's outcome.
 | Need | Command | Read it as |
 |---|---|---|
 | Ambient set for any task in the scope | `vrooli-memory recall wake --scope <scope>` | Pinned entries first, then facet-ranked entries, within `wake-budget` lines |
-| Targeted | `vrooli-memory recall recall "<subject>" --scope <scope> --limit 5` | Ranked hits with scores; treat a score below the caller's threshold as no match |
+| Targeted | `vrooli-memory recall "<subject>" --scope <scope> --limit 5` | Ranked hits; use `--json` for scores and retrieval notices, then zoom into evidence |
 | Same run's other entries | `vrooli-memory recall siblings <entry-id>` | Context for one attempt |
 
 Human-first output is the default. Use `--json` only inside a program or when the caller must branch on ids.
@@ -238,7 +250,7 @@ Record each attempt once; retain pending or failed delivery explicitly.
 |---|---|---|---|
 | Entry is stored but not enriched | Enrichment is pending | `vrooli-memory journal retry-classifications --help`; `journal retry-embeddings --help` | Run the existing bounded enrichment operation when needed. Do not re-append |
 | `recall wake` returns nothing for a new scope | No entries yet, or no pins and the frontier is empty | `vrooli-memory scopes list` | Expected on day one; write entries; wake fills as the frontier forms |
-| `recall recall` scores are all low | Query subject differs from how entries name it | read three entries' bodies | Name subjects the same way in `--trigger` every time (site then flow) |
+| Recall results miss the subject | Query wording, another scope, or degraded retrieval | Inspect result scope, evidence, and retrieval notices | Try the affected scenario name and exact symptom |
 | A rule dry-run matches everything | `--body-pattern` too broad | the dry-run samples | Tighten the pattern; never enable a rule whose samples include unrelated kinds |
 | `scopes create` fails with `UNIQUE constraint failed: facet_definitions.id` | A facet id is already owned by another scope | `vrooli-memory facets list --scope <other>` | Prefix facet ids with the scenario and create again |
 | `rules list --scope X` and `facets list --scope X` return the same rows for every scope, including a scope that does not exist | Both listings ignore `--scope` and answer for `agent-memory` (verified 2026-09-02; filed against vrooli-memory) | `vrooli-memory rules list --scope no-such-scope --json` returns rows | Read `--json` and filter on the row's own `scope` field. A program that trusts the flag will treat another scope's rules as its own |

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "source-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "b41f5d30ea9d089a7756c6ec66e9697452bfd0fc60e23035e5a5d2aeff30d2e4",
+  "manifest_hash": "d04c481f9f140b3a96a39d45003120024951b593cc8e57221deb91147e1014ca",
   "commands": [
     {
       "path": "facets assign",

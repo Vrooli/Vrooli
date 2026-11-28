@@ -2,20 +2,23 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"source-ledger/internal/capabilities"
+	"source-ledger/internal/classification"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/files"
 	"source-ledger/internal/forest"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/journal"
+	"source-ledger/internal/ledgerdb"
 	"source-ledger/internal/modules"
 	"source-ledger/internal/policy"
 	internalrecall "source-ledger/internal/recall"
@@ -38,7 +41,6 @@ import (
 	searchregister "github.com/vrooli/searchregister-go"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
-	_ "modernc.org/sqlite"
 
 	capsH "source-ledger/handlers/capabilities"
 	facetsH "source-ledger/handlers/facets"
@@ -68,16 +70,13 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "source-ledger"}) {
 		return
 	}
-	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "source-ledger"})
-	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
-	}
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: dsn, MaxOpenConns: 1, MaxIdleConns: 1})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	db, err := ledgerdb.Open(ctx, ledgerdb.LedgerConfig())
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)
 	}
 
-	ctx := context.Background()
 	if err := journal.EnsureMigrations(ctx, db.Primary()); err != nil {
 		log.Fatalf("journal schema migration failed: %v", err)
 	}
@@ -93,7 +92,7 @@ func main() {
 	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
-	generationServing, err := vectorstore.NewSQLiteGenerationServing(db.Primary())
+	generationServing, err := vectorstore.NewSQLiteGenerationServing(db.Reader())
 	if err != nil {
 		log.Fatalf("Source Ledger generation serving configuration failed: %v", err)
 	}
@@ -143,6 +142,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve repository root for search federation: %v", err)
 	}
+	categories, err := classification.LoadCatalog(filepath.Join(repoRoot, "scenarios", "source-ledger", ".vrooli", "memory-categories.json"))
+	if err != nil {
+		log.Fatalf("memory categories configuration failed: %v", err)
+	}
 	searchJSONPath := filepath.Join(repoRoot, "scenarios", "source-ledger", ".vrooli", "search.json")
 	go searchregister.Register(ctx, searchregister.Config{
 		ScenarioID:     "source-ledger",
@@ -182,19 +185,24 @@ func main() {
 	})
 	gatewayClient.WithSummaryMaxOutputTokens(policyConfig.SummaryMaxOutputTokens)
 	forestService := forestH.NewService(db, gatewayClient, recallConfig.FrontierTarget, registry, generationServing)
-	gatewayClient.WithBatchEmbedding(inferenceconnect.NewInferenceServiceClient(http.DefaultClient, gatewayURL))
-	fileService := openFileCorpus(ctx, inference.Embedder{Client: gatewayClient})
+	gatewayInference := inferenceconnect.NewInferenceServiceClient(http.DefaultClient, gatewayURL)
+	gatewayClient.WithBatchEmbedding(gatewayInference)
+	classifier := classification.NewService(classification.NewSQLiteRepository(db), gatewayInference, categories)
+	fileService, indexDB, err := openFileCorpus(ctx, inference.Embedder{Client: gatewayClient})
+	if err != nil {
+		log.Fatalf("file corpus index: %v", err)
+	}
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "source-ledger-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		journalH.Module(db, gatewayClient, facetService, log.Default()),
+		journalH.Module(db, gatewayClient, facetService, log.Default(), classifier),
 		facetsH.Module(db, log.Default(), registry),
 		filesH.Module(fileService),
 		forestH.Module(forestService, log.Default()),
-		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default(), generationServing, generationRuntime),
+		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default(), generationServing, generationRuntime, classifier),
 		rulesH.ModuleWithRegistry(db, log.Default(), registry, gatewayClient),
-		scopesH.Module(db, registry, log.Default(), internalrecall.NewSQLiteSource(db.Primary(), generationServing)),
+		scopesH.Module(db, registry, log.Default(), internalrecall.NewSQLiteSource(db.Reader(), generationServing)),
 		vectorH.Module(generationBackend, log.Default()),
 	)
 
@@ -211,7 +219,33 @@ func main() {
 	// shared server's 30 s WriteTimeout closed that connection mid-pass and
 	// every consumer saw "unexpected EOF" while the pass kept running; the
 	// write bound must cover vrooli-memory's 30 min CompactTimeout.
-	if err := apiserver.Run(apiserver.Config{Handler: handler, Authentication: &authConfig, WriteTimeout: 35 * time.Minute, Cleanup: func(context.Context) error { return db.Close() }}); err != nil {
+	fileWorkerDone := make(chan struct{})
+	go func() {
+		defer close(fileWorkerDone)
+		fileService.Run(ctx, 5*time.Minute)
+	}()
+	maintenanceDone := make(chan struct{})
+	go func() {
+		defer close(maintenanceDone)
+		ledgerdb.RunMaintenance(ctx, schedule.System(), slog.Default(), db, indexDB)
+	}()
+	classificationDone := make(chan struct{})
+	go func() {
+		defer close(classificationDone)
+		classifier.Run(ctx, schedule.System(), slog.Default())
+	}()
+	cleanup := func(cleanupCtx context.Context) error {
+		cancel()
+		for _, done := range []chan struct{}{fileWorkerDone, maintenanceDone, classificationDone} {
+			select {
+			case <-done:
+			case <-cleanupCtx.Done():
+				return cleanupCtx.Err()
+			}
+		}
+		return errors.Join(indexDB.Close(), db.Close())
+	}
+	if err := apiserver.Run(apiserver.Config{Handler: handler, Authentication: &authConfig, WriteTimeout: 35 * time.Minute, Cleanup: cleanup}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
@@ -220,26 +254,19 @@ func main() {
 // the scenario cache directory, separate from the journal authority; deleting
 // it costs one rebuild. A failure here is fatal at boot rather than a silently
 // missing corpus.
-func openFileCorpus(ctx context.Context, embedder files.Embedder) *files.Service {
+func openFileCorpus(ctx context.Context, embedder files.Embedder) (*files.Service, *database.RoutedDB, error) {
 	home, err := researchhome.Dir(os.Getenv)
 	if err != nil {
-		log.Fatalf("resolve research home for the file corpus: %v", err)
+		return nil, nil, fmt.Errorf("resolve research home: %w", err)
 	}
-	// The index is a rebuildable cache, so it lives in the cache storage class.
-	// The storage package owns the file path, parent directory, and pragmas.
-	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "source-ledger", Filename: "files-index.db", Class: storage.ClassCache})
+	indexDB, err := ledgerdb.Open(ctx, ledgerdb.FilesIndexConfig())
 	if err != nil {
-		log.Fatalf("file corpus index configuration: %v", err)
+		return nil, nil, fmt.Errorf("open file corpus index: %w", err)
 	}
-	indexDB, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		log.Fatalf("open file corpus index: %v", err)
-	}
-	indexDB.SetMaxOpenConns(1)
 	service, err := files.NewService(ctx, indexDB, map[string]string{files.DefaultCorpus: home}, embedder, log.Default())
 	if err != nil {
-		log.Fatalf("file corpus index: %v", err)
+		_ = indexDB.Close()
+		return nil, nil, err
 	}
-	go service.Run(ctx, 5*time.Minute)
-	return service
+	return service, indexDB, nil
 }

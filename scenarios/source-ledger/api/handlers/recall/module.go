@@ -19,14 +19,16 @@ import (
 	vectorcodec "source-ledger/internal/vector"
 )
 
-func Module(db *database.RoutedDB, client inference.Client, config internalrecall.Config, registry *policy.Registry, logger *log.Logger, generations *vectorcodec.SQLiteGenerationServing, exact internalrecall.RecipeQueryEmbedder) module.Module {
-	svc := internalrecall.NewService(internalrecall.NewSQLiteSource(db.Primary(), generations), inference.Embedder{Client: client}, config)
+func Module(db *database.RoutedDB, client inference.Client, config internalrecall.Config, registry *policy.Registry, logger *log.Logger, generations *vectorcodec.SQLiteGenerationServing, exact internalrecall.RecipeQueryEmbedder, categories internalrecall.ClassificationIndex) module.Module {
+	var embedder internalrecall.QueryEmbedder = inference.Embedder{Client: client}
 	if exact != nil {
 		// Recall uses the exact persisted recipe whenever a generation is active;
 		// the gateway default remains the pre-generation fallback.
-		svc = internalrecall.NewService(internalrecall.NewSQLiteSource(db.Primary(), generations), exactQueryEmbedder{fallback: inference.Embedder{Client: client}, exact: exact}, config)
+		embedder = exactQueryEmbedder{fallback: inference.Embedder{Client: client}, exact: exact}
 	}
+	svc := internalrecall.NewService(internalrecall.NewSQLiteSource(db.Reader(), generations), embedder, config)
 	svc.SetPolicyRegistry(registry)
+	svc.SetClassificationIndex(categories)
 	journal := internaljournal.NewService(internaljournal.NewSQLiteRepository(db.Primary()), client)
 	handler := NewConnectHandler(svc, logger, journal)
 	handler.SetUsageRecorder(internalfacets.NewService(internalfacets.NewSQLiteRepository(db.Primary())))
@@ -40,7 +42,7 @@ type exactQueryEmbedder struct {
 }
 
 func (e exactQueryEmbedder) EmbedQuery(ctx context.Context, query string) ([]float64, error) {
-	return e.fallback.EmbedQuery(ctx, query)
+	return e.fallback.EmbedQueryFast(ctx, query)
 }
 
 func (e exactQueryEmbedder) EmbedQueryForRecipe(ctx context.Context, recipeID, query string) ([]float64, error) {

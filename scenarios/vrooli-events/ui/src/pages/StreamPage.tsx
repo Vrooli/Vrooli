@@ -6,7 +6,7 @@ import { Radio, Pause, Play, Trash2, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { EventTable } from "../components/EventTable";
 import { EventDetail } from "../components/EventDetail";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { subscribeSSE, type EventEnvelope } from "../lib/api";
 import { INPUT_CLASS, STREAM_MAX_EVENTS } from "../lib/constants";
@@ -87,7 +87,7 @@ export function StreamPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        icon={Radio}
+        leading={<Radio className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Live Event Stream"
         actions={
           <div className="flex items-center gap-2">

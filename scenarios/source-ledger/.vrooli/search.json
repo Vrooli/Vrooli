@@ -11,7 +11,31 @@
       "class": "local_live",
       "index_timestamp_field": "metrics.last_indexed_at",
       "scope": "SCOPE_PROJECT",
-      "description": "Scope-faceted durable source ledger. Holds journal entries and derived memory for the requested scope; pass --scope scenario:<id> or another ledger facet to filter the shared corpus. Use for source history and prior work, not code definitions.",
+      "description": "Recall shared agent memory, including current accounts of reported defects, capability gaps, prior work, and later corrections. Results can be inspected with Vrooli Memory zoom. Use a scenario scope to recall from a named ledger.",
+      "routing_profile": {
+        "answer_spaces": [
+          "shared agent memory",
+          "recorded bug reports and current defect accounts",
+          "observed capability gaps",
+          "prior work and investigation evidence"
+        ],
+        "intents": [
+          "recall past observations",
+          "check open bugs and verified fixes",
+          "find previously investigated issues"
+        ],
+        "positive_examples": [
+          "open browser capture bugs",
+          "what was fixed about Test Genie phase cache retention",
+          "voice cloning capability gaps",
+          "what did the previous agent validate"
+        ],
+        "exclusions": [
+          "current service health",
+          "live capability availability",
+          "where is the source code"
+        ]
+      },
       "endpoint": {
         "http_json": {
           "scenario_id": "source-ledger",
@@ -40,6 +64,12 @@
         "score_scale": "SCORE_SCALE_COSINE_0_1",
         "snippet_field": "text",
         "title_field": "facetId",
+        "path_field": "nodeId",
+        "metadata_fields": {
+          "node_id": "nodeId",
+          "scope": "scope",
+          "summary": "summary"
+        },
         "degradations_field": "degradations"
       },
       "tuning": {
@@ -77,7 +107,7 @@
         "cases": [
           {
             "id": "scope-work-record",
-            "query": "what did a previous coding agent validate or implement",
+            "query": "Agent Manager Phase 6 orphan profile sources and direct coding agent spawn",
             "expect_ids": [
               "b64be0e6-c42e-47b8-92f4-89834d9dde94"
             ],
@@ -86,6 +116,44 @@
             "tags": [
               "reviewed",
               "work-record"
+            ]
+          },
+          {
+            "id": "test-genie-phase-cache-fix",
+            "query": "test genie phase cache retention",
+            "expect_ids": [
+              "c4e06b4f-ab07-4f28-8c2b-307834e47385"
+            ],
+            "expect_within_top_k": 3,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "defect",
+              "resolution"
+            ]
+          },
+          {
+            "id": "voice-cloning-capability-gap",
+            "query": "voice cloning capability gaps",
+            "expect_ids": [
+              "ad08218b-b6c1-4a91-b5c8-92952323945c"
+            ],
+            "expect_within_top_k": 3,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "capability-gap"
+            ]
+          },
+          {
+            "id": "unrelated-cartridge-recovery",
+            "query": "recover Super Nintendo Mode 7 cartridge SRAM corruption",
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.6,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "negative"
             ]
           },
           {

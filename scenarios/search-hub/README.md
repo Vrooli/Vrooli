@@ -47,21 +47,11 @@ See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) and
 
 ## Search Quality and Failure Semantics
 
-An eval transport failure is recorded as `error` with the provider's message;
-it is not treated as an empty expectation. Such a run is degraded, and a run
-with zero graded cases cannot certify freshness. A fresh non-degraded run can
-still be withheld from automatic routing when a gibberish-tagged case scores
-at or above the strongest real-case score; the run id is reported as evidence.
-
-Transport failures feed the circuit breaker. Only successful, non-degraded
-zero-hit responses feed graded-empty demotion. Demotion decays into probation
-and can recover through a successful probe. Providers marked `fixture` or
-`experimental` remain available to explicit selectors but are excluded from
-automatic routing.
-
-Address resolution uses a short TTL cache and invalidates a failed entry.
-Federated queries enforce a concurrency/timeout budget and return completed
-groups as `partial` when their deadline expires.
+Transport failures and successful graded-empty responses drive different
+routing signals; freshness, quality, recovery, and partial-result rules are
+owned by the [architecture guide](docs/concepts/ARCHITECTURE.md). This README
+stays on the product overview. Read the architecture guide for current
+thresholds and lifecycle details.
 
 ## Documentation Map
 

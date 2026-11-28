@@ -247,6 +247,20 @@
       "category": "recall"
     },
     {
+      "id": "journal_classification_notices",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/ListClassificationNotices",
+      "method": "POST",
+      "summary": "List classification notices after a consumer checkpoint",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "ListClassificationNoticesRequest"
+      },
+      "response": {
+        "type": "ListClassificationNoticesResponse"
+      }
+    },
+    {
       "id": "journal_append",
       "path": "/vrooli.source_ledger.v1.journal.JournalService/AppendEntry",
       "method": "POST",

@@ -213,6 +213,51 @@
       "category": "harness"
     },
     {
+      "id": "journal_classification_notices",
+      "path": "/vrooli.vrooli_memory.v1.journal.JournalService/ListClassificationNotices",
+      "method": "POST",
+      "summary": "List classification notices after a consumer checkpoint",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "ListClassificationNoticesRequest"
+      },
+      "response": {
+        "type": "ListClassificationNoticesResponse"
+      }
+    },
+    {
+      "id": "journal_remember",
+      "path": "/vrooli.vrooli_memory.v1.journal.JournalService/Remember",
+      "method": "POST",
+      "summary": "Append one immutable entry per observation",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "RememberRequest"
+      },
+      "response": {
+        "type": "RememberResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or blank observations"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "A request key conflicts with an earlier write"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Source Ledger is unavailable"
+        }
+      ]
+    },
+    {
       "id": "journal_append",
       "path": "/vrooli.vrooli_memory.v1.journal.JournalService/AppendEntry",
       "method": "POST",
@@ -354,6 +399,20 @@
       },
       "response": {
         "type": "RecordAttemptResponse"
+      }
+    },
+    {
+      "id": "learning_observation",
+      "path": "/vrooli.vrooli_memory.v1.learning.LearningService/RecordObservation",
+      "method": "POST",
+      "summary": "Record append-only feedback for an attempt",
+      "description": "",
+      "category": "learning",
+      "request": {
+        "type": "RecordObservationRequest"
+      },
+      "response": {
+        "type": "RecordObservationResponse"
       }
     },
     {

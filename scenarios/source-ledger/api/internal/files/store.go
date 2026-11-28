@@ -23,9 +23,16 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(path, heading, text, to
 CREATE TABLE IF NOT EXISTS vectors (hash TEXT PRIMARY KEY, vec BLOB NOT NULL);
 `
 
-type store struct{ db *sql.DB }
+type indexDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
 
-func openStore(ctx context.Context, db *sql.DB) (*store, error) {
+type store struct{ db indexDB }
+
+func openStore(ctx context.Context, db indexDB) (*store, error) {
 	if _, err := db.ExecContext(ctx, schema); err != nil {
 		return nil, fmt.Errorf("files index schema: %w", err)
 	}

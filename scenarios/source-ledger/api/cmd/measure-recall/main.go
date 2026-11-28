@@ -5,16 +5,15 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
+	"source-ledger/internal/ledgerdb"
 	"source-ledger/internal/recall"
 	vectorcodec "source-ledger/internal/vector"
 
@@ -28,14 +27,15 @@ type fixedEmbedder struct{ vector []float64 }
 func (e fixedEmbedder) EmbedQuery(context.Context, string) ([]float64, error) { return e.vector, nil }
 
 type measurement struct {
-	Scope          string    `json:"scope"`
-	Entries        int       `json:"entries"`
-	Summaries      int       `json:"summaries"`
-	NodeCount      int       `json:"node_count"`
-	SamplesSeconds []float64 `json:"samples_seconds"`
-	P50Seconds     float64   `json:"p50_seconds"`
-	P95Seconds     float64   `json:"p95_seconds"`
-	TopEntryID     string    `json:"top_entry_id"`
+	Scope            string    `json:"scope"`
+	Entries          int       `json:"entries"`
+	Summaries        int       `json:"summaries"`
+	NodeCount        int       `json:"node_count"`
+	SamplesSeconds   []float64 `json:"samples_seconds"`
+	P50Seconds       float64   `json:"p50_seconds"`
+	P95Seconds       float64   `json:"p95_seconds"`
+	TopEntryID       string    `json:"top_entry_id"`
+	LexicalFallbacks int       `json:"lexical_fallbacks"`
 }
 
 func main() {
@@ -55,7 +55,7 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	defer os.Remove(current)
+	defer storage.RemoveFile(current)
 	baseline, err := measure(current, *scope, 1)
 	if err != nil {
 		fatal(fmt.Errorf("baseline measurement: %w", err))
@@ -66,7 +66,7 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	defer os.Remove(scaled)
+	defer storage.RemoveFile(scaled)
 	if err := scaleCorpus(scaled, *scope, *scale); err != nil {
 		fatal(fmt.Errorf("scale corpus: %w", err))
 	}
@@ -88,8 +88,8 @@ func main() {
 }
 
 func copyDatabase(path string) (string, error) {
-	uri := (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String()
-	source, err := sql.Open("sqlite", uri)
+	ctx := context.Background()
+	source, err := ledgerdb.OpenExistingReadOnly(ctx, path)
 	if err != nil {
 		return "", err
 	}
@@ -100,12 +100,12 @@ func copyDatabase(path string) (string, error) {
 	}
 	targetPath := target.Name()
 	if err := target.Close(); err != nil {
-		_ = os.Remove(targetPath)
+		_ = storage.RemoveFile(targetPath)
 		return "", err
 	}
 	// SQLite creates a consistent snapshot including committed WAL pages.
-	if _, err := source.Exec("VACUUM INTO ?", targetPath); err != nil {
-		_ = os.Remove(targetPath)
+	if _, err := source.ExecContext(ctx, "VACUUM INTO ?", targetPath); err != nil {
+		_ = storage.RemoveFile(targetPath)
 		return "", err
 	}
 	return targetPath, nil
@@ -138,6 +138,16 @@ func scaleCorpus(path, scope string, scale int) error {
 	if err := db.Primary().QueryRowContext(ctx, `SELECT em.vector_blob FROM entries e JOIN facet_texts ft ON ft.entry_id=e.id JOIN embeddings em ON em.facet_text_id=ft.id WHERE e.scope=? AND length(em.vector_blob)>0 ORDER BY e.id LIMIT 1`, scope).Scan(&vectorBlob); err != nil {
 		return err
 	}
+	fillerVector, err := vectorcodec.Decode(vectorBlob)
+	if err != nil {
+		return err
+	}
+	// Exercise the same payload size without creating thousands of exact
+	// matches for the fixed query embedding.
+	for i, value := range fillerVector {
+		fillerVector[i] = -value
+	}
+	vectorBlob = vectorcodec.Encode(fillerVector)
 	var facet string
 	if err := db.Primary().QueryRowContext(ctx, `SELECT facet_id FROM entries WHERE scope=? ORDER BY id LIMIT 1`, scope).Scan(&facet); err != nil {
 		return err
@@ -150,7 +160,7 @@ func scaleCorpus(path, scope string, scale int) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for i := count; i < target; i++ {
 		id := fmt.Sprintf("perf-scale:%08d", i)
-		if _, err := tx.ExecContext(ctx, `INSERT INTO entries(id,scope,body,facet_id,kind,created_at) VALUES(?,?,?,?,?,?)`, id, scope, fmt.Sprintf("synthetic recall benchmark entry %d", i), facet, "performance-fixture", now); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO entries(id,scope,body,facet_id,kind,created_at) VALUES(?,?,?,?,?,?)`, id, scope, fmt.Sprintf("synthetic filler entry %d", i), facet, "performance-fixture", now); err != nil {
 			return err
 		}
 		for _, kind := range []string{"topic", "rule", "entities"} {
@@ -173,6 +183,9 @@ func measure(path, scope string, _ int) (measurement, error) {
 	}
 	defer db.Close()
 	ctx := context.Background()
+	if err := database.EnsureSchemas(ctx, db.Primary(), database.SchemaProviderFunc(vectorcodec.Schema)); err != nil {
+		return measurement{}, err
+	}
 	var entries, summaries int
 	if err := db.Primary().QueryRowContext(ctx, `SELECT COUNT(*) FROM entries WHERE scope=?`, scope).Scan(&entries); err != nil {
 		return measurement{}, err
@@ -196,7 +209,27 @@ func measure(path, scope string, _ int) (measurement, error) {
 			return measurement{}, err
 		}
 	}
-	service := recall.NewService(recall.NewSQLiteSource(db.Primary()), fixedEmbedder{vector: vector}, recall.Config{WakeBudget: 256})
+	readDSN, err := storage.SQLiteReadPoolDSNAt(path, storage.SQLiteTuning{})
+	if err != nil {
+		return measurement{}, err
+	}
+	reader, err := database.Connect(ctx, database.Config{
+		Driver: database.DriverSQLite, DSN: readDSN,
+		MaxOpenConns: database.DefaultReadMaxOpenConns,
+		MaxIdleConns: database.DefaultReadMaxOpenConns,
+	})
+	if err != nil {
+		return measurement{}, err
+	}
+	defer reader.Close()
+	generations, err := vectorcodec.NewSQLiteGenerationServing(reader)
+	if err != nil {
+		return measurement{}, err
+	}
+	if _, active, err := generations.ActiveRecipeID(ctx); err != nil || active {
+		return measurement{}, fmt.Errorf("fixed-vector benchmark requires column-based serving, active=%t, lookup error=%v", active, err)
+	}
+	service := recall.NewService(recall.NewSQLiteSource(reader, generations), fixedEmbedder{vector: vector}, recall.Config{})
 	result := measurement{Scope: scope, Entries: entries, Summaries: summaries}
 	for i := 0; i < 5; i++ {
 		start := time.Now()
@@ -205,11 +238,14 @@ func measure(path, scope string, _ int) (measurement, error) {
 			return measurement{}, err
 		}
 		result.SamplesSeconds = append(result.SamplesSeconds, time.Since(start).Seconds())
+		if recalled.Lexical {
+			result.LexicalFallbacks++
+		}
 		if i == 0 && len(recalled.Hits) > 0 {
 			result.TopEntryID = recalled.Hits[0].Node.EntryID
 		}
 	}
-	result.NodeCount, err = countNodes(ctx, db.Primary(), scope)
+	result.NodeCount, err = countNodes(ctx, db, scope)
 	if err != nil {
 		return measurement{}, err
 	}
@@ -220,7 +256,7 @@ func measure(path, scope string, _ int) (measurement, error) {
 	return result, nil
 }
 
-func countNodes(ctx context.Context, db *sql.DB, scope string) (int, error) {
+func countNodes(ctx context.Context, db *database.RoutedDB, scope string) (int, error) {
 	var entries, summaries int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM entries WHERE scope=?`, scope).Scan(&entries); err != nil {
 		return 0, err

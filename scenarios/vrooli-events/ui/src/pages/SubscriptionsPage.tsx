@@ -8,9 +8,9 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorAlert } from "../components/ErrorAlert";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
-import { StatusBadge } from "../components/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import {
   fetchSubscriptions,
   createSubscription,
@@ -83,7 +83,7 @@ export function SubscriptionsPage() {
   return (
     <div className="space-y-4" data-testid="subscriptions-page">
       <PageHeader
-        icon={Bell}
+        leading={<Bell className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Subscriptions"
         actions={
           <div className="flex gap-2">
@@ -196,7 +196,7 @@ export function SubscriptionsPage() {
                       {sub.delivery_target}
                     </td>
                     <td className="px-3 py-2">
-                      <StatusBadge active={sub.enabled} />
+                      <StatusBadge tone={sub.enabled ? "success" : "neutral"}>{sub.enabled ? "On" : "Off"}</StatusBadge>
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex gap-2">

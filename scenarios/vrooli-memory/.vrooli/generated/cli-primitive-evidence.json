@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "ea97c60872ab42bbc07af58b6183df8dce395a62fcd6701fa791403e7c41680f",
+  "manifest_hash": "47418642e96e0ff3e679268aca3acafc265072cc87eaca4395a7b1b6ab4c83ec",
   "commands": [
     {
       "path": "facets candidates",
@@ -155,6 +155,14 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "journal notices",
+      "group": "journal",
+      "command": "notices",
+      "binding": "JournalService.ListClassificationNotices",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "journal retry-classifications",
       "group": "journal",
       "command": "retry-classifications",
@@ -217,6 +225,21 @@
       "binding": "RecallService.Wake",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "recall zoom",
+      "group": "recall",
+      "command": "zoom",
+      "binding": "RecallService.Zoom",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "remember",
+      "command": "remember",
+      "binding": "JournalService.Remember",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "rules create",

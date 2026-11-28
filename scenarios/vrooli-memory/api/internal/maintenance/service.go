@@ -30,12 +30,11 @@ const (
 	// Compaction is the only maintenance step whose cost scales with the
 	// backlog rather than with the number of runtimes, so it needs its own
 	// bound and its own timeout. Zero disables scheduled compaction.
-	CompactLimitEnv = "VROOLI_MEMORY_MAINTENANCE_COMPACT_LIMIT"
-	// The source-ledger API uses the shared api-core 30-second write timeout.
-	// A small default keeps one synchronous bounded pass inside that transport
-	// envelope while callers may raise it explicitly when they own a longer
-	// request path.
+	CompactLimitEnv     = "VROOLI_MEMORY_MAINTENANCE_COMPACT_LIMIT"
 	DefaultCompactLimit = 2
+	// Keep admission and restart responsive even when a scheduled run has
+	// a large catch-up budget. Source Ledger commits each cluster separately.
+	compactRequestLimit = 2
 	CompactTimeout      = 30 * time.Minute
 	RetryInterval       = 5 * time.Minute
 	RetryPassTimeout    = 60 * time.Second
@@ -345,7 +344,7 @@ func (s *Service) compact(ctx context.Context, runID string) (Compaction, error)
 	out := Compaction{Status: "completed", Scopes: make([]CompactionScope, 0, len(ordered))}
 	for _, scope := range ordered {
 		runCtx, cancel := context.WithTimeout(ctx, CompactTimeout)
-		result, runErr := s.compactor.RunBounded(runCtx, scope, s.compactLimit)
+		result, runErr := s.compactScope(runCtx, scope)
 		cancel()
 		item := CompactionScope{
 			Scope:          scope,
@@ -376,6 +375,29 @@ func (s *Service) compact(ctx context.Context, runID string) (Compaction, error)
 		out.Scopes = append(out.Scopes, item)
 	}
 	return out, s.store.PutCompaction(ctx, runID, out)
+}
+
+func (s *Service) compactScope(ctx context.Context, scope string) (CompactionResult, error) {
+	var result CompactionResult
+	for remaining := s.compactLimit; remaining > 0; remaining = s.compactLimit - result.CompactedCount {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		next, err := s.compactor.RunBounded(ctx, scope, min(remaining, compactRequestLimit))
+		if err != nil {
+			return result, err
+		}
+		if result.CompactedCount == 0 {
+			result.EligibleFrontierBefore = next.EligibleFrontierBefore
+		}
+		result.CompactedCount += next.CompactedCount
+		result.EligibleFrontierAfter = next.EligibleFrontierAfter
+		result.Target = next.Target
+		if next.CompactedCount == 0 || next.EligibleFrontierAfter <= next.Target {
+			break
+		}
+	}
+	return result, nil
 }
 
 func (s *Service) Latest(ctx context.Context) (Run, error) { return s.store.Latest(ctx) }

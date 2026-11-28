@@ -3,7 +3,6 @@ package files
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -90,7 +89,7 @@ type Service struct {
 
 // NewService opens the index in db (a dedicated SQLite cache database) for
 // the given corpus → root map. embedder may be nil.
-func NewService(ctx context.Context, db *sql.DB, roots map[string]string, embedder Embedder, logger *log.Logger) (*Service, error) {
+func NewService(ctx context.Context, db indexDB, roots map[string]string, embedder Embedder, logger *log.Logger) (*Service, error) {
 	st, err := openStore(ctx, db)
 	if err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ const UnclassifiedFacet = "unclassified"
 type (
 	Entry struct {
 		ID, Scope, Body, FacetID, Kind, ImportKey string
+		Evidence, RoutingHint                      string
 		ExpectedLatest                            *string
 		RequestKey                                string
 		Existing                                  bool
@@ -34,3 +35,8 @@ type (
 		Vector                       []float64
 	}
 )
+
+func (e Entry) matchesReplay(existing Entry) bool {
+	return e.Body == existing.Body && e.Kind == existing.Kind &&
+		e.Evidence == existing.Evidence && e.RoutingHint == existing.RoutingHint
+}

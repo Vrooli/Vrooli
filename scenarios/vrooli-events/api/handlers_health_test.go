@@ -148,11 +148,28 @@ func TestHealthEndpoint_SubscriberCount(t *testing.T) {
 	}
 
 	body := decodeJSON[map[string]any](t, resp)
-	if body["subscribers"] != float64(5) {
-		t.Fatalf("expected subscribers=5, got %v", body["subscribers"])
+	metrics := body["metrics"].(map[string]any)
+	if metrics["subscribers"] != float64(5) {
+		t.Fatalf("expected subscribers=5, got %v", metrics["subscribers"])
 	}
-	storeData := body["store"].(map[string]any)
-	if storeData["totalEvents"] != float64(42) {
-		t.Fatalf("expected totalEvents=42, got %v", storeData["totalEvents"])
+	if metrics["totalEvents"] != float64(42) {
+		t.Fatalf("expected totalEvents=42, got %v", metrics["totalEvents"])
+	}
+}
+
+// The control plane rejects a start whose /health does not echo the identity it
+// injected, so the handler must serve it.
+func TestHealth_ServesTheLifecycleStartIdentity(t *testing.T) {
+	t.Setenv("VROOLI_START_OPERATION_ID", "start-op-test")
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
+	_, ts := newTestServer(t)
+	resp, err := http.Get(ts.URL + "/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body := decodeJSON[map[string]any](t, resp)
+	if body["start_operation_id"] != "start-op-test" || body["build_identity"] != "sha256:test-build" {
+		t.Fatalf("identity = start %v build %v", body["start_operation_id"], body["build_identity"])
 	}
 }

@@ -67,9 +67,12 @@ Sources: `path:scenarios/source-ledger/api/internal/inference/client.go` and
 ## Federation
 
 1. Source Ledger registers the `source-ledger.scopes` descriptor at boot.
-2. Search Hub forwards a requested scope as a facet in the recall request.
+2. Search Hub forwards the original query and requested scope to the recall
+   engine that also backs Vrooli Memory. Category phrases influence memory
+   ranking within that query.
 3. Empty scope defaults to agent-memory; a named scope selects that ledger.
 4. Creating a scope does not add another provider or duplicate default recall.
+5. Search hits carry the node ID and scope for inspecting evidence with zoom.
 
 ## Architecture Maturity
 

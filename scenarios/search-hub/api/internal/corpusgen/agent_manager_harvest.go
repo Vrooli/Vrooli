@@ -1,15 +1,21 @@
 package corpusgen
 
 import (
+	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/servicetoken"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -52,59 +58,33 @@ type AgentManagerMessageDeletion struct {
 // AgentManagerConnectReader uses the generated event RPC. A configured client
 // carries the scenario's authentication and transport policy.
 type AgentManagerConnectReader struct {
-	BaseURL string
-	Client  apiconnect.AgentManagerServiceClient
+	BaseURL    string
+	Client     apiconnect.AgentManagerServiceClient
+	HTTPClient *http.Client
+	Identity   *servicetoken.Tokens
+}
+
+const (
+	agentManagerSourcePrincipal          = "search-hub"
+	agentManagerSourceAudience           = "scenario-authenticator:agent-manager-code-task-source-identity"
+	agentManagerSourceScope              = "agent-manager:code-task-source-identity.read"
+	agentManagerSourceCredentialIdentity = "scenario-authenticator/service-principal/search-hub/agent-manager-code-task-source-identity"
+	agentManagerSourceReceiptPath        = "/api/v1/code-task/source-identity-receipts"
+)
+
+// AgentManagerCodeTaskSourceVerifier proves that a candidate names one exact
+// operator-authored message in a completed run through the metadata-only owner
+// receipt. Search Hub never fetches the source message body or raw sender ID.
+type AgentManagerCodeTaskSourceVerifier struct {
+	Receipts AgentManagerCodeTaskSourceIdentityReceiptReader
 }
 
 type AgentManagerCompletedRunReader interface {
 	GetRun(context.Context, string) (*domain.Run, error)
 }
 
-type AgentManagerCodeTaskEventReader interface {
-	GetCodeTaskSourceMessage(context.Context, CodeTaskSourceRef) (AgentManagerEvent, error)
-	IsCodeTaskSourceDeleted(context.Context, string, string) (bool, error)
-}
-
-// AgentManagerCodeTaskSourceVerifier proves that a candidate names one exact
-// operator-authored message in a completed run. Message bodies are read only
-// from the selected completed run, hashed in memory, and never returned or
-// persisted by this verifier.
-type AgentManagerCodeTaskSourceVerifier struct {
-	Runs   AgentManagerCompletedRunReader
-	Events AgentManagerCodeTaskEventReader
-}
-
-func (v AgentManagerCodeTaskSourceVerifier) VerifyCodeTaskSource(ctx context.Context, source CodeTaskSourceRef) error {
-	if v.Runs == nil || v.Events == nil {
-		return fmt.Errorf("Agent Manager completed-run and event owners are required")
-	}
-	run, err := v.Runs.GetRun(ctx, source.RunID)
-	if err != nil {
-		return fmt.Errorf("read Agent Manager run owner: %w", err)
-	}
-	if run == nil || run.GetId() != source.RunID || run.GetStatus() != domain.RunStatus_RUN_STATUS_COMPLETE || source.RunStatus != "complete" {
-		return fmt.Errorf("source is not from the exact completed Agent Manager run")
-	}
-	event, err := v.Events.GetCodeTaskSourceMessage(ctx, source)
-	if err != nil {
-		return fmt.Errorf("read exact Agent Manager source message: %w", err)
-	}
-	deleted, err := v.Events.IsCodeTaskSourceDeleted(ctx, source.RunID, source.EventID)
-	if err != nil {
-		return fmt.Errorf("verify Agent Manager source deletion state: %w", err)
-	}
-	if deleted || event.ID != source.EventID || event.RunID != source.RunID || event.Sequence < 0 || uint64(event.Sequence) != source.Sequence || event.Message == nil {
-		return fmt.Errorf("exact Agent Manager source event is missing, deleted, or mismatched")
-	}
-	message := event.Message
-	if message.Role != "user" || message.Source != "operator" || message.EvidenceOnly || message.ConversationID != source.ConversationID || source.MessageRole != "user" || source.MessageSource != "operator" || source.ActorID != "operator" {
-		return fmt.Errorf("Agent Manager source is not the exact operator-authored user message")
-	}
-	digest := sha256.Sum256([]byte(message.Content))
-	if strings.TrimSpace(message.Content) == "" || hex.EncodeToString(digest[:]) != strings.ToLower(source.MessageSHA256) {
-		return fmt.Errorf("Agent Manager source body does not match its pinned SHA-256")
-	}
-	return nil
+func (v AgentManagerCodeTaskSourceVerifier) VerifyCodeTaskSource(ctx context.Context, binding CodeTaskSourceIdentityBinding) error {
+	return (AgentManagerCodeTaskSourceIdentityVerifier{Receipts: v.Receipts}).VerifyCodeTaskActorIdentity(ctx, binding)
 }
 
 func NewAgentManagerConnectReader(baseURL string, client *http.Client) AgentManagerConnectReader {
@@ -112,7 +92,96 @@ func NewAgentManagerConnectReader(baseURL string, client *http.Client) AgentMana
 		client = http.DefaultClient
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
-	return AgentManagerConnectReader{BaseURL: baseURL, Client: apiconnect.NewAgentManagerServiceClient(client, baseURL)}
+	return AgentManagerConnectReader{BaseURL: baseURL, Client: apiconnect.NewAgentManagerServiceClient(client, baseURL), HTTPClient: client}
+}
+
+// NewDefaultAgentManagerSourceIdentityReader creates the dedicated Search Hub
+// service identity. It fails closed until Credential Authority has an
+// operator-issued credential for this exact owner scope.
+func NewDefaultAgentManagerSourceIdentityReader() AgentManagerConnectReader {
+	transport := &http.Transport{DialContext: (&net.Dialer{Timeout: 5 * time.Second, KeepAlive: 30 * time.Second}).DialContext, MaxIdleConns: 8, IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: 5 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second, Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	tokens := servicetoken.New(servicetoken.Config{
+		Name: "Search Hub Agent Manager source identity",
+		Credential: func(context.Context) (string, error) {
+			authority, err := credentialauthority.Default()
+			if err != nil {
+				return "", err
+			}
+			identity, err := credentialauthority.ParseIdentity(agentManagerSourceCredentialIdentity)
+			if err != nil {
+				return "", err
+			}
+			return authority.Require(identity, "credential")
+		},
+		Expect:        servicetoken.ExpectIdentity(agentManagerSourcePrincipal, agentManagerSourceAudience, agentManagerSourceScope),
+		RefreshMargin: 30 * time.Second,
+		MinRemaining:  30 * time.Second,
+	})
+	return AgentManagerConnectReader{HTTPClient: client, Identity: tokens}
+}
+
+// NewDefaultAgentManagerCodeTaskSourceOwners returns the two Search Hub owner
+// adapters backed by the same authenticated receipt client. Other corpus
+// owners remain independently required by CodeTaskEvidenceOwnerAdapter.
+func NewDefaultAgentManagerCodeTaskSourceOwners() (CodeTaskSourceEvidenceOwner, CodeTaskSourceIdentityEvidenceOwner) {
+	reader := NewDefaultAgentManagerSourceIdentityReader()
+	return AgentManagerCodeTaskSourceVerifier{Receipts: reader}, AgentManagerCodeTaskSourceIdentityVerifier{Receipts: reader}
+}
+
+// GetCodeTaskSourceIdentityReceipt calls Agent Manager's body-free source
+// identity owner route. It sends only typed identity hashes/references, mints
+// its own exact Search Hub service token, and never forwards caller identity.
+func (r AgentManagerConnectReader) GetCodeTaskSourceIdentityReceipt(ctx context.Context, binding AgentManagerCodeTaskSourceIdentityBinding) (AgentManagerCodeTaskSourceIdentityReceipt, error) {
+	var receipt AgentManagerCodeTaskSourceIdentityReceipt
+	if r.Identity == nil {
+		return receipt, fmt.Errorf("Agent Manager source identity service identity is unavailable")
+	}
+	token, err := r.Identity.Token(ctx)
+	if err != nil {
+		return receipt, fmt.Errorf("Agent Manager source identity service token unavailable")
+	}
+	base := strings.TrimRight(r.BaseURL, "/")
+	if base == "" {
+		base, err = discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+	}
+	if err != nil || strings.TrimSpace(base) == "" {
+		return receipt, fmt.Errorf("Agent Manager owner URL is unavailable")
+	}
+	encoded, err := json.Marshal(binding)
+	if err != nil {
+		return receipt, fmt.Errorf("encode source identity binding: %w", err)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, base+agentManagerSourceReceiptPath, bytes.NewReader(encoded))
+	if err != nil {
+		return receipt, fmt.Errorf("construct source identity owner request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Authorization", "Bearer "+token)
+	client := r.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	clientCopy := *client
+	clientCopy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	response, err := clientCopy.Do(request)
+	if err != nil {
+		return receipt, fmt.Errorf("request Agent Manager source identity owner: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return receipt, fmt.Errorf("Agent Manager source identity owner refused with status %d", response.StatusCode)
+	}
+	decoder := json.NewDecoder(io.LimitReader(response.Body, 16*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&receipt); err != nil {
+		return AgentManagerCodeTaskSourceIdentityReceipt{}, fmt.Errorf("decode Agent Manager source identity receipt: %w", err)
+	}
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return AgentManagerCodeTaskSourceIdentityReceipt{}, fmt.Errorf("Agent Manager source identity receipt must be one JSON object")
+	}
+	return receipt, nil
 }
 
 func (r AgentManagerConnectReader) GetRunEvents(ctx context.Context, runID string, after int64, limit int) (AgentManagerEventPage, error) {
@@ -162,71 +231,6 @@ func (r AgentManagerConnectReader) GetRun(ctx context.Context, runID string) (*d
 		return nil, fmt.Errorf("Agent Manager returned a mismatched run identity")
 	}
 	return response.Msg.GetRun(), nil
-}
-
-func (r AgentManagerConnectReader) GetCodeTaskSourceMessage(ctx context.Context, source CodeTaskSourceRef) (AgentManagerEvent, error) {
-	if r.Client == nil || strings.TrimSpace(source.RunID) == "" || strings.TrimSpace(source.EventID) == "" || source.Sequence > uint64(1<<63-1) {
-		return AgentManagerEvent{}, fmt.Errorf("Agent Manager Connect client and exact source identity are required")
-	}
-	after := int64(source.Sequence) - 1
-	limit := int32(1)
-	response, err := r.Client.GetRunEvents(ctx, connect.NewRequest(&api.GetRunEventsRequest{
-		RunId: source.RunID, AfterSequence: &after, Limit: &limit,
-		EventTypes: []domain.RunEventType{domain.RunEventType_RUN_EVENT_TYPE_MESSAGE},
-	}))
-	if err != nil {
-		return AgentManagerEvent{}, fmt.Errorf("request exact Agent Manager source message: %w", err)
-	}
-	if response == nil || response.Msg == nil || len(response.Msg.GetEvents()) != 1 {
-		return AgentManagerEvent{}, fmt.Errorf("Agent Manager did not return one exact source message")
-	}
-	event := response.Msg.GetEvents()[0]
-	if event.GetId() != source.EventID || event.GetRunId() != source.RunID || event.GetSequence() != int64(source.Sequence) || event.GetEventType() != domain.RunEventType_RUN_EVENT_TYPE_MESSAGE || event.GetMessage() == nil {
-		return AgentManagerEvent{}, fmt.Errorf("Agent Manager source message identity mismatch")
-	}
-	message := event.GetMessage()
-	return AgentManagerEvent{ID: event.GetId(), RunID: event.GetRunId(), Sequence: event.GetSequence(), EventType: event.GetEventType().String(), Message: &AgentManagerMessage{
-		Role: message.GetRole(), Source: message.GetSource(), Content: message.GetContent(), ConversationID: message.GetConversationId(), EvidenceOnly: message.GetEvidenceOnly(),
-	}}, nil
-}
-
-func (r AgentManagerConnectReader) IsCodeTaskSourceDeleted(ctx context.Context, runID, eventID string) (bool, error) {
-	if r.Client == nil || strings.TrimSpace(runID) == "" || strings.TrimSpace(eventID) == "" {
-		return false, fmt.Errorf("Agent Manager Connect client and source identity are required")
-	}
-	const pageSize = 1000
-	const maxDeletionEvents = 20000
-	after := int64(-1)
-	count := 0
-	for {
-		limit := int32(pageSize)
-		response, err := r.Client.GetRunEvents(ctx, connect.NewRequest(&api.GetRunEventsRequest{
-			RunId: runID, AfterSequence: &after, Limit: &limit,
-			EventTypes: []domain.RunEventType{domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED},
-		}))
-		if err != nil {
-			return false, fmt.Errorf("request Agent Manager source deletion metadata: %w", err)
-		}
-		if response == nil || response.Msg == nil || len(response.Msg.GetEvents()) == 0 && response.Msg.GetHasMore() {
-			return false, fmt.Errorf("Agent Manager returned an invalid source deletion page")
-		}
-		for _, event := range response.Msg.GetEvents() {
-			if event.GetRunId() != runID || event.GetId() == "" || event.GetSequence() <= after || event.GetEventType() != domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED || event.GetMessageDeleted() == nil {
-				return false, fmt.Errorf("Agent Manager returned invalid source deletion identity")
-			}
-			after = event.GetSequence()
-			count++
-			if count > maxDeletionEvents {
-				return false, fmt.Errorf("Agent Manager run exceeds the %d-deletion verification bound", maxDeletionEvents)
-			}
-			if event.GetMessageDeleted().GetTargetEventId() == eventID {
-				return true, nil
-			}
-		}
-		if !response.Msg.GetHasMore() {
-			return false, nil
-		}
-	}
 }
 
 // AgentManagerCallerRecord retains the original event and conversation

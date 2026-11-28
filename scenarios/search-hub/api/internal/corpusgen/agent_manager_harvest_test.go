@@ -2,14 +2,15 @@ package corpusgen
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/servicetoken"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -59,6 +60,125 @@ func TestHarvestAgentManagerCallersRetainsOnlyRealOperatorUserRecords(t *testing
 	}
 	if got[0].RunID != run || got[0].EventID != "e1" || got[0].Sequence != 1 || got[0].ConversationID != "conv-1" || got[0].MessageRole != "user" || got[0].MessageSource != "operator" || got[0].Query != "Where is retry handled?" {
 		t.Fatalf("harvest lost source identity or caller role: %+v", got[0])
+	}
+}
+
+func TestAgentManagerConnectReaderUsesBodyFreeIdentityReceiptOwnerRoute(t *testing.T) {
+	h := strings.Repeat("a", 64)
+	binding := AgentManagerCodeTaskSourceIdentityBinding{Purpose: "local-coding-benchmark-fixture/v1", RunID: "00000000-0000-4000-8000-000000000001", EventID: "00000000-0000-4000-8000-000000000002", Sequence: 8, ConversationID: "00000000-0000-4000-8000-000000000003", MessageSHA256: h, TaskSpecSHA256: h, RepositoryID: "vrooli", RepositoryRevision: strings.Repeat("b", 40), RepositoryTreeSHA256: strings.Repeat("c", 64)}
+	want := AgentManagerCodeTaskSourceIdentityReceipt{Binding: binding, ActorSubjectSHA256: strings.Repeat("d", 64), ActorSubjectDigestVersion: "agent-manager-source-author-hmac/v1", ActorIdentityReceiptID: "am-source-identity-v1:" + binding.EventID, ActorIdentityReceiptSHA256: strings.Repeat("e", 64)}
+	var received AgentManagerCodeTaskSourceIdentityBinding
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/code-task/source-identity-receipts" {
+			t.Errorf("request=%s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer fixture-service-token" {
+			t.Errorf("authorization=%q", got)
+		}
+		if r.Header.Get("X-Agent-Identity-Token") != "" {
+			t.Error("forwarded caller identity")
+		}
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&received); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	}))
+	defer server.Close()
+	reader := NewAgentManagerConnectReader(server.URL, server.Client())
+	reader.Identity = fixtureSearchHubAgentManagerTokens()
+	got, err := reader.GetCodeTaskSourceIdentityReceipt(context.Background(), binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("receipt=%+v want=%+v", got, want)
+	}
+	if received != binding {
+		t.Fatalf("request binding=%+v want=%+v", received, binding)
+	}
+}
+
+func fixtureSearchHubAgentManagerTokens() *servicetoken.Tokens {
+	return servicetoken.New(servicetoken.Config{Credential: func(context.Context) (string, error) { return "fixture-credential", nil }, Expect: servicetoken.ExpectIdentity(agentManagerSourcePrincipal, agentManagerSourceAudience, agentManagerSourceScope)}, servicetoken.WithExchanger(func(context.Context, string) (servicetoken.Exchanged, error) {
+		return servicetoken.Exchanged{AccessToken: "fixture-service-token", ExpiresAt: time.Now().Add(time.Hour), Subject: agentManagerSourcePrincipal, Audience: agentManagerSourceAudience, Scopes: []string{agentManagerSourceScope}}, nil
+	}))
+}
+
+func TestAgentManagerIdentityReceiptClientFailsClosedWithoutIdentityAndOnOwnerErrors(t *testing.T) {
+	binding := AgentManagerCodeTaskSourceIdentityBinding{Purpose: "local-coding-benchmark-fixture/v1", RunID: "run-1", EventID: "event-1", Sequence: 7, ConversationID: "conv-1", MessageSHA256: strings.Repeat("a", 64), TaskSpecSHA256: strings.Repeat("a", 64), RepositoryID: "vrooli", RepositoryRevision: strings.Repeat("b", 40), RepositoryTreeSHA256: strings.Repeat("c", 64)}
+	called := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called++
+		http.Error(w, "private owner detail", http.StatusUnprocessableEntity)
+	}))
+	defer server.Close()
+	reader := NewAgentManagerConnectReader(server.URL, server.Client())
+	if _, err := reader.GetCodeTaskSourceIdentityReceipt(context.Background(), binding); err == nil || called != 0 {
+		t.Fatalf("unconfigured identity err=%v calls=%d", err, called)
+	}
+	reader.Identity = fixtureSearchHubAgentManagerTokens()
+	if _, err := reader.GetCodeTaskSourceIdentityReceipt(context.Background(), binding); err == nil || strings.Contains(err.Error(), "private owner detail") || called != 1 {
+		t.Fatalf("owner refusal err=%v calls=%d", err, called)
+	}
+}
+
+func TestDefaultAgentManagerSourceOwnersUseAuthenticatedReceiptRoute(t *testing.T) {
+	source, identity := NewDefaultAgentManagerCodeTaskSourceOwners()
+	if nilCodeTaskOwner(source) || nilCodeTaskOwner(identity) {
+		t.Fatal("default Agent Manager source owners must be constructed")
+	}
+	clients := CodeTaskEvidenceOwnerClients{Source: source, SourceIdentity: identity}
+	if _, err := NewCodeTaskEvidenceOwnerAdapter(clients); err == nil {
+		t.Fatal("partial production owner set must remain unavailable until all owners are configured")
+	}
+}
+
+func TestAuthenticatedHTTPReceiptRoundTripRejectsMismatchedTaskAndRepo(t *testing.T) {
+	candidate := codeTaskCandidateFixture(982, "single-file-change")
+	binding := CodeTaskSourceIdentityBinding{Source: candidate.Source, TaskSpecSHA256: candidate.TaskSpecSHA256, Repository: candidate.Repository}
+	want := AgentManagerCodeTaskSourceIdentityBinding{Purpose: "local-coding-benchmark-fixture/v1", RunID: candidate.Source.RunID, EventID: candidate.Source.EventID, Sequence: candidate.Source.Sequence, ConversationID: candidate.Source.ConversationID, MessageSHA256: candidate.Source.MessageSHA256, TaskSpecSHA256: candidate.TaskSpecSHA256, RepositoryID: candidate.Repository.RepositoryID, RepositoryRevision: candidate.Repository.Revision, RepositoryTreeSHA256: candidate.Repository.TreeSHA256}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != agentManagerSourceReceiptPath {
+			t.Errorf("route=%s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer fixture-service-token" {
+			t.Errorf("service authorization missing")
+		}
+		if r.Header.Get("X-Agent-Identity-Token") != "" || r.Header.Get("Cookie") != "" {
+			t.Error("caller identity forwarded")
+		}
+		var got AgentManagerCodeTaskSourceIdentityBinding
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if got != want {
+			t.Errorf("request binding=%+v want %+v", got, want)
+		}
+		_ = json.NewEncoder(w).Encode(AgentManagerCodeTaskSourceIdentityReceipt{Binding: want, ActorSubjectSHA256: candidate.Source.ActorSubjectSHA256, ActorSubjectDigestVersion: candidate.Source.ActorSubjectDigestVersion, ActorIdentityReceiptID: candidate.Source.ActorIdentityReceiptID, ActorIdentityReceiptSHA256: candidate.Source.ActorIdentityReceiptSHA256})
+	}))
+	defer server.Close()
+	reader := NewAgentManagerConnectReader(server.URL, server.Client())
+	reader.Identity = fixtureSearchHubAgentManagerTokens()
+	verifier := AgentManagerCodeTaskSourceIdentityVerifier{Receipts: reader}
+	if err := verifier.VerifyCodeTaskActorIdentity(context.Background(), binding); err != nil {
+		t.Fatalf("authenticated receipt rejected: %v", err)
+	}
+	badServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer fixture-service-token" {
+			t.Errorf("service authorization missing")
+		}
+		wrong := want
+		wrong.RepositoryRevision = strings.Repeat("f", 40)
+		_ = json.NewEncoder(w).Encode(AgentManagerCodeTaskSourceIdentityReceipt{Binding: wrong, ActorSubjectSHA256: candidate.Source.ActorSubjectSHA256, ActorSubjectDigestVersion: candidate.Source.ActorSubjectDigestVersion, ActorIdentityReceiptID: candidate.Source.ActorIdentityReceiptID, ActorIdentityReceiptSHA256: candidate.Source.ActorIdentityReceiptSHA256})
+	}))
+	defer badServer.Close()
+	reader.BaseURL = badServer.URL
+	verifier.Receipts = reader
+	if err := verifier.VerifyCodeTaskActorIdentity(context.Background(), binding); err == nil {
+		t.Fatal("accepted owner receipt for a different repository revision")
 	}
 }
 
@@ -164,38 +284,19 @@ func TestAgentManagerConnectReaderHarvestsDeletionFilteredCaller(t *testing.T) {
 }
 
 func TestAgentManagerCodeTaskSourceVerifierRequiresCompletedExactOperatorEvent(t *testing.T) {
-	const (
-		runID          = "123e4567-e89b-12d3-a456-426614174030"
-		eventID        = "123e4567-e89b-12d3-a456-426614174031"
-		conversationID = "123e4567-e89b-12d3-a456-426614174032"
-		content        = "Fix the parser's empty input handling and add regression tests."
-	)
-	digest := sha256.Sum256([]byte(content))
-	fixture := &agentManagerEventsFixture{
-		sourceMessages: map[int64]*api.GetRunEventsResponse{
-			6: {Events: []*domain.RunEvent{runEvent(eventID, runID, 7, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: content, ConversationId: conversationID}})}},
-		},
-		deletionPages: map[int64]*api.GetRunEventsResponse{-1: {}},
-		runID:         runID, status: domain.RunStatus_RUN_STATUS_COMPLETE,
+	candidate := codeTaskCandidateFixture(930, "single-file-change")
+	binding := CodeTaskSourceIdentityBinding{Source: candidate.Source, TaskSpecSHA256: candidate.TaskSpecSHA256, Repository: candidate.Repository}
+	want := AgentManagerCodeTaskSourceIdentityBinding{Purpose: "local-coding-benchmark-fixture/v1", RunID: candidate.Source.RunID, EventID: candidate.Source.EventID, Sequence: candidate.Source.Sequence, ConversationID: candidate.Source.ConversationID, MessageSHA256: candidate.Source.MessageSHA256, TaskSpecSHA256: candidate.TaskSpecSHA256, RepositoryID: candidate.Repository.RepositoryID, RepositoryRevision: candidate.Repository.Revision, RepositoryTreeSHA256: candidate.Repository.TreeSHA256}
+	reader := &sourceIdentityReceiptFake{receipt: AgentManagerCodeTaskSourceIdentityReceipt{Binding: want, ActorSubjectSHA256: candidate.Source.ActorSubjectSHA256, ActorSubjectDigestVersion: candidate.Source.ActorSubjectDigestVersion, ActorIdentityReceiptID: candidate.Source.ActorIdentityReceiptID, ActorIdentityReceiptSHA256: candidate.Source.ActorIdentityReceiptSHA256}}
+	verifier := AgentManagerCodeTaskSourceVerifier{Receipts: reader}
+	if err := verifier.VerifyCodeTaskSource(context.Background(), binding); err != nil {
+		t.Fatalf("completed owner-bound source rejected: %v", err)
 	}
-	reader := serveAgentManagerEventFixture(t, fixture)
-	verifier := AgentManagerCodeTaskSourceVerifier{Runs: reader, Events: reader}
-	source := CodeTaskSourceRef{
-		RunID: runID, EventID: eventID, Sequence: 7, ConversationID: conversationID,
-		RunStatus: "complete", MessageRole: "user", MessageSource: "operator", ActorID: "operator",
-		MessageSHA256: hex.EncodeToString(digest[:]),
-	}
-	if err := verifier.VerifyCodeTaskSource(context.Background(), source); err != nil {
-		t.Fatalf("completed operator task source rejected: %v", err)
-	}
-	wrongDigest := source
-	wrongDigest.MessageSHA256 = strings.Repeat("0", 64)
-	if err := verifier.VerifyCodeTaskSource(context.Background(), wrongDigest); err == nil || !strings.Contains(err.Error(), "SHA-256") {
-		t.Fatalf("mismatched source digest accepted: %v", err)
-	}
-	fixture.status = domain.RunStatus_RUN_STATUS_RUNNING
-	if err := verifier.VerifyCodeTaskSource(context.Background(), source); err == nil || !strings.Contains(err.Error(), "completed") {
-		t.Fatalf("active run source accepted: %v", err)
+	wrong := reader.receipt
+	wrong.Binding.RepositoryRevision = strings.Repeat("f", 40)
+	reader.receipt = wrong
+	if err := verifier.VerifyCodeTaskSource(context.Background(), binding); err == nil {
+		t.Fatal("source verifier accepted a receipt for a different repository revision")
 	}
 }
 

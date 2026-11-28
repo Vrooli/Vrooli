@@ -11,14 +11,16 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"source-ledger/internal/journal"
+	"source-ledger/internal/ledgerdb"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 )
@@ -38,19 +40,30 @@ func main() {
 	if _, err := os.Stat(*dbPath); err != nil {
 		fatal(err)
 	}
-	dsn, err := storage.SQLiteDSNAt(*dbPath, storage.SQLiteTuning{})
+	path, err := filepath.Abs(*dbPath)
 	if err != nil {
 		fatal(err)
 	}
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		fatal(err)
+	ctx := context.Background()
+	var db *database.RoutedDB
+	if *apply {
+		dsn, err := storage.SQLiteDSNAt(path, storage.SQLiteTuning{})
+		if err != nil {
+			fatal(err)
+		}
+		db, err = database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: dsn + "&mode=rw", MaxOpenConns: 1, MaxIdleConns: 1})
+		if err != nil {
+			fatal(err)
+		}
+	} else {
+		db, err = ledgerdb.OpenExistingReadOnly(ctx, path)
+		if err != nil {
+			fatal(err)
+		}
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(1)
-	ctx := context.Background()
 
-	planned, err := journal.MeasureRedundantFacetViews(ctx, db)
+	planned, err := journal.MeasureRedundantFacetViews(ctx, db.Primary())
 	if err != nil {
 		fatal(err)
 	}
@@ -60,7 +73,7 @@ func main() {
 		Removed *journal.RedundantFacetViews `json:"removed,omitempty"`
 	}{Applied: *apply, Planned: planned}
 	if *apply {
-		removed, err := journal.PruneRedundantFacetViews(ctx, db, *batch)
+		removed, err := journal.PruneRedundantFacetViews(ctx, db.Primary(), *batch)
 		report.Removed = &removed
 		if err != nil {
 			emit(report)

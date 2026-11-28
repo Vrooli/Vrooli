@@ -60,8 +60,46 @@ This document distinguishes durable source material from derived ledger state.
 
 ## Storage Overview
 
-SQLite is the planned local authority, resolved through the scenario storage
-contract and kept separate from consumer harness state.
+Source Ledger owns two SQLite files. The data-class `source-ledger.db`
+holds the authoritative journal and its derived indexes. The cache-class
+`files-index.db` holds FTS chunks and embeddings derived from the research
+home. The manifest declares each file and both SQLite sidecars. The recall
+benchmark reads a committed source snapshot and uses disposable copies
+for synthetic entries.
+
+Both writers initialize incremental auto-vacuum before creating schema in a
+new file. Every 15 minutes the owner runs a bounded maintenance pass on each
+file, measuring the freelist and the database and WAL lengths. It returns free
+pages above the shared threshold while keeping a reserve for reuse. SQLite
+checkpoints the WAL, and the maintenance pass reports contention as a
+deferral. Journal retention and compaction govern records separately.
+
+The journal stores append positions as explicit integer keys. On the first
+boot of an older database, one transaction copies each existing rowid to a
+durable position, including gaps, and validates the original high-water
+mark. Subsequent appends write the entry, position, and high-water mark
+together. Cursor lookups and ties between entries with the same timestamp
+use those positions. The migration preserves the entry table and its
+relationships in place.
+
+Legacy journal files keep their current auto-vacuum mode. The storage
+maintenance pilot rehearses migration and a full VACUUM on an isolated
+journal fixture. Any future conversion of the live journal requires an
+owner-controlled stopped window and verification against a copy of that
+database.
+
+For an existing research index, use the owner conversion command from
+`scenarios/source-ledger/api` after the lifecycle reports the live instance
+stopped:
+
+```bash
+go run ./cmd/convert-files-index --apply
+```
+
+The command holds the lifecycle lock, verifies the known FTS schema and its
+stable chunk IDs, and checks free space before rewriting. Its JSON receipt
+reports the mode, file sizes, and any deferral. A second run verifies the
+existing incremental mode and handles any pending checkpoint.
 
 ## Data Ownership
 

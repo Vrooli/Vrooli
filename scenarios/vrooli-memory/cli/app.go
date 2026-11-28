@@ -24,6 +24,13 @@ type App struct {
 
 func NewApp() (*App, error) {
 	app := &App{}
+	commandGroups := func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+		groups, err := domains.CommandGroups(core, manifestBytes)
+		if err != nil {
+			panic(err)
+		}
+		return groups
+	}
 	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		groups, err := domains.SubcommandGroups(core, manifestBytes)
 		if err != nil {
@@ -45,7 +52,7 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
-		CommandGroups:    domains.CommandGroups,
+		CommandGroups:    commandGroups,
 		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {

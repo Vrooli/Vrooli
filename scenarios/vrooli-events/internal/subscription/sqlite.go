@@ -290,12 +290,13 @@ func (s *SQLiteStore) RetryDeadLetter(ctx context.Context, subscriptionID int64,
 }
 
 func (s *SQLiteStore) MarkDelivered(ctx context.Context, deliveryID, subscriptionID int64, at time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE subscription_deliveries SET status='delivered', updated_at=? WHERE id=? AND status='pending'`, at.UTC().Format(time.RFC3339Nano), deliveryID)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.ExecContext(ctx, `UPDATE subscription_health SET total_delivered=total_delivered+1, consecutive_failures=0, last_delivered_at=?, status='active' WHERE subscription_id=?`, at.UTC().Format(time.RFC3339Nano), subscriptionID)
-	return err
+	stamp := at.UTC().Format(time.RFC3339Nano)
+	return s.finishPendingDelivery(ctx,
+		`UPDATE subscription_deliveries SET status='delivered', updated_at=? WHERE id=? AND status='pending'`,
+		[]any{stamp, deliveryID},
+		`UPDATE subscription_health SET total_delivered=total_delivered+1, consecutive_failures=0, last_delivered_at=?, status='active' WHERE subscription_id=?`,
+		[]any{stamp, subscriptionID},
+	)
 }
 
 func (s *SQLiteStore) MarkFailed(ctx context.Context, deliveryID, subscriptionID int64, reason string, next time.Time, deadLetter bool) error {
@@ -303,12 +304,36 @@ func (s *SQLiteStore) MarkFailed(ctx context.Context, deliveryID, subscriptionID
 	if deadLetter {
 		status = "dead_letter"
 	}
-	_, err := s.db.ExecContext(ctx, `UPDATE subscription_deliveries SET status=?, attempts=attempts+1, last_error=?, next_attempt_at=?, updated_at=? WHERE id=? AND status='pending'`, status, reason, next.UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano), deliveryID)
+	stamp := time.Now().UTC().Format(time.RFC3339Nano)
+	return s.finishPendingDelivery(ctx,
+		`UPDATE subscription_deliveries SET status=?, attempts=attempts+1, last_error=?, next_attempt_at=?, updated_at=? WHERE id=? AND status='pending'`,
+		[]any{status, reason, next.UTC().Format(time.RFC3339Nano), stamp, deliveryID},
+		`UPDATE subscription_health SET total_failed=total_failed+1, consecutive_failures=consecutive_failures+1, last_failed_at=?, status=? WHERE subscription_id=?`,
+		[]any{stamp, map[bool]string{true: "circuit_broken", false: "active"}[deadLetter], subscriptionID},
+	)
+}
+
+// finishPendingDelivery records the queue transition and its health counter as
+// one operation. Stale or duplicate completions affect neither half.
+func (s *SQLiteStore) finishPendingDelivery(ctx context.Context, deliveryUpdate string, deliveryArgs []any, healthUpdate string, healthArgs []any) error {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE subscription_health SET total_failed=total_failed+1, consecutive_failures=consecutive_failures+1, last_failed_at=?, status=? WHERE subscription_id=?`, time.Now().UTC().Format(time.RFC3339Nano), map[bool]string{true: "circuit_broken", false: "active"}[deadLetter], subscriptionID)
-	return err
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx, deliveryUpdate, deliveryArgs...)
+	if err != nil {
+		return err
+	}
+	changed, err := res.RowsAffected()
+	if err != nil || changed == 0 {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, healthUpdate, healthArgs...); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) Close() error {

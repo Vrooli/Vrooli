@@ -46,12 +46,12 @@
     },
     {
       "id": "VMEM-P0-002",
-      "title": "Deliberate write verb",
+      "title": "Deliberate memory capture",
       "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "write-path",
       "criticality": "P0",
-      "description": "`memory note` is the single agent-facing write verb. On invocation the API classifies the entry into exactly one facet via ai-gateway, derives its facet texts, embeds each, and appends. Classification failure must not lose the write: the entry is appended with an unclassified facet and queued for reclassification rather than rejected.",
+      "description": "`vrooli-memory remember` appends one immutable journal entry per observation, preserving the original body, available provenance, and optional evidence and routing hint. The journal classifies the entry into a facet via ai-gateway and embeds it. When classification fails, it appends the entry with an unclassified facet and queues reclassification.",
       "tags": [
         "cli",
         "write-path",
@@ -77,7 +77,7 @@
           "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestConnectHandlerAppendGetAndList",
           "phase": "integration",
           "status": "implemented",
-          "notes": "CLI note round-trips through Connect to a retrievable journal entry."
+          "notes": "The journal append operation round-trips through Connect to a retrievable entry."
         }
       ]
     },

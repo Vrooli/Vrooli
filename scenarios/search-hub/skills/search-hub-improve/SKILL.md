@@ -82,20 +82,20 @@ A `router.routing` incumbent run below its recorded precision is a stop for ever
 
 ### 5. Actuators and ladder routing
 
-`Actuator` rows are strategy or eval moves the agent running this skill performs in-cycle without a diff. `Filing` rows hand off: a work-ladder rung against search-hub, or a corpus-quality `report-bug` against a provider owner.
+`Actuator` rows are strategy or eval moves the agent running this skill performs in-cycle without a diff. `Filing` rows hand off: a work-ladder rung against search-hub, or a remembered defect naming a provider owner.
 
 | Kind | Row out of band | Route | Sensor that should move |
 |---|---|---|---|
-| Filing | routing-precision below band and the run's `below` count exceeds its `unavailableCases` (the misses are graded misroutes; `evals show-run` names the corpus chosen) | Corpus-quality filing: `report-bug` against the provider owner with the case id, the run id, and the descriptor sentence that misrouted; ask for a description change in their `search.json`. Never edit it from here | routing-precision |
+| Filing | routing-precision below band and the run's `below` count exceeds its `unavailableCases` (the misses are graded misroutes; `evals show-run` names the corpus chosen) | Corpus-quality filing: `vrooli-memory remember` for the provider owner with the case id, the run id, and the descriptor sentence that misrouted; ask for a description change in their `search.json`. Never edit it from here | routing-precision |
 | Filing | routing-precision below band and `unavailableCases` is at least the `below` count (the denominator, not the router, is the loss) | Expand the eligible denominator: for each withheld provider, `provider-quality-read` names the reason (lifecycle, stale index, no evidence); file against the owner with that reason | routing-precision, eval-floors |
 | Filing | e2e-pass-rate below band while routing-precision is in band | The loss is inside corpora, not routing. Take the `suites_below_full_pass` list and file one corpus-quality item per owner with `evals show-run <run_id>` per-case outcomes; ask them to run `evals validate <suite_id>` (labels live/hard/stale) first | e2e-pass-rate, eval-floors |
 | Actuator, then Filing | retrieval-recall below band on the incumbent | `search-hub strategy compare` (guarded; refuses insignificant winners). If a candidate clears the guard, `strategy compare --apply`; if none does, W3 against search-hub: the bounded lexical-evidence fusion is the next lever, recorded with run ids | retrieval-recall |
-| Filing | provider-degradation above band | `provider-quality-read` → `degraded_over_band` with `degradation_reasons`: `unreachable`/`timeout` → `report-bug` against the owner (their scenario is down or slow); `reranker_absent`/`reranker_unavailable` → W3 against search-hub's rerank fallback chain | provider-degradation |
+| Filing | provider-degradation above band | `provider-quality-read` → `degraded_over_band` with `degradation_reasons`: `unreachable`/`timeout` → `vrooli-memory remember` for the owner (their scenario is down or slow); `reranker_absent`/`reranker_unavailable` → W3 against search-hub's rerank fallback chain | provider-degradation |
 | Filing | degraded-query-rate above band | Read `insights` `substrate_degradation_reasons`: reranker-caused → W3 against search-hub (TEI resource health, Ollama fallback); provider-caused → the row above | degraded-query-rate |
 | Filing | federated-latency p95 above band | `insights` per-provider `latency_p95_ms`: one slow leg → file against its owner with the number; every leg slow → W3 against search-hub (per-provider timeout, fan-out bound) | federated-latency |
 | Actuator, then Filing | under-utilized-providers above 0 | Curation: for each retirement candidate, `providers list` lifecycle; `experimental` or `fixture` with zero hits → file against the owner to fix the corpus or retire the declaration; `production` → the descriptor misroutes → corpus-quality filing with sample queries | under-utilized-providers |
 | Filing | zero-result-rate above band | `insights` zero-result queries by provider: dominated by heartbeat or eval traffic → journal, no route; dominated by classifier picks that return nothing → routing-precision route; dominated by explicit `--type` misses → usage-skill token table (`skill-validation` on `search-hub`) | zero-result-rate |
-| Filing, then Actuator | provider-reachability above 0 | `report-bug` against the unreachable provider's owner with `federation status` row; after they fix it, `search-hub federation repromote <provider_id>` once, journaled | provider-reachability |
+| Filing, then Actuator | provider-reachability above 0 | `vrooli-memory remember` for the unreachable provider's owner with `federation status` row; after they fix it, `search-hub federation repromote <provider_id>` once, journaled | provider-reachability |
 | Filing, then Actuator | eval-floors: a suite below its recorded floor | Owner's corpus regressed: file with `evals compare <baseline_run> <new_run>` output. If the suite has reviewed candidates, `evals promote <suite_id> --case <ids>` only for cases the owner reviewed | eval-floors |
 | Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); a `search-hub query` command failure caused by the stale CLI base is W3 against search-hub's CLI; a misuse of `--type` tokens is `skill-validation` on the usage skill | external-friction |
 | Filing | S3-share report figure below 0.25 | Promote the next recurring `[S1]` leaf: the capture pair (query-record note + pin) is the candidate; author it under `.vrooli/program-runtime/` and relabel the leaf | the report figure |
@@ -124,7 +124,7 @@ One `vrooli-memory journal note --kind work-record` per cycle:
 --outcome  "<in band | filed <ref> against <owner> | applied <strategy> | unavailable: <reason>>"
 ```
 
-A sensor unavailable for three cycles is a `scenarios/search-hub/docs/internal/PROBLEMS.md` entry with the three dated readings. Filings against provider owners use `report-bug` with the `provider-quality-read` row and the run id as the observation.
+A sensor unavailable for three cycles is a `scenarios/search-hub/docs/internal/PROBLEMS.md` entry with the three dated readings. Filings against provider owners use `vrooli-memory remember` with the `provider-quality-read` row and the run id as the observation.
 
 ### 8. Stop rules
 

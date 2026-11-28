@@ -69,3 +69,42 @@ func TestAggregateReceiptsReturnsEmptyWindow(t *testing.T) {
 		t.Fatalf("rows=%+v err=%v", rows, err)
 	}
 }
+
+func TestAggregateReceiptsUsesInclusiveSinceAndExclusiveUntilAtStoredPrecision(t *testing.T) {
+	base := time.Date(2026, 8, 18, 17, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name  string
+		since time.Time
+		until time.Time
+		want  int64
+	}{
+		{name: "exact since is included", since: base, until: base.Add(time.Hour), want: 1},
+		{name: "since between stored milliseconds excludes the prior instant", since: base.Add(500 * time.Microsecond), until: base.Add(time.Hour), want: 0},
+		{name: "exact until is excluded", since: base.Add(-time.Hour), until: base, want: 0},
+		{name: "until between stored milliseconds includes the prior instant", since: base.Add(-time.Hour), until: base.Add(500 * time.Microsecond), want: 1},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			s, err := NewSQLiteStore(ctx, SQLiteConfig{DBPath: ":memory:", Now: func() time.Time { return base.Add(time.Hour) }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			if _, err := s.Insert(ctx, receiptEvent(t, "boundary", "target-a", "POST /read", base, "agent-a", true)); err != nil {
+				t.Fatal(err)
+			}
+			rows, err := s.AggregateReceipts(ctx, ReceiptAggregateFilter{Since: test.since, Until: test.until})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got int64
+			for _, row := range rows {
+				got += row.GetInvocationCount()
+			}
+			if got != test.want {
+				t.Fatalf("invocation count = %d, want %d", got, test.want)
+			}
+		})
+	}
+}

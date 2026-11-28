@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"time"
 
 	vectorcodec "source-ledger/internal/vector"
 )
@@ -14,53 +12,7 @@ import (
 // EnsureMigrations applies additive, idempotent upgrades that CREATE TABLE IF
 // NOT EXISTS cannot apply to an already-created SQLite table.
 func EnsureMigrations(ctx context.Context, db *sql.DB) error {
-	for _, statement := range []string{
-		"ALTER TABLE entries ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'absent'",
-		"ALTER TABLE entries ADD COLUMN harness_session_id TEXT NOT NULL DEFAULT ''",
-		"ALTER TABLE entries ADD COLUMN harness_kind TEXT NOT NULL DEFAULT ''",
-	} {
-		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") && !strings.Contains(strings.ToLower(err.Error()), "no such table") {
-			return fmt.Errorf("journal compatibility migration: %w", err)
-		}
-	}
-	var exists int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='entries'`).Scan(&exists); err != nil {
-		return fmt.Errorf("inspect entries table: %w", err)
-	}
-	if exists == 0 {
-		return nil
-	}
-	rows, err := db.QueryContext(ctx, `PRAGMA table_info(entries)`)
-	if err != nil {
-		return fmt.Errorf("inspect entries schema: %w", err)
-	}
-	defer rows.Close()
-	columns := map[string]bool{}
-	for rows.Next() {
-		var cid int
-		var name, typ string
-		var notNull, pk int
-		var defaultValue any
-		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
-			return err
-		}
-		columns[name] = true
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for name, statement := range map[string]string{
-		"source_harness": `ALTER TABLE entries ADD COLUMN source_harness TEXT NOT NULL DEFAULT ''`,
-		"source_path":    `ALTER TABLE entries ADD COLUMN source_path TEXT NOT NULL DEFAULT ''`,
-		"imported_at":    `ALTER TABLE entries ADD COLUMN imported_at TEXT NOT NULL DEFAULT ''`,
-	} {
-		if !columns[name] {
-			if _, err := db.ExecContext(ctx, statement); err != nil {
-				return fmt.Errorf("add entries.%s: %w", name, err)
-			}
-		}
-	}
-	if err := ensureAppendOnlyGuard(ctx, db); err != nil {
+	if err := ensureEntryMigrations(ctx, db); err != nil {
 		return err
 	}
 	if exists, err := tableExists(ctx, db, "embeddings"); err != nil {
@@ -109,58 +61,121 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
-// ensureAppendOnlyGuard installs the journal's immutable-row boundary on both
-// fresh and upgraded databases. The high-water mark is deliberately never
-// lowered: if the database has lost rows, startup must fail loudly.
-func ensureAppendOnlyGuard(ctx context.Context, db *sql.DB) error {
-	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS journal_high_water_mark (
-  id INTEGER PRIMARY KEY CHECK (id=1),
-  max_rowid INTEGER NOT NULL,
-  recorded_at TEXT NOT NULL
-)`); err != nil {
-		return fmt.Errorf("create journal high-water mark: %w", err)
+// ensureEntryMigrations adds compatibility columns and captures the existing
+// rowids before any full rewrite is eligible. The original entries and their
+// dependent tables stay in place. All changes commit together.
+func ensureEntryMigrations(ctx context.Context, db *sql.DB) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin journal entry migration: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO journal_high_water_mark(id,max_rowid,recorded_at)
-SELECT 1,COALESCE(MAX(rowid),0),? FROM entries`, nowUTC()); err != nil {
+	defer tx.Rollback()
+	columns, err := entryColumns(ctx, tx)
+	if err != nil || len(columns) == 0 {
+		return err
+	}
+	for _, column := range []struct{ name, definition string }{
+		{"verification_status", "TEXT NOT NULL DEFAULT 'absent'"},
+		{"harness_session_id", "TEXT NOT NULL DEFAULT ''"},
+		{"harness_kind", "TEXT NOT NULL DEFAULT ''"},
+		{"source_harness", "TEXT NOT NULL DEFAULT ''"},
+		{"source_path", "TEXT NOT NULL DEFAULT ''"},
+		{"imported_at", "TEXT NOT NULL DEFAULT ''"},
+	} {
+		if columns[column.name] {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `ALTER TABLE entries ADD COLUMN `+column.name+` `+column.definition); err != nil {
+			return fmt.Errorf("add entries.%s: %w", column.name, err)
+		}
+	}
+
+	stable, err := tableExists(ctx, tx, "journal_entry_positions")
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, cursorSchema); err != nil {
+		return fmt.Errorf("install journal position schema: %w", err)
+	}
+	if !stable {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO journal_entry_positions(position,entry_id)
+SELECT rowid,id FROM entries ORDER BY rowid`); err != nil {
+			return fmt.Errorf("preserve legacy journal rowids: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, seedHighWaterMark); err != nil {
 		return fmt.Errorf("initialize journal high-water mark: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, `CREATE TRIGGER IF NOT EXISTS entries_append_only_update
-BEFORE UPDATE ON entries
-BEGIN
-  SELECT RAISE(ABORT, 'journal entries are append-only');
-END`); err != nil {
-		return fmt.Errorf("create entries update guard: %w", err)
+	if err := validateHighWaterMark(ctx, tx, true); err != nil {
+		return err
 	}
-	if _, err := db.ExecContext(ctx, `CREATE TRIGGER IF NOT EXISTS entries_append_only_delete
-BEFORE DELETE ON entries
-BEGIN
-  SELECT RAISE(ABORT, 'journal entries are append-only');
-END`); err != nil {
-		return fmt.Errorf("create entries delete guard: %w", err)
-	}
-	return ValidateHighWaterMark(ctx, db)
+	return tx.Commit()
 }
 
-// ValidateHighWaterMark verifies that no journal rows disappeared since the
-// last append. It is called during startup and is intentionally exported for
-// the backup/restore validation harness.
+func entryColumns(ctx context.Context, tx *sql.Tx) (map[string]bool, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT name FROM pragma_table_info('entries')`)
+	if err != nil {
+		return nil, fmt.Errorf("inspect entries schema: %w", err)
+	}
+	defer rows.Close()
+	columns := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		columns[name] = true
+	}
+	return columns, rows.Err()
+}
+
+type rowQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// ValidateHighWaterMark checks the latest watermark and, on a migrated file,
+// coverage of the durable entry positions. Legacy backups still use rowids.
 func ValidateHighWaterMark(ctx context.Context, db *sql.DB) error {
+	stable, err := tableExists(ctx, db, "journal_entry_positions")
+	if err != nil {
+		return err
+	}
+	return validateHighWaterMark(ctx, db, stable)
+}
+
+func validateHighWaterMark(ctx context.Context, db rowQuerier, stable bool) error {
+	query := `SELECT COALESCE(MAX(rowid),0) FROM entries`
+	if stable {
+		query = `SELECT COALESCE(MAX(position),0) FROM journal_entry_positions`
+	}
 	var marked, current int64
 	if err := db.QueryRowContext(ctx, `SELECT max_rowid FROM journal_high_water_mark WHERE id=1`).Scan(&marked); err != nil {
 		return fmt.Errorf("read journal high-water mark: %w", err)
 	}
-	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(rowid),0) FROM entries`).Scan(&current); err != nil {
-		return fmt.Errorf("read journal maximum rowid: %w", err)
+	if err := db.QueryRowContext(ctx, query).Scan(&current); err != nil {
+		return fmt.Errorf("read journal maximum append position: %w", err)
 	}
 	if current < marked {
-		return fmt.Errorf("journal high-water mark %d exceeds current maximum rowid %d", marked, current)
+		return fmt.Errorf("journal high-water mark %d exceeds current maximum append position %d", marked, current)
+	}
+	if !stable {
+		return nil
+	}
+	var inconsistent bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS (
+  SELECT 1 FROM entries e WHERE NOT EXISTS (SELECT 1 FROM journal_entry_positions p WHERE p.entry_id=e.id)
+  UNION ALL
+  SELECT 1 FROM journal_entry_positions p WHERE NOT EXISTS (SELECT 1 FROM entries e WHERE e.id=p.entry_id)
+)`).Scan(&inconsistent); err != nil {
+		return fmt.Errorf("verify durable journal positions: %w", err)
+	}
+	if inconsistent {
+		return fmt.Errorf("journal entries and durable append positions are inconsistent")
 	}
 	return nil
 }
 
-func nowUTC() string { return time.Now().UTC().Format(time.RFC3339Nano) }
-
-func tableExists(ctx context.Context, db *sql.DB, table string) (bool, error) {
+func tableExists(ctx context.Context, db rowQuerier, table string) (bool, error) {
 	var n int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&n); err != nil {
 		return false, fmt.Errorf("inspect %s: %w", table, err)

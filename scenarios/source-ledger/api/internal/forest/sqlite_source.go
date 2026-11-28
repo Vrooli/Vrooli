@@ -39,7 +39,7 @@ WITH latest_assignment AS (
 )
 SELECT e.id,la.facet_id,e.body,fp.retention_policy,fp.compaction_eligible,e.created_at,'entry',0,0
 FROM entries e JOIN latest_assignment la ON la.entry_id=e.id JOIN facet_policies fp ON fp.scope=? AND fp.facet_id=la.facet_id
-WHERE e.scope=? AND fp.compaction_eligible=1 AND NOT EXISTS(SELECT 1 FROM pins p WHERE p.entry_id=e.id AND (p.review_at IS NULL OR p.review_at>?)) AND NOT EXISTS(SELECT 1 FROM tree_edges te WHERE te.child_id=e.id AND te.child_kind='entry')
+WHERE e.scope=? AND fp.compaction_eligible=1 AND NOT EXISTS(SELECT 1 FROM journal_observation_context oc WHERE oc.entry_id=e.id AND oc.routing_hint='defect-account') AND NOT EXISTS(SELECT 1 FROM pins p WHERE p.entry_id=e.id AND (p.review_at IS NULL OR p.review_at>?)) AND NOT EXISTS(SELECT 1 FROM tree_edges te WHERE te.child_id=e.id AND te.child_kind='entry')
 UNION ALL
 SELECT sm.id,sm.facet_id,sm.body,fp.retention_policy,fp.compaction_eligible,sm.created_at,'summary',sm.depth,sm.generation
 FROM summaries sm JOIN facet_policies fp ON fp.scope=? AND fp.facet_id=sm.facet_id

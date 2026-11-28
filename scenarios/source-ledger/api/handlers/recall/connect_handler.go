@@ -2,8 +2,12 @@ package recall
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -38,7 +42,10 @@ func (h *connectHandler) SetUsageRecorder(usage *internalfacets.Service) { h.usa
 
 func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recallv1.RecallRequest]) (*connect.Response[recallv1.RecallResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	result, err := h.service.Recall(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()))
+	result, err := h.service.RecallCategory(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()), req.Msg.GetCategory())
+	if errors.Is(err, internalrecall.ErrUnknownCategory) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -60,9 +67,19 @@ func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recall
 			h.logger.Printf("record recall usage: %v", err)
 		}
 	}
-	response := &recallv1.RecallResponse{Hits: hitsProto(hits)}
+	response := &recallv1.RecallResponse{Hits: hitsProto(ctx, hits)}
 	if result.Lexical {
-		response.Degradations = []*sharedv1.Degradation{{Reason: "SEMANTIC_UNAVAILABLE", Leg: "semantic", Detail: result.Reason, Retryable: true}}
+		response.Degradations = append(response.Degradations, &sharedv1.Degradation{Reason: "SEMANTIC_UNAVAILABLE", Leg: "semantic", Detail: result.Reason, Retryable: true})
+	}
+	if result.ClassificationPending {
+		response.Degradations = append(response.Degradations, &sharedv1.Degradation{
+			Reason: "CATEGORY_INDEX_PENDING", Leg: "classification", Detail: "Category results are incomplete while observations are being classified.", Retryable: true,
+		})
+	}
+	if result.UnverifiedCaseMatches {
+		response.Degradations = append(response.Degradations, &sharedv1.Degradation{
+			Reason: "CASE_STATUS_UNVERIFIED", Leg: "case-status", Detail: "Matching observations lack a published case status. Recall without the open filter to see their evidence.",
+		})
 	}
 	return connect.NewResponse(response), nil
 }
@@ -74,7 +91,7 @@ func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&recallv1.WakeResponse{
-		Hits:        hitsProto(wake.Hits),
+		Hits:        hitsProto(ctx, wake.Hits),
 		Overflow:    wake.Overflow,
 		Refused:     int32(wake.Refused),
 		LinesUsed:   int32(wake.LinesUsed),
@@ -86,7 +103,28 @@ func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1
 
 func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1.ZoomRequest]) (*connect.Response[recallv1.ZoomResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	nodes, err := h.service.Zoom(ctx, req.Msg.GetNodeId())
+	id := strings.TrimSpace(req.Msg.GetNodeId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("node_id is required"))
+	}
+	// Open a raw observation directly, including historical entries omitted
+	// by recall. Handle the common leaf lookup without loading the forest.
+	if h.journal != nil {
+		entry, err := h.journal.Get(ctx, id)
+		if err == nil {
+			hit := &recallv1.RecallHit{
+				NodeId: entry.ID, EntryId: entry.ID, Scope: string(policy.ScopeFromContext(ctx)),
+				FacetId: entry.FacetID, Text: entry.Body, CreatedAt: entry.CreatedAt.Format(time.RFC3339Nano),
+				Evidence: entry.Evidence, RoutingHint: entry.RoutingHint,
+				ActorId: entry.Attribution.ActorID, RunId: entry.Correlation.RunID, SourceRuntime: entry.Attribution.SourceRuntime,
+			}
+			return connect.NewResponse(&recallv1.ZoomResponse{Constituents: []*recallv1.RecallHit{hit}}), nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	nodes, err := h.service.Zoom(ctx, id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -94,7 +132,7 @@ func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1
 	for i, n := range nodes {
 		hits[i] = internalrecall.Hit{Node: n}
 	}
-	return connect.NewResponse(&recallv1.ZoomResponse{Constituents: hitsProto(hits)}), nil
+	return connect.NewResponse(&recallv1.ZoomResponse{Constituents: hitsProto(ctx, hits)}), nil
 }
 
 func (h *connectHandler) ListSiblingEvents(ctx context.Context, req *connect.Request[recallv1.ListSiblingEventsRequest]) (*connect.Response[recallv1.ListSiblingEventsResponse], error) {
@@ -125,10 +163,10 @@ func (h *connectHandler) ListSiblingEvents(ctx context.Context, req *connect.Req
 	return connect.NewResponse(response), nil
 }
 
-func hitsProto(hits []internalrecall.Hit) []*recallv1.RecallHit {
+func hitsProto(ctx context.Context, hits []internalrecall.Hit) []*recallv1.RecallHit {
 	out := make([]*recallv1.RecallHit, 0, len(hits))
 	for _, h := range hits {
-		out = append(out, &recallv1.RecallHit{EntryId: h.Node.EntryID, FacetId: h.Node.FacetID, Text: h.Node.Text, Score: h.Score, Depth: int32(h.Node.Depth), NodeId: h.Node.ID, Summary: h.Node.Summary, Span: int32(h.Node.Span)})
+		out = append(out, &recallv1.RecallHit{EntryId: h.Node.EntryID, FacetId: h.Node.FacetID, Text: h.Node.Text, Score: h.Score, Depth: int32(h.Node.Depth), NodeId: h.Node.ID, Summary: h.Node.Summary, Span: int32(h.Node.Span), Scope: string(policy.ScopeFromContext(ctx)), CategoryIds: h.Node.CategoryIDs, CreatedAt: h.Node.CreatedAt.Format(time.RFC3339Nano), Evidence: h.Node.Evidence, RoutingHint: h.Node.RoutingHint, ActorId: h.Node.ActorID, RunId: h.Node.RunID, SourceRuntime: h.Node.SourceRuntime})
 	}
 	return out
 }

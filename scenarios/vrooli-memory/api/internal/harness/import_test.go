@@ -58,6 +58,10 @@ func (*fakeJournal) CountEntries(context.Context, *connect.Request[sourcejournal
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
 
+func (*fakeJournal) ListClassificationNotices(context.Context, *connect.Request[sourcejournal.ListClassificationNoticesRequest]) (*connect.Response[sourcejournal.ListClassificationNoticesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
 var _ journalconnect.JournalServiceClient = (*fakeJournal)(nil)
 
 func TestImportAndCaptureAreRemoteAndContentAddressed(t *testing.T) {

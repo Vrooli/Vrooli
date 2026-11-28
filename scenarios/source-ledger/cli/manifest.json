@@ -301,7 +301,7 @@
         },
         {
           "name": "export",
-          "description": "Export a complete ascending journal scope snapshot",
+          "description": "Export a complete journal scope snapshot in append order",
           "needs_api": true,
           "flags": [
             {
@@ -1336,6 +1336,11 @@
       "service": "JournalService",
       "method": "ProcessClassificationRetries",
       "reason": "Retry operations remain API-only until the source-ledger operator surface is introduced."
+    },
+    {
+      "service": "JournalService",
+      "method": "ListClassificationNotices",
+      "reason": "Agent workflows consume classification notices through vrooli-memory journal notices."
     },
     {
       "service": "JournalService",

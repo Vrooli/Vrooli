@@ -8,7 +8,7 @@ import { EventTable } from "../components/EventTable";
 import { EventDetail } from "../components/EventDetail";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { fetchEvents, type EventEnvelope } from "../lib/api";
 import { HEALTH_POLL_INTERVAL_MS, INPUT_CLASS, QUERY_LIMIT_OPTIONS } from "../lib/constants";
 
@@ -99,7 +99,7 @@ export function EventLogPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        icon={Activity}
+        leading={<Activity className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Event History"
         actions={
           <Button size="sm" variant="outline" onClick={() => refetch()}>

@@ -17,6 +17,7 @@
 package modules
 
 import (
+	"source-ledger/internal/classification"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/forest"
 	"source-ledger/internal/journal"
@@ -105,6 +106,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(journal.Schema),
+		apidb.SchemaProviderFunc(classification.Schema),
 		apidb.SchemaProviderFunc(facets.Schema),
 		apidb.SchemaProviderFunc(forest.Schema),
 		apidb.SchemaProviderFunc(vectorstore.Schema),

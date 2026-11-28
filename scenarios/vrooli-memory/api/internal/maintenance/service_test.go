@@ -179,6 +179,7 @@ type fakeCompactor struct {
 	known  []string
 	result CompactionResult
 	err    error
+	run    func(string, int) CompactionResult
 }
 
 func (f *fakeCompactor) ListScopes(_ context.Context) ([]string, error) {
@@ -188,22 +189,33 @@ func (f *fakeCompactor) ListScopes(_ context.Context) ([]string, error) {
 func (f *fakeCompactor) RunBounded(_ context.Context, scope string, limit int) (CompactionResult, error) {
 	f.scopes = append(f.scopes, scope)
 	f.calls = append(f.calls, limit)
+	if f.run != nil {
+		return f.run(scope, limit), f.err
+	}
 	return f.result, f.err
 }
 
 func TestRunOnceCompactsAfterProjectionSoAmbientMemoryIsNeverBlocked(t *testing.T) {
 	order := []string{}
 	store := newMemoryStore()
-	compactor := &fakeCompactor{known: []string{"agent-memory", "team:alpha", "team:beta"}, result: CompactionResult{CompactedCount: 3, EligibleFrontierBefore: 100, EligibleFrontierAfter: 97}}
+	merged := make(map[string]int)
+	compactor := &fakeCompactor{
+		known: []string{"agent-memory", "team:alpha", "team:beta"},
+		run: func(scope string, limit int) CompactionResult {
+			before := 100 - merged[scope]
+			merged[scope] += limit
+			return CompactionResult{CompactedCount: limit, EligibleFrontierBefore: before, EligibleFrontierAfter: 100 - merged[scope]}
+		},
+	}
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
-		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 25)
+		scheduletest.New(time.Time{}), 0).WithCompaction(compactor, 3)
 	_, err := service.RunOnce(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, []string{"agent-memory", "team:alpha", "team:beta"}, compactor.scopes,
+	require.Equal(t, []string{"agent-memory", "agent-memory", "team:alpha", "team:alpha", "team:beta", "team:beta"}, compactor.scopes,
 		"scheduled compaction covers every registered scope in order, not a named subset")
-	require.Equal(t, []int{25, 25, 25}, compactor.calls, "the configured limit applies independently to each scope")
+	require.Equal(t, []int{2, 1, 2, 1, 2, 1}, compactor.calls, "each scope retains its budget across small admitted requests")
 	require.Equal(t, []string{"import:a", "project:a"}, order,
 		"projection completes before the backlog-scaled compaction pass starts")
 

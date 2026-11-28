@@ -13,12 +13,13 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// CommandGroups intentionally returns no flat aliases. The manifest-backed
-// subcommand groups are the CLI surface of record; duplicating their commands
-// at the root makes help discovery ambiguous and causes cli-health to observe
-// two different paths for one operation.
-func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	return nil
+// CommandGroups loads manifest commands exposed directly at the CLI root.
+func CommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.CommandGroup, error) {
+	capture, err := journal.RegisterCapture(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.CommandGroup{capture}, nil
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

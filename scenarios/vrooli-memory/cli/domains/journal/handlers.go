@@ -27,6 +27,56 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{client: journalconnect.NewJournalServiceClient(http, base)}
 }
 
+func (h *handlers) rememberCall(ctx cliapp.OperationContext) (*journalv1.RememberResponse, error) {
+	request := &journalv1.RememberRequest{
+		Observations: ctx.Positionals("observations"), Scope: ctx.Flag("scope"),
+		Evidence: ctx.Flag("evidence"), RoutingHint: ctx.Flag("routing-hint"), RequestKey: ctx.Flag("request-key"),
+	}
+	resp, err := h.client.Remember(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("remember observations", err, nil)
+	}
+	if len(resp.Msg.GetEntries()) != len(request.Observations) {
+		return nil, fmt.Errorf("server returned %d entries for %d observations", len(resp.Msg.GetEntries()), len(request.Observations))
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) rememberReport(_ cliapp.OperationContext, msg *journalv1.RememberResponse) cliapp.MutationReport {
+	entries := msg.GetEntries()
+	changes := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		changes = append(changes, entry.GetId()+"  "+entry.GetBody())
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Remembered %d observation(s).", len(entries))}, Changes: changes}
+}
+
+func (h *handlers) noticesCall(ctx cliapp.OperationContext) (*journalv1.ListClassificationNoticesResponse, error) {
+	after, err := strconv.ParseInt(ctx.Flag("after"), 10, 64)
+	if err != nil || after < 0 {
+		return nil, fmt.Errorf("after must be a nonnegative sequence")
+	}
+	limit, err := retryLimit(ctx.Flag("limit"))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.ListClassificationNotices(context.Background(), connect.NewRequest(&journalv1.ListClassificationNoticesRequest{
+		Scope: ctx.Flag("scope"), CategoryId: ctx.Positional("category-id"), AfterSequence: after, Limit: limit,
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("list classification notices", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) noticesReport(_ cliapp.OperationContext, msg *journalv1.ListClassificationNoticesResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetNotices()))
+	for _, notice := range msg.GetNotices() {
+		results = append(results, fmt.Sprintf("%d  %s  %s", notice.GetSequence(), notice.GetScope(), notice.GetObservationId()))
+	}
+	return cliapp.ListReport{Results: results, Summary: []string{fmt.Sprintf("%d classification notice(s).", len(results))}}
+}
+
 func (h *handlers) noteCall(ctx cliapp.OperationContext) (*journalv1.AppendEntryResponse, error) {
 	body, err := resolveNoteBody(ctx.Positional("body"), len(ctx.Args()) > 0, ctx.Flag("body-file"), os.Stdin)
 	if err != nil {

@@ -10,11 +10,14 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// TestCommandGroups keeps the manifest-backed CLI as the single command
-// surface; root aliases are deliberately not registered separately.
+// TestCommandGroups verifies the memory capture command is discoverable at
+// the root without creating an alias for any journal operation.
 func TestCommandGroups(t *testing.T) {
-	got := CommandGroups(&cliapp.ScenarioApp{})
-	require.Empty(t, got)
+	got, err := CommandGroups(&cliapp.ScenarioApp{}, readManifestForTest(t))
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Len(t, got[0].Commands, 1)
+	require.Equal(t, "remember", got[0].Commands[0].Name)
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains

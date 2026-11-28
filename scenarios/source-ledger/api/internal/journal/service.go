@@ -65,7 +65,7 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 		if existing, found, err := s.repo.FindByImportKey(ctx, e.ImportKey); err != nil {
 			return Entry{}, err
 		} else if found {
-			if e.RequestKey != "" && (existing.Body != e.Body || existing.Kind != e.Kind) {
+			if e.RequestKey != "" && !e.matchesReplay(existing) {
 				return Entry{}, ErrAppendConflict
 			}
 			existing.Existing = true

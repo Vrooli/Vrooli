@@ -7,10 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
 
+	aisearch "github.com/vrooli/ai-go/search"
+
+	"source-ledger/internal/classification"
 	"source-ledger/internal/policy"
 )
 
@@ -33,10 +37,11 @@ type (
 		EmbedQueryForRecipe(context.Context, string, string) ([]float64, error)
 	}
 	Service struct {
-		source   Source
-		embedder QueryEmbedder
-		config   Config
-		registry *policy.Registry
+		source     Source
+		embedder   QueryEmbedder
+		config     Config
+		registry   *policy.Registry
+		categories ClassificationIndex
 	}
 )
 
@@ -87,55 +92,150 @@ func configFromPolicy(config policy.Config, fallback Config) Config {
 // Result is one recall answer. Lexical is set when semantic scoring was
 // unavailable; the hits are then ranked by term overlap and Reason says why.
 type Result struct {
-	Hits    []Hit
-	Lexical bool
-	Reason  string
+	Hits                  []Hit
+	Lexical               bool
+	Reason                string
+	ClassificationPending bool
+	UnverifiedCaseMatches bool
 }
 
 var errRecipeEmbedder = errors.New("Source Ledger active embedding generation requires its exact-recipe query embedder")
 
 func (s *Service) Recall(ctx context.Context, query string, limit int) (Result, error) {
+	return s.RecallCategory(ctx, query, limit, "")
+}
+
+func (s *Service) RecallCategory(ctx context.Context, query string, limit int, filter string) (Result, error) {
+	scope := string(policy.ScopeFromContext(ctx))
+	selection := categoryQuery{topic: query}
+	if s.categories != nil || strings.TrimSpace(filter) != "" {
+		var categories []classification.Category
+		if s.categories != nil {
+			var err error
+			categories, err = s.categories.Categories(ctx, scope)
+			if err != nil {
+				return Result{}, err
+			}
+		}
+		var err error
+		selection, err = resolveCategoryQuery(query, filter, categories)
+		if err != nil {
+			return Result{}, err
+		}
+	}
+	categoryOnly := len(selection.ids) > 0 && strings.TrimSpace(selection.topic) == ""
 	if limit <= 0 {
 		limit = 10
+	}
+	var matches map[string][]string
+	var classificationPending bool
+	if len(selection.ids) > 0 {
+		if coverage, ok := s.categories.(classificationCoverage); ok {
+			var err error
+			classificationPending, err = coverage.Coverage(ctx, scope, selection.ids)
+			if err != nil {
+				return Result{}, err
+			}
+		}
+		var err error
+		matches, err = s.categories.MatchingEntries(ctx, scope, selection.ids)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 	var recipeID string
 	var generationActive bool
 	var err error
 	identitySource, tracksGeneration := s.source.(GenerationIdentitySource)
-	if tracksGeneration {
+	if tracksGeneration && !categoryOnly {
 		recipeID, generationActive, err = identitySource.ActiveRecipeID(ctx)
 		if err != nil {
 			return Result{}, err
 		}
 	}
-	// The query embedding and the node load are independent; overlapping
-	// them makes a recall cost the slower of the two, not their sum.
-	embedCtx, cancelEmbed := context.WithCancel(ctx)
+	var exact RecipeQueryEmbedder
+	if generationActive {
+		var ok bool
+		exact, ok = s.embedder.(RecipeQueryEmbedder)
+		if !ok {
+			return Result{}, errRecipeEmbedder
+		}
+	}
+	// Query embedding, stored vectors, and text can be fetched independently.
+	embedCtx, cancelEmbed := context.WithTimeout(ctx, aisearch.DefaultDenseBudget)
 	defer cancelEmbed()
 	type embedded struct {
 		vec []float64
 		err error
 	}
 	queryVec := make(chan embedded, 1)
-	go func() {
-		var e embedded
-		if generationActive {
-			exact, ok := s.embedder.(RecipeQueryEmbedder)
-			if !ok {
-				e.err = errRecipeEmbedder
+	if !categoryOnly {
+		go func() {
+			var e embedded
+			if generationActive {
+				e.vec, e.err = exact.EmbedQueryForRecipe(embedCtx, recipeID, selection.topic)
 			} else {
-				e.vec, e.err = exact.EmbedQueryForRecipe(embedCtx, recipeID, query)
+				e.vec, e.err = s.embedder.EmbedQuery(embedCtx, selection.topic)
 			}
-		} else {
-			e.vec, e.err = s.embedder.EmbedQuery(embedCtx, query)
+			queryVec <- e
+		}()
+	}
+	loadNodes := s.source.Nodes
+	vectorSource, separateVectors := s.source.(interface {
+		NodeVectors(context.Context) (map[string][][]float64, error)
+	})
+	if categoryOnly || separateVectors {
+		loadNodes = s.textNodes
+	}
+	if listingSource, ok := s.source.(interface {
+		CategoryNodes(context.Context, map[string][]string) ([]Node, error)
+	}); ok && categoryOnly {
+		loadNodes = func(ctx context.Context) ([]Node, error) {
+			return listingSource.CategoryNodes(ctx, matches)
 		}
-		queryVec <- e
-	}()
-	nodes, err := s.source.Nodes(ctx)
+	}
+	type storedVectors struct {
+		vectors map[string][][]float64
+		err     error
+	}
+	stored := make(chan storedVectors, 1)
+	if separateVectors && !categoryOnly {
+		go func() {
+			vectors, err := vectorSource.NodeVectors(embedCtx)
+			stored <- storedVectors{vectors: vectors, err: err}
+		}()
+	}
+	nodes, err := loadNodes(ctx)
 	if err != nil {
 		return Result{}, err
 	}
-	if tracksGeneration {
+	var e embedded
+	if !categoryOnly {
+		select {
+		case e = <-queryVec:
+		case <-embedCtx.Done():
+			select {
+			case e = <-queryVec:
+			default:
+				e.err = embedCtx.Err()
+			}
+		}
+		if e.err == nil && separateVectors {
+			var loaded storedVectors
+			select {
+			case loaded = <-stored:
+			case <-embedCtx.Done():
+				select {
+				case loaded = <-stored:
+				default:
+					loaded.err = embedCtx.Err()
+				}
+			}
+			e.err = loaded.err
+			setNodeVectors(nodes, loaded.vectors)
+		}
+	}
+	if tracksGeneration && !categoryOnly {
 		observedRecipeID, observedActive, err := identitySource.ActiveRecipeID(ctx)
 		if err != nil {
 			return Result{}, err
@@ -144,30 +244,94 @@ func (s *Service) Recall(ctx context.Context, query string, limit int) (Result, 
 			return Result{}, errors.New("Source Ledger embedding generation changed during recall; retry the request")
 		}
 	}
-	e := <-queryVec
-	if errors.Is(e.err, errRecipeEmbedder) {
-		return Result{}, e.err
+	const categoryBoost = 0.14
+	const summaryBoost = 0.08
+	parents := nodeParents(nodes)
+	historical := historicalAccountNodes(nodes, parents)
+	var labels map[string][]string
+	result := Result{Lexical: e.err != nil, ClassificationPending: classificationPending}
+	if len(selection.ids) > 0 {
+		labels = inheritedCategories(nodes, matches, parents, historical)
 	}
-	q, err := e.vec, e.err
-	result := Result{}
+	scores := make([]float64, len(nodes))
+	if !categoryOnly {
+		scores = lexicalScores(selection.topic, nodes)
+	}
+	if result.Lexical {
+		result.Reason = "semantic scoring unavailable: " + e.err.Error()
+	} else if !categoryOnly {
+		for i, node := range nodes {
+			dense := bestSpaceScore(e.vec, node.Vectors)
+			// Lexical evidence should improve a paraphrase match or carry
+			// a recently captured observation that has no embedding yet.
+			scores[i] = max(scores[i], dense*(0.9+0.1*dense))
+		}
+	}
+	inherited := inheritCategoryRelevance(nodes, scores, labels, parents)
+	var accountScores map[string]float64
+	if historical != nil {
+		accountScores = accountRelevance(nodes, scores)
+	}
 	hits := make([]Hit, 0, len(nodes))
-	if err != nil {
-		// The journal stays searchable when the embedding route is down: rank
-		// by term overlap and say so, instead of failing the whole recall.
-		result.Lexical, result.Reason = true, "semantic scoring unavailable: "+err.Error()
-		scores := lexicalScores(query, nodes)
-		for i, n := range nodes {
-			if scores[i] > 0 {
-				hits = append(hits, Hit{Node: n, Score: scores[i]})
+	for i, node := range nodes {
+		if historical[node.ID] {
+			continue
+		}
+		node.CategoryIDs = labels[node.ID]
+		if node.CaseID != "" && slices.Contains(selection.ids, "defect-report") &&
+			!slices.Contains(node.CategoryIDs, "defect-report") {
+			node.CategoryIDs = append(node.CategoryIDs, "defect-report")
+		}
+		categorized := len(node.CategoryIDs) > 0
+		if (selection.hard || selection.openOnly || categoryOnly) && !categorized {
+			continue
+		}
+		if categoryOnly && node.Summary && node.CaseID == "" {
+			// Forest summaries can contain many unrelated topics. The
+			// matching originals and case accounts give a precise listing.
+			continue
+		}
+		if selection.openOnly && !node.Open {
+			if node.CaseID == "" && !node.Summary && (categoryOnly || scores[i] >= 0.55) {
+				result.UnverifiedCaseMatches = true
+			}
+			continue
+		}
+		score := max(scores[i], accountScores[node.ID])
+		if categorized && node.Summary {
+			score = max(score, inherited[node.ID])
+		}
+		if categoryOnly {
+			score = 1
+		} else if score <= 0 {
+			continue
+		}
+		if categorized && !categoryOnly {
+			score += categoryBoost
+			if node.Summary {
+				score += summaryBoost
 			}
 		}
-	} else {
-		for _, n := range nodes {
-			hits = append(hits, Hit{Node: n, Score: bestSpaceScore(q, n.Vectors)})
+		if len(selection.ids) > 0 && !categoryOnly {
+			// Preserve the score range advertised to Search Hub.
+			score /= 1 + (categoryBoost + summaryBoost)
 		}
+		hits = append(hits, Hit{Node: node, Score: score})
 	}
-	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
-	result.Hits = collapse(hits, limit)
+	sort.Slice(hits, func(i, j int) bool {
+		a, b := hits[i], hits[j]
+		if a.Score != b.Score {
+			return a.Score > b.Score
+		}
+		if !categoryOnly && a.Node.Depth != b.Node.Depth {
+			return a.Node.Depth > b.Node.Depth
+		}
+		if !a.Node.CreatedAt.Equal(b.Node.CreatedAt) {
+			return a.Node.CreatedAt.After(b.Node.CreatedAt)
+		}
+		return a.Node.ID < b.Node.ID
+	})
+	result.Hits = collapseWithParents(hits, limit, parents)
 	return result, nil
 }
 
@@ -376,8 +540,24 @@ func splitLeadingMetadata(text string) (lead, body string) {
 	return "", after
 }
 
+func (s *Service) textNodes(ctx context.Context) ([]Node, error) {
+	if source, ok := s.source.(interface {
+		TextNodes(context.Context) ([]Node, error)
+	}); ok {
+		return source.TextNodes(ctx)
+	}
+	return s.source.Nodes(ctx)
+}
+
 func (s *Service) Zoom(ctx context.Context, id string) ([]Node, error) {
-	nodes, err := s.source.Nodes(ctx)
+	if strings.HasPrefix(id, accountPrefix) {
+		if source, ok := s.source.(interface {
+			AccountEvidence(context.Context, string) ([]Node, error)
+		}); ok {
+			return source.AccountEvidence(ctx, id)
+		}
+	}
+	nodes, err := s.textNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -392,25 +572,29 @@ func (s *Service) Zoom(ctx context.Context, id string) ([]Node, error) {
 }
 
 func collapse(hits []Hit, limit int) []Hit {
-	selected := make([]Hit, 0, limit)
 	parents := make(map[string]string, len(hits))
 	for _, hit := range hits {
 		parents[hit.Node.ID] = hit.Node.ParentID
 	}
+	return collapseWithParents(hits, limit, parents)
+}
+
+func collapseWithParents(hits []Hit, limit int, parents map[string]string) []Hit {
+	selected := make([]Hit, 0, min(limit, len(hits)))
 	for _, hit := range hits {
 		if len(selected) == limit {
 			break
 		}
 		ancestor := -1
 		for i, existing := range selected {
-			if isDescendant(hit.Node, existing.Node.ID, parents) {
+			if existing.Node.contains(hit.Node) || isDescendant(hit.Node, existing.Node.ID, parents) {
 				ancestor = i
 				break
 			}
 			// A more relevant descendant may have been selected before its
 			// ancestor. Keep that best node and suppress the ancestor: returning
 			// both would violate the antichain contract for recall results.
-			if isDescendant(existing.Node, hit.Node.ID, parents) {
+			if hit.Node.contains(existing.Node) || isDescendant(existing.Node, hit.Node.ID, parents) {
 				ancestor = i
 				break
 			}

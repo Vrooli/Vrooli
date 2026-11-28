@@ -65,5 +65,6 @@ completed work to [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — deployment tiers and release checklist
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — logs, metrics, and health signals
+- [Scenario QA bug history audit](LEGACY-BUG-MIGRATION.md) — historical receipts and evidence recovery
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — common fixes
 - [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration

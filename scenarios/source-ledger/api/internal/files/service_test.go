@@ -471,7 +471,7 @@ func TestAnOutageMarksNothing(t *testing.T) {
 	search(t, svc, Query{Text: "resilient"})
 	svc.embedBackground(context.Background(), DefaultCorpus)
 	var rows int
-	require.NoError(t, svc.store.db.QueryRow(`SELECT COUNT(*) FROM vectors`).Scan(&rows))
+	require.NoError(t, svc.store.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM vectors`).Scan(&rows))
 	require.Zero(t, rows, "a down embedder is retried later, never recorded as refusing the text")
 }
 
@@ -496,7 +496,7 @@ func TestDataFilesAreLexicalOnly(t *testing.T) {
 	svc.embedBackground(context.Background(), DefaultCorpus)
 
 	var jsonVectors int
-	require.NoError(t, svc.store.db.QueryRow(`SELECT COUNT(*) FROM vectors v JOIN chunks c ON c.hash = v.hash WHERE c.path LIKE '%.json'`).Scan(&jsonVectors))
+	require.NoError(t, svc.store.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM vectors v JOIN chunks c ON c.hash = v.hash WHERE c.path LIKE '%.json'`).Scan(&jsonVectors))
 	require.Zero(t, jsonVectors, "data chunks are never embedded")
 
 	res := search(t, svc, Query{Text: "EIP-3009 settlement"})

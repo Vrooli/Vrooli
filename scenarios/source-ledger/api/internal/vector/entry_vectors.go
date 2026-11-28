@@ -7,11 +7,15 @@ import (
 	"fmt"
 )
 
+type entryVectorReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
 // EntryVectors loads every facet and summary vector of one scope in one
 // pass, keyed by entry or summary id: from the active generation when one is
 // serving, else from the legacy embedding columns. Recall and compaction both
 // read through it, so the two can never disagree about which vectors count.
-func EntryVectors(ctx context.Context, db *sql.DB, generations *SQLiteGenerationServing, scope string) (map[string][][]float64, error) {
+func EntryVectors(ctx context.Context, db entryVectorReader, generations *SQLiteGenerationServing, scope string) (map[string][][]float64, error) {
 	if generations != nil {
 		facets, err := generations.ReadActiveVectors(ctx, vectorDatasetFacets)
 		if err != nil {
@@ -31,14 +35,15 @@ func EntryVectors(ctx context.Context, db *sql.DB, generations *SQLiteGeneration
 	return legacyEntryVectors(ctx, db, scope)
 }
 
-func legacyEntryVectors(ctx context.Context, db *sql.DB, scope string) (map[string][][]float64, error) {
+func legacyEntryVectors(ctx context.Context, db entryVectorReader, scope string) (map[string][][]float64, error) {
+	// Group by entry in Go. Sorting the UNION would materialize both
+	// result sets with their vector blobs in SQLite's temporary B-tree.
 	rows, err := db.QueryContext(ctx, `
 SELECT ft.entry_id, em.vector_blob, em.vector_json
 FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id JOIN entries e ON e.id=ft.entry_id
 WHERE e.scope=?
 UNION ALL
-SELECT sm.id, sm.vector_blob, sm.vector_json FROM summaries sm WHERE sm.scope=?
-ORDER BY 1`, scope, scope)
+SELECT sm.id, sm.vector_blob, sm.vector_json FROM summaries sm WHERE sm.scope=?`, scope, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +51,7 @@ ORDER BY 1`, scope, scope)
 	out := map[string][][]float64{}
 	for rows.Next() {
 		var id, raw string
-		var blob []byte
+		var blob sql.RawBytes
 		if err := rows.Scan(&id, &blob, &raw); err != nil {
 			return nil, err
 		}
@@ -67,7 +72,7 @@ ORDER BY 1`, scope, scope)
 	return out, rows.Err()
 }
 
-func generationVectorsByEntry(ctx context.Context, db *sql.DB, scope string, facets, summaries ActiveGenerationVectors) (map[string][][]float64, error) {
+func generationVectorsByEntry(ctx context.Context, db entryVectorReader, scope string, facets, summaries ActiveGenerationVectors) (map[string][][]float64, error) {
 	rows, err := db.QueryContext(ctx, `SELECT ft.id,ft.entry_id FROM facet_texts ft JOIN entries e ON e.id=ft.entry_id WHERE e.scope=? ORDER BY ft.entry_id,ft.id`, scope)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,29 @@
   "name": "vrooli-memory",
   "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
+    {
+      "name": "capture",
+      "description": "Capture observations",
+      "flat": true,
+      "commands": [
+        {
+          "name": "remember",
+          "description": "Record each quoted observation as a separate memory",
+          "positionals": [
+            {"name": "observations", "description": "One observation per argument", "required": true, "repeated": true}
+          ],
+          "flags": [
+            {"name": "scope", "description": "Ledger scope", "default": "agent-memory"},
+            {"name": "evidence", "description": "Evidence reference or context for all observations"},
+            {"name": "routing-hint", "description": "Optional routing context for all observations"},
+            {"name": "request-key", "description": "Replay the identical ordered batch with this key to resume a failed write"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "Remember"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
+    },
 {
   "name": "learning",
   "description": "Capture and measure outcome-linked agent learning",
@@ -175,8 +198,50 @@
     },
     {
       "name": "journal",
-      "description": "Write durable shared memories",
+      "description": "Write durable shared memories and read classification notices",
       "commands": [
+        {
+          "name": "notices",
+          "description": "Read classification notices after a durable consumer checkpoint",
+          "positionals": [
+            {
+              "name": "category-id",
+              "required": true,
+              "description": "Stable classification category ID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "default": "agent-memory",
+              "description": "Ledger scope"
+            },
+            {
+              "name": "after",
+              "default": "0",
+              "description": "Last durably accepted sequence"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum notices (up to 500)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "ListClassificationNotices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
         {
           "name": "note",
           "description": "Append an immutable memory entry",
@@ -556,12 +621,11 @@
       "commands": [
         {
           "name": "recall",
-          "description": "Semantically recall memories",
+          "description": "Recall memory with optional category filtering",
           "positionals": [
             {
               "name": "query",
-              "required": true,
-              "description": "Semantic query"
+              "description": "Topic to recall"
             }
           ],
           "flags": [
@@ -569,6 +633,10 @@
               "name": "scope",
               "description": "Ledger scope",
               "default": "agent-memory"
+            },
+            {
+              "name": "category",
+              "description": "Limit results to a category ID, name, or alias"
             },
             {
               "name": "limit",
@@ -579,6 +647,39 @@
             "kind": "connect-rpc",
             "service": "RecallService",
             "method": "Recall"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "zoom",
+          "description": "Open a memory summary or original observation",
+          "positionals": [
+            {
+              "name": "node-id",
+              "required": true,
+              "description": "Node ID from recall"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope",
+              "default": "agent-memory"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "Zoom"
           },
           "governance": {
             "effect": "read",

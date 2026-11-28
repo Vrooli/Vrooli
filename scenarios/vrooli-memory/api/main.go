@@ -18,7 +18,6 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/provenance"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 
@@ -107,7 +106,7 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(provenance.Middleware(provenance.CLIUtilVerifier{})(rootMux))
+	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

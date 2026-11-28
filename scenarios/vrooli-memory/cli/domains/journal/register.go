@@ -8,9 +8,25 @@ import (
 
 const GroupName = "journal"
 
+func RegisterCapture(core *cliapp.ScenarioApp, manifest []byte) (cliapp.CommandGroup, error) {
+	h := newHandlers(core)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, "capture", map[string]cliapp.PrimitiveHandler{
+		"JournalService.Remember": cliapp.ProtoMutation(h.rememberCall, h.rememberReport),
+	})
+	if err != nil {
+		return cliapp.CommandGroup{}, fmt.Errorf("capture: load manifest: %w", err)
+	}
+	return cliapp.CommandGroup{Title: group.Description, Commands: group.Subcommands}, nil
+}
+
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	g, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"JournalService.AppendEntry": cliapp.ProtoMutation(h.noteCall, h.noteReport), "JournalService.ProcessClassificationRetries": cliapp.ProtoMutation(h.retryCall, h.retryReport), "JournalService.ProcessEmbeddingRetries": cliapp.ProtoMutation(h.retryEmbeddingsCall, h.retryEmbeddingsReport)})
+	g, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
+		"JournalService.AppendEntry":                  cliapp.ProtoMutation(h.noteCall, h.noteReport),
+		"JournalService.ProcessClassificationRetries": cliapp.ProtoMutation(h.retryCall, h.retryReport),
+		"JournalService.ProcessEmbeddingRetries":      cliapp.ProtoMutation(h.retryEmbeddingsCall, h.retryEmbeddingsReport),
+		"JournalService.ListClassificationNotices":    cliapp.ProtoList(h.noticesCall, h.noticesReport),
+	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("journal: load manifest: %w", err)
 	}

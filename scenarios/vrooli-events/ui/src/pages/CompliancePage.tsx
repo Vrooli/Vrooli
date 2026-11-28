@@ -6,7 +6,7 @@ import { ClipboardCheck, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { fetchViolations } from "../lib/api";
 import { HEALTH_POLL_INTERVAL_MS } from "../lib/constants";
@@ -22,7 +22,7 @@ export function CompliancePage() {
   return (
     <div className="space-y-4" data-testid="compliance-page">
       <PageHeader
-        icon={ClipboardCheck}
+        leading={<ClipboardCheck className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Compliance & Audit"
         actions={
           <Button size="sm" variant="outline" onClick={() => refetch()}>

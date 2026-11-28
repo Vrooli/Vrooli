@@ -92,7 +92,12 @@ type SQLiteGenerationBackend struct {
 // generation. Callers read the pointer and its points in one SQLite read
 // transaction, so they never combine vectors from two recipes. An empty active
 // pointer means legacy serving is still in effect.
-type SQLiteGenerationServing struct{ db *sql.DB }
+type SQLiteGenerationServing struct{ db generationReadDB }
+
+type generationReadDB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
 
 type ActiveGenerationVectors struct {
 	GenerationID string
@@ -108,7 +113,7 @@ type sqlQueryer interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-func NewSQLiteGenerationServing(db *sql.DB) (*SQLiteGenerationServing, error) {
+func NewSQLiteGenerationServing(db generationReadDB) (*SQLiteGenerationServing, error) {
 	if db == nil {
 		return nil, errors.New("Source Ledger generation serving requires its owner database")
 	}
@@ -161,7 +166,9 @@ func (s *SQLiteGenerationServing) ActiveRecipeID(ctx context.Context) (string, b
 }
 
 // activeGeneration reads the serving pointer; none means legacy serving.
-func activeGeneration(ctx context.Context, q sqlQueryer) (ActiveGenerationVectors, error) {
+func activeGeneration(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (ActiveGenerationVectors, error) {
 	var out ActiveGenerationVectors
 	err := q.QueryRowContext(ctx, activeGenerationQuery).Scan(&out.GenerationID, &out.RecipeID, &out.Dimensions)
 	switch {

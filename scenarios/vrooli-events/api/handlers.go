@@ -9,11 +9,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/health"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/provenance"
 	// Register the optional program-runtime event payload with the process-wide
 	// protobuf resolver. Events remain generic at the envelope boundary, but
@@ -656,6 +657,11 @@ func (s *Server) streamLiveEvents(w http.ResponseWriter, flusher http.Flusher, c
 			return
 		case <-reqCtx.Done():
 			return
+		case <-apilifecycle.Closing(reqCtx):
+			// A restart is draining: end the stream so the drain can finish. Clients reconnect with
+			// Last-Event-ID and replay from the new instance; an open stream used to hold admission
+			// closed indefinitely (2026-11-20, notifications stopped twice).
+			return
 		case msg, ok := <-ch:
 			if !ok {
 				return
@@ -693,10 +699,11 @@ func writeSSEMessage(w http.ResponseWriter, msg broker.SSEMessage) {
 }
 
 // DOC: docs/reference/api-endpoints.md#health
-// handleHealth reports store reachability and key counters. Returning 503 when
-// the store is unreachable lets load balancers route traffic away from this instance.
+// handleHealth reports store reachability and key counters through
+// api-core/health, so it serves the lifecycle build and start identity the
+// control plane verifies. Returning 503 when the store is unreachable lets load
+// balancers route traffic away from this instance.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	now := time.Now().UTC().Format(time.RFC3339)
 	if s.descriptorSource != nil {
 		if snapshot, err := s.descriptorSource.Snapshot(); snapshot != nil {
 			w.Header().Set("X-Proto-Descriptor-Digest", snapshot.Digest)
@@ -710,36 +717,13 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	buildIdentity := strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY"))
-
-	stats, err := s.store.Stats(r.Context())
-	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-			"status":         "unhealthy",
-			"service":        "vrooli-events",
-			"timestamp":      now,
-			"readiness":      false,
-			"error":          err.Error(),
-			"build_identity": buildIdentity,
-		})
-		return
-	}
-
-	resp := map[string]any{
-		"status":      "healthy",
-		"service":     "vrooli-events",
-		"timestamp":   now,
-		"readiness":   true,
-		"subscribers": s.broker.SubscriberCount(),
-		"store": map[string]any{
-			"totalEvents":       stats.TotalEvents,
-			"totalPayloadBytes": stats.TotalPayloadBytes,
-		},
-	}
-	if buildIdentity != "" {
-		resp["build_identity"] = buildIdentity
-	}
-	writeJSON(w, 0, resp)
+	stats, statsErr := s.store.Stats(r.Context())
+	health.New("vrooli-events").
+		Check(health.Func("store", func(context.Context) error { return statsErr }), health.Critical).
+		Metric("subscribers", func(time.Time) any { return s.broker.SubscriberCount() }).
+		Metric("totalEvents", func(time.Time) any { return stats.TotalEvents }).
+		Metric("totalPayloadBytes", func(time.Time) any { return stats.TotalPayloadBytes }).
+		Handler()(w, r)
 }
 
 // orEmpty returns s if non-nil, otherwise an empty slice of the same type.

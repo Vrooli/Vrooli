@@ -96,7 +96,10 @@ type Deps struct {
 	// the store mirror re-syncs with the file. Both nil => apply is Unimplemented.
 	Control CorpusController
 	Tokens  ControlTokenResolver
-	Logger  *log.Logger
+	// CodeTaskCorpus is the owner-bound source-to-evaluation projection seam.
+	// Production leaves it unavailable until all eight evidence owners are wired.
+	CodeTaskCorpus CodeTaskCorpusBuilder
+	Logger         *log.Logger
 }
 
 type connectHandler struct {

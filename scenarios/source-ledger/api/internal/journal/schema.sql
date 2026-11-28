@@ -21,23 +21,12 @@ CREATE TABLE IF NOT EXISTS entries (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_scope_import_key ON entries(scope, import_key) WHERE import_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at ASC, id ASC);
 CREATE INDEX IF NOT EXISTS idx_entries_scope_created_id ON entries(scope, created_at ASC, id ASC);
-CREATE TABLE IF NOT EXISTS journal_high_water_mark (
-  id INTEGER PRIMARY KEY CHECK (id=1),
-  max_rowid INTEGER NOT NULL,
-  recorded_at TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS journal_observation_context (
+  entry_id TEXT PRIMARY KEY REFERENCES entries(id),
+  evidence TEXT NOT NULL,
+  routing_hint TEXT NOT NULL
 );
-INSERT OR IGNORE INTO journal_high_water_mark(id,max_rowid,recorded_at)
-SELECT 1,COALESCE(MAX(rowid),0),CURRENT_TIMESTAMP FROM entries;
-CREATE TRIGGER IF NOT EXISTS entries_append_only_update
-BEFORE UPDATE ON entries
-BEGIN
-  SELECT RAISE(ABORT, 'journal entries are append-only');
-END;
-CREATE TRIGGER IF NOT EXISTS entries_append_only_delete
-BEFORE DELETE ON entries
-BEGIN
-  SELECT RAISE(ABORT, 'journal entries are append-only');
-END;
+CREATE INDEX IF NOT EXISTS idx_observation_context_routing_hint ON journal_observation_context(routing_hint);
 CREATE TABLE IF NOT EXISTS facet_texts (
   id TEXT PRIMARY KEY,
   entry_id TEXT NOT NULL,

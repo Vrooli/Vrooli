@@ -19,7 +19,7 @@
 ### 🔴 P0 – Must ship for viability
 
 - [x] OT-P0-001 | Append-only journal | The system shall persist every memory write to an append-only journal whose entries are never rewritten and never deleted.
-- [x] OT-P0-002 | Deliberate write verb | When an agent invokes the note verb, the system shall classify the entry's facet, derive its facet texts, embed them, and append the entry to the journal.
+- [x] OT-P0-002 | Deliberate memory capture | When an agent invokes `remember`, the system shall append each observation as its own journal entry with the original wording and available provenance. The journal shall classify and embed observations for recall and queue failed inference for retry.
 - [x] OT-P0-003 | Full-fidelity semantic recall | When a recall query is issued, the system shall search every journal leaf and every summary and shall never exclude a leaf on the grounds that it has been compacted.
 - [x] OT-P0-004 | Best-node retrieval with descendant collapse | When results span tree depths, the system shall return the best-scoring node at any depth and shall collapse descendants of nodes already returned.
 - [x] OT-P0-005 | Facet-routed retention policy | The system shall assign each memory exactly one facet and shall apply only that facet's declared retention policy, admitting only episode-facet entries to compaction.

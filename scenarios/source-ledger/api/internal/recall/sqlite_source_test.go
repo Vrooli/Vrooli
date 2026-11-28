@@ -2,6 +2,8 @@ package recall
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,12 +11,60 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 
+	"source-ledger/internal/classification"
 	localdb "source-ledger/internal/database"
 	"source-ledger/internal/facets"
 	"source-ledger/internal/forest"
 	"source-ledger/internal/journal"
 	"source-ledger/internal/policy"
+	vectorcodec "source-ledger/internal/vector"
 )
+
+func TestRecallVectorSnapshotRefreshesOnEnrichmentAndStaysScoped(t *testing.T) {
+	ctx := t.Context()
+	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-vector-version?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(ctx, db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema),
+		apidb.SchemaProviderFunc(forest.Schema), apidb.SchemaProviderFunc(vectorcodec.Schema)))
+	repository := journal.NewSQLiteRepository(db.Primary())
+	appendEntry := func(ctx context.Context, id string) {
+		_, err := repository.Append(ctx, journal.Entry{
+			ID: id, Scope: string(policy.ScopeFromContext(ctx)), Body: "Searchable evidence", FacetID: "episode",
+		}, nil)
+		require.NoError(t, err)
+		_, err = db.ExecContext(ctx, `INSERT INTO facet_texts(id,entry_id,kind,text) VALUES(?,?,?,?)`, id+"-text", id, "topic", id)
+		require.NoError(t, err)
+	}
+	appendEntry(ctx, "public")
+	private := policy.WithScope(ctx, "team:private")
+	appendEntry(private, "private")
+	serving, err := vectorcodec.NewSQLiteGenerationServing(db.Reader())
+	require.NoError(t, err)
+	reader := NewSQLiteSource(db.Reader(), serving)
+	initial, err := reader.NodeVectors(ctx)
+	require.NoError(t, err)
+	require.Empty(t, initial)
+	_, err = db.ExecContext(ctx, `INSERT INTO embeddings(id,facet_text_id,vector_json,vector_blob,created_at)
+VALUES('public-vector','public-text','',?,?), ('private-vector','private-text','',?,?)`,
+		vectorcodec.Encode([]float64{1, 0}), "2026-11-27", vectorcodec.Encode([]float64{0, 1}), "2026-11-27")
+	require.NoError(t, err)
+	publicVectors, err := reader.NodeVectors(ctx)
+	require.NoError(t, err)
+	require.Equal(t, map[string][][]float64{"public": {{1, 0}}}, publicVectors)
+	warm, err := reader.NodeVectors(ctx)
+	require.NoError(t, err)
+	require.Same(t, &publicVectors["public"][0][0], &warm["public"][0][0])
+	privateVectors, err := reader.NodeVectors(private)
+	require.NoError(t, err)
+	require.Equal(t, map[string][][]float64{"private": {{0, 1}}}, privateVectors)
+	_, err = db.ExecContext(private, `UPDATE embeddings SET vector_blob=? WHERE id='private-vector'`, vectorcodec.Encode([]float64{1, 1}))
+	require.NoError(t, err)
+	privateVectors, err = reader.NodeVectors(private)
+	require.NoError(t, err)
+	require.Equal(t, map[string][][]float64{"private": {{1, 1}}}, privateVectors)
+}
 
 func TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory(t *testing.T) { // [REQ:SL-P0-002]
 	ctx := context.Background()
@@ -299,4 +349,104 @@ func TestLivenessCountsUnabsorbedLeavesAndReportsSummaryTimes(t *testing.T) { //
 	require.Equal(t, 1, liveness.UnsummarizedLeafCount)
 	require.Equal(t, "2026-01-02T00:00:00Z", liveness.OldestUnsummarizedLeafAt)
 	require.Equal(t, "2026-01-03T00:00:00Z", liveness.LastSummaryAt)
+}
+
+func TestCurrentAccountRetainsScopedStateAndHistoricalEvidence(t *testing.T) {
+	ctx := context.Background()
+	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-account?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(ctx, db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(forest.Schema)))
+	repo := journal.NewSQLiteRepository(db.Primary())
+	appendEntry := func(id, body, evidence, hint string) {
+		t.Helper()
+		entry := journal.Entry{ID: id, Body: body, FacetID: "episode", Evidence: evidence, RoutingHint: hint}
+		if hint == "defect-account" {
+			account, valid := decodeAccountEvidence(evidence)
+			require.True(t, valid)
+			entry.Kind = "observation"
+			entry.ImportKey = fmt.Sprintf("request:remember/scenario-qa/%s/%d/0", account.CaseID, account.Revision)
+		}
+		_, err := repo.Append(ctx, entry, nil)
+		require.NoError(t, err)
+	}
+	appendEntry("first", "Browser capture is broken.", "log://first", "")
+	_, err = forest.NewSQLiteRepository(db.Primary()).CreateSummary(ctx,
+		forest.Summary{ID: "prior-forest", Body: "Browser capture is broken.", FacetID: "episode"},
+		[]forest.Edge{{ChildID: "first", ChildKind: "entry"}})
+	require.NoError(t, err)
+	appendEntry("local", "Verified browser capture fix for local sessions.", "log://local", "")
+	appendEntry("remote", "Remote browser capture still times out.", "log://remote", "")
+	appendEntry("setup", "Select the recorder configuration to set up browser capture.", "guide://setup", "")
+	appendEntry("current", "Browser capture fixed locally. Remote browser capture still times out.",
+		`{"case_id":"defect-capture","revision":2,"evidence_ids":["first","local","remote","setup"],"reconciled_ids":["first","local","remote"],"states":[{"scope":"local","status":"fixed"},{"scope":"remote","status":"confirmed"}]}`, "defect-account")
+	appendEntry("delayed", "Browser capture was unverified everywhere.",
+		`{"case_id":"defect-capture","revision":1,"evidence_ids":["first"],"states":[{"scope":"all","status":"suspected"}]}`, "defect-account")
+	svc := NewService(NewSQLiteSource(db.Primary()), queryFixture(func(q string) ([]float64, error) {
+		if q != "browser capture" && q != "select the recorder configuration to set up browser capture" {
+			t.Errorf("query = %q, want the topic without category and status", q)
+		}
+		return nil, errors.New("offline")
+	}), Config{})
+	svc.SetClassificationIndex(categoryIndexFixture{
+		categories: []classification.Category{{ID: "defect", Name: "Defects", Aliases: []string{"bugs"}}},
+		matches:    map[string][]string{"first": {"defect"}},
+	})
+	result, err := svc.Recall(ctx, "open browser capture bugs", 5)
+	require.NoError(t, err)
+	require.Len(t, result.Hits, 1, "setup evidence has no case state")
+	require.Equal(t, "account:current", result.Hits[0].Node.ID)
+	require.Contains(t, result.Hits[0].Node.Text, "Remote browser capture still times out")
+	broad, err := svc.Recall(ctx, "browser capture", 5)
+	require.NoError(t, err)
+	require.Len(t, broad.Hits, 2)
+	broad, err = svc.Recall(ctx, "select the recorder configuration to set up browser capture", 5)
+	require.NoError(t, err)
+	require.Equal(t, "setup", broad.Hits[0].Node.ID)
+	_, err = repo.Append(ctx, journal.Entry{
+		ID: "legacy-report", Kind: "legacy-bug-report", FacetID: "episode", Body: "An unrelated migrated report",
+		ImportKey: "request:legacy-scenario-qa-bugs/v1/snapshot",
+	}, nil)
+	require.NoError(t, err)
+	ambient, err := svc.Wake(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, ambient.Hits, 2)
+	require.Equal(t, "account:current", ambient.Hits[0].Node.ID)
+
+	children, err := svc.Zoom(ctx, result.Hits[0].Node.ID)
+	require.NoError(t, err)
+	require.Len(t, children, 5)
+	require.Equal(t, "log://first", children[0].Evidence)
+	require.Equal(t, "log://remote", children[2].Evidence)
+	otherScope, err := svc.Zoom(policy.WithScope(ctx, "team:other"), result.Hits[0].Node.ID)
+	require.NoError(t, err)
+	require.Empty(t, otherScope)
+
+	_, err = repo.Append(ctx, journal.Entry{
+		ID: "unpublished", Kind: "observation", FacetID: "episode", Body: "Unrelated hint",
+		RoutingHint: "defect-account",
+		Evidence:    `{"case_id":"defect-capture","revision":80,"evidence_ids":["first"],"states":[{"scope":"all","status":"fixed"}]}`,
+		ImportKey:   "request:ordinary-observation",
+	}, nil)
+	require.NoError(t, err)
+	_, err = repo.Append(ctx, journal.Entry{ID: "other-scope", Scope: "team:other", Body: "Private evidence", FacetID: "episode"}, nil)
+	require.NoError(t, err)
+	appendEntry("invalid-scope", "Unrelated reference", `{"case_id":"defect-capture","revision":100,"evidence_ids":["first","other-scope"],"states":[{"scope":"all","status":"fixed"}]}`, "defect-account")
+	for _, invalidID := range []string{"unpublished", "invalid-scope"} {
+		invalid, err := svc.Zoom(ctx, accountPrefix+invalidID)
+		require.NoError(t, err)
+		require.Empty(t, invalid)
+	}
+
+	appendEntry("fixed", "Remote browser capture fix verified.", "log://remote-fixed", "")
+	appendEntry("closed", "Browser capture fixed and verified locally and remotely.",
+		`{"case_id":"defect-capture","revision":3,"evidence_ids":["first","local","remote","fixed","setup"],"reconciled_ids":["first","local","remote","fixed"],"states":[{"scope":"local","status":"fixed"},{"scope":"remote","status":"fixed"}]}`, "defect-account")
+	result, err = svc.Recall(ctx, "open browser capture bugs", 5)
+	require.NoError(t, err)
+	require.Empty(t, result.Hits, "closed cases and setup notes are outside the open view")
+	result, err = svc.RecallCategory(ctx, "", 5, "bugs")
+	require.NoError(t, err)
+	require.Len(t, result.Hits, 1)
+	require.Equal(t, "account:closed", result.Hits[0].Node.ID)
 }

@@ -22,12 +22,13 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 	if e.Scope == "" {
 		e.Scope = "agent-memory"
 	}
+	ctx = policy.WithScope(ctx, e.Scope)
 	if e.ImportKey != "" {
 		var id string
 		err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE scope=? AND import_key=?`, e.Scope, e.ImportKey).Scan(&id)
 		if err == nil {
 			existing, err := r.Get(ctx, id)
-			if err == nil && e.RequestKey != "" && (existing.Body != e.Body || existing.Kind != e.Kind) {
+			if err == nil && e.RequestKey != "" && !e.matchesReplay(existing) {
 				return Entry{}, ErrAppendConflict
 			}
 			existing.Existing = true
@@ -50,7 +51,8 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 	defer func() { _ = tx.Rollback() }()
 	if e.ExpectedLatest != nil {
 		var latest string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM entries WHERE scope=? AND kind=? ORDER BY created_at DESC,rowid DESC LIMIT 1`, e.Scope, e.Kind).Scan(&latest)
+		err := tx.QueryRowContext(ctx, `SELECT e.id FROM entries e JOIN journal_entry_positions p ON p.entry_id=e.id
+WHERE e.scope=? AND e.kind=? ORDER BY e.created_at DESC,p.position DESC LIMIT 1`, e.Scope, e.Kind).Scan(&latest)
 		if err != nil && err != sql.ErrNoRows {
 			return Entry{}, err
 		}
@@ -66,17 +68,37 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 	if !e.Import.ImportedAt.IsZero() {
 		importedAt = e.Import.ImportedAt.Format(time.RFC3339Nano)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO entries (id,scope,body,facet_id,kind,actor_id,actor_kind,source_runtime,verification_status,harness_session_id,harness_kind,run_id,workflow_execution_id,import_key,source_harness,source_path,imported_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Scope, e.Body, e.FacetID, e.Kind, e.Attribution.ActorID, e.Attribution.ActorKind, e.Attribution.SourceRuntime, e.Attribution.VerificationStatus, e.Attribution.HarnessSessionID, e.Attribution.HarnessKind, e.Correlation.RunID, e.Correlation.WorkflowExecutionID, importKey, e.Import.Harness, e.Import.Path, importedAt, e.CreatedAt.Format(time.RFC3339Nano))
+	insert := `INSERT INTO entries (id,scope,body,facet_id,kind,actor_id,actor_kind,source_runtime,verification_status,harness_session_id,harness_kind,run_id,workflow_execution_id,import_key,source_harness,source_path,imported_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+	if e.ImportKey != "" {
+		insert += ` ON CONFLICT (scope, import_key) WHERE import_key IS NOT NULL DO NOTHING`
+	}
+	result, err := tx.ExecContext(ctx, insert, e.ID, e.Scope, e.Body, e.FacetID, e.Kind, e.Attribution.ActorID, e.Attribution.ActorKind, e.Attribution.SourceRuntime, e.Attribution.VerificationStatus, e.Attribution.HarnessSessionID, e.Attribution.HarnessKind, e.Correlation.RunID, e.Correlation.WorkflowExecutionID, importKey, e.Import.Harness, e.Import.Path, importedAt, e.CreatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return Entry{}, fmt.Errorf("append entry: %w", err)
 	}
-	var rowID int64
-	if err := tx.QueryRowContext(ctx, `SELECT rowid FROM entries WHERE id=?`, e.ID).Scan(&rowID); err != nil {
-		return Entry{}, fmt.Errorf("read appended journal rowid: %w", err)
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return Entry{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO journal_high_water_mark(id,max_rowid,recorded_at) VALUES(1,?,?)
-ON CONFLICT(id) DO UPDATE SET max_rowid=MAX(journal_high_water_mark.max_rowid,excluded.max_rowid), recorded_at=excluded.recorded_at`, rowID, nowUTC()); err != nil {
-		return Entry{}, fmt.Errorf("advance journal high-water mark: %w", err)
+	if inserted == 0 {
+		if err := tx.Rollback(); err != nil {
+			return Entry{}, err
+		}
+		existing, found, err := r.FindByImportKey(ctx, e.ImportKey)
+		if err != nil {
+			return Entry{}, err
+		}
+		if !found || (e.RequestKey != "" && !e.matchesReplay(existing)) {
+			return Entry{}, ErrAppendConflict
+		}
+		existing.Existing = true
+		return existing, nil
+	}
+	if e.Evidence != "" || e.RoutingHint != "" {
+		_, err = tx.ExecContext(ctx, `INSERT INTO journal_observation_context (entry_id,evidence,routing_hint) VALUES (?,?,?)`, e.ID, e.Evidence, e.RoutingHint)
+		if err != nil {
+			return Entry{}, fmt.Errorf("append observation context: %w", err)
+		}
 	}
 	for i := range e.FacetTexts {
 		f := &e.FacetTexts[i]
@@ -126,7 +148,14 @@ func (r *SQLiteRepository) CountInWindow(ctx context.Context, from, to time.Time
 
 func (r *SQLiteRepository) ListAfter(ctx context.Context, cursor string, limit int) ([]Entry, error) {
 	scope := policy.ScopeFromContext(ctx)
-	return r.list(ctx, "WHERE e.scope = ? AND e.rowid > (SELECT rowid FROM entries WHERE id = ? AND scope = ?)", limit, scope, cursor, scope)
+	where := entryPositionsJoin + ` WHERE e.scope = ?`
+	args := []any{scope}
+	if cursor != "" {
+		where += ` AND p.position > (
+SELECT cp.position FROM entries ce JOIN journal_entry_positions cp ON cp.entry_id=ce.id WHERE ce.id = ? AND ce.scope = ?)`
+		args = append(args, cursor, scope)
+	}
+	return r.listOrdered(ctx, where, "p.position ASC", limit, args...)
 }
 
 func (r *SQLiteRepository) ListByRun(ctx context.Context, runID string, limit int) ([]Entry, error) {
@@ -297,14 +326,16 @@ func (r *SQLiteRepository) PruneResolvedEmbeddingRetries(ctx context.Context) (i
 }
 
 func (r *SQLiteRepository) ListRecent(ctx context.Context, kind string, limit int) ([]Entry, error) {
-	where := "WHERE e.scope = ?"
+	where := entryPositionsJoin + " WHERE e.scope = ?"
 	args := []any{policy.ScopeFromContext(ctx)}
 	if kind != "" {
 		where += " AND e.kind = ?"
 		args = append(args, kind)
 	}
-	return r.listOrdered(ctx, where, "e.created_at DESC,e.rowid DESC", limit, args...)
+	return r.listOrdered(ctx, where, "e.created_at DESC,p.position DESC", limit, args...)
 }
+
+const entryPositionsJoin = "JOIN journal_entry_positions p ON p.entry_id=e.id"
 
 func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, args ...any) ([]Entry, error) {
 	return r.listOrdered(ctx, where, "e.created_at ASC,e.id ASC", limit, args...)
@@ -314,7 +345,8 @@ func (r *SQLiteRepository) listOrdered(ctx context.Context, where, order string,
 	if limit <= 0 {
 		return nil, nil
 	}
-	q := `SELECT e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.verification_status,e.harness_session_id,e.harness_kind,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at FROM entries e ` + where + ` ORDER BY ` + order + ` LIMIT ?`
+	q := `SELECT e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.verification_status,e.harness_session_id,e.harness_kind,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at,COALESCE(oc.evidence,''),COALESCE(oc.routing_hint,'')
+FROM entries e LEFT JOIN journal_observation_context oc ON oc.entry_id=e.id ` + where + ` ORDER BY ` + order + ` LIMIT ?`
 	args = append(args, limit)
 	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -326,7 +358,7 @@ func (r *SQLiteRepository) listOrdered(ctx context.Context, where, order string,
 		var e Entry
 		var created string
 		var importKey, importedAt sql.NullString
-		if err = rows.Scan(&e.ID, &e.Scope, &e.Body, &e.FacetID, &e.Kind, &e.Attribution.ActorID, &e.Attribution.ActorKind, &e.Attribution.SourceRuntime, &e.Attribution.VerificationStatus, &e.Attribution.HarnessSessionID, &e.Attribution.HarnessKind, &e.Correlation.RunID, &e.Correlation.WorkflowExecutionID, &importKey, &e.Import.Harness, &e.Import.Path, &importedAt, &created); err != nil {
+		if err = rows.Scan(&e.ID, &e.Scope, &e.Body, &e.FacetID, &e.Kind, &e.Attribution.ActorID, &e.Attribution.ActorKind, &e.Attribution.SourceRuntime, &e.Attribution.VerificationStatus, &e.Attribution.HarnessSessionID, &e.Attribution.HarnessKind, &e.Correlation.RunID, &e.Correlation.WorkflowExecutionID, &importKey, &e.Import.Harness, &e.Import.Path, &importedAt, &created, &e.Evidence, &e.RoutingHint); err != nil {
 			return nil, err
 		}
 		e.ImportKey = importKey.String

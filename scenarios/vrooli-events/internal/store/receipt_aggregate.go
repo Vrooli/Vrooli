@@ -7,6 +7,7 @@ import (
 	"time"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/sqlutil"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -55,7 +56,7 @@ func (s *SQLiteStore) AggregateReceipts(ctx context.Context, filter ReceiptAggre
 	}
 	query := `SELECT id, event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, created_at, expires_at
 		FROM events WHERE event_type = ? AND created_at >= ? AND created_at < ?`
-	args := []any{receiptEventType, since.Format(time.RFC3339Nano), until.Format(time.RFC3339Nano)}
+	args := []any{receiptEventType, formatReceiptQueryBoundary(since), formatReceiptQueryBoundary(until)}
 	if filter.TargetScenario != "" {
 		query += " AND target_scenario = ?"
 		args = append(args, filter.TargetScenario)
@@ -119,6 +120,18 @@ func (s *SQLiteStore) AggregateReceipts(ctx context.Context, filter ReceiptAggre
 		return out[i].GetOperation() < out[j].GetOperation()
 	})
 	return out, nil
+}
+
+// formatReceiptQueryBoundary uses the same UTC millisecond representation as
+// the indexed created_at column. Ceiling preserves [Since, Until) semantics
+// when a caller supplies a boundary finer than the store's millisecond precision.
+func formatReceiptQueryBoundary(value time.Time) string {
+	value = value.UTC()
+	remainder := time.Duration(value.Nanosecond() % int(time.Millisecond))
+	if remainder != 0 {
+		value = value.Add(time.Millisecond - remainder)
+	}
+	return value.Format(sqlutil.TimestampFormat)
 }
 
 func formatAggregateTime(value time.Time) string {

@@ -25,6 +25,27 @@ CREATE TABLE IF NOT EXISTS vector_generation_mutex (
 );
 INSERT OR IGNORE INTO vector_generation_mutex(singleton,version) VALUES(1,0);
 
+-- In-place vector enrichment can complete without changing its source text.
+-- Advance the recall snapshot version in the same transaction as that write.
+CREATE TABLE IF NOT EXISTS vector_read_version (
+  singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+  version INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO vector_read_version(singleton,version) VALUES(1,0);
+
+CREATE TRIGGER IF NOT EXISTS vector_read_embedding_insert AFTER INSERT ON embeddings BEGIN
+  UPDATE vector_read_version SET version=version+1 WHERE singleton=1;
+END;
+CREATE TRIGGER IF NOT EXISTS vector_read_embedding_update AFTER UPDATE ON embeddings BEGIN
+  UPDATE vector_read_version SET version=version+1 WHERE singleton=1;
+END;
+CREATE TRIGGER IF NOT EXISTS vector_read_embedding_delete AFTER DELETE ON embeddings BEGIN
+  UPDATE vector_read_version SET version=version+1 WHERE singleton=1;
+END;
+CREATE TRIGGER IF NOT EXISTS vector_read_summary_update AFTER UPDATE OF vector_blob,vector_json ON summaries BEGIN
+  UPDATE vector_read_version SET version=version+1 WHERE singleton=1;
+END;
+
 CREATE TABLE IF NOT EXISTS vector_generation_changes (
   sequence INTEGER PRIMARY KEY AUTOINCREMENT,
   dataset_id TEXT NOT NULL CHECK(dataset_id IN ('journal.facets','forest.summaries')),

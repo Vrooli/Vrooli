@@ -14,6 +14,21 @@ import (
 // asserts every rpc has exactly one entry here.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "evals_code_task_corpus_build",
+		Path:        "/eval/code-task-corpus/build",
+		Method:      "POST",
+		Summary:     "Verify and project an owner-bound code-task corpus",
+		Description: "Accepts only source references and digests. Every case must pass source identity, route, rights, task-specific privacy, immutable repository, objective-suite and independent-label owner checks before projection; Search Hub production wiring remains unavailable until all owners are configured.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "CodeTaskCorpusBuildRequest (metadata references and SHA-256 digests only)"},
+		Response:    &module.Schema{Type: "CodeTaskCorpusBuildResponse (sealed metadata projection only)"},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Body fields are unsupported or the JSON request is malformed"},
+			{Status: 503, Code: "unavailable", Description: "All eight source/evidence owner clients are not configured"},
+			{Status: 422, Code: "failed_precondition", Description: "Owner evidence refused or the corpus is not sealed"},
+		},
+	},
+	{
 		ID:          "evals_denominator_review_template",
 		Path:        "/eval/review-template/{suite_id}",
 		Method:      "GET",

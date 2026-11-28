@@ -161,6 +161,7 @@ func moduleWithRoutabilityAndStrategySnapshot(db *database.RoutedDB, clk schedul
 		Name: "eval",
 		Mount: func(r *mux.Router) {
 			r.HandleFunc("/eval/review-template/{suite_id}", evalHandler.ReviewTemplate).Methods(http.MethodGet)
+			r.HandleFunc("/eval/code-task-corpus/build", evalHandler.BuildCodeTaskCorpus).Methods(http.MethodPost)
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 		},
 		Endpoints: Endpoints,

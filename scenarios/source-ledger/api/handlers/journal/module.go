@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"source-ledger/internal/classification"
 	"source-ledger/internal/inference"
 	internaljournal "source-ledger/internal/journal"
 	"source-ledger/internal/module"
@@ -22,10 +23,12 @@ import (
 
 // Module owns the production journal composition. Inference remains behind
 // the scenario-owned Client seam, so no provider SDK can leak into the domain.
-func Module(db *database.RoutedDB, client inference.Client, facetResolver internaljournal.FacetResolver, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, client inference.Client, facetResolver internaljournal.FacetResolver, logger *log.Logger, classifier *classification.Service) module.Module {
 	repo := internaljournal.NewSQLiteRepository(db.Primary())
 	svc := internaljournal.NewService(repo, client, facetResolver)
-	path, handler := journalconnect.NewJournalServiceHandler(NewConnectHandler(svc, logger))
+	h := NewConnectHandler(svc, logger)
+	h.classifier = classifier
+	path, handler := journalconnect.NewJournalServiceHandler(h)
 	registry := measures.NewRegistry()
 	decl := measures.MeasureDeclaration{Name: "entries.appended", Scenario: "source-ledger", Domain: "entries", Intent: "Number of immutable journal entries appended in a time window.", Questions: []string{"how many journal entries were appended", "source ledger append volume this week", "memory entries added last 7 days"}, Params: map[string]measures.Param{"window": {Name: "window", Type: measures.ParamTypeTimeWindow, Default: string(measures.TokenThisWeek)}}, Result: measures.Result{Kind: measures.ResultScalar, ValueField: "count", Unit: "entries", SummaryTemplate: "{count} journal entries appended ({window})"}, Effect: measures.EffectRead, RunEligible: true, Service: "JournalService", Method: "CountEntries"}
 	if err := registry.Register(decl, func(ctx context.Context, req measures.MeasureRequest) (measures.MeasureResult, error) {

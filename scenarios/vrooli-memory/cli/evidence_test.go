@@ -24,15 +24,8 @@ import (
 // The test runs with the cli/ directory as its working dir, so the scenario root
 // is one level up.
 func TestPrimitiveEvidenceArtifactCurrent(t *testing.T) {
-	groups, err := domains.SubcommandGroups(nil, manifestBytes)
-	if err != nil {
-		t.Fatalf("assemble command tree: %v", err)
-	}
-	cliapptest.RequirePrimitiveEvidence(t, cliapp.EvidenceArtifactPath(".."), cliapp.EvidenceExportInput{
-		Scenario:    "vrooli-memory",
-		ManifestRaw: manifestBytes,
-		Groups:      groups,
-	}, os.Getenv("UPDATE_CLI_EVIDENCE") == "1")
+	input := primitiveEvidenceInput(t)
+	cliapptest.RequirePrimitiveEvidence(t, cliapp.EvidenceArtifactPath(".."), input, os.Getenv("UPDATE_CLI_EVIDENCE") == "1")
 }
 
 // TestEveryDeclaredPrimitiveHasEvidence proves the scenario has NO declared-only
@@ -41,15 +34,8 @@ func TestPrimitiveEvidenceArtifactCurrent(t *testing.T) {
 // guard — a new command declared but not built with a cli-core primitive fails
 // here rather than silently claiming verified L4 from manifest text.
 func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
-	groups, err := domains.SubcommandGroups(nil, manifestBytes)
-	if err != nil {
-		t.Fatalf("assemble command tree: %v", err)
-	}
-	artifact, err := cliapp.BuildPrimitiveEvidence(cliapp.EvidenceExportInput{
-		Scenario:    "vrooli-memory",
-		ManifestRaw: manifestBytes,
-		Groups:      groups,
-	})
+	input := primitiveEvidenceInput(t)
+	artifact, err := cliapp.BuildPrimitiveEvidence(input)
 	if err != nil {
 		t.Fatalf("build evidence: %v", err)
 	}
@@ -66,6 +52,9 @@ func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
 				continue
 			}
 			path := g.Name + " " + c.Name
+			if g.Flat {
+				path = c.Name
+			}
 			got, ok := observed[path]
 			if !ok {
 				t.Errorf("command %q declares primitive %q but has no observed evidence (build the handler with the matching cli-core primitive and register via LoadFromManifestPrimitives)", path, arch.Primitive)
@@ -76,4 +65,21 @@ func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
 			}
 		}
 	}
+}
+
+func primitiveEvidenceInput(t *testing.T) cliapp.EvidenceExportInput {
+	t.Helper()
+	groups, err := domains.SubcommandGroups(nil, manifestBytes)
+	if err != nil {
+		t.Fatalf("assemble command tree: %v", err)
+	}
+	flat, err := domains.CommandGroups(nil, manifestBytes)
+	if err != nil {
+		t.Fatalf("assemble top-level commands: %v", err)
+	}
+	input := cliapp.EvidenceExportInput{Scenario: "vrooli-memory", ManifestRaw: manifestBytes, Groups: groups}
+	for _, group := range flat {
+		input.TopLevel = append(input.TopLevel, group.Commands...)
+	}
+	return input
 }

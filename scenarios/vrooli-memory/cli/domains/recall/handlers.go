@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -30,9 +31,25 @@ func intFlag(ctx cliapp.OperationContext, name string) int32 {
 }
 
 func (h *handlers) recallCall(ctx cliapp.OperationContext) (*recallv1.RecallResponse, error) {
-	resp, err := h.client.Recall(context.Background(), connect.NewRequest(&recallv1.RecallRequest{Query: ctx.Positional("query"), Scope: ctx.Flag("scope"), Limit: intFlag(ctx, "limit")}))
+	query, category := ctx.Positional("query"), ctx.Flag("category")
+	if strings.TrimSpace(query) == "" && strings.TrimSpace(category) == "" {
+		return nil, fmt.Errorf("provide a recall query or --category")
+	}
+	resp, err := h.client.Recall(context.Background(), connect.NewRequest(&recallv1.RecallRequest{
+		Query: query, Category: category, Scope: ctx.Flag("scope"), Limit: intFlag(ctx, "limit"),
+	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("recall memory", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) zoomCall(ctx cliapp.OperationContext) (*recallv1.ZoomResponse, error) {
+	resp, err := h.client.Zoom(context.Background(), connect.NewRequest(&recallv1.ZoomRequest{
+		NodeId: ctx.Positional("node-id"), Scope: ctx.Flag("scope"),
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("zoom memory", err, nil)
 	}
 	return resp.Msg, nil
 }
@@ -54,7 +71,15 @@ func (h *handlers) siblingsCall(ctx cliapp.OperationContext) (*recallv1.ListSibl
 }
 
 func (h *handlers) recallReport(_ cliapp.OperationContext, msg *recallv1.RecallResponse) cliapp.ListReport {
-	return report("Recall", msg.Hits)
+	out := report("Recall", msg.Hits)
+	for _, degradation := range msg.GetDegradations() {
+		out.Summary = append(out.Summary, degradation.GetDetail())
+	}
+	return out
+}
+
+func (h *handlers) zoomReport(_ cliapp.OperationContext, msg *recallv1.ZoomResponse) cliapp.ListReport {
+	return report("Evidence", msg.Constituents)
 }
 
 func (h *handlers) wakeReport(_ cliapp.OperationContext, msg *recallv1.WakeResponse) cliapp.ListReport {
@@ -68,7 +93,14 @@ func (h *handlers) siblingsReport(_ cliapp.OperationContext, msg *recallv1.ListS
 func report(title string, hits []*recallv1.RecallHit) cliapp.ListReport {
 	out := make([]string, 0, len(hits))
 	for _, h := range hits {
-		out = append(out, fmt.Sprintf("[%s] %s", h.FacetId, h.Text))
+		item := fmt.Sprintf("[%s] %s", h.FacetId, h.Text)
+		if h.NodeId != "" {
+			item += fmt.Sprintf("\n  Evidence  vrooli-memory recall zoom --scope %s %s", h.Scope, h.NodeId)
+		}
+		if h.Evidence != "" {
+			item += "\n  Source  " + h.Evidence
+		}
+		out = append(out, item)
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d memory item(s).", len(hits))}, ResultsHeading: title, Results: out}
 }

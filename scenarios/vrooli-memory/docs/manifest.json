@@ -1,8 +1,8 @@
 {
   "version": "2.0.0",
   "title": "Vrooli Memory Documentation",
-  "description": "Documentation contract for the template-manager generated from the react-vite template",
-  "defaultDocument": "START-HERE.md",
+  "description": "Documentation for Vrooli Memory capture, recall, and operations",
+  "defaultDocument": "../README.md",
   "contract": {
     "kind": "scenario-docs",
     "template": "react-vite",
@@ -61,9 +61,9 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [
-              "What You Get",
-              "Documentation Map",
-              "Customize Safely"
+              "Shared observations",
+              "Learning capture contract",
+              "Running the scenario"
             ],
             "forbiddenPlaceholders": [
               "[TODO]",
@@ -859,6 +859,17 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "operations/LEGACY-BUG-MIGRATION.md",
+          "docType": "migration-audit",
+          "title": "Scenario QA Bug History Audit",
+          "description": "Verified cutover receipts and read-only recovery of Scenario QA history",
+          "audience": ["operators", "agents"],
+          "canonicalFor": ["legacy-bug-migration"],
+          "maturity": "active",
+          "requiredBy": ["validated"],
+          "completion": "optional"
         },
         {
           "path": "operations/OBSERVABILITY.md",

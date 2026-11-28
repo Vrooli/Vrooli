@@ -326,6 +326,73 @@ func makeSub(name, owner, pattern string) Subscription {
 	}
 }
 
+func TestSQLiteStore_DeliveryCompletionKeepsQueueAndHealthAtomic(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	subscriptionID, err := store.Create(ctx, makeSub("atomic-completion", "owner", "example.**"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Enqueue(ctx, subscriptionID, "evt-delivered", `{"event":"delivered"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Enqueue(ctx, subscriptionID, "evt-failed", `{"event":"failed"}`); err != nil {
+		t.Fatal(err)
+	}
+	due, err := store.Due(ctx, 10)
+	if err != nil || len(due) != 2 {
+		t.Fatalf("due deliveries = %#v, error = %v", due, err)
+	}
+	rows := map[string]QueuedDelivery{due[0].EventID: due[0], due[1].EventID: due[1]}
+
+	// Fail the health write after the queue write would have succeeded. A
+	// completion is one durable transition, so neither half may survive.
+	if _, err := store.db.ExecContext(ctx, `CREATE TRIGGER reject_health BEFORE UPDATE ON subscription_health BEGIN SELECT RAISE(ABORT, 'seeded health write fault'); END`); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)
+	if err := store.MarkDelivered(ctx, rows["evt-delivered"].ID, subscriptionID, at); err == nil {
+		t.Fatal("health write fault was hidden")
+	}
+	assertDeliveryState := func(eventID, status string, attempts int) {
+		t.Helper()
+		got, err := store.GetDelivery(ctx, subscriptionID, eventID)
+		if err != nil || got.Status != status || got.Attempts != attempts {
+			t.Fatalf("delivery %q = %#v, error = %v; want status %q attempts %d", eventID, got, err, status, attempts)
+		}
+	}
+	assertDeliveryState("evt-delivered", "pending", 0)
+	if err := store.MarkFailed(ctx, rows["evt-failed"].ID, subscriptionID, "seeded completion fault", at, false); err == nil {
+		t.Fatal("health write fault was hidden for failure completion")
+	}
+	assertDeliveryState("evt-failed", "pending", 0)
+	health, err := store.GetHealth(ctx, subscriptionID)
+	if err != nil || health.TotalDelivered != 0 || health.TotalFailed != 0 {
+		t.Fatalf("health after rolled-back completions = %#v, error = %v", health, err)
+	}
+	if _, err := store.db.ExecContext(ctx, `DROP TRIGGER reject_health`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkDelivered(ctx, rows["evt-delivered"].ID, subscriptionID, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkDelivered(ctx, rows["evt-delivered"].ID, subscriptionID, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkFailed(ctx, rows["evt-failed"].ID, subscriptionID, "delivery rejected", at, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkFailed(ctx, rows["evt-failed"].ID, subscriptionID, "duplicate completion", at, true); err != nil {
+		t.Fatal(err)
+	}
+	assertDeliveryState("evt-delivered", "delivered", 0)
+	assertDeliveryState("evt-failed", "dead_letter", 1)
+	health, err = store.GetHealth(ctx, subscriptionID)
+	if err != nil || health.TotalDelivered != 1 || health.TotalFailed != 1 || health.ConsecutiveFailures != 1 || health.Status != "circuit_broken" {
+		t.Fatalf("health after one completion of each delivery = %#v, error = %v", health, err)
+	}
+}
+
 // --- Create ---
 
 // [REQ:SUB-001] Create inserts a subscription and returns a positive ID.

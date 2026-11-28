@@ -85,6 +85,7 @@ func (h *connectHandler) Zoom(ctx context.Context, in *connect.Request[memoryv1.
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
 	resp, err := h.client.Zoom(ctx, req)
 	if err != nil {
 		return nil, ledgerclient.RPCError("zoom", err)

@@ -130,6 +130,21 @@ and lists the provider groups, so a mistyped scenario is never a silent empty.
 search-hub query "take a screenshot" --group device-control
 ```
 
+### Agent memory
+
+Memory results use the recall engine shared with Vrooli Memory. Category phrases
+such as “bug reports” or “capability gaps” help rank memory while plain topic
+queries can surface procedures and prior work. The live capability registry
+remains the source for available operations.
+
+```bash
+search-hub query "open browser capture bug reports" --group source-ledger --json
+vrooli-memory recall zoom <node-id> --scope <scope>
+```
+
+Use the memory hit’s `metadata.node_id` and `metadata.scope` to zoom into the
+underlying evidence. The complete summary is in the hit’s `snippet`.
+
 ## Scenario commands — `intents` (discoverability)
 
 `search-hub intents run [--scenario <name>] [--types library,skill,command] [--limit 5] [--assert]`

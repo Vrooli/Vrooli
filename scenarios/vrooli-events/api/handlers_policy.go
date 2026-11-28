@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
 )
 
@@ -57,6 +58,8 @@ func (s *Server) handlePolicySubscribe(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
+		case <-apilifecycle.Closing(r.Context()):
+			return // a draining restart must not wait on an open stream; the client reconnects
 		case event, ok := <-ch:
 			if !ok {
 				return

@@ -3,11 +3,13 @@ package journal
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
 	internaljournal "source-ledger/internal/journal"
+	"source-ledger/internal/policy"
 	"source-ledger/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/provenance"
@@ -69,6 +71,44 @@ func TestConnectHandlerAppendGetAndList(t *testing.T) { // [REQ:VMEM-P0-002] [RE
 	listed, err := h.ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Limit: 10, FacetId: "decision"}))
 	require.NoError(t, err)
 	require.Len(t, listed.Msg.GetEntries(), 1)
+}
+
+func TestForwardJournalPagesUseAppendOrderAcrossNonmonotonicTimestamps(t *testing.T) {
+	h := newHandler(t)
+	ctx := context.Background()
+	scope := "team:migration-proof"
+	base := time.Date(2026, 11, 27, 7, 0, 0, 0, time.UTC)
+	for _, input := range []internaljournal.Entry{
+		{ID: "z-first", Scope: scope, CreatedAt: base.Add(time.Hour)},
+		{ID: "a-second", Scope: scope, CreatedAt: base},
+		{ID: "other-scope", Scope: "team:other", CreatedAt: base},
+		{ID: "c-third", Scope: scope, CreatedAt: base},
+		{ID: "b-fourth", Scope: scope, CreatedAt: base.Add(-time.Hour)},
+		{ID: "y-fifth", Scope: scope, CreatedAt: base.Add(2 * time.Hour)},
+	} {
+		input.Body = input.ID
+		_, err := h.service.Append(ctx, input)
+		require.NoError(t, err)
+	}
+	var ids []string
+	cursor := ""
+	for range 3 {
+		resp, err := h.ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: scope, Cursor: cursor, Limit: 2}))
+		require.NoError(t, err)
+		for _, entry := range resp.Msg.GetEntries() {
+			ids = append(ids, entry.GetId())
+		}
+		cursor = resp.Msg.GetNextCursor()
+	}
+	require.Empty(t, cursor)
+	require.Equal(t, []string{"z-first", "a-second", "c-third", "b-fourth", "y-fifth"}, ids)
+
+	chronological, err := h.service.List(policy.WithScope(ctx, scope), 10)
+	require.NoError(t, err)
+	require.Equal(t, "b-fourth", chronological[0].ID)
+	recent, err := h.ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: scope, NewestFirst: true, Limit: 1}))
+	require.NoError(t, err)
+	require.Equal(t, "y-fifth", recent.Msg.GetEntries()[0].GetId())
 }
 
 func TestConnectHandlerValidatesAndMapsMissingEntry(t *testing.T) {

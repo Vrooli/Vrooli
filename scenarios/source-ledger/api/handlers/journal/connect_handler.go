@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"source-ledger/internal/classification"
 	internaljournal "source-ledger/internal/journal"
 	"source-ledger/internal/policy"
 
@@ -20,8 +21,37 @@ import (
 )
 
 type connectHandler struct {
-	service *internaljournal.Service
-	logger  *log.Logger
+	service    *internaljournal.Service
+	logger     *log.Logger
+	classifier *classification.Service
+}
+
+func (h *connectHandler) ListClassificationNotices(ctx context.Context, req *connect.Request[journalv1.ListClassificationNoticesRequest]) (*connect.Response[journalv1.ListClassificationNoticesResponse], error) {
+	categoryID := strings.TrimSpace(req.Msg.GetCategoryId())
+	after, limit := req.Msg.GetAfterSequence(), int(req.Msg.GetLimit())
+	if categoryID == "" || after < 0 || limit < 0 || limit > 500 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("category_id is required, after_sequence must be nonnegative, and limit must be between 0 and 500"))
+	}
+	if h.classifier == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("observation classification unavailable"))
+	}
+	if limit == 0 {
+		limit = 100
+	}
+	scope := string(policy.NormalizeScope(req.Msg.GetScope()))
+	ctx = policy.WithScope(ctx, scope)
+	notices, err := h.classifier.Notices(ctx, scope, categoryID, after, limit)
+	if err != nil {
+		h.logger.Printf("journal.ListClassificationNotices: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &journalv1.ListClassificationNoticesResponse{}
+	for _, notice := range notices {
+		out.Notices = append(out.Notices, &journalv1.ClassificationNotice{
+			Sequence: notice.Sequence, ObservationId: notice.ObservationID, CategoryId: notice.CategoryID, Scope: notice.Scope,
+		})
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (h *connectHandler) CountEntries(ctx context.Context, req *connect.Request[journalv1.CountEntriesRequest]) (*connect.Response[journalv1.CountEntriesResponse], error) {
@@ -62,6 +92,12 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 	}
 	if req.Msg.ExpectedLatestId != nil && strings.TrimSpace(req.Msg.GetKind()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("kind"))
+	}
+	if strings.HasPrefix(importKey(req.Msg.GetImportProvenance()), "request:") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("import provenance cannot use the request-key namespace"))
+	}
+	if err := authorizeReservedRequestKey(ctx, req.Msg.GetRequestKey()); err != nil {
+		return nil, err
 	}
 	created, err := h.service.Append(ctx, entryFromAppend(req.Msg, provenance.FromContext(ctx)))
 	if err != nil {
@@ -133,8 +169,6 @@ func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[j
 		entries, err = h.service.ListRecent(ctx, req.Msg.GetKind(), limit)
 	} else if req.Msg.GetKind() != "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("kind requires newest_first"))
-	} else if req.Msg.GetCursor() == "" {
-		entries, err = h.service.List(ctx, limit)
 	} else {
 		entries, err = h.service.ListAfter(ctx, req.Msg.GetCursor(), limit)
 	}
@@ -188,8 +222,10 @@ func (e errRequired) Error() string { return string(e) + " is required" }
 
 func entryFromAppend(in *journalv1.AppendEntryRequest, source provenance.Provenance) internaljournal.Entry {
 	body := in.GetBody()
+	evidence := in.GetEvidence()
 	if in.GetKind() == "work-record" {
-		body += "\n\nTrigger: " + in.GetTrigger() + "\nApproach: " + in.GetApproach() + "\nEvidence: " + in.GetEvidence() + "\nOutcome: " + in.GetOutcome()
+		body += "\n\nTrigger: " + in.GetTrigger() + "\nApproach: " + in.GetApproach() + "\nEvidence: " + evidence + "\nOutcome: " + in.GetOutcome()
+		evidence = ""
 	}
 	// Correlation comes only from api-core's verified provenance. Request fields
 	// are deliberately ignored: a caller must not be able to forge an agent run
@@ -197,6 +233,7 @@ func entryFromAppend(in *journalv1.AppendEntryRequest, source provenance.Provena
 	attribution, correlation := internaljournal.AttributionFrom(source, internaljournal.Attribution{})
 	return internaljournal.Entry{
 		Body: body, Scope: string(policy.NormalizeScope(in.GetScope())), FacetID: in.GetFacetId(), Kind: in.GetKind(),
+		Evidence: evidence, RoutingHint: in.GetRoutingHint(),
 		Attribution:    attribution,
 		Correlation:    correlation,
 		ImportKey:      importKey(in.GetImportProvenance()),
@@ -212,7 +249,7 @@ func importKey(p *journalv1.ImportProvenance) string {
 }
 
 func entryToProto(e internaljournal.Entry) *journalv1.Entry {
-	out := &journalv1.Entry{Id: e.ID, Body: e.Body, FacetId: e.FacetID, Kind: e.Kind, Attribution: &journalv1.Attribution{ActorId: e.Attribution.ActorID, ActorKind: e.Attribution.ActorKind, SourceRuntime: e.Attribution.SourceRuntime, VerificationStatus: e.Attribution.VerificationStatus, HarnessSessionId: e.Attribution.HarnessSessionID, HarnessKind: e.Attribution.HarnessKind}, Correlation: &journalv1.Correlation{RunId: e.Correlation.RunID, WorkflowExecutionId: e.Correlation.WorkflowExecutionID, ActorKind: e.Correlation.ActorKind}, CreatedAt: timestamppb.New(e.CreatedAt)}
+	out := &journalv1.Entry{Id: e.ID, Body: e.Body, FacetId: e.FacetID, Kind: e.Kind, Evidence: e.Evidence, RoutingHint: e.RoutingHint, Attribution: &journalv1.Attribution{ActorId: e.Attribution.ActorID, ActorKind: e.Attribution.ActorKind, SourceRuntime: e.Attribution.SourceRuntime, VerificationStatus: e.Attribution.VerificationStatus, HarnessSessionId: e.Attribution.HarnessSessionID, HarnessKind: e.Attribution.HarnessKind}, Correlation: &journalv1.Correlation{RunId: e.Correlation.RunID, WorkflowExecutionId: e.Correlation.WorkflowExecutionID, ActorKind: e.Correlation.ActorKind}, CreatedAt: timestamppb.New(e.CreatedAt)}
 	for _, f := range e.FacetTexts {
 		out.FacetTexts = append(out.FacetTexts, &journalv1.FacetText{Kind: f.Kind, Text: f.Text, EmbeddingRef: f.EmbeddingRef})
 	}

@@ -62,10 +62,10 @@ The usage skill owns the capture contract and measurement interpretation.
 
 ### journal
 
-- Purpose: hold the append-only log of everything an agent deliberately remembers.
+- Purpose: hold the append-only log of everything an agent deliberately remembers. The `remember` command appends one entry per observation through this same write path.
 - Primary archetype: CRUD (append + read only — no update, no delete).
 - Secondary traits: write-path orchestration across facets and ai-gateway.
-- Owns: entry records (prose body, facet tag, derived facet texts, embeddings,
+- Owns: entry records (original prose body, optional evidence and routing hint, facet tag, derived facet texts, embeddings,
   author attribution, receipt correlation, timestamps); the append operation;
   the classification/embedding call sequence at write time.
 - Does not own: what a facet *means* (`facets`), summaries (`forest`), ranking

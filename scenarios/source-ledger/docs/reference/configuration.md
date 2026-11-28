@@ -100,6 +100,14 @@ substitute your scenario's prefix for `<PREFIX>`:
 > when CLIs run inside web-console terminals it leaks across scenarios.
 > Use the scenario-prefixed form or the `--api-base` flag.
 
+## Memory categories
+
+Source Ledger loads the category catalog at startup. Give each category a stable `id`, a display `name`, search `aliases`, a `definition`, and positive `examples`. Optional `sources` identify typed imports by their journal kind and append request-key prefix. Names and aliases must resolve to a single category. [Category catalog](../../.vrooli/memory-categories.json)
+
+Restart Source Ledger after editing the catalog. Display edits preserve existing matches. A change to a definition, examples, or typed sources starts a new classification pass for that category. The worker reads durable journal positions and calls AI Gateway's `decide.memory-observation` role with a local-only profile. It reserves capacity for new observations and retries while it backfills older ones. Category recall fills in as decisions become available for the current definition.
+
+The classification notice stream delivers matching observations captured with `vrooli-memory remember` and entries that carry an explicit routing hint. Historical work records and imported evidence remain available to category recall. Investigator account publications remain available through recall and zoom without generating another intake notice.
+
 ## Service manifest (`.vrooli/service.json`)
 
 Single source of truth for everything the lifecycle needs to know.

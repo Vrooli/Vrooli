@@ -35,6 +35,16 @@ var Known = []Def{
 		Platform:        capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "The append-only ledger remains durable, while enrichment and compaction pause until ai-gateway is available."},
 	},
 	{
+		ID: "prompt-manager", Name: "Prompt Manager",
+		Description:    "Verifies the current investigator heartbeat owner when publishing a defect account.",
+		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "prompt-manager",
+		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Prompt Manager",
+		OperatorCommand: "vrooli scenario start prompt-manager --json",
+		Enabled:         true, Required: false, StartupPolicy: "ignore",
+		Features: []string{"defect-account-publication"},
+		Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "Capture and recall continue while account publications wait in the investigator's durable queue."},
+	},
+	{
 		ID: "search-hub", Name: "Search Hub",
 		Description:    "Optional federated search registration for source-ledger corpus discovery.",
 		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "search-hub",
@@ -50,7 +60,8 @@ var Known = []Def{
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]capabilityregistry.Checker{
-		"ai-gateway": capabilityregistry.ScenarioStatusChecker{Scenario: "ai-gateway"},
-		"search-hub": capabilityregistry.ScenarioStatusChecker{Scenario: "search-hub"},
+		"ai-gateway":     capabilityregistry.ScenarioStatusChecker{Scenario: "ai-gateway"},
+		"prompt-manager": capabilityregistry.ScenarioStatusChecker{Scenario: "prompt-manager"},
+		"search-hub":     capabilityregistry.ScenarioStatusChecker{Scenario: "search-hub"},
 	}, 5*time.Second)
 }

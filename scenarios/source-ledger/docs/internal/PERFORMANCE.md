@@ -91,6 +91,29 @@ empty-forest measurements.
 | Warm wake p95 | 1.20 s | Allows a bounded cached discovery/network hop over the 0.93 s baseline. |
 | Warm recall p95 | 1.50 s | Allows a bounded cached discovery/network hop over the 1.16 s baseline. |
 
+### November 27 Memory cutover follow-up
+
+The live agent-memory corpus had about 28,600 entries and forest nodes
+combined. Full topic recall still evaluates all visible nodes. It overlaps the
+embedding request, vector read, and text projection. A single bounded vector
+snapshot uses database versions to invalidate on enrichment, source changes,
+or a generation switch. Pure category lists use indexed entry IDs and current
+accounts without reading canopy text or embeddings.
+
+Two immediate repeats per selected query measured 1.43–1.46 s through the
+direct Memory API, 82 ms for a category-only list, and 10 ms for known-ID zoom.
+A first-touch Memory CLI topic query took 5.02 s after the ledger restart.
+The warm sample is descriptive. Across nine explicit Search Hub calls the
+Memory provider took 1.51–1.96 s, above its 1.50 s p95 target. Client startup
+and provider routing are measured separately. Default routing still requires
+an independently reviewed provider suite and a passing evaluation.
+
+On a disposable snapshot, five fixed-embedding requests measured a 1.16 s
+sample p95 at 28,633 nodes and 2.17 s at 66,159 nodes after tripling the
+journal entries. Both runs returned the same first result with zero lexical
+fallbacks. The benchmark omits gateway and client work. At that larger corpus
+size, the exact scan alone exceeds the provider target.
+
 ## Context ceilings
 
 The default bounded-view policy is 96 lines / 12,000 characters for the whole
