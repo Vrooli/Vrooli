@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "design-page",
+    "title": "Workspace design",
+    "purpose": "Create, fork and edit workspaces composed from pages, device displays and state variants.",
+    "storyRef": "../../ui/src/workbench/pages/WorkspaceStudioPage.story.json"
+  },
+  "states": [
+    {
+      "id": "index",
+      "example": "index",
+      "description": "Find a workspace, start a blank workspace or fork a curated template"
+    },
+    {
+      "id": "workspace",
+      "example": "workspace",
+      "description": "Edit pages, displays, states and RCL/custom layers"
+    },
+    {
+      "id": "bound-scenario",
+      "example": "bound-scenario",
+      "description": "Open a workspace linked to a scenario page"
+    },
+    {
+      "id": "experience",
+      "example": "experience",
+      "description": "Adopt an unbound experience page into a workspace"
+    },
+    {
+      "id": "legacy-sketch",
+      "example": "legacy-sketch",
+      "description": "Redirect the legacy sketch route into workspace design"
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Design workspaces"
+    }
+  ],
+  "claims": [],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-experience-surface]"
+      }
+    }
+  }
+}

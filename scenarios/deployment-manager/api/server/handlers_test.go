@@ -35,7 +35,7 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 	profilesRepo := profiles.NewSQLRepository(db)
 
 	srv := &Server{
-		Config:              &Config{Port: "8080"},
+		Config:              &RuntimeConfig{Port: "8080"},
 		DB:                  db,
 		Router:              mux.NewRouter(),
 		ProfilesRepo:        profilesRepo,
@@ -49,6 +49,11 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 		BundlesHandler:      bundles.NewHandler(secrets.NewClient(), profilesRepo, logFn),
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 	}
+	// Register legacy test-only handler routes before the generated Connect
+	// path prefixes. Gorilla mux stops at the first matching prefix, so the
+	// Connect catch-all would otherwise turn these compatibility tests into
+	// 404s before their domain handler is reached.
+	mountDomainHandlerTests(srv)
 	srv.setupRoutes()
 
 	return srv, mock
@@ -191,10 +196,12 @@ func TestHandleCreateProfile(t *testing.T) {
 			},
 			wantStatus: http.StatusCreated,
 			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO profiles").
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectExec("INSERT INTO profile_versions").
 					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
 			},
 		},
 		{

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -50,12 +49,12 @@ func resolveGroupIgnore(repoDir, cleanPath, groupDirRaw string) (string, string,
 // When Level is "group", the entry is written to <RepoDir>/<GroupDir>/.gitignore.
 // Otherwise it writes to the root .gitignore.
 func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*IgnoreResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
+	if err := requireHumanMutation(ctx, "ignore path"); err != nil {
+		return nil, err
 	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	cleanPath := cleanFilePath(req.Path)

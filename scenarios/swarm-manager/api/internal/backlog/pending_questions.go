@@ -1,37 +1,27 @@
-// Pending questions endpoint — returns actual question content for all backlog
-// items that have unanswered workshop decisions or unreviewed targets/requirements.
-// Used by the All tab inline question stepper to render questions without N+1 queries.
+// Pending questions endpoint — returns unreviewed independent-review targets
+// and requirements. Plan Workshop questions stay in the workshop aggregate.
 package backlog
 
 import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogrank"
 	"swarm-manager/internal/httputil"
 )
 
-// PendingQuestion represents a single question from either a workshop decision
-// or a target/requirement review.
+// PendingQuestion represents an unreviewed target or requirement.
 type PendingQuestion struct {
 	ID       string `json:"id"`
-	Source   string `json:"source"` // "workshop" | "review"
+	Source   string `json:"source"` // "review"
 	ItemKind string `json:"item_kind"`
 	ItemName string `json:"item_name"`
-
-	// Workshop decision fields
-	Topic           string           `json:"topic,omitempty"`
-	Text            string           `json:"text,omitempty"`
-	Context         string           `json:"context,omitempty"`
-	Options         []WorkshopOption `json:"options,omitempty"`
-	Selected        *string          `json:"selected,omitempty"`
-	Freeform        *string          `json:"freeform,omitempty"`
-	Notes           *string          `json:"notes,omitempty"`
-	RoundNumber     int              `json:"round_number,omitempty"`
-	ClarificationID *string          `json:"clarification_id,omitempty"`
-	ContextNote     *string          `json:"context_note,omitempty"`
 
 	// Review fields
 	Title         string `json:"title,omitempty"`
@@ -55,26 +45,35 @@ type PendingQuestionsResponse struct {
 	Items []PendingQuestionsItem `json:"items"`
 }
 
-// PendingQuestions returns the actual question content for all backlog items with
-// pending workshop decisions or unreviewed targets/requirements.
+type pendingQuestionSource string
+
+const (
+	pendingQuestionSourceReview pendingQuestionSource = "review"
+)
+
+// PendingQuestions returns unreviewed targets and requirements for backlog items.
 func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
+	_, limit, milestone, ok := parsePendingQuestionsQuery(w, r)
+	if !ok {
+		return
+	}
+
 	items, err := h.store.LoadAll(nil)
 	if err != nil {
 		apierr.MapError(w, "[backlog] pending-questions", apierr.Internal("%s", err.Error()))
 		return
 	}
 
+	depthMap, unblockingMap, itemsByKey := rankPendingQuestionItems(items)
 	var result []PendingQuestionsItem
 
 	for _, item := range items {
+		if milestone != "" && item.Milestone != milestone {
+			continue
+		}
+
 		itemDir := h.store.ItemDir(item.Kind, item.Name)
-		var questions []PendingQuestion
-
-		// Collect unanswered workshop decisions from the latest round.
-		questions = append(questions, collectWorkshopQuestions(itemDir, item.Kind, item.Name)...)
-
-		// Collect unreviewed targets.
-		questions = append(questions, collectReviewQuestions(itemDir, item.Kind, item.Name)...)
+		questions := collectReviewQuestions(itemDir, item.Kind, item.Name)
 
 		if len(questions) > 0 {
 			result = append(result, PendingQuestionsItem{
@@ -83,6 +82,16 @@ func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 				Questions: questions,
 			})
 		}
+	}
+
+	sort.SliceStable(result, func(i, j int) bool {
+		left := itemsByKey[backlogrank.Key(string(result[i].Kind), result[i].Name)]
+		right := itemsByKey[backlogrank.Key(string(result[j].Kind), result[j].Name)]
+		return backlogrank.Less(left, right, depthMap, unblockingMap)
+	})
+
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
 	}
 
 	if result == nil {
@@ -95,39 +104,59 @@ func (h *Handler) PendingQuestions(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// collectWorkshopQuestions extracts unanswered decision items from the latest workshop round.
-func collectWorkshopQuestions(itemDir string, kind BacklogKind, name string) []PendingQuestion {
-	latestRound, _, err := LoadLatestRound(itemDir)
-	if err != nil || latestRound == nil {
-		return nil
+func parsePendingQuestionsQuery(w http.ResponseWriter, r *http.Request) (pendingQuestionSource, int, string, bool) {
+	sourceRaw := strings.TrimSpace(r.URL.Query().Get("source"))
+	if sourceRaw == "" {
+		sourceRaw = string(pendingQuestionSourceReview)
+	}
+	source := pendingQuestionSource(strings.ToLower(sourceRaw))
+	switch source {
+	case pendingQuestionSourceReview:
+	default:
+		apierr.MapError(w, "[backlog] pending-questions", apierr.BadRequest("invalid source: must be review"))
+		return "", 0, "", false
 	}
 
-	var questions []PendingQuestion
-	for _, wi := range latestRound.Items {
-		if wi.Type != "decision" {
-			continue
+	limitRaw := strings.TrimSpace(r.URL.Query().Get("limit"))
+	limit := 0
+	if limitRaw != "" {
+		parsed, err := strconv.Atoi(limitRaw)
+		if err != nil || parsed < 0 {
+			apierr.MapError(w, "[backlog] pending-questions", apierr.BadRequest("invalid limit: must be a non-negative integer"))
+			return "", 0, "", false
 		}
-		if wi.Selected != nil && strings.TrimSpace(*wi.Selected) != "" {
-			continue // already answered
-		}
-		questions = append(questions, PendingQuestion{
-			ID:              wi.ID,
-			Source:          "workshop",
-			ItemKind:        string(kind),
-			ItemName:        name,
-			Topic:           wi.Topic,
-			Text:            wi.Text,
-			Context:         wi.Context,
-			Options:         wi.Options,
-			Selected:        wi.Selected,
-			Freeform:        wi.Freeform,
-			Notes:           wi.Notes,
-			RoundNumber:     latestRound.RoundNum,
-			ClarificationID: wi.ClarificationID,
-			ContextNote:     wi.ContextNote,
-		})
+		limit = parsed
 	}
-	return questions
+
+	milestone := strings.TrimSpace(r.URL.Query().Get("milestone"))
+	return source, limit, milestone, true
+}
+
+func rankPendingQuestionItems(items []BacklogItem) (map[string]int, map[string]int, map[string]backlogrank.Item) {
+	rankItems := make([]backlogrank.Item, 0, len(items))
+	itemsByKey := make(map[string]backlogrank.Item, len(items))
+	for _, item := range items {
+		rankItem := backlogrank.Item{
+			Kind:      string(item.Kind),
+			Name:      item.Name,
+			Status:    string(item.Status),
+			DependsOn: item.DependsOn,
+			Archived:  item.ArchivedAt != nil && strings.TrimSpace(*item.ArchivedAt) != "",
+			Priority:  item.Priority,
+			UpdatedAt: parseBacklogUpdatedAt(item.Updated),
+		}
+		rankItems = append(rankItems, rankItem)
+		itemsByKey[backlogrank.ItemKey(rankItem)] = rankItem
+	}
+	return backlogrank.ComputeDepthMap(rankItems), backlogrank.ComputeUnblockingMap(rankItems), itemsByKey
+}
+
+func parseBacklogUpdatedAt(raw string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(raw))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }
 
 // collectReviewQuestions extracts unreviewed targets and requirements.

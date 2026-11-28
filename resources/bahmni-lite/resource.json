@@ -1,0 +1,48 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "bahmni-lite",
+  "display_name": "Bahmni Lite",
+  "description": "Owner-managed isolated Bahmni Lite evaluation instances using the pinned clinic EMR and billing profile.",
+  "category": "healthcare",
+  "driver": "managed-service",
+  "cli": {"enabled": false},
+  "requirements": {
+    "ram_mb": 8192,
+    "disk_mb": 8192,
+    "cpu_cores": 4,
+    "network": "required",
+    "bucket": "large",
+    "source": "measured",
+    "confidence": "medium",
+    "class": "infrastructure",
+    "weight": 1
+  },
+  "platforms": {"linux": "supported", "macos": "unsupported", "windows": "unsupported"},
+  "hostTools": [
+    {"name": "docker", "required": true, "reason": "Bahmni Lite and its OpenMRS/Crater data services run in owner-labeled isolated containers."}
+  ],
+  "dependencies": [],
+  "managed_service": {
+    "task_scoped_container": true,
+    "provider_policy": {
+      "target_defaults": {"control-plane": "managed-private", "desktop-bundle": "managed-private"},
+      "allowed_modes": ["managed-private"],
+      "shared_reuse_requires_consent": false,
+      "external_management": "forbidden",
+      "external_access_capabilities": []
+    }
+  },
+  "runtime": {"image": "bahmni/openmrs:1.0.0@sha256:4bdb5facb3afe67392d86da924926ebc84030329c343f2a3c28a5f38e3bb40d7"},
+  "storage": {
+    "entries": {
+      "instances": {"rung": "pinned", "kind": "dir", "regenerable": false, "class": "data", "subpath": "instances", "rationale": "Each isolated Bahmni Lite Compose project owns its synthetic OpenMRS, Crater, document, image, configuration and database volumes until explicit removal."}
+    }
+  },
+  "orchestration": {"startup_order": 999, "startup_timeout_seconds": 600, "startup_time_estimate": "5-10 minutes after pinned image acquisition", "dependencies": [], "recovery_attempts": 0, "priority": "optional"},
+  "lifecycle": {"start_timeout_seconds": 600, "stop_timeout_seconds": 120, "retries": 0},
+  "capabilities": {"supports_logs": true},
+  "template_version": "1",
+  "privilege": "user",
+  "bundling": "host-required",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "This resource currently depends on the control-plane Docker lifecycle; no desktop bundle is defined.", "limitations": ["Synthetic isolated Linux host use only until desktop runtime ownership is designed and verified."]}, "macos": {"support": "unsupported", "mode": "manual", "reason": "This resource currently depends on the control-plane Docker lifecycle; no desktop bundle is defined.", "limitations": ["Synthetic isolated Linux host use only until desktop runtime ownership is designed and verified."]}, "windows": {"support": "unsupported", "mode": "manual", "reason": "This resource currently depends on the control-plane Docker lifecycle; no desktop bundle is defined.", "limitations": ["Synthetic isolated Linux host use only until desktop runtime ownership is designed and verified."]}}}}
+}

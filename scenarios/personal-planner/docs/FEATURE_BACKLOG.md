@@ -1,0 +1,182 @@
+# Personal Planner — Feature Backlog & Gaps
+
+Working list of missing features, UX gaps, and design debt for the personal-planner scenario.
+Point an improvement agent here. Items are grouped by theme and tagged with a rough priority
+(**P0** = changes how the app fundamentally feels/works · **P1** = strong lift · **P2** = polish).
+
+**Companion docs & artifacts (read alongside this):**
+- `docs/mockups/redesign-desktop-and-mobile.html` — desktop + mobile redesign mockups for all 6 pages (the visual target).
+- `docs/mockups/today-mobile-nextstep.html` — standalone interactive Today/next-step + sheet.
+- `docs/visual-compositing.md` — L0/L1/L2 layer model, sampled-seam sky, Shape A/B, the Plan diorama, ambient FX.
+- `docs/mockups/image-generation-brief.md` — art contract; per-page image status (all plates captured).
+- `docs/mockups/source-art/README.md` — the captured green-screen plates + how each is processed/composited.
+- `docs/estimation-and-learning.md` — full design of the "learning from planning" system, data audit, schema.
+
+> Existing roadmap requirements that overlap live in `requirements/02-post-launch/` and
+> `requirements/03-future/` (e.g. `P1-006 evidence-linked learning`, `P2-001 calibrated forecasts`).
+> Reconcile with those rather than duplicating.
+
+---
+
+## North Star — Definition of Done (the quality bar)
+
+This effort is done when the planner is **genuinely, visibly excellent** — not when tests merely pass.
+The bar is the operator's aesthetic standard and the mockups, on **both desktop and mobile**:
+
+1. **Matches the mockups' intent.** Every page realizes its redesign (`redesign-desktop-and-mobile.html`)
+   and its place in the celestial-navigation world — desktop composes in space, mobile in sequence/reach.
+2. **Beautiful, not just functional.** Cohesive palette, the procedural sky + captured scenery composited
+   per `visual-compositing.md`, ambient life (night comets, day balloons), no rough seams, no placeholder feel.
+3. **The learning loop is live** (`estimation-and-learning.md`): estimate↔actual captured, variance badges
+   on Goals, calibration on Review — honest, positive-and-negative framed.
+4. **Truly mobile-adaptive** (§E): component-level divergence via a breakpoint hook, not CSS reflow alone.
+5. **Honest green.** Validation reflects real behavior — no shims, no gates edited to pass, no hollow
+   coverage. If a surface looks wrong, it is not done even if the suite is green.
+
+"Technically satisfied" is not the finish line. If a reasonable person would call a page rough, plain, or
+half-adaptive, keep going.
+
+## Suggested build order (dependency spine)
+
+Not rigid, but respect the prerequisites:
+1. **Foundations:** breakpoint hook (§E) + generalized Shape-A/B compositor (§G) — everything visual builds on these.
+2. **Data foundations:** completion truth, original-estimate memory, plan↔actual link, goal/milestone dates (§C).
+3. **Per-page visual + adaptive pass:** wire each page's scenery composite (Plan diorama, Focus, Settings) and
+   its mobile-adaptive layout (§E/§F) together, page by page, against the mockups.
+4. **Learning surfaces:** variance badges, calibration card, procedural Goals constellations / Review star-trails.
+5. **Delight + capture:** ambient FX (comets/balloons), natural-language + global capture, countdown/overtime timer.
+6. **Remaining gaps + polish** (§D) and the agent read model (§C).
+Checkpoint after each; validate per `docs/TESTING.md` scope.
+
+---
+
+## A. Frictionless capture & steering  *(highest leverage — makes it delightful vs. tedious)*
+
+- [x] **P0 · Natural-language capture.** A single box that parses *"lunch with Sam tue 1pm 1h"* into
+  a placed item (title, time, duration, source). The one feature that most separates a delightful
+  planner from a chore.
+- [x] **P0 · Global quick-capture.** ⌘K command palette on desktop (from any page); the FAB on
+  mobile. Capture must be reachable everywhere, always in the thumb zone on mobile. *(The buried
+  "add task" in the first Today mockup was the anti-pattern this fixes.)*
+- [x] **P1 · Snooze / defer / "not now"** on the next step and any scheduled item — gracefully push,
+  don't just start-or-ignore. Feeds reschedule-reason capture (§D).
+- [x] **P1 · Reminders / notifications.** A planner that can't nudge is a diary. Target-reached
+  chime for focus, upcoming-block and overdue nudges.
+
+## B. Focus timer  *(anchor example — partly mocked up already)*
+
+- [x] **P0 · Countdown mode**, first-class, pre-filled from the task's planned duration. Toggle with
+  Stopwatch. *(In mockup.)*
+- [x] **P0 · Overtime roll-over.** At 0 the countdown flips to counting *up* in amber instead of
+  stopping — commit to a target AND capture the honest overrun. Directly feeds the learning loop
+  (`estimation-and-learning.md` §5). *(In mockup.)*
+- [x] **P1 · Quick-pick durations** (25 / 45 / 90) and Pomodoro cycles with break prompts. *(Picks in mockup.)*
+- [x] **P1 · End-of-session note** ("what did you get done?") flowing into Review.
+- [x] **P2 · Distraction / pause reason** one-tap logging.
+
+## C. Learning from planning (estimation & calibration)  *(the differentiator)*
+
+See `docs/estimation-and-learning.md` for the full design, data audit, and schema. Summary tasks:
+
+- [x] **P1 · Completion truth** — timestamps/status on work items, goals, milestones (foundational).
+- [x] **P1 · Original-estimate memory** — capture estimate changes with reason (mirror `actual_corrections`).
+- [x] **P1 · Plan↔actual link** — FK from `manual_actuals` to the allocation it fulfilled.
+- [x] **P1 · Goal/milestone target + completed dates** — enables "9 days early / 3 weeks over."
+- [x] **P1 · Variance badges on completed goals** — Goals `Active/All/Completed` filter; green early,
+  amber (never red) over; one-line lesson. Positive AND negative framing. *(In mockup.)*
+- [x] **P1 · Calibration card on Review** — aggregate bias ("underestimate deep work ~30%") + accuracy
+  trend. The learning payoff surface, no new tab. *(In mockup.)*
+- [x] **P2 · Agent read model** — expose `estimation_bias` over the API so ecosystem agents planning
+  for the user can read their calibration first.
+
+## D. Per-page functional gaps
+
+**Plan**
+- [x] **P1 · Conflict / overbook warnings** when placement exceeds capacity or collides.
+- [x] **P1 · "Protect breathing room"** as an enforced guardrail, not just a displayed number.
+- [x] **P2 · Energy-aware suggestions** (deep work → mornings). The Plan placement surface now recognizes deep-work language and offers a one-tap morning slot suggestion.
+- [x] **P2 · Reschedule reason codes** (`interrupted/underestimated/blocked/deprioritized/external`) —
+  one-tap, feeds §C.
+
+**Goals**
+- [x] **P1 · Link tasks → milestones** so doing the work auto-advances the goal (progress looks manual today).
+- [x] **P1 · Drift nudge** when a goal falls behind pace.
+
+**Review**
+- [x] **P1 · Guided reflection prompts** (2–3 questions) instead of a blank textarea.
+- [x] **P2 · Wins / gratitude** line — reinforce the positive-feedback commitment.
+- [x] **P2 · Trend sparklines** over weeks (active time, accuracy).
+
+**Today**
+- [x] **P1 · Overdue awareness** — surface what slipped, not just what's next.
+- [x] **P2 · Streak / momentum** signal.
+
+## E. Mobile adaptation  *(architecture, not just CSS)*
+
+Current responsiveness is CSS-reflow only (media queries + `clamp()`), with a frozen component tree —
+"responsive but doesn't change enough." Lift to conditional composition.
+
+- [x] **P0 · Breakpoint hook** (`useBreakpoint`/`useIsMobile`, matchMedia, SSR-safe). Check whether the
+  react-component-library already exports one before writing a new one. Enables everything below.
+- [x] **P1 · Today** → timeline owns the fold; next-step becomes a thumb-zone bar + bottom sheet;
+  capacity moves to Plan; capture FAB. *(In mockup.)*
+- [x] **P1 · Plan** → collapse 8 view modes to Day/Week + capacity ring + schedule; placement primary,
+  rest behind `⋯` sheets. *(Worst desktop→mobile offender. In mockup.)*
+- [x] **P1 · Focus** → full-screen distraction-free timer, no chrome, controls in thumb zone. *(In mockup.)*
+- [x] **P1 · Review** → week **table becomes a card list** (never horizontal scroll). *(In mockup.)*
+- [x] **P2 · Goals** → single-column + FAB (correct *restraint* — a list is already mobile-native). *(In mockup.)*
+- [x] Use **container queries** for genuinely layout-only cases; reserve the JS hook for interaction-model changes.
+
+## F. Settings redesign  *(the one genuine rebuild — "functional but generic")*
+
+- [x] **P1 · Reframe as "Calibrate your instrument."** Theme = live sky previews (not radio buttons),
+  availability = "observatory hours," integrations = "feeds." Same card language/tokens as other pages.
+- [x] **P1 · Mobile drill-in pattern** — summary rows that open sub-screens (iOS Settings style),
+  instead of one long wall of stacked form fields. *(In mockup.)*
+
+## G. Visual identity & imagery  *(the market differentiator)*
+
+- [x] **P0 (concept) · Celestial-navigation throughline across ALL pages.** Today already speaks it;
+  extend the world: Plan = star chart, Goals = constellations, Focus = through the scope,
+  Review = star trails, Settings = the instrument. Coherent world > prettier cards.
+- [x] **P1 · Procedural visual layer everywhere** — star field, constellation lines, glow, day/night
+  wash drawn in code/SVG/canvas (not generated images): crisp, animatable, theme-aware, tiny.
+  This is ~90% of the "beautiful" feeling and is cheap to spread.
+- [x] **P0 · Compositing contract L0/L1/L2 + Today seam (DONE).** Generated art is foreground ONLY;
+  sky is always procedural. Today now **derives** the sky seam colour + band aspect from the image at
+  runtime (sampled top strip) and feathers the band into it — no hard-coded colours, robust to image
+  changes. Mechanism: `docs/visual-compositing.md`. Files: `ui/src/theme/observatoryAppearance.ts`
+  (`sampleSceneAsset`/`useSampledSceneColors`), `ui/src/pages/DashboardPage.tsx`, `ui/src/styles.css`.
+- [x] **P1 · Generalize compositing to all pages** — factor the sampled-seam sky into a shared
+  hook/component; apply Shape A (exterior band) / Shape B (interior aperture) per page per
+  `mockups/image-generation-brief.md` §3.
+- [x] **P1 · Ambient sky FX (procedural, sparse + slow)** — on the procedural sky layer, confined to
+  keyed sky regions, gated by appearance: **comets/shooting stars at night**, **occasional hot-air
+  balloons by day**, subtle parallax. Works on every page that exposes procedural sky. Keep it calm —
+  one balloon now and then, not a fleet.
+- [x] **P1 · Plan window diorama** — nested composite: star-chart desk plate (keyed window) → lake
+  landscape view → procedural sky. Day: opaque landscape sky + balloons in the window. Night: keyed
+  upper-sky band reveals procedural stars/comets. Assets in `mockups/source-art/`. Only the interior
+  desk plate needs two sizes (desktop+mobile, both present); the through-window landscape needs one
+  size (crop/pan within the window). Full layer stack in `visual-compositing.md` "Worked example —
+  the Plan page diorama".
+- [x] **P1 · Focus "through the scope"** — Shape B interior, desktop + mobile plates captured
+  (`mockups/source-art/focus-scope-{desktop,mobile}.greenscreen.png`). Composite the focus
+  timer/ring + a procedural focus-star (and comets) inside the keyed circular aperture; procedural sky
+  behind. One dim mood (day/night via the aperture). Engineering pending — reuse the generalized
+  Shape-B compositor.
+- [x] **P1 · Settings "the instrument"** — Shape B interior, desktop + mobile plates captured
+  (`mockups/source-art/settings-instrument-{desktop,mobile}.greenscreen.png`). Brass mechanism is the
+  backdrop; arched green window → procedural sky. Engineering pending — reuse the Shape-B compositor.
+- **Art status: COMPLETE.** Today ✅ (live) · Plan ✅ captured · Focus ✅ captured · Settings ✅
+  captured · Goals/Review = procedural (no new art). All remaining visual work is engineering.
+- [x] **Prep · Chroma-key the captured plates** → transparent WebP (green → alpha), export into
+  `ui/public/public/scenes/{plan,focus,settings}/`. First step before the Shape-B wiring above.
+
+---
+
+## Notes / cautions carried from prior work
+- Presentation colors are shared light/dark; the visual gate is the scenario's `visual-check` flow.
+- Generated hero art must come from an illustration model with the sibling brand as style ref;
+  vector-native marks read as primitive; glow never survives tracing → keep glow procedural.
+- Validate each change with scoped Test Genie phases; don't batch schema migrations.

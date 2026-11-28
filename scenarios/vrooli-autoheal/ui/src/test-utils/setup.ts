@@ -15,3 +15,6 @@ if (!("ResizeObserver" in globalThis)) {
     disconnect: vi.fn(),
   }));
 }
+
+// axe-core probes canvas in jsdom; keep the browser-only API deterministic.
+vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);

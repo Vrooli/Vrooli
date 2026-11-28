@@ -16,8 +16,8 @@ export interface VariantStylingGuidanceWithKey extends VariantStylingGuidance {
 const stylingConfig: StylingConfig = rawStylingConfig;
 
 function variantGuidanceMap(): Record<string, VariantStylingGuidance> {
-  const entries = stylingConfig.variant_guidance ?? {};
-  return entries as unknown as Record<string, VariantStylingGuidance>;
+  const entries = stylingConfig.variant_guidance;
+  return entries;
 }
 
 export function getStylingConfig(): StylingConfig {

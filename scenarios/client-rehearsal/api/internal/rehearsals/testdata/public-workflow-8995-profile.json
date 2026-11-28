@@ -1,0 +1,77 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-openai",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic model profile", "version": "1"},
+        "servers": [{"url": "https://model.synthetic.invalid"}],
+        "paths": {
+          "/v1/chat/completions": {
+            "post": {
+              "x-n8n-node-type": "@n8n/n8n-nodes-langchain.openAi",
+              "x-n8n-resource": "chat",
+              "x-n8n-operation": "completion",
+              "responses": {"200": {"content": {"application/json": {"example": {"content": "Synthetic response", "tag": "synthetic-lead"}}}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-gmail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Gmail profile", "version": "1"},
+        "servers": [{"url": "https://gmail.synthetic.invalid"}],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send",
+              "responses": {"200": {"content": {"application/json": {"example": {"id": "synthetic-message-8995", "status": "simulated"}}}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-sheets",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Sheets profile", "version": "1"},
+        "servers": [{"url": "https://sheets.synthetic.invalid"}],
+        "paths": {
+          "/v1/rows/update": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "update",
+              "responses": {"200": {"content": {"application/json": {"example": {"updatedRange": "A2:C2", "status": "simulated"}}}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-slack",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Slack profile", "version": "1"},
+        "servers": [{"url": "https://slack.synthetic.invalid"}],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.slack",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "post",
+              "responses": {"200": {"content": {"application/json": {"example": {"ts": "synthetic-ts-8995", "status": "simulated"}}}}}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

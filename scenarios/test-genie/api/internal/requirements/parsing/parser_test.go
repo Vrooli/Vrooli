@@ -15,6 +15,22 @@ type memReader struct {
 	files map[string][]byte
 }
 
+func TestLegacyValidationTypePreservesPhaseResponsibility(t *testing.T) {
+	for _, tc := range []struct{ kind, phase, want string }{
+		{"unit", "", "unit"}, {"integration", "", "integration"}, {"business", "", "business"},
+		{"integration", "business", "business"}, {"test", "", ""}, {"automation", "", ""},
+	} {
+		data := []byte(`{"requirements":[{"id":"UH-CORE-001","validation":[{"type":"` + tc.kind + `","phase":"` + tc.phase + `"}]}]}`)
+		module, err := ParseFlexible(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := module.Requirements[0].Validations[0].Phase; got != tc.want {
+			t.Fatalf("type=%s phase=%s: got %s want %s", tc.kind, tc.phase, got, tc.want)
+		}
+	}
+}
+
 func newMemReader() *memReader {
 	return &memReader{
 		files: make(map[string][]byte),
@@ -67,6 +83,24 @@ func TestParser_Parse_ValidModule(t *testing.T) {
 	}
 	if module.Requirements[0].ID != "REQ-001" {
 		t.Errorf("unexpected requirement ID: %s", module.Requirements[0].ID)
+	}
+}
+
+func TestParser_ParseAllPreservesRootIndexAutoSyncOptOut(t *testing.T) {
+	reader := newMemReader()
+	reader.files["/test/requirements/index.json"] = []byte(`{"_metadata":{"auto_sync_enabled":false},"imports":["module.json"],"requirements":[]}`)
+	parser := New(reader)
+	index, err := parser.ParseAll(context.Background(), []discovery.DiscoveredFile{{
+		AbsolutePath: "/test/requirements/index.json", RelativePath: "index.json", IsIndex: true,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Modules) != 1 || !index.Modules[0].IsIndex || index.Modules[0].RelativePath != "index.json" {
+		t.Fatalf("root index identity not preserved: %+v", index.Modules)
+	}
+	if index.Modules[0].Metadata.IsAutoSyncEnabled() {
+		t.Fatal("root index auto_sync_enabled=false was not preserved")
 	}
 }
 
@@ -424,12 +458,12 @@ func TestNormalizePhase(t *testing.T) {
 		{"unittest", "unit"},
 		{"integration-test", "integration"},
 		{"integration_test", "integration"},
-		{"e2e", "integration"},
+		{"e2e", "workflow"},
 		{"business-logic", "business"},
 		{"struct", "structure"},
 		{"deps", "dependencies"},
 		{"perf", "performance"},
-		{"playbook", "playbooks"},
+		{"playbook", "workflow"},
 		{"custom-phase", "custom-phase"},
 		{"  spaced  ", "spaced"},
 	}
@@ -521,8 +555,8 @@ func TestExtractPhaseFromRef(t *testing.T) {
 		// Integration detection via path contains "integration"
 		{"integration/something.go", "integration"},
 		{"test_integration_helpers.go", "integration"},
-		{"bas/cases/workflow.json", "playbooks"},
-		{"playbook/test.yaml", "playbooks"},
+		{"bas/cases/workflow.json", "workflow"},
+		{"playbook/test.yaml", "workflow"},
 		{"scripts/test.bats", "business"},
 		{"scripts/integration.bats", "integration"},
 		{"random/file.ts", ""},

@@ -9,7 +9,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-export function safeParseJson(value: string): unknown | undefined {
+export function safeParseJson(value: string): unknown {
   try {
     // JSON.parse returns any; treat it as an unknown boundary.
     return JSON.parse(value) as unknown;

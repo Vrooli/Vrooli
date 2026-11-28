@@ -5,7 +5,7 @@ import {
   DownloadCloud,
   Trash2
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type {
   RepoListResponse,
   RepoOpenRequest,

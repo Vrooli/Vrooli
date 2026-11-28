@@ -15,19 +15,19 @@ import (
 // ResilientStorage wraps a primary storage backend with a fallback,
 // using a circuit breaker to detect and recover from failures.
 type ResilientStorage struct {
-	primary   StorageInterface
-	fallback  StorageInterface
-	breaker   *resilience.Breaker
-	log       *logrus.Logger
+	primary     StorageInterface
+	fallback    StorageInterface
+	breaker     *resilience.Breaker
+	log         *logrus.Logger
 	useFallback atomic.Bool
 }
 
 // ResilientStorageConfig configures the resilient storage wrapper.
 type ResilientStorageConfig struct {
-	Primary        StorageInterface
-	Fallback       StorageInterface
-	BreakerConfig  resilience.BreakerConfig
-	Logger         *logrus.Logger
+	Primary       StorageInterface
+	Fallback      StorageInterface
+	BreakerConfig resilience.BreakerConfig
+	Logger        *logrus.Logger
 }
 
 // NewResilientStorage creates a storage wrapper with circuit breaker and fallback.
@@ -96,9 +96,27 @@ func (r *ResilientStorage) StoreScreenshot(ctx context.Context, executionID uuid
 
 // GetScreenshot retrieves a screenshot, trying fallback if primary fails.
 func (r *ResilientStorage) GetScreenshot(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	return r.getStoredObject(ctx, objectName, func(store StorageInterface, ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+		return store.GetScreenshot(ctx, objectName)
+	})
+}
+
+// GetArtifact retrieves an artifact, trying fallback if primary fails.
+func (r *ResilientStorage) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	return r.getStoredObject(ctx, objectName, func(store StorageInterface, ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+		return store.GetArtifact(ctx, objectName)
+	})
+}
+
+type storedObjectGetter func(StorageInterface, context.Context, string) (io.ReadCloser, *minio.ObjectInfo, error)
+
+// getStoredObject owns the shared primary/circuit-breaker/fallback read path.
+// Screenshot and generic artifact methods differ only in the storage getter;
+// their retry and fallback behavior stays identical here.
+func (r *ResilientStorage) getStoredObject(ctx context.Context, objectName string, get storedObjectGetter) (io.ReadCloser, *minio.ObjectInfo, error) {
 	// If we're in fallback mode, try fallback first for recently stored items
 	if r.useFallback.Load() && r.fallback != nil {
-		reader, info, err := r.fallback.GetScreenshot(ctx, objectName)
+		reader, info, err := get(r.fallback, ctx, objectName)
 		if err == nil {
 			return reader, info, nil
 		}
@@ -107,7 +125,7 @@ func (r *ResilientStorage) GetScreenshot(ctx context.Context, objectName string)
 
 	// Try primary with circuit breaker
 	result, err := r.breaker.ExecuteContext(ctx, func(ctx context.Context) (any, error) {
-		reader, info, err := r.primary.GetScreenshot(ctx, objectName)
+		reader, info, err := get(r.primary, ctx, objectName)
 		if err != nil {
 			return nil, err
 		}
@@ -121,7 +139,7 @@ func (r *ResilientStorage) GetScreenshot(ctx context.Context, objectName string)
 
 	// Try fallback
 	if r.fallback != nil {
-		return r.fallback.GetScreenshot(ctx, objectName)
+		return get(r.fallback, ctx, objectName)
 	}
 
 	return nil, nil, err
@@ -130,36 +148,6 @@ func (r *ResilientStorage) GetScreenshot(ctx context.Context, objectName string)
 type getResult struct {
 	reader io.ReadCloser
 	info   *minio.ObjectInfo
-}
-
-// GetArtifact retrieves an artifact, trying fallback if primary fails.
-func (r *ResilientStorage) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
-	// Similar pattern to GetScreenshot
-	if r.useFallback.Load() && r.fallback != nil {
-		reader, info, err := r.fallback.GetArtifact(ctx, objectName)
-		if err == nil {
-			return reader, info, nil
-		}
-	}
-
-	result, err := r.breaker.ExecuteContext(ctx, func(ctx context.Context) (any, error) {
-		reader, info, err := r.primary.GetArtifact(ctx, objectName)
-		if err != nil {
-			return nil, err
-		}
-		return &getResult{reader: reader, info: info}, nil
-	})
-
-	if err == nil {
-		res := result.(*getResult)
-		return res.reader, res.info, nil
-	}
-
-	if r.fallback != nil {
-		return r.fallback.GetArtifact(ctx, objectName)
-	}
-
-	return nil, nil, err
 }
 
 // DeleteScreenshot deletes a screenshot from storage.

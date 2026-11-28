@@ -1,0 +1,188 @@
+{
+  "id": "public-template-21098",
+  "name": "Sanitized public template 21098",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "synthetic-node-2",
+      "name": "Form webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "parameters": {
+        "path": "synthetic-lead-form-21098",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "synthetic-node-3",
+      "name": "Clean & validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const b=$input.first().json.body||{};\nconst email=String(b.email||'').trim().toLowerCase();\nconst valid=/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email);\nreturn [{json:{received_at:new Date().toISOString(),name:String(b.name||'there').trim(),email,message:String(b.message||'').slice(0,2000),source:String(b.source||'website'),valid}}];"
+      }
+    },
+    {
+      "id": "synthetic-node-4",
+      "name": "Valid email?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "87779a19-a99d-4107-b9f5-ce1df6034efa",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "synthetic-node-5",
+      "name": "Save lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "parameters": {
+        "columns": {
+          "value": {},
+          "schema": [],
+          "mappingMode": "autoMapInputData"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "synthetic-sheet-21098"
+        },
+        "operation": "append",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Synthetic Leads"
+        }
+      }
+    },
+    {
+      "id": "synthetic-node-6",
+      "name": "Ping Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "parameters": {
+        "channelId": "synthetic-channel-21098",
+        "otherOptions": {},
+        "select": "channel",
+        "text": "Synthetic lead notification."
+      }
+    },
+    {
+      "id": "synthetic-node-7",
+      "name": "Auto-reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "parameters": {
+        "emailType": "text",
+        "message": "Synthetic auto-reply message.",
+        "options": {},
+        "sendTo": "lead@example.invalid",
+        "subject": "Synthetic lead reply"
+      }
+    },
+    {
+      "id": "synthetic-node-8",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "{\"ok\":true,\"message\":\"Synthetic response\"}"
+      }
+    }
+  ],
+  "connections": {
+    "Save lead": {
+      "main": [
+        [
+          {
+            "node": "Ping Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-reply": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ping Slack": {
+      "main": [
+        [
+          {
+            "node": "Auto-reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form webhook": {
+      "main": [
+        [
+          {
+            "node": "Clean & validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid email?": {
+      "main": [
+        [
+          {
+            "node": "Save lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean & validate": {
+      "main": [
+        [
+          {
+            "node": "Valid email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

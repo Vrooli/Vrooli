@@ -1,0 +1,4 @@
+<resources>
+ <string name="home_override_label">Vrooli Home override</string>
+ <string name="home_override_description">Show Vrooli when your TV opens its original Home screen. Google TV stays available. This service uses only the Home activity name; it does not read screen content or control remote keys. Pause it in Vrooli Settings, or turn this service off here to restore normal Home behavior.</string>
+</resources>

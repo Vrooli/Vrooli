@@ -1,0 +1,108 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "knowledge-observatory.candidate-inventory",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Produce bounded, provenance-aware documentation candidates for owner review without editing source files.",
+  "inputs": {
+    "paths": {
+      "type": "array",
+      "required": true
+    },
+    "base_path": {
+      "type": "string",
+      "required": true
+    },
+    "intent": {
+      "type": "string",
+      "required": false
+    },
+    "max_files": {
+      "type": "integer",
+      "default": 100
+    }
+  },
+  "invariants": [
+    "The program is read-only and emits inspect/propose handles, never write instructions.",
+    "Heuristic artifact classes and portability signals are hypotheses, not authority.",
+    "Bounds, unavailable reads, private evidence, and unresolved owners remain explicit."
+  ],
+  "assumptions": [
+    "The selected paths are bounded and readable through the knowledge-base review binding.",
+    "Candidates remain hypotheses until the owning scenario reviews them."
+  ],
+  "bindings": [
+    {
+      "id": "knowledge-observatory/knowledge-base/review",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "candidates": "Bounded source candidates and owner hints."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "scenario_unreachable",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 100,
+    "output_bytes": 65536
+  },
+  "rung": "S3",
+  "owner_skill": "knowledge-observatory-maintenance",
+  "verbs": [
+    "agent.collect",
+    "tasks.get",
+    "validate"
+  ],
+  "fixtures": [
+    {
+      "id": "live-candidate-inventory",
+      "inputs": {
+        "paths": [],
+        "base_path": "fixture",
+        "max_files": 100
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable",
+          "refused",
+          "failed"
+        ]
+      },
+      "requires": [
+        "knowledge-observatory"
+      ],
+      "note": "Bounded owner fixture added during portfolio exercise; status is recorded honestly by the producer."
+    }
+  ]
+}

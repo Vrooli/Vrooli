@@ -75,7 +75,7 @@ These workflows can:
 5. **Run workflows** manually or schedule them
 6. **View replays** with professional styling, export as video
 
-The underlying engine supports both Browserless (default) and Playwright for execution, with full telemetry capture including console logs, network requests, and DOM snapshots.
+The underlying engine runs on the in-repo Playwright driver (browser-automation-studio) for execution, with full telemetry capture including console logs, network requests, and DOM snapshots.
 
 ### Primary Use Cases
 

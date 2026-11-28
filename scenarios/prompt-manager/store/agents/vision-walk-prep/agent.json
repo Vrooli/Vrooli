@@ -6,9 +6,9 @@
   "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk.",
   "status": "active",
   "appearance": {
-    "body": "#1E3A5F",
-    "head": "#F59E0B",
-    "accent": "#FDE68A"
+    "body": "#CA8A04",
+    "head": "#FACC15",
+    "accent": "#FEF9C3"
   },
   "tags": [
     "strategy",
@@ -18,9 +18,7 @@
     "synthesis"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
   "revision": 1,
   "createdAt": "2026-04-09T19:00:00Z",

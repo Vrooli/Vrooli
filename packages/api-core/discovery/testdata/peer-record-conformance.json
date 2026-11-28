@@ -1,0 +1,300 @@
+[
+  {
+    "name": "schema-v1-live",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": [
+        "api"
+      ],
+      "ports": {
+        "api": 43101
+      }
+    },
+    "want": "43101"
+  },
+  {
+    "name": "schema-version-mismatch",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 2,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": [
+        "api"
+      ],
+      "ports": {
+        "api": 43101
+      }
+    }
+  },
+  {
+    "name": "owner-dead",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "dead",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": [
+        "api"
+      ],
+      "ports": {
+        "api": 43101
+      }
+    }
+  },
+  {
+    "name": "owner-eperm-alive",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "eperm",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": [
+        "api"
+      ],
+      "ports": {
+        "api": 43101
+      }
+    },
+    "want": "43101"
+  },
+  {
+    "name": "provides-null-allows-port",
+    "target": "peer-target",
+    "port_key": "UI_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": null,
+      "ports": {
+        "ui": 43102
+      }
+    },
+    "want": "43102"
+  },
+  {
+    "name": "provides-empty-denies-port",
+    "target": "peer-target",
+    "port_key": "UI_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": [],
+      "ports": {
+        "ui": 43102
+      }
+    }
+  },
+  {
+    "name": "provides-mismatch-denies-port",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "provides": [
+        "ui"
+      ],
+      "ports": {
+        "api": 43103
+      }
+    }
+  },
+  {
+    "name": "port-minimum",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 1
+      }
+    },
+    "want": "1"
+  },
+  {
+    "name": "port-maximum",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 65535
+      }
+    },
+    "want": "65535"
+  },
+  {
+    "name": "port-zero-invalid",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 0
+      }
+    }
+  },
+  {
+    "name": "port-too-large-invalid",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 65536
+      }
+    }
+  },
+  {
+    "name": "port-string-invalid-in-go-contract",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": "43104"
+      }
+    }
+  },
+  {
+    "name": "api-alias",
+    "target": "peer-target",
+    "port_key": "api_port",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 43105
+      }
+    },
+    "want": "43105"
+  },
+  {
+    "name": "variant-shadow-selected",
+    "target": "peer-target@shadow",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "shadow",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 43106
+      }
+    },
+    "want": "43106"
+  },
+  {
+    "name": "live-record-does-not-match-shadow",
+    "target": "peer-target@shadow",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 43107
+      }
+    }
+  },
+  {
+    "name": "shadow-record-does-not-match-live",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "shadow",
+      "owner_pid": "$PID",
+      "ports": {
+        "api": 43108
+      }
+    }
+  },
+  {
+    "name": "owner-pid-zero-invalid",
+    "target": "peer-target",
+    "port_key": "API_PORT",
+    "owner": "invalid",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": 0,
+      "provides": [
+        "api"
+      ],
+      "ports": {
+        "api": 43109
+      }
+    }
+  },
+  {
+    "name": "ui-alias",
+    "target": "peer-target",
+    "port_key": "UI_PORT",
+    "owner": "alive",
+    "record": {
+      "schema_version": 1,
+      "scenario": "peer-target",
+      "instance": "live",
+      "owner_pid": "$PID",
+      "ports": {
+        "ui": 43110
+      }
+    },
+    "want": "43110"
+  }
+]

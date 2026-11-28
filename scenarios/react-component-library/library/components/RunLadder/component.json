@@ -1,0 +1,25 @@
+{
+  "catalogId": "data-display.run-ladder",
+  "deprecatedVersions": [
+    "0.1.0"
+  ],
+  "description": "A resumable phased-operation surface with per-item outcomes, reconnection state, and a copyable run identifier.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "RunLadder",
+  "draft": "",
+  "evictedVersions": [
+    "0.1.0",
+    "0.1.3",
+    "0.1.2",
+    "0.1.1"
+  ],
+  "latest": "0.1.4",
+  "libraryId": "react-component-library:RunLadder",
+  "tags": []
+}

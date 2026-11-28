@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 import {
   ArrowLeft,
   Cpu,
@@ -28,7 +29,7 @@ const DEFAULT_FORM: ChatbotForm = {
   personality: 'You are a helpful assistant who responds with confidence and empathy.',
   knowledge_base: '',
   model_config: {
-    model: 'llama3.2',
+    model: 'chat.default',
     temperature: 0.7,
     max_tokens: 1000,
   },
@@ -73,7 +74,7 @@ function ChatbotEditor() {
           personality: chatbot.personality || DEFAULT_FORM.personality,
           knowledge_base: chatbot.knowledge_base || DEFAULT_FORM.knowledge_base,
           model_config: {
-            model: (chatbot.model_config?.model as string) || 'llama3.2',
+            model: (chatbot.model_config?.model as string) || 'chat.default',
             temperature: (chatbot.model_config?.temperature as number) ?? 0.7,
             max_tokens: (chatbot.model_config?.max_tokens as number) ?? 1000,
           },
@@ -195,10 +196,10 @@ function ChatbotEditor() {
   return (
     <div className="page-stack">
       <header className="page-header">
-        <button className="ghost-button" onClick={() => navigate('/chatbots')}>
+        <Button className="ghost-button" variant="secondary" onClick={() => navigate('/chatbots')}>
           <ArrowLeft size={16} />
           <span>Back to chatbots</span>
-        </button>
+        </Button>
         <div>
           <h2>{heading.title}</h2>
           <p>{heading.subtitle}</p>
@@ -275,11 +276,10 @@ function ChatbotEditor() {
           </header>
           <div className="form-grid">
             <div className="form-control">
-              <label htmlFor="model-select">Model</label>
+              <label htmlFor="model-select">Model Role</label>
               <select id="model-select" value={formData.model_config?.model as string} onChange={handleModelConfigChange('model')}>
-                <option value="llama3.2">Llama 3.2 (recommended)</option>
-                <option value="mistral">Mistral</option>
-                <option value="codellama">CodeLlama</option>
+                <option value="chat.default">chat.default</option>
+                <option value="chat.small">chat.small</option>
               </select>
             </div>
             <div className="form-control">
@@ -362,11 +362,11 @@ function ChatbotEditor() {
         </section>
 
         <footer className="form-footer">
-          <button type="button" className="ghost-button" onClick={() => navigate('/chatbots')} disabled={saving}>
+          <Button type="button" className="ghost-button" variant="secondary" onClick={() => navigate('/chatbots')} disabled={saving}>
             <Rocket size={16} />
             <span>Cancel</span>
-          </button>
-          <button type="submit" className="primary-action" disabled={saving}>
+          </Button>
+          <Button type="submit" className="primary-action" variant="primary" disabled={saving}>
             {saving ? (
               <>
                 <Loader2 size={16} className="spin" />
@@ -378,7 +378,7 @@ function ChatbotEditor() {
                 <span>{isEditing ? 'Save changes' : 'Create chatbot'}</span>
               </>
             )}
-          </button>
+          </Button>
         </footer>
       </form>
     </div>

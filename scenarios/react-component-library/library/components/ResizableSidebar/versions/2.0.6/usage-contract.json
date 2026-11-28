@@ -1,0 +1,11 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "*"
+    ],
+    "maximumCount": 2,
+    "typicalCount": 2
+  },
+  "componentId": "react-component-library:ResizableSidebar",
+  "version": "2.0.6-draft.1"
+}

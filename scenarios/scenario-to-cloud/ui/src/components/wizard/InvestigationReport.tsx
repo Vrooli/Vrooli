@@ -1,6 +1,6 @@
 import { X, Clock, Coins, FileText, Copy, Check, XCircle, CheckCircle2, StopCircle, Wrench, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Tooltip } from "../ui/tooltip";
 import type { Investigation } from "../../types/investigation";
 import type { ApplyFixesRequest } from "../../types/investigation";

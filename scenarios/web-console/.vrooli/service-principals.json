@@ -1,0 +1,22 @@
+{
+  "principals": [
+    {
+      "name": "web-console-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "web-console-browser-pane-delegator",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:browser-pane.delegate"]
+    },
+    {
+      "name": "web-console-lpbs-ai-inference",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:ai-inference.call"]
+    }
+  ]
+}

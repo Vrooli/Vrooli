@@ -42,24 +42,31 @@ cd cli && ./install.sh
 file-tools status
 
 # Compress files
-file-tools compress doc1.pdf doc2.pdf -o backup.zip
-file-tools compress *.txt -f tar -o archive.tar
+file-tools archive compress doc1.pdf doc2.pdf --output backup.zip
+file-tools archive compress *.txt --format tar --output archive.tar
 
 # Extract archives
-file-tools extract backup.zip /tmp/extracted/
+file-tools archive extract --archive backup.zip --dest /tmp/extracted/
 
 # Calculate checksums
-file-tools checksum important.dat -a sha256
+file-tools files checksum important.dat --algorithm sha256
 
 # Get file metadata
-file-tools metadata /path/to/file.pdf
+file-tools files metadata --path /path/to/file.pdf
 
 # Split large files
-file-tools split video.mp4 -s 100M
+file-tools archive split --file video.mp4 --size 104857600
 
 # Merge file parts
-file-tools merge "video.mp4.part.*" reconstructed.mp4
+file-tools archive merge --pattern 'video.mp4.part.*' --output reconstructed.mp4
 ```
+
+Archive extraction accepts ZIP, TAR, and gzip-compressed TAR (`.gz`/`.tgz`).
+Entries stay within the requested destination; links and special TAR entries
+are not materialized. To bound decompression and filesystem work, one archive
+may contain at most 10,000 entries, each regular file is limited to 256 MiB,
+and total extracted file data is limited to 1 GiB. Extraction fails when any
+limit is exceeded.
 
 ### Using the API
 
@@ -213,33 +220,33 @@ See **[examples/README.md](examples/README.md)** for complete integration guide.
 ### Basic CLI Examples
 ```bash
 # Compress all PDFs in a directory
-file-tools compress *.pdf -o documents.zip
+file-tools archive compress *.pdf --output documents.zip
 
 # Create a tar.gz archive
-file-tools compress /data/logs/ -f gzip -o logs.tar.gz
+file-tools archive compress /data/logs/ --format gzip --output logs.tar.gz
 ```
 
 ### File Organization Examples
 ```bash
 # Get metadata for multiple files
 for file in *.jpg; do
-  file-tools metadata "$file" --json
+  file-tools files metadata --path "$file" --json
 done
 
 # Check integrity of downloaded files
-file-tools checksum downloads/*.zip -a sha256
+file-tools files checksum downloads/*.zip --algorithm sha256
 ```
 
 ### Large File Handling
 ```bash
 # Split a 10GB file into 1GB chunks
-file-tools split largefile.dat -s 1G
+file-tools archive split --file largefile.dat --size 1073741824
 
 # Merge the chunks back
-file-tools merge "largefile.dat.part.*" restored.dat
+file-tools archive merge --pattern 'largefile.dat.part.*' --output restored.dat
 
 # Verify integrity
-file-tools checksum largefile.dat restored.dat
+file-tools files checksum largefile.dat restored.dat
 ```
 
 ## 🤝 Cross-Scenario Integration

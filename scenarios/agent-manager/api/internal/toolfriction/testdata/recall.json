@@ -1,0 +1,833 @@
+{
+ "source": "web-console Codex rollouts (CommandExecution items) and Claude Code transcripts (Bash calls), 2026-10-23..30, sanitised: home paths are ~, secrets redacted, long outputs keep their head and tail with \u00abBYTES:n\u00bb standing for the n bytes between",
+ "runs": [
+  {
+   "id": "261f3f43-0bed-54b1-9420-1669e13896a0",
+   "source": "76d970de-82d0-4c52-b559-ceadb6acbf61.jsonl",
+   "events": [
+    {
+     "seed": "bypass",
+     "at": "2026-10-29T10:17:54.927Z",
+     "tool": "Bash",
+     "command": "sqlite3 \"file:data/agent-manager.db?mode=ro\" \"select path, error from transcript_files where status='unreadable'\"; cd api && go build ./... && go vet ./internal/usageforecast/... && go test ./internal/usageforecast/... 2>&1 | tail -3",
+     "exitCode": 0,
+     "durationMs": 0,
+     "output": "~/.vrooli/state/vrooli/web-console/sessions/codex/40e51337-7e7a-402d-a5b4-8ed3c42ecd53/sessions/2026/10/18/rollout-2026-10-18T14-54-25-01a1505d-78e1-7220-a9de-f324767ab840.jsonl|database error during begin_immediate_transaction: database is locked (5) (SQLITE_BUSY)\nok  \tagent-manager/internal/usageforecast\t(cached)"
+    },
+    {
+     "seed": "bypass",
+     "at": "2026-10-29T11:29:28.744Z",
+     "tool": "Bash",
+     "command": "cd ~/Vrooli/scenarios/agent-manager && sqlite3 \"file:data/agent-manager.db?mode=ro\" \"select count(*) from quota_observations; select count(*) from transcript_usage where model='unknown'; select count(*) from transcript_usage;\" ; vrooli scenario logs agent-manager 2>&1 | tail -3 | cut -c1-300; ls api/logs 2>/dev/null | head",
+     "exitCode": 0,
+     "durationMs": 0,
+     "output": "475272\n161934\n2200944\n  Use --runtime to view all background process logs\n  Use --step <name> to view one background process log\n  Use --follow or -f to stream logs"
+    },
+    {
+     "seed": "bypass",
+     "at": "2026-10-29T11:31:01.780Z",
+     "tool": "Bash",
+     "command": "cd ~/Vrooli/scenarios/agent-manager && sqlite3 \"file:data/agent-manager.db?mode=ro\" \"select * from transcript_usage_repairs; select count(*) from transcript_usage where model='unknown'; select count(*) from quota_observations; select status,count(*) from transcript_files group by 1;\"",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Exit code 1\nError: in prepare, no such table: transcript_usage_repairs"
+    },
+    {
+     "seed": "bypass",
+     "at": "2026-10-29T11:31:04.991Z",
+     "tool": "Bash",
+     "command": "cd ~/Vrooli/scenarios/agent-manager && sqlite3 \"file:data/agent-manager.db?mode=ro\" \"select count(*) from transcript_usage where model='unknown'; select count(*) from quota_observations; select status,count(*) from transcript_files group by 1;\"; grep -n 'transcript_usage_repairs' api/internal/domain/schema.sql | head -3",
+     "exitCode": 0,
+     "durationMs": 0,
+     "output": "47\n133895\nindexed|10591\nowned|81\nunreadable|1\n465:CREATE TABLE IF NOT EXISTS transcript_usage_repairs ("
+    }
+   ]
+  },
+  {
+   "id": "07c96824-b014-5724-b56c-7d179081b2f7",
+   "source": "rollout-2026-10-24T14-03-40-01a15ea4-d9bc-7f21-b539-2e73fb96fedc_01a16f15-286d-7451-b873-a884dc4e1678.jsonl",
+   "events": [
+    {
+     "seed": "heavy-skill",
+     "at": "2026-10-25T19:52:52.137Z",
+     "tool": "exec_command",
+     "command": "prompt-manager skill read adaptive-research local-experimentation harness-goal-authoring",
+     "exitCode": 0,
+     "durationMs": 139,
+     "output": "<skills count=\"3\">\n  <skill id=\"adaptive-research\" name=\"adaptive-research\"><![CDATA[\n## Practice focus: Adaptive research\n\nResolve an uncertain question by choosing the next check from the evidence. Retain a supported answer, reproducible prototype, or bounded partial result.\n\n### Scope\n\nUse for open-ended source research, dataset analysis, and adaptive optimization. Use `scientific-debugging` for a known defect and `scenario-work-ladder` for scenario repair. Existing owners retain execution, acquisitions, state, and external effects.\n\nRead only the guidance needed for the next check. Research can conclude without creating a scenario or integrating a prototype.\n\n### Phase 1: Bound the investigation\n\n**Entry:** The user has authorized a question and deliverable.\n\n1. Recall prior work with `search-hub query \"<research intent>\" --type library,record,skill,doc`. Use the repository discovery fallback when needed.\n2. Keep the question, deliverable, access, exclusions, competing explanations, and stopping conditions in the existing effort record.\n3. Set budgets for the selected route, including time, tokens, acquisitions, and trials where applicable. Use existing managed execution for unattended work; apply [local-experimentation's unattended guidance](../local-experimentation/references/adaptive.md#bound-unattended-work).\n4. Select the cheapest check that can distinguish the consequential explanations. Discover its owner before writing a tool.\n   For API or dataset routes, use the [source access check](../local-experimentation/references/adaptive.md#check-source-access).\n\n**Exit/artifact:** A brief names the next check, its budget, and what evidence would change the answer.\n\n### Phase 2: Gather and test\n\n**Entry:** The check fits the brief and its effects are understood.\n\n| Check | Method | Evidence |\n|---|---|---|\n| Source claims | Existing source/search owner | Source identity/date, supported claims, contradictions, coverage gaps |\n| Dataset relationships | Reproducibl\u00abBYTES:33385\u00bb or the handoff.\n- **Codex reports `budget_limited`.** This is not completion. Read the wrap-up\n  summary, then start a new session from the handoff.\n- **The goal is over 2,048 characters.** It is carrying design or doctrine. Move\n  that content to the docs or the receiving skill and point at it.\n- **Native support is absent.** Agent Manager still appends `until` to the\n  prompt; the receiving skill's stop rules carry the loop. Do not invent a\n  `--goal` flag; none exists.\n\n]]></skill>\n</skills>"
+    },
+    {
+     "usage": {
+      "input": 258628,
+      "cachedInput": 12032,
+      "output": 324
+     },
+     "at": "2026-10-25T19:52:52.137Z"
+    },
+    {
+     "usage": {
+      "input": 267453,
+      "cachedInput": 258816,
+      "output": 575
+     },
+     "at": "2026-10-25T19:52:52.137Z"
+    },
+    {
+     "usage": {
+      "input": 268046,
+      "cachedInput": 267904,
+      "output": 272
+     },
+     "at": "2026-10-25T19:52:52.137Z"
+    },
+    {
+     "usage": {
+      "input": 277013,
+      "cachedInput": 268160,
+      "output": 290
+     },
+     "at": "2026-10-25T19:52:52.137Z"
+    },
+    {
+     "usage": {
+      "input": 286058,
+      "cachedInput": 277120,
+      "output": 489
+     },
+     "at": "2026-10-25T19:52:52.137Z"
+    },
+    {
+     "usage": {
+      "input": 295517,
+      "cachedInput": 286336,
+      "output": 604
+     },
+     "at": "2026-10-25T19:52:52.137Z"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-26T00:27:31.283Z",
+     "tool": "exec_command",
+     "command": "swarm-manager captures create --text 'Host-memory causal follow-up and validated owner repairs: completed safe archives/orphan cleanup; unified shared PSI policy; monitor slab telemetry live; Autoheal truthful rate/actions; watchdog refresh. Remaining unresolved substantial kernel slab and fragmentation attribution needs a maintained read-only privileged diagnostic surface, not driver-leak assumptions. Evidence and source manifests: ~/vrooli-experiments/host-recovery-20261025T235154Z/FINAL.md ; causal report ~/vrooli-experiments/host-memory-root-cause-20261025T235029Z/FINDINGS.md. Follow-up should inspect top slab caches with provenance and bounded kernel error windows under internal control-plane ownership, without changing limits or automatically resetting live workloads.' --json > ~/vrooli-experiments/host-recovery-20261025T235154Z/evidence/followup-capture.json",
+     "exitCode": 1,
+     "durationMs": 2686,
+     "output": "\u2705 installed CLI to ~/.vrooli/bin/swarm-manager\n\u2139\ufe0f  If you are replacing an existing CLI command in this shell, run: hash -r\nswarm-manager CLI rebuilt from current sources (fingerprint a8a70e1346b5a1e6ddae0be427605b903170548134df1d4e2e6bb70aa127e375); restarting command...\nError: agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    },
+    {
+     "seed": "park",
+     "at": "2026-10-28T02:13:45.439Z",
+     "tool": "exec_command",
+     "command": "test-genie runs wait --json --timeout=1034 agent-manager 20261028-021018-2ef95fa1 > /tmp/agent-manager-unit-20261028-021018.json",
+     "exitCode": 0,
+     "durationMs": 202807,
+     "output": "agent-manager park unavailable (park request: api error (409): cannot park Run in running state: runner type is unavailable; cannot safely end the parked turn) \u2014 waiting inline instead\nwait attached (pid 993508) to server-owned Test Genie run agent-manager/20261028-021018-2ef95fa1; stdout stays empty until terminal JSON (up to 1034s).\nIf this tool session returns without terminal JSON, do not infer that the waiter exited or that the run is stuck. Read durable state once: test-genie runs status --json agent-manager 20261028-021018-2ef95fa1\n"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-28T13:50:44.216Z",
+     "tool": "exec_command",
+     "command": "search-hub query 'research experiment temporary install tools models track cleanup autonomous investigation' --type library,record,skill,doc",
+     "exitCode": 1,
+     "durationMs": 2310,
+     "output": "Error: query \"research experiment temporary install tools models track cleanup autonomous investigation\": unavailable: agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    },
+    {
+     "seed": "shape-am",
+     "at": "2026-10-28T19:10:53.530Z",
+     "tool": "exec_command",
+     "command": "agent-manager runs get --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: runs (did you mean \"run\"?)\n"
+    },
+    {
+     "seed": "build-deny",
+     "at": "2026-10-28T19:37:22.057Z",
+     "tool": "exec_command",
+     "command": "cli-health validate scenario deployment-manager --include-execution --json > /tmp/research-deployment-cli-health.json",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Runtime error: CLI build admission deny (host memory PSI some.avg10 10.02% is at or above setpoint substrate/SB20 maximum 10.00%); retry when host capacity is available\nError: cli-health CLI refresh was not admitted or did not complete; retry when available: exit status 1\n"
+    },
+    {
+     "seed": "shape-am",
+     "at": "2026-10-28T21:47:51.127Z",
+     "tool": "exec_command",
+     "command": "agent-manager runs --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: runs (did you mean \"run\"?)\n"
+    }
+   ]
+  },
+  {
+   "id": "5ea4f86c-b0ab-5467-8b6a-001c785ce8b4",
+   "source": "rollout-2026-10-25T16-08-12-01a174ad-8b9b-7561-8b6e-24f214675588.jsonl",
+   "events": [
+    {
+     "seed": "heavy-skill",
+     "at": "2026-10-25T20:12:40.916Z",
+     "tool": "exec_command",
+     "command": "prompt-manager skill read adaptive-research local-experimentation harness-goal-authoring",
+     "exitCode": 0,
+     "durationMs": 136,
+     "output": "<skills count=\"3\">\n  <skill id=\"adaptive-research\" name=\"adaptive-research\"><![CDATA[\n## Practice focus: Adaptive research\n\nResolve an uncertain question by choosing the next check from the evidence. Retain a supported answer, reproducible prototype, or bounded partial result.\n\n### Scope\n\nUse for open-ended source research, dataset analysis, and adaptive optimization. Use `scientific-debugging` for a known defect and `scenario-work-ladder` for scenario repair. Existing owners retain execution, acquisitions, state, and external effects.\n\nRead only the guidance needed for the next check. Research can conclude without creating a scenario or integrating a prototype.\n\nTo start, move, or resume a research chat, use the [single-chat launch guidance](../local-experimentation/references/adaptive.md#start-or-resume-one-research-chat). Skills supply the method; the selected harness owns continuation and execution limits.\n\n### Phase 1: Bound the investigation\n\n**Entry:** The user has authorized a question and deliverable.\n\n1. Recall prior work with `search-hub query \"<research intent>\" --type library,record,skill,doc`. Use the repository discovery fallback when needed.\n2. Keep the question, deliverable, access, exclusions, competing explanations, and stopping conditions in the existing effort record.\n3. Set budgets for the selected route, including time, tokens, acquisitions, and trials where applicable. Use existing managed execution for unattended work; apply [local-experimentation's unattended guidance](../local-experimentation/references/adaptive.md#bound-unattended-work).\n4. Select the cheapest check that can distinguish the consequential explanations. Discover its owner before writing a tool.\n   For API or dataset routes, use the [source access check](../local-experimentation/references/adaptive.md#check-source-access).\n\n**Exit/artifact:** A brief names the next check, its budget, and what evidence would change the answer.\n\n### Phase 2: Gather and test\n\n**Entry:** The che\u00abBYTES:33876\u00bb or the handoff.\n- **Codex reports `budget_limited`.** This is not completion. Read the wrap-up\n  summary, then start a new session from the handoff.\n- **The goal is over 2,048 characters.** It is carrying design or doctrine. Move\n  that content to the docs or the receiving skill and point at it.\n- **Native support is absent.** Agent Manager still appends `until` to the\n  prompt; the receiving skill's stop rules carry the loop. Do not invent a\n  `--goal` flag; none exists.\n\n]]></skill>\n</skills>"
+    },
+    {
+     "usage": {
+      "input": 260378,
+      "cachedInput": 258560,
+      "output": 225
+     },
+     "at": "2026-10-25T20:12:40.916Z"
+    },
+    {
+     "usage": {
+      "input": 265101,
+      "cachedInput": 260224,
+      "output": 501
+     },
+     "at": "2026-10-25T20:12:40.916Z"
+    },
+    {
+     "usage": {
+      "input": 265857,
+      "cachedInput": 264960,
+      "output": 204
+     },
+     "at": "2026-10-25T20:12:40.916Z"
+    },
+    {
+     "usage": {
+      "input": 269354,
+      "cachedInput": 265728,
+      "output": 727
+     },
+     "at": "2026-10-25T20:12:40.916Z"
+    },
+    {
+     "usage": {
+      "input": 278072,
+      "cachedInput": 269184,
+      "output": 1110
+     },
+     "at": "2026-10-25T20:12:40.916Z"
+    },
+    {
+     "usage": {
+      "input": 281422,
+      "cachedInput": 277888,
+      "output": 1116
+     },
+     "at": "2026-10-25T20:12:40.916Z"
+    }
+   ]
+  },
+  {
+   "id": "13afa35d-0ba2-5dcd-a23b-1a41ddb44a41",
+   "source": "rollout-2026-10-25T16-10-45-01a174af-ded0-79f1-ad5d-5600f6f4b89c.jsonl",
+   "events": [
+    {
+     "seed": "heavy-skill",
+     "at": "2026-10-25T20:22:23.722Z",
+     "tool": "exec_command",
+     "command": "prompt-manager skill read program-runtime",
+     "exitCode": 0,
+     "durationMs": 2281,
+     "output": "## Tools focus: Program Runtime\n\nUse `program-runtime` when one task would otherwise be a long tool-call loop over many governed capabilities: fan out across scenario bindings, join cross-scenario reads, classify a corpus, or start several delegated runs, and return only bounded results. This skill holds the judgment `program-runtime <group> help` does not print: when a program is the right shape, which verb or scenario-owned program fits, and what to do with the envelope. Construction rules live in `path:scenarios/program-runtime/docs/guides/program-construction.md`; the standard for a scenario-owned program and its envelope lives in `path:scenarios/program-runtime/docs/guides/program-contracts.md`.\n\nRequired reading before authoring or editing a program:\n- `path:scenarios/program-runtime/docs/guides/program-construction.md`\n- For a scenario-owned program, also read `path:scenarios/program-runtime/docs/guides/program-contracts.md`.\n\n\n### Scope\n\nIn scope: choosing between a CLI step, a runtime verb, a declared program contract, and a new program; sessions, grants, provenance, and spend ceilings; reading an envelope or a failure shape; and observing recurring shapes.\n\nOut of scope: direct scenario process execution; ambient shell, model, or agent access from a program; adding a scenario dependency or editing generated dependency approvals; regulating program-runtime itself (`prompt-manager skill read program-runtime-improve`).\n\n### Before acting\n\nFor a discovered contract, `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>` reads its declared inputs and owning skill together. A partial result requires the indicated complete read before execution; this preparation never performs the domain action.\n\nRun `vrooli-memory recall wake --scope program-runtime-usage`. Apply a pinned note before choosing a leaf. For one binding or workflow, run `vrooli-memory recall recall \"<binding id or task>\" --scope program-runtime-usage --limi\u00abBYTES:27018\u00bb The work recurs across non-test sessions | `program-runtime shapes list --uncovered --min-occurrences 3` | File the W1 obligation against the dominant scenario |\n\n### Output expectations\n\nEvery runtime workflow leaves a traceable session id, program id, provenance value, envelope status, and one journal line. A successful workflow may change only the state named under Safety. It must not mutate shared bindings, generated proto output, dependency approvals, library rows, or unrelated scenarios.\n"
+    },
+    {
+     "usage": {
+      "input": 193068,
+      "cachedInput": 188544,
+      "output": 318
+     },
+     "at": "2026-10-25T20:22:23.722Z"
+    },
+    {
+     "usage": {
+      "input": 200342,
+      "cachedInput": 193152,
+      "output": 313
+     },
+     "at": "2026-10-25T20:22:23.722Z"
+    },
+    {
+     "usage": {
+      "input": 203967,
+      "cachedInput": 200448,
+      "output": 927
+     },
+     "at": "2026-10-25T20:22:23.722Z"
+    },
+    {
+     "usage": {
+      "input": 205560,
+      "cachedInput": 204672,
+      "output": 734
+     },
+     "at": "2026-10-25T20:22:23.722Z"
+    },
+    {
+     "usage": {
+      "input": 207917,
+      "cachedInput": 206080,
+      "output": 200
+     },
+     "at": "2026-10-25T20:22:23.722Z"
+    },
+    {
+     "usage": {
+      "input": 209397,
+      "cachedInput": 208000,
+      "output": 121
+     },
+     "at": "2026-10-25T20:22:23.722Z"
+    }
+   ]
+  },
+  {
+   "id": "72e37634-94ce-5f4e-a43e-59c9d2285e33",
+   "source": "rollout-2026-10-25T19-51-10-01a17579-acfe-7292-a7cc-91ff5c8f150e.jsonl",
+   "events": [
+    {
+     "seed": "park",
+     "at": "2026-10-26T00:00:30.181Z",
+     "tool": "exec_command",
+     "command": "test-genie runs wait --json --timeout=344 vrooli-autoheal 20261025-235808-289fd3c6 > \"$(cat /tmp/autoheal-pressure-workspace)/evidence/test-genie-final.json\" 2> \"$(cat /tmp/autoheal-pressure-workspace)/evidence/test-genie-wait.stderr\"; result=$?; cat \"$(cat /tmp/autoheal-pressure-workspace)/evidence/test-genie-wait.stderr\"; python3 - <<'PY'\nimport json\nfrom pathlib import Path\np=Path(Path('/tmp/autoheal-pressure-workspace').read_text())/'evidence/test-genie-final.json'\nif p.stat().st_size:\n x=json.loads(p.read_text()); print(json.dumps(x)[:6500])\nPY\nexit \"$result\"",
+     "exitCode": 1,
+     "durationMs": 124284,
+     "output": "agent-manager park unavailable (park request: api error (409): cannot park Run in running state: runner type is unavailable; cannot safely end the parked turn) \u2014 waiting inline instead\nwait attached (pid 2271594) to server-owned Test Genie run vrooli-autoheal/20261025-235808-289fd3c6; stdout stays empty until terminal JSON (up to 344s).\nIf this tool session returns without terminal JSON, do not infer that the waiter exited or that the run is stuck. Read durable state once: test-genie runs status --json vrooli-autoheal 20261025-235808-289fd3c6\nError: run 20261025-235808-289fd3c6 failed\n{\"success\": false, \"verdict\": \"FAIL\", \"status\": \"failed\", \"scenario\": \"vrooli-autoheal\", \"runId\": \"20261025-235808-289fd3c6\", \"executionId\": \"20261025-235808-289fd3c6\", \"phaseSummary\": {\"total\": 2, \"passed\": 0, \"failed\": 2, \"skipped\": 0, \"durationSeconds\": 142, \"observationCount\": 61}, \"phases\": [{\"name\": \"unit\", \"status\": \"failed\", \"durationSeconds\": 136, \"logPath\": \"\", \"error\": \"\", \"classification\": \"\", \"remediation\": \"\", \"runnabilityVerdict\": \"\", \"runnabilityReason\": \"\", \"observations\": null, \"observationCount\": 56, \"phasePresentation\": {\"contract_version\": \"v1\", \"provider\": \"unit-health\", \"phase\": \"unit\", \"current_level\": \"L1\", \"current_level_label\": \"Foundation\", \"next_level\": \"L2\", \"ceiling_level\": \"L3\", \"blocking_finding_codes\": [\"TEST_UTIL_MISSING\"], \"next_action\": \"Production helper boundaries and injectable seams are clean.\", \"next_action_reason\": \"lowest current level with required/blocking findings WARNING evolvability_gap debt=4\", \"focus_capability_id\": \"test_architecture\", \"focus_capability_label\": \"Test Architecture\", \"north_star\": \"Test architecture is clean.\", \"capabilities\": [{\"id\": \"test_architecture\", \"label\": \"Test Architecture\", \"current_level\": \"L1\", \"current_level_label\": \"Foundation\", \"next_level\": \"L2\", \"current_summary\": \"Test architecture can be compared with policy.\", \"next_unlock\": \"Production helper boundaries and injectable seams are clean.\", \"blocking_f\u00abBYTES:4413\u00bbrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers/handlers_hostinventory.go\", \"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers/handlers_shelves.go\", \"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers/handlers_storm.go\", \"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/hostobservability/crashdump.go\", \"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents/types.go\", \"github.com/vrooli/vrooli/scenarios/\n"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-26T00:27:37.732Z",
+     "tool": "exec_command",
+     "command": "vrooli-autoheal status --json > \"$(cat /tmp/autoheal-pressure-workspace)/evidence/post-rollout-status.json\"\npython3 - <<'PY'\nfrom pathlib import Path\nimport json\np=Path(Path('/tmp/autoheal-pressure-workspace').read_text())/'evidence'\nx=json.loads((p/'post-rollout-status.json').read_text())\nfor k in ['timestamp','status','summary','lastCompletedTickAt','tickRunning','tickStartedAt','statusFresh','statusAgeSeconds','statusStaleReason']:print(k,x.get(k))\nfor r in x.get('checks',[]):\n if r.get('status') in ['critical','warning']:print(r.get('status'),r.get('checkId'),r.get('timestamp'),r.get('message'))\nPY",
+     "exitCode": 1,
+     "durationMs": 98,
+     "output": "agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\nTraceback (most recent call last):\n  File \"<stdin>\", line 4, in <module>\n  File \"/usr/lib/python3.12/json/__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/decoder.py\", line 337, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/decoder.py\", line 355, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n"
+    }
+   ]
+  },
+  {
+   "id": "28a4095e-52c5-5d90-bb9c-8a3d3b1642b2",
+   "source": "rollout-2026-10-26T09-12-34-01a17857-60bf-7d90-ac04-64d35f1b9cd2.jsonl",
+   "events": [
+    {
+     "seed": "identity",
+     "at": "2026-10-26T14:35:18.155Z",
+     "tool": "exec_command",
+     "command": "prompt-manager skill read browser-automation-studio program-runtime > '~/vrooli-experiments/research-renewal-20261026T131100Z/fraud-ppp/calibration/BAS-OWNER-GUIDANCE.txt'",
+     "exitCode": 1,
+     "durationMs": 1965,
+     "output": "Error: agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    }
+   ]
+  },
+  {
+   "id": "1b245609-a52a-5eeb-83a5-11dd4a20d87c",
+   "source": "rollout-2026-10-27T14-33-24-01a17ea3-764f-74c2-ad0b-a317a35b1636.jsonl",
+   "events": [
+    {
+     "seed": "park",
+     "at": "2026-10-27T18:46:30.854Z",
+     "tool": "exec_command",
+     "command": "test-genie runs wait --json web-console 20261027-183802-904320f9",
+     "exitCode": 1,
+     "durationMs": 501854,
+     "output": "agent-manager park unavailable (park request: api error (409): cannot park Run in running state: runner type is unavailable; cannot safely end the parked turn) \u2014 waiting inline instead\nwait attached (pid 718226) to server-owned Test Genie run web-console/20261027-183802-904320f9; stdout stays empty until terminal JSON (until terminal).\nIf this tool session returns without terminal JSON, do not infer that the waiter exited or that the run is stuck. Read durable state once: test-genie runs status --json web-console 20261027-183802-904320f9\n{\n  \"success\": false,\n  \"verdict\": \"FAIL\",\n  \"status\": \"failed\",\n  \"scenario\": \"web-console\",\n  \"runId\": \"20261027-183802-904320f9\",\n  \"executionId\": \"20261027-183802-904320f9\",\n  \"phaseSummary\": {\n    \"total\": 2,\n    \"passed\": 0,\n    \"failed\": 2,\n    \"skipped\": 0,\n    \"durationSeconds\": 508,\n    \"observationCount\": 78\n  },\n  \"phases\": [\n    {\n      \"name\": \"unit\",\n      \"status\": \"failed\",\n      \"durationSeconds\": 387,\n      \"logPath\": \"\",\n      \"error\": \"\",\n      \"classification\": \"\",\n      \"remediation\": \"\",\n      \"runnabilityVerdict\": \"\",\n      \"runnabilityReason\": \"\",\n      \"observations\": null,\n      \"observationCount\": 76,\n      \"phasePresentation\": {\n        \"contract_version\": \"v1\",\n        \"provider\": \"unit-health\",\n        \"phase\": \"unit\",\n        \"current_level\": \"L1\",\n        \"current_level_label\": \"Foundation\",\n        \"next_level\": \"L2\",\n        \"ceiling_level\": \"L2\",\n        \"blocking_finding_codes\": [\n          \"TEST_EXECUTION_FAILURE\"\n        ],\n        \"next_action\": \"Commands complete without failures or hangs.\",\n        \"next_action_reason\": \"lowest current level with required/blocking findings ERROR foundation_blocker\",\n        \"focus_capability_id\": \"execution_readiness\",\n        \"focus_capability_label\": \"Execution Readiness\",\n        \"north_star\": \"Test execution is clean.\",\n        \"capabilities\": [\n          {\n            \"id\": \"execution_readiness\",\n            \"label\": \"Execution Readiness\",\n            \u00abBYTES:10933\u00bb,\n    \"nextLevel\": \"L2\",\n    \"nextMove\": \"Commands complete without failures or hangs.\",\n    \"nextMoveReason\": \"lowest current level with required/blocking findings ERROR foundation_blocker\",\n    \"priorityCapabilityId\": \"execution_readiness\",\n    \"priorityCapabilityLabel\": \"Execution Readiness\",\n    \"docSearchTopic\": \"unit maturity next move\",\n    \"blockingFindingCodes\": [\n      \"TEST_EXECUTION_FAILURE\"\n    ]\n  },\n  \"terminalSnapshotSchemaVersion\": 1\n}\nError: run 20261027-183802-904320f9 failed\n"
+    }
+   ]
+  },
+  {
+   "id": "773c8992-a550-5f06-88e2-76381b712709",
+   "source": "rollout-2026-10-28T04-55-17-01a181b8-8a64-7a72-b427-4965e915ca2e.jsonl",
+   "events": [
+    {
+     "seed": "heavy-locks",
+     "at": "2026-10-28T09:27:52.620Z",
+     "tool": "exec_command",
+     "command": "vrooli locks --json",
+     "exitCode": 0,
+     "durationMs": 18,
+     "output": "{\n  \"success\": true,\n  \"registry_claims\": [\n    {\n      \"claim_id\": \"claim-b713a554e5245738dc0317973444b2c0\",\n      \"instance_id\": \"inst-e5842d1484d3c187851238bdd60b0f59\",\n      \"scenario\": \"agent-inbox\",\n      \"generation\": \"331\",\n      \"port_name\": \"api\",\n      \"env_var\": \"API_PORT\",\n      \"port\": 17701,\n      \"bind_host\": \"127.0.0.1\",\n      \"url\": \"http://127.0.0.1:17701\",\n      \"claim_status\": \"expired\",\n      \"instance_status\": \"expired\",\n      \"supervisor_id\": \"\",\n      \"supervisor_status\": \"\",\n      \"supervisor_fresh\": null,\n      \"lease_fresh\": false,\n      \"heartbeat_deadline\": \"2026-10-13T23:17:23.321123714Z\",\n      \"supervisor_heartbeat_deadline\": \"\",\n      \"health_status\": \"\",\n      \"health_ready\": null,\n      \"reconciliation\": \"stale_claim\",\n      \"reconcile_reason\": \"instance status is \\\"expired\\\"\",\n      \"authoritative\": false,\n      \"created_at\": \"2026-10-13T23:16:53.495173543Z\",\n      \"updated_at\": \"2026-10-13T23:26:36.08202577Z\",\n      \"expires_at\": \"2026-10-13T23:21:53.495166503Z\",\n      \"last_bound_at\": \"\",\n      \"last_listener_check_at\": \"2026-10-13T23:26:29.983913622Z\",\n      \"last_listener_seen_at\": \"\",\n      \"first_unbound_at\": \"2026-10-13T23:17:00.939722717Z\",\n      \"consecutive_listener_misses\": 58,\n      \"listener_status\": \"not_listening\",\n      \"listener_pid\": null,\n      \"listener_process_label\": \"\",\n      \"recommendation_code\": \"claim-resolved\",\n      \"recommendation_confidence\": \"high\",\n      \"recommendation_rationale\": \"claim is already expired; no action needed\"\n    },\n    {\n      \"claim_id\": \"claim-6cc14b0336d6bfe6327d6e064b33542a\",\n      \"instance_id\": \"inst-0bd7301fa28bbb70ca3ed6c7880842ed\",\n      \"scenario\": \"agent-inbox\",\n      \"generation\": \"332\",\n      \"port_name\": \"api\",\n      \"env_var\": \"API_PORT\",\n      \"port\": 17701,\n      \"bind_host\": \"127.0.0.1\",\n      \"url\": \"http://127.0.0.1:17701\",\n      \"claim_status\": \"expired\",\n      \"instance_status\": \"expired\",\n      \"supervisor_id\": \"\",\n      \"supervisor_status\": \"\",\n      \"supe\u00abBYTES:285606\u00bb.249529174Z\",\n      \"last_listener_check_at\": \"2026-10-28T09:27:42.543026303Z\",\n      \"last_listener_seen_at\": \"2026-10-28T09:27:42.543026303Z\",\n      \"first_unbound_at\": \"\",\n      \"consecutive_listener_misses\": 0,\n      \"listener_status\": \"listening\",\n      \"listener_pid\": 3399041,\n      \"listener_process_label\": \"node server.js\",\n      \"recommendation_code\": \"port-ok\",\n      \"recommendation_confidence\": \"high\",\n      \"recommendation_rationale\": \"claimed port has listener evidence\"\n    }\n  ]\n}\n"
+    },
+    {
+     "usage": {
+      "input": 65288,
+      "cachedInput": 63488,
+      "output": 407
+     },
+     "at": "2026-10-28T09:27:52.620Z"
+    },
+    {
+     "usage": {
+      "input": 69217,
+      "cachedInput": 65152,
+      "output": 378
+     },
+     "at": "2026-10-28T09:27:52.620Z"
+    },
+    {
+     "usage": {
+      "input": 70050,
+      "cachedInput": 68992,
+      "output": 736
+     },
+     "at": "2026-10-28T09:27:52.620Z"
+    },
+    {
+     "usage": {
+      "input": 73423,
+      "cachedInput": 69888,
+      "output": 723
+     },
+     "at": "2026-10-28T09:27:52.620Z"
+    },
+    {
+     "usage": {
+      "input": 75919,
+      "cachedInput": 73216,
+      "output": 455
+     },
+     "at": "2026-10-28T09:27:52.620Z"
+    },
+    {
+     "usage": {
+      "input": 80297,
+      "cachedInput": 75776,
+      "output": 688
+     },
+     "at": "2026-10-28T09:27:52.620Z"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-28T14:17:09.626Z",
+     "tool": "exec_command",
+     "command": "audio-tools settings provider --json\n",
+     "exitCode": 1,
+     "durationMs": 2007,
+     "output": "Error: agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-28T14:26:44.248Z",
+     "tool": "exec_command",
+     "command": "vrooli-memory journal note \"Music reference analysis continuation: acquired official audiovisual versions for five named tracks; ran bounded signal, CLAP, and local vocal-transcription checks; cleaned all temporary audio, tool, and model data. Full evidence remains in the prepared run workspace.\" --kind work-record --trigger \"Continue the music reference commission by comparing actual sound and arrangement, testing a preference-seeded retrieval with negative controls, and reviewing vocals, lyrics, and exact studio-version access.\" --approach \"Acquired official-channel audio and recorded hashes/terms; ran CPU librosa and frozen CLAP trials after control gates; ran the existing local whisper-local route with transcript text processed in memory and discarded; reviewed catalog credits/durations; removed task-local media and caches.\" --evidence \"run=~/.vrooli/research/topics/music-quality/runs/reference-analysis-prepared-20261028; acquisition-manifest.json; clap-control-check.json; clap-target-comparison.json; local-vocal-proxy-metrics.json; local-vocal-control-metrics.json; vocal-lyrics-source-review.md; prior_work_record=2207ebaf-eb17-4572-92f7-7f42195577d5\" --outcome \"All five official audiovisual versions analyzed; CLAP passed 5/5 basic controls but arrangement discrimination and song-to-song recommendation are weak; local transcription returned unvalidated lyrics and retained no text; Qobuz duration metadata flags Hootie Frutti as a substantial edit mismatch; exact studio masters remain unverified. No human listening, generation, paid spend, upload, remote inference, or task-owned capacity claim; all task-local temporary data was removed. Research-only SDA approval pip/yt-dlp@2026.10.26 remains.\" --json",
+     "exitCode": 1,
+     "durationMs": 1962,
+     "output": "Error: agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    }
+   ]
+  },
+  {
+   "id": "96d78ba6-70c9-5151-a837-b7deb967f4f3",
+   "source": "rollout-2026-10-28T04-55-27-01a181b8-b196-73a0-aba0-de2f5b5c9f0b.jsonl",
+   "events": [
+    {
+     "seed": "park",
+     "at": "2026-10-28T11:22:14.460Z",
+     "tool": "exec_command",
+     "command": "test-genie runs wait --json --timeout=374 text-tools 20261028-112141-871be865 > ~/.vrooli/research/topics/debt-reduction/runs/prepared-20261028/trials/text-tools-v2-handler-ab/logs/baseline-wrapper-run.json",
+     "exitCode": 1,
+     "durationMs": 1375,
+     "output": "agent-manager park unavailable (park request: api error (409): cannot park Run in running state: runner type is unavailable; cannot safely end the parked turn) \u2014 waiting inline instead\nwait attached (pid 3165566) to server-owned Test Genie run text-tools/20261028-112141-871be865; stdout stays empty until terminal JSON (up to 374s).\nIf this tool session returns without terminal JSON, do not infer that the waiter exited or that the run is stuck. Read durable state once: test-genie runs status --json text-tools 20261028-112141-871be865\nError: run 20261028-112141-871be865 failed\n"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-28T14:35:45.113Z",
+     "tool": "exec_command",
+     "command": "tidiness-manager recommend-refactors plan-manager --limit 5 --sort-by priority --min-lines 50",
+     "exitCode": 1,
+     "durationMs": 2404,
+     "output": "agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    }
+   ]
+  },
+  {
+   "id": "f6966d58-1617-50f1-95a7-f2c491fe8b71",
+   "source": "rollout-2026-10-28T04-55-27-01a181b8-b354-7bc1-9d38-9cf6dd339d7f.jsonl",
+   "events": [
+    {
+     "seed": "build-deny",
+     "at": "2026-10-28T10:00:00.396Z",
+     "tool": "exec_command",
+     "command": "react-component-library components test forms.input --version 1.3.6 --json",
+     "exitCode": 1,
+     "durationMs": 487,
+     "output": "Runtime error: CLI build admission deny (host memory PSI some.avg10 26.53% is at or above setpoint substrate/SB20 maximum 10.00%); retry when host capacity is available\nError: react-component-library CLI refresh was not admitted or did not complete; retry when available: exit status 1\n"
+    },
+    {
+     "seed": "heavy-locks",
+     "at": "2026-10-28T10:12:35.718Z",
+     "tool": "exec_command",
+     "command": "vrooli locks --json",
+     "exitCode": 0,
+     "durationMs": 18,
+     "output": "{\n  \"success\": true,\n  \"registry_claims\": [\n    {\n      \"claim_id\": \"claim-b713a554e5245738dc0317973444b2c0\",\n      \"instance_id\": \"inst-e5842d1484d3c187851238bdd60b0f59\",\n      \"scenario\": \"agent-inbox\",\n      \"generation\": \"331\",\n      \"port_name\": \"api\",\n      \"env_var\": \"API_PORT\",\n      \"port\": 17701,\n      \"bind_host\": \"127.0.0.1\",\n      \"url\": \"http://127.0.0.1:17701\",\n      \"claim_status\": \"expired\",\n      \"instance_status\": \"expired\",\n      \"supervisor_id\": \"\",\n      \"supervisor_status\": \"\",\n      \"supervisor_fresh\": null,\n      \"lease_fresh\": false,\n      \"heartbeat_deadline\": \"2026-10-13T23:17:23.321123714Z\",\n      \"supervisor_heartbeat_deadline\": \"\",\n      \"health_status\": \"\",\n      \"health_ready\": null,\n      \"reconciliation\": \"stale_claim\",\n      \"reconcile_reason\": \"instance status is \\\"expired\\\"\",\n      \"authoritative\": false,\n      \"created_at\": \"2026-10-13T23:16:53.495173543Z\",\n      \"updated_at\": \"2026-10-13T23:26:36.08202577Z\",\n      \"expires_at\": \"2026-10-13T23:21:53.495166503Z\",\n      \"last_bound_at\": \"\",\n      \"last_listener_check_at\": \"2026-10-13T23:26:29.983913622Z\",\n      \"last_listener_seen_at\": \"\",\n      \"first_unbound_at\": \"2026-10-13T23:17:00.939722717Z\",\n      \"consecutive_listener_misses\": 58,\n      \"listener_status\": \"not_listening\",\n      \"listener_pid\": null,\n      \"listener_process_label\": \"\",\n      \"recommendation_code\": \"claim-resolved\",\n      \"recommendation_confidence\": \"high\",\n      \"recommendation_rationale\": \"claim is already expired; no action needed\"\n    },\n    {\n      \"claim_id\": \"claim-6cc14b0336d6bfe6327d6e064b33542a\",\n      \"instance_id\": \"inst-0bd7301fa28bbb70ca3ed6c7880842ed\",\n      \"scenario\": \"agent-inbox\",\n      \"generation\": \"332\",\n      \"port_name\": \"api\",\n      \"env_var\": \"API_PORT\",\n      \"port\": 17701,\n      \"bind_host\": \"127.0.0.1\",\n      \"url\": \"http://127.0.0.1:17701\",\n      \"claim_status\": \"expired\",\n      \"instance_status\": \"expired\",\n      \"supervisor_id\": \"\",\n      \"supervisor_status\": \"\",\n      \"supe\u00abBYTES:288681\u00bb57.249529174Z\",\n      \"last_listener_check_at\": \"2026-10-28T10:12:32.57545262Z\",\n      \"last_listener_seen_at\": \"2026-10-28T10:12:32.57545262Z\",\n      \"first_unbound_at\": \"\",\n      \"consecutive_listener_misses\": 0,\n      \"listener_status\": \"listening\",\n      \"listener_pid\": 3399041,\n      \"listener_process_label\": \"node server.js\",\n      \"recommendation_code\": \"port-ok\",\n      \"recommendation_confidence\": \"high\",\n      \"recommendation_rationale\": \"claimed port has listener evidence\"\n    }\n  ]\n}\n"
+    },
+    {
+     "usage": {
+      "input": 205016,
+      "cachedInput": 203392,
+      "output": 163
+     },
+     "at": "2026-10-28T10:12:35.718Z"
+    },
+    {
+     "usage": {
+      "input": 207213,
+      "cachedInput": 204800,
+      "output": 209
+     },
+     "at": "2026-10-28T10:12:35.718Z"
+    },
+    {
+     "usage": {
+      "input": 207790,
+      "cachedInput": 206976,
+      "output": 1237
+     },
+     "at": "2026-10-28T10:12:35.718Z"
+    },
+    {
+     "usage": {
+      "input": 209139,
+      "cachedInput": 207616,
+      "output": 205
+     },
+     "at": "2026-10-28T10:12:35.718Z"
+    },
+    {
+     "usage": {
+      "input": 209560,
+      "cachedInput": 209024,
+      "output": 72
+     },
+     "at": "2026-10-28T10:12:35.718Z"
+    },
+    {
+     "usage": {
+      "input": 209836,
+      "cachedInput": 209408,
+      "output": 410
+     },
+     "at": "2026-10-28T10:12:35.718Z"
+    },
+    {
+     "seed": "heavy-locks",
+     "at": "2026-10-28T10:37:20.478Z",
+     "tool": "exec_command",
+     "command": "vrooli locks --json",
+     "exitCode": 0,
+     "durationMs": 62,
+     "output": "{\n  \"success\": true,\n  \"registry_claims\": [\n    {\n      \"claim_id\": \"claim-b713a554e5245738dc0317973444b2c0\",\n      \"instance_id\": \"inst-e5842d1484d3c187851238bdd60b0f59\",\n      \"scenario\": \"agent-inbox\",\n      \"generation\": \"331\",\n      \"port_name\": \"api\",\n      \"env_var\": \"API_PORT\",\n      \"port\": 17701,\n      \"bind_host\": \"127.0.0.1\",\n      \"url\": \"http://127.0.0.1:17701\",\n      \"claim_status\": \"expired\",\n      \"instance_status\": \"expired\",\n      \"supervisor_id\": \"\",\n      \"supervisor_status\": \"\",\n      \"supervisor_fresh\": null,\n      \"lease_fresh\": false,\n      \"heartbeat_deadline\": \"2026-10-13T23:17:23.321123714Z\",\n      \"supervisor_heartbeat_deadline\": \"\",\n      \"health_status\": \"\",\n      \"health_ready\": null,\n      \"reconciliation\": \"stale_claim\",\n      \"reconcile_reason\": \"instance status is \\\"expired\\\"\",\n      \"authoritative\": false,\n      \"created_at\": \"2026-10-13T23:16:53.495173543Z\",\n      \"updated_at\": \"2026-10-13T23:26:36.08202577Z\",\n      \"expires_at\": \"2026-10-13T23:21:53.495166503Z\",\n      \"last_bound_at\": \"\",\n      \"last_listener_check_at\": \"2026-10-13T23:26:29.983913622Z\",\n      \"last_listener_seen_at\": \"\",\n      \"first_unbound_at\": \"2026-10-13T23:17:00.939722717Z\",\n      \"consecutive_listener_misses\": 58,\n      \"listener_status\": \"not_listening\",\n      \"listener_pid\": null,\n      \"listener_process_label\": \"\",\n      \"recommendation_code\": \"claim-resolved\",\n      \"recommendation_confidence\": \"high\",\n      \"recommendation_rationale\": \"claim is already expired; no action needed\"\n    },\n    {\n      \"claim_id\": \"claim-6cc14b0336d6bfe6327d6e064b33542a\",\n      \"instance_id\": \"inst-0bd7301fa28bbb70ca3ed6c7880842ed\",\n      \"scenario\": \"agent-inbox\",\n      \"generation\": \"332\",\n      \"port_name\": \"api\",\n      \"env_var\": \"API_PORT\",\n      \"port\": 17701,\n      \"bind_host\": \"127.0.0.1\",\n      \"url\": \"http://127.0.0.1:17701\",\n      \"claim_status\": \"expired\",\n      \"instance_status\": \"expired\",\n      \"supervisor_id\": \"\",\n      \"supervisor_status\": \"\",\n      \"supe\u00abBYTES:285671\u00bb.249529174Z\",\n      \"last_listener_check_at\": \"2026-10-28T10:37:12.766914574Z\",\n      \"last_listener_seen_at\": \"2026-10-28T10:37:12.766914574Z\",\n      \"first_unbound_at\": \"\",\n      \"consecutive_listener_misses\": 0,\n      \"listener_status\": \"listening\",\n      \"listener_pid\": 3399041,\n      \"listener_process_label\": \"node server.js\",\n      \"recommendation_code\": \"port-ok\",\n      \"recommendation_confidence\": \"high\",\n      \"recommendation_rationale\": \"claimed port has listener evidence\"\n    }\n  ]\n}\n"
+    },
+    {
+     "usage": {
+      "input": 68751,
+      "cachedInput": 68224,
+      "output": 81
+     },
+     "at": "2026-10-28T10:37:20.478Z"
+    },
+    {
+     "usage": {
+      "input": 70805,
+      "cachedInput": 68608,
+      "output": 211
+     },
+     "at": "2026-10-28T10:37:20.478Z"
+    },
+    {
+     "usage": {
+      "input": 71341,
+      "cachedInput": 70656,
+      "output": 587
+     },
+     "at": "2026-10-28T10:37:20.478Z"
+    },
+    {
+     "usage": {
+      "input": 72043,
+      "cachedInput": 71168,
+      "output": 266
+     },
+     "at": "2026-10-28T10:37:20.478Z"
+    },
+    {
+     "usage": {
+      "input": 72332,
+      "cachedInput": 71808,
+      "output": 187
+     },
+     "at": "2026-10-28T10:37:20.478Z"
+    },
+    {
+     "usage": {
+      "input": 72662,
+      "cachedInput": 72192,
+      "output": 385
+     },
+     "at": "2026-10-28T10:37:20.478Z"
+    },
+    {
+     "seed": "identity",
+     "at": "2026-10-28T14:35:44.198Z",
+     "tool": "exec_command",
+     "command": "swarm-manager records search \"validation missed a user-visible interaction defect but detected acceptable state\" --limit 10 --json",
+     "exitCode": 1,
+     "durationMs": 7062,
+     "output": "Error: request failed: Post \"http://localhost:16421/api/v1/records/search\": agent identity identity_refresh_unavailable; inspect run/session binding and owner-proof expiry; use a fresh authenticated owner session if renewal is unavailable\n"
+    }
+   ]
+  },
+  {
+   "id": "aba07ac4-45da-5ebb-8760-6ffba5d8b5a1",
+   "source": "rollout-2026-10-28T10-33-02-01a182ed-c43e-7be0-9406-10c15448b4a7.jsonl",
+   "events": [
+    {
+     "seed": "build-deny",
+     "at": "2026-10-28T14:37:35.965Z",
+     "tool": "exec_command",
+     "command": "portal surfaces apps",
+     "exitCode": 1,
+     "durationMs": 622,
+     "output": "Runtime error: CLI build admission deny (host memory PSI some.avg10 38.69% is at or above setpoint substrate/SB20 maximum 10.00%); retry when host capacity is available\nError: portal CLI refresh was not admitted or did not complete; retry when available: exit status 1\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:01:53.108Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 178,
+     "output": "{\n  \"sessions\": []\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:02:18.583Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 283,
+     "output": "{\n  \"sessions\": [\n    {\n      \"actor\": \"tv-experience-continuation-20261028\",\n      \"created_at\": \"2026-10-28T16:02:07.881056814Z\",\n      \"device_id\": \"android-0df87078c18abfb8\",\n      \"expires_at\": \"2026-10-28T16:04:07.881056814Z\",\n      \"id\": \"f27035fe-2c43-487b-9bc4-606a06c32e89\",\n      \"kill_reason\": \"\",\n      \"state\": \"held\"\n    }\n  ]\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:04:15.530Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 594,
+     "output": "{\n  \"sessions\": []\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:08:16.226Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 178,
+     "output": "{\n  \"sessions\": []\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:13:25.564Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 178,
+     "output": "{\n  \"sessions\": [\n    {\n      \"actor\": \"tv-experience-continuation-20261028\",\n      \"created_at\": \"2026-10-28T16:11:25.527547723Z\",\n      \"device_id\": \"android-0df87078c18abfb8\",\n      \"expires_at\": \"2026-10-28T16:14:25.527547723Z\",\n      \"id\": \"5486e3d4-b7ee-4342-9fa1-beec26985064\",\n      \"kill_reason\": \"\",\n      \"state\": \"held\"\n    }\n  ]\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:18:16.528Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 126,
+     "output": "{\n  \"sessions\": []\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:21:42.212Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 78,
+     "output": "{\n  \"sessions\": [\n    {\n      \"actor\": \"tv-experience-continuation-20261028\",\n      \"created_at\": \"2026-10-28T16:20:09.874906186Z\",\n      \"device_id\": \"android-0df87078c18abfb8\",\n      \"expires_at\": \"2026-10-28T16:23:09.874906186Z\",\n      \"id\": \"415acc3d-596d-4704-8741-910c03f66dc8\",\n      \"kill_reason\": \"\",\n      \"state\": \"held\"\n    }\n  ]\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:22:10.894Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 53,
+     "output": "{\n  \"sessions\": [\n    {\n      \"actor\": \"tv-experience-continuation-20261028\",\n      \"created_at\": \"2026-10-28T16:20:09.874906186Z\",\n      \"device_id\": \"android-0df87078c18abfb8\",\n      \"expires_at\": \"2026-10-28T16:23:09.874906186Z\",\n      \"id\": \"415acc3d-596d-4704-8741-910c03f66dc8\",\n      \"kill_reason\": \"\",\n      \"state\": \"held\"\n    }\n  ]\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:23:32.487Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 240,
+     "output": "{\n  \"sessions\": []\n}\n"
+    },
+    {
+     "seed": "polling",
+     "at": "2026-10-28T16:28:32.727Z",
+     "tool": "exec_command",
+     "command": "device-control session list --json",
+     "exitCode": 0,
+     "durationMs": 96,
+     "output": "{\n  \"sessions\": []\n}\n"
+    },
+    {
+     "seed": "shape-dc",
+     "at": "2026-10-28T18:09:39.907Z",
+     "tool": "exec_command",
+     "command": "device-control evidence --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: evidence\n"
+    },
+    {
+     "seed": "shape-dc",
+     "at": "2026-10-28T18:46:43.778Z",
+     "tool": "exec_command",
+     "command": "device-control evidence --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: evidence\n"
+    },
+    {
+     "seed": "shape-am",
+     "at": "2026-10-28T20:03:48.787Z",
+     "tool": "exec_command",
+     "command": "agent-manager runs get --help && web-console sessions --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: runs (did you mean \"run\"?)\n"
+    },
+    {
+     "seed": "shape-am",
+     "at": "2026-10-28T20:32:03.511Z",
+     "tool": "exec_command",
+     "command": "agent-manager runs --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: runs (did you mean \"run\"?)\n"
+    },
+    {
+     "seed": "shape-dc",
+     "at": "2026-10-28T21:29:16.539Z",
+     "tool": "exec_command",
+     "command": "device-control evidence --help",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: evidence\n"
+    }
+   ]
+  },
+  {
+   "id": "c5b2a094-e441-521d-9909-8b18759ae972",
+   "source": "rollout-2026-10-28T16-33-14-01a18437-8983-7ac3-85c2-d4b016fcf9e2.jsonl",
+   "events": [
+    {
+     "seed": "shape-pr",
+     "at": "2026-10-29T00:41:33.328Z",
+     "tool": "exec_command",
+     "command": "program-runtime validate scenario program-runtime --json",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: validate\n"
+    },
+    {
+     "seed": "build-deny",
+     "at": "2026-10-29T04:33:44.241Z",
+     "tool": "exec_command",
+     "command": "program-runtime sessions list --json",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Runtime error: CLI build admission deny (host memory PSI some.avg10 19.34% is at or above setpoint substrate/SB20 maximum 10.00%); retry when host capacity is available\nError: program-runtime CLI refresh was not admitted or did not complete; retry when available: exit status 1\n"
+    }
+   ]
+  },
+  {
+   "id": "480989a0-ef74-5db0-afbd-940d6c156dee",
+   "source": "rollout-2026-10-29T20-50-06-01a18a49-0feb-7ed3-b314-1d586a775e2b.jsonl",
+   "events": [
+    {
+     "seed": "saturated",
+     "at": "2026-10-30T03:39:39.631Z",
+     "tool": "exec_command",
+     "command": "vrooli scenario test agent-manager --phases programs",
+     "exitCode": 1,
+     "durationMs": 3161,
+     "output": "shared-package-lock event=waiting package=\"proto\" root=\"~/Vrooli/packages/proto\" holder_pid=3737889 wait_ms=0 pid=3737887\nshared-package-lock event=acquired package=\"proto\" root=\"~/Vrooli/packages/proto\" holder_pid=0 wait_ms=1759 pid=3737887\nshared-package-freshness event=checked package=\"proto\" command=\"generate\" fresh=true elapsed_ms=90\nshared package proto: generate outputs are fresh\nproto-artifact event=selected artifact_id=\"5257f15dffb19fba28deb789741f00b0d467770d61ce6f2314bddd734eab0d9a\" source_digest=\"sha256:c47f611de16fffd83bad63ff767d2e827ca5a4c57093132cda3e4b71b2ad7c2a\" selection=\"active\" degraded=false root=\"~/.vrooli/artifacts/proto\" compatibility_root=\"~/Vrooli/packages/proto/gen\" resolve_ms=134 materialize_ms=476\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"install\" fresh=true elapsed_ms=1\nshared package @vrooli/audio-capture-browser: install outputs are fresh\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"build\" fresh=true elapsed_ms=2\nshared package @vrooli/audio-capture-browser: build outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"install\" fresh=true elapsed_ms=0\nshared package react-component-library: install outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"build\" fresh=true elapsed_ms=15\nshared package react-component-library: build outputs are fresh\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551  AGENT-MANAGER COMPREHENSIVE TEST SUITE                       \u2551\n\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563\n\u2551  Scenario: ~/Vrooli/scenarios/agent-manager \u2551\n\u2551  Requested phases: programs                                   \u2551\n\u2551  Started: 23:39:39                                            \u2551\n\u2551  Estimated: ~52s                                              \u2551\n\u2551  Timeout budget: 2m0s                                         \u2551\n\u2551  Phases: 1\u00abBYTES:53\u00bb\u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\nTest Plan:\n  [1/1] programs       (est ~52s / timeout 2m0s) [high confidence from 20 runs] \u2192 Validates declared program contracts, sources, and fixture evidence. (docs: ~/Vrooli/scenarios/test-genie/docs/phases/programs/README.md)\n\nStarting execution...\n\nError: start run: resource_exhausted: test-genie admission is saturated (caller preview capacity); retry after an active run advances or completes\nRuntime error: exit status 1\n"
+    },
+    {
+     "seed": "saturated",
+     "at": "2026-10-30T04:26:53.429Z",
+     "tool": "exec_command",
+     "command": "vrooli scenario test program-runtime --phases programs",
+     "exitCode": 1,
+     "durationMs": 2074,
+     "output": "shared-package-lock event=waiting package=\"proto\" root=\"~/Vrooli/packages/proto\" holder_pid=1419580 wait_ms=0 pid=1419578\nshared-package-lock event=acquired package=\"proto\" root=\"~/Vrooli/packages/proto\" holder_pid=0 wait_ms=759 pid=1419578\nshared-package-freshness event=checked package=\"proto\" command=\"generate\" fresh=true elapsed_ms=81\nshared package proto: generate outputs are fresh\nproto-artifact event=selected artifact_id=\"9811c68c9e779e4fe88a8fd88343c486211829fd3f7d427957ffbb8ff84e422c\" source_digest=\"sha256:480d8b18fdc962c095e13c137e04f385f2c2fcfe3412141085296b307777a2d0\" selection=\"active\" degraded=false root=\"~/.vrooli/artifacts/proto\" compatibility_root=\"~/Vrooli/packages/proto/gen\" resolve_ms=122 materialize_ms=436\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"install\" fresh=true elapsed_ms=1\nshared package @vrooli/audio-capture-browser: install outputs are fresh\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"build\" fresh=true elapsed_ms=1\nshared package @vrooli/audio-capture-browser: build outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"install\" fresh=true elapsed_ms=1\nshared package react-component-library: install outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"build\" fresh=true elapsed_ms=15\nshared package react-component-library: build outputs are fresh\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551  PROGRAM-RUNTIME COMPREHENSIVE TEST SUITE                     \u2551\n\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563\n\u2551  Scenario: ~/Vrooli/scenarios/program-runtime\u2551\n\u2551  Requested phases: programs                                   \u2551\n\u2551  Started: 00:26:53                                            \u2551\n\u2551  Estimated: ~2m1s                                             \u2551\n\u2551  Timeout budget: 6m0s                                         \u2551\n\u2551  Phases: 1\u00abBYTES:54\u00bb\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\nTest Plan:\n  [1/1] programs       (est ~2m1s / timeout 6m0s) [high confidence from 18 runs] \u2192 Validates declared program contracts, sources, and fixture evidence. (docs: ~/Vrooli/scenarios/test-genie/docs/phases/programs/README.md)\n\nStarting execution...\n\nError: start run: resource_exhausted: test-genie admission is saturated (caller preview capacity); retry after an active run advances or completes\nRuntime error: exit status 1\n"
+    }
+   ]
+  },
+  {
+   "id": "9976ce01-e63c-5b8b-9b12-d42af92c1f3c",
+   "source": "rollout-2026-10-29T21-08-33-01a18a59-f255-7a52-a878-c7f8accce818.jsonl",
+   "events": [
+    {
+     "seed": "shape-pr",
+     "at": "2026-10-30T02:26:26.915Z",
+     "tool": "exec_command",
+     "command": "program-runtime validate scenario browser-automation-studio",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: validate\n"
+    },
+    {
+     "seed": "shape-pr",
+     "at": "2026-10-30T02:26:26.916Z",
+     "tool": "exec_command",
+     "command": "program-runtime validate scenario device-control",
+     "exitCode": 1,
+     "durationMs": 0,
+     "output": "Error: Unknown command: validate\n"
+    },
+    {
+     "seed": "saturated",
+     "at": "2026-10-30T02:28:20.760Z",
+     "tool": "exec_command",
+     "command": "vrooli scenario test device-control --phases programs",
+     "exitCode": 1,
+     "durationMs": 10902,
+     "output": "shared-package-freshness event=checked package=\"proto\" command=\"generate\" fresh=true elapsed_ms=89\nshared package proto: generate outputs are fresh\nproto-artifact event=selected artifact_id=\"ea25772929d72e08bfef88c09d98cf6043b6e4acf284df592df6a17f5ca40ff2\" source_digest=\"sha256:93e156a754579a8d62326ce23d85d50aa1b60a4c484e51a8b111e7376e724de8\" selection=\"active\" degraded=false root=\"~/.vrooli/artifacts/proto\" compatibility_root=\"~/Vrooli/packages/proto/gen\" resolve_ms=128 materialize_ms=551\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"install\" fresh=true elapsed_ms=1\nshared package @vrooli/audio-capture-browser: install outputs are fresh\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"build\" fresh=true elapsed_ms=2\nshared package @vrooli/audio-capture-browser: build outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"install\" fresh=true elapsed_ms=1\nshared package react-component-library: install outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"build\" fresh=true elapsed_ms=15\nshared package react-component-library: build outputs are fresh\n\u2705 installed CLI to ~/.vrooli/bin/test-genie\n\u2139\ufe0f  If you are replacing an existing CLI command in this shell, run: hash -r\n\u2705 installed CLI to ~/.vrooli/bin/test-genie\n\u2139\ufe0f  If you are replacing an existing CLI command in this shell, run: hash -r\ntest-genie CLI rebuilt from current sources (fingerprint 53b53df881c05134ab050d6b59db34887d66d4b08a5809b9f3fb968b39719e9f); restarting command...\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551  DEVICE-CONTROL COMPREHENSIVE TEST SUITE                      \u2551\n\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563\n\u2551  Scenario: ~/Vrooli/scenarios/device-control\u2551\n\u2551  Requested phases: programs                                   \u2551\n\u2551  Started: 22:28:20                                            \u00abBYTES:199\u00bb\u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\nTest Plan:\n  [1/1] programs       (est ~52s / timeout 2m0s) [high confidence from 17 runs] \u2192 Validates declared program contracts, sources, and fixture evidence. (docs: ~/Vrooli/scenarios/test-genie/docs/phases/programs/README.md)\n\nStarting execution...\n\nError: start run: resource_exhausted: test-genie admission is saturated (caller preview capacity); retry after an active run advances or completes\nRuntime error: exit status 1\n"
+    }
+   ]
+  },
+  {
+   "id": "b5e62f47-1ef4-5a7c-839c-db1a8df5c6f6",
+   "source": "rollout-2026-10-29T23-48-27-01a18aec-5843-7960-b1c6-5728f963ec8b.jsonl",
+   "events": [
+    {
+     "seed": "saturated",
+     "at": "2026-10-30T04:03:50.816Z",
+     "tool": "exec_command",
+     "command": "vrooli scenario test program-runtime --phases programs",
+     "exitCode": 1,
+     "durationMs": 9445,
+     "output": "shared-package-lock event=waiting package=\"proto\" root=\"~/Vrooli/packages/proto\" holder_pid=0 wait_ms=1 pid=578417\nshared-package-lock event=acquired package=\"proto\" root=\"~/Vrooli/packages/proto\" holder_pid=0 wait_ms=7765 pid=578417\nshared-package-freshness event=checked package=\"proto\" command=\"generate\" fresh=true elapsed_ms=100\nshared package proto: generate outputs are fresh\nproto-artifact event=selected artifact_id=\"9811c68c9e779e4fe88a8fd88343c486211829fd3f7d427957ffbb8ff84e422c\" source_digest=\"sha256:480d8b18fdc962c095e13c137e04f385f2c2fcfe3412141085296b307777a2d0\" selection=\"active\" degraded=false root=\"~/.vrooli/artifacts/proto\" compatibility_root=\"~/Vrooli/packages/proto/gen\" resolve_ms=152 materialize_ms=512\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"install\" fresh=true elapsed_ms=4\nshared package @vrooli/audio-capture-browser: install outputs are fresh\nshared-package-freshness event=checked package=\"@vrooli/audio-capture-browser\" command=\"build\" fresh=true elapsed_ms=2\nshared package @vrooli/audio-capture-browser: build outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"install\" fresh=true elapsed_ms=1\nshared package react-component-library: install outputs are fresh\nshared-package-freshness event=checked package=\"react-component-library\" command=\"build\" fresh=true elapsed_ms=16\nshared package react-component-library: build outputs are fresh\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557\n\u2551  PROGRAM-RUNTIME COMPREHENSIVE TEST SUITE                     \u2551\n\u2560\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2563\n\u2551  Scenario: ~/Vrooli/scenarios/program-runtime\u2551\n\u2551  Requested phases: programs                                   \u2551\n\u2551  Started: 00:03:50                                            \u2551\n\u2551  Estimated: ~5s                                               \u2551\n\u2551  Timeout budget: 2m0s                                         \u2551\n\u2551  Phases: 1      \u00abBYTES:46\u00bb \u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d\n\nTest Plan:\n  [1/1] programs       (est ~5s / timeout 2m0s) [high confidence from 18 runs] \u2192 Validates declared program contracts, sources, and fixture evidence. (docs: ~/Vrooli/scenarios/test-genie/docs/phases/programs/README.md)\n\nStarting execution...\n\nError: start run: resource_exhausted: test-genie admission is saturated (caller preview capacity); retry after an active run advances or completes\nRuntime error: exit status 1\n"
+    }
+   ]
+  }
+ ]
+}

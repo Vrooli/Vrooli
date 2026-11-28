@@ -22,6 +22,8 @@ interface InlineEditableTextProps {
   isLoading?: boolean
   displayTestId?: string
   inputTestId?: string
+  /** Optional shorter read-only label for constrained shells; editing still uses the full value. */
+  displayValue?: string
 }
 
 /**
@@ -39,6 +41,7 @@ export function InlineEditableText({
   isLoading,
   displayTestId,
   inputTestId,
+  displayValue: displayValueOverride,
 }: InlineEditableTextProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
@@ -148,7 +151,7 @@ export function InlineEditableText({
     )
   }
 
-  const displayValue = value || placeholder
+  const displayValue = displayValueOverride || value || placeholder
   const isEmpty = !value
 
   // Render the appropriate HTML element
@@ -159,7 +162,8 @@ export function InlineEditableText({
       onKeyDown={handleDisplayKeyDown}
       tabIndex={disabled ? -1 : 0}
       role="button"
-      aria-label={`Edit ${displayValue}`}
+      aria-label={`Edit ${value || placeholder}`}
+      title={value || undefined}
       className={cn(
         baseTextStyles,
         typographyStyles[as],

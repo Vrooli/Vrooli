@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 
@@ -9,8 +10,9 @@ import (
 
 // GroupingDeps contains dependencies for grouping rule operations.
 type GroupingDeps struct {
-	FS         FileIO
-	ConfigPath string
+	AuthContext context.Context
+	FS          FileIO
+	ConfigPath  string
 }
 
 // LoadGroupingRules reads the grouping configuration from disk.
@@ -32,6 +34,9 @@ func LoadGroupingRules(deps GroupingDeps) (*GroupingRulesConfig, error) {
 
 // SaveGroupingRules persists the grouping configuration atomically.
 func SaveGroupingRules(deps GroupingDeps, config GroupingRulesConfig) error {
+	if err := requireHumanMutation(deps.AuthContext, "save grouping rules"); err != nil {
+		return err
+	}
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err

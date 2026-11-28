@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,8 +12,7 @@ import (
 // [REQ:LD-SCORE-CALC] Tests for score configuration API endpoints.
 
 func TestGetScoreConfig_Empty(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/score/config", nil)
 	rr := httptest.NewRecorder()
@@ -35,8 +33,7 @@ func TestGetScoreConfig_Empty(t *testing.T) {
 }
 
 func TestGetScoreConfig_WithDomains(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register domains
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
@@ -71,8 +68,7 @@ func TestGetScoreConfig_WithDomains(t *testing.T) {
 }
 
 func TestGetDomainWeight_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
 
@@ -98,8 +94,7 @@ func TestGetDomainWeight_Success(t *testing.T) {
 }
 
 func TestGetDomainWeight_NotFound(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/score/config/nonexistent", nil)
 	rr := httptest.NewRecorder()
@@ -111,16 +106,12 @@ func TestGetDomainWeight_NotFound(t *testing.T) {
 }
 
 func TestUpdateDomainWeight_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
 
 	body := `{"weight": "low"}`
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/sleep", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/sleep", body)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
@@ -140,16 +131,12 @@ func TestUpdateDomainWeight_Success(t *testing.T) {
 }
 
 func TestUpdateDomainWeight_InvalidWeight(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
 
 	body := `{"weight": "invalid"}`
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/sleep", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/sleep", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", rr.Code)
@@ -157,14 +144,10 @@ func TestUpdateDomainWeight_InvalidWeight(t *testing.T) {
 }
 
 func TestUpdateDomainWeight_NotFound(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"weight": "high"}`
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/nonexistent", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/nonexistent", body)
 
 	if rr.Code != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", rr.Code)
@@ -172,15 +155,11 @@ func TestUpdateDomainWeight_NotFound(t *testing.T) {
 }
 
 func TestUpdateDomainWeight_InvalidJSON(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "sleep", "Sleep Tracker")
 
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/sleep", bytes.NewBufferString("not json"))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/sleep", "not json")
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", rr.Code)
@@ -188,16 +167,12 @@ func TestUpdateDomainWeight_InvalidJSON(t *testing.T) {
 }
 
 func TestUpdateDomainWeight_SetNone(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "socialization", "Social Tracker")
 
 	body := `{"weight": "none"}`
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/socialization", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/socialization", body)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
@@ -249,11 +224,7 @@ func TestUpdateDomainWeight_NilRepository(t *testing.T) {
 	h := &Handler{ScoreConfig: nil}
 
 	body := `{"weight": "high"}`
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/sleep", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/sleep", body)
 
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusServiceUnavailable, rr.Code, rr.Body.String())
@@ -263,8 +234,7 @@ func TestUpdateDomainWeight_NilRepository(t *testing.T) {
 // TestGetDomainWeight_MissingDomainName verifies validation when domain name is empty.
 // [REQ:LD-SCORE-CALC] Handler validates required domain parameter.
 func TestGetDomainWeight_MissingDomainName(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Request with empty domain
 	req := httptest.NewRequest("GET", "/api/v1/score/config/", nil)
@@ -280,15 +250,10 @@ func TestGetDomainWeight_MissingDomainName(t *testing.T) {
 // TestUpdateDomainWeight_MissingDomainName verifies validation when domain name is empty.
 // [REQ:LD-SCORE-CALC] Handler validates required domain parameter.
 func TestUpdateDomainWeight_MissingDomainName(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"weight": "high"}`
-	req := httptest.NewRequest("PUT", "/api/v1/score/config/", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.UpdateDomainWeight(rr, req)
+	rr := jsonHandlerResponse(t, h.UpdateDomainWeight, "PUT", "/api/v1/score/config/", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())

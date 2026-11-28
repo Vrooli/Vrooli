@@ -18,7 +18,7 @@ type CredentialsDeps struct {
 
 // ListCredentials retrieves all stored credentials for the repository's remotes.
 func ListCredentials(ctx context.Context, deps CredentialsDeps) (*CredentialsListResponse, error) {
-	repoDir, err := validateCredentialsDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,10 @@ func ensureOriginPlaceholder(credentials []Credential, remoteURL string) []Crede
 
 // SaveCredential saves or updates a credential.
 func SaveCredential(ctx context.Context, deps CredentialsDeps, req CredentialSaveRequest) (*CredentialSaveResponse, error) {
-	repoDir, err := validateCredentialsDeps(deps)
+	if err := requireHumanMutation(ctx, "save credential"); err != nil {
+		return nil, err
+	}
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +174,9 @@ func resolveRemoteURL(ctx context.Context, deps CredentialsDeps, repoDir, remote
 
 // DeleteCredential removes a stored credential.
 func DeleteCredential(ctx context.Context, deps CredentialsDeps, req CredentialDeleteRequest) (*CredentialDeleteResponse, error) {
+	if err := requireHumanMutation(ctx, "delete credential"); err != nil {
+		return nil, err
+	}
 	id := strings.TrimSpace(req.ID)
 	if id == "" {
 		return &CredentialDeleteResponse{
@@ -201,7 +207,7 @@ func DeleteCredential(ctx context.Context, deps CredentialsDeps, req CredentialD
 
 // TestCredential tests authentication to a remote.
 func TestCredential(ctx context.Context, deps CredentialsDeps, req CredentialTestRequest) (*CredentialTestResponse, error) {
-	repoDir, err := validateCredentialsDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -257,18 +263,6 @@ func isAuthenticationError(err error) bool {
 		}
 	}
 	return false
-}
-
-// validateCredentialsDeps validates common credentials dependencies.
-func validateCredentialsDeps(deps CredentialsDeps) (string, error) {
-	if deps.Git == nil {
-		return "", fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return "", fmt.Errorf("repo dir is required")
-	}
-	return repoDir, nil
 }
 
 // resolveCredentialsStore returns the existing store or creates a new one.

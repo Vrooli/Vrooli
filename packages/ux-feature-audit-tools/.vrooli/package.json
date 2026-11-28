@@ -1,0 +1,22 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "ux-feature-audit-tools",
+    "display_name": "@vrooli/ux-feature-audit-tools",
+    "description": "Private TypeScript tooling for UX feature audits, dead-code detection, and feature-coverage analysis.",
+    "kind": "js_runtime",
+    "language": "typescript",
+    "module_identifiers": ["@vrooli/ux-feature-audit-tools"],
+    "adoption": {
+      "scenario_adoptable": false,
+      "allowed_consumers": ["internal_platform"],
+      "adoption_modes": ["file_dependency"]
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    }
+  }
+}

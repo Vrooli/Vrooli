@@ -1,0 +1,9 @@
+{
+  "componentId": "react-component-library:MonetizationAccount",
+  "version": "2.0.2",
+  "children": {
+    "typicalCount": 1,
+    "maximumCount": 1,
+    "allowedChildComponents": ["any-content-composition"]
+  }
+}

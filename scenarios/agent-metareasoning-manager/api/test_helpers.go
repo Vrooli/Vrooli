@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -7,14 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
@@ -23,18 +18,6 @@ import (
 type TestLogger struct {
 	originalOutput *os.File
 	cleanup        func()
-}
-
-// setupTestLogger initializes logging for testing
-func setupTestLogger() func() {
-	// Redirect log output to discard during tests (unless verbose)
-	if os.Getenv("TEST_VERBOSE") != "true" {
-		log.SetOutput(ioutil.Discard)
-		return func() {
-			log.SetOutput(os.Stdout)
-		}
-	}
-	return func() {}
 }
 
 // TestEnvironment manages isolated test environment
@@ -64,27 +47,6 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	return db
-}
-
-// setupTestEnvironment creates an isolated test environment with proper cleanup
-func setupTestEnvironment(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "metareasoning-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
-
-	return &TestEnvironment{
-		TempDir:    tempDir,
-		OriginalWD: originalWD,
-		Cleanup: func() {
-			os.RemoveAll(tempDir)
-		},
-	}
 }
 
 // HTTPTestRequest represents an HTTP test request
@@ -189,53 +151,6 @@ func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStat
 	return response
 }
 
-// assertJSONArray validates that response contains an array and returns it
-func assertJSONArray(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, arrayField string) []interface{} {
-	response := assertJSONResponse(t, w, expectedStatus, nil)
-	if response == nil {
-		return nil
-	}
-
-	array, ok := response[arrayField].([]interface{})
-	if !ok {
-		t.Errorf("Expected field '%s' to be an array, got %T", arrayField, response[arrayField])
-		return nil
-	}
-
-	return array
-}
-
-// assertErrorResponse validates error responses
-func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedErrorMessage string) {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
-		return
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to parse JSON error response: %v. Response: %s", err, w.Body.String())
-		return
-	}
-
-	errorMsg, exists := response["error"]
-	if !exists {
-		t.Error("Expected error field in response")
-		return
-	}
-
-	if expectedErrorMessage != "" {
-		errorStr, ok := errorMsg.(string)
-		if !ok {
-			t.Errorf("Expected error to be string, got %T", errorMsg)
-			return
-		}
-		if errorStr != expectedErrorMessage {
-			t.Errorf("Expected error message '%s', got '%s'", expectedErrorMessage, errorStr)
-		}
-	}
-}
-
 // TestDataGenerator provides utilities for generating test data
 type TestDataGenerator struct{}
 
@@ -244,7 +159,7 @@ func (g *TestDataGenerator) ReasoningRequest(inputText, reasoningType string) Re
 	return ReasoningRequest{
 		Input: inputText,
 		Type:  reasoningType,
-		Model: "llama3.2",
+		Model: "chat.default",
 	}
 }
 
@@ -253,7 +168,7 @@ func (g *TestDataGenerator) AnalyzeRequest(inputText, analysisType string) Analy
 	return AnalyzeRequest{
 		Input: inputText,
 		Type:  analysisType,
-		Model: "llama3.2",
+		Model: "chat.default",
 	}
 }
 
@@ -277,25 +192,4 @@ func (m *MockOllamaClient) Generate(prompt, model string) (string, error) {
 func MockDiscoveryService(t *testing.T) *DiscoveryService {
 	db := setupTestDB(t)
 	return NewDiscoveryService(db, "http://localhost:5678", "http://localhost:5681", "http://localhost:6333")
-}
-
-// createTestWorkflow creates a test workflow in the database
-func createTestWorkflow(t *testing.T, db *sql.DB, platform, platformID, name string) uuid.UUID {
-	id := uuid.New()
-	_, err := db.Exec(`
-		INSERT INTO workflow_registry (id, platform, platform_id, name, tags, embedding_id)
-		VALUES ($1, $2, $3, $4, $5, $6)`,
-		id, platform, platformID, name, []string{"test"}, fmt.Sprintf("%s_%s", platform, platformID))
-	if err != nil {
-		t.Fatalf("Failed to create test workflow: %v", err)
-	}
-	return id
-}
-
-// cleanupTestWorkflow removes a test workflow from the database
-func cleanupTestWorkflow(t *testing.T, db *sql.DB, id uuid.UUID) {
-	_, err := db.Exec(`DELETE FROM workflow_registry WHERE id = $1`, id)
-	if err != nil {
-		t.Logf("Warning: Failed to cleanup test workflow: %v", err)
-	}
 }

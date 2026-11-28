@@ -1,0 +1,24 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "experience-quality-orchestrator",
+  "displayName": "Experience Quality Orchestrator",
+  "description": "Product-delivery orchestrator for experience-quality-delivery; current home: .vrooli/work/delivery/experience-quality-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "orchestration",
+    "experience-quality"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-10-16T15:39:22Z",
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

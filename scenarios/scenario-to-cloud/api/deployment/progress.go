@@ -36,32 +36,28 @@ type StepInfo struct {
 	Weight float64
 }
 
-// SetupSteps defines the steps in the VPS setup phase.
+// SetupSteps defines the install-scope plan actions in order.
 var SetupSteps = []StepInfo{
-	{ID: "mkdir", Title: "Creating directories", Weight: vps.StepWeights["mkdir"]},
-	{ID: "bootstrap", Title: "Installing prerequisites", Weight: vps.StepWeights["bootstrap"]},
-	{ID: "upload", Title: "Uploading bundle", Weight: vps.StepWeights["upload"]},
-	{ID: "extract", Title: "Extracting bundle", Weight: vps.StepWeights["extract"]},
-	{ID: "setup", Title: "Running setup", Weight: vps.StepWeights["setup"]},
-	{ID: "autoheal", Title: "Configuring autoheal", Weight: vps.StepWeights["autoheal"]},
-	{ID: "verify_setup", Title: "Verifying installation", Weight: vps.StepWeights["verify_setup"]},
+	{ID: "host.prepare", Title: "Preparing host", Weight: vps.StepWeights["host.prepare"]},
+	{ID: "edge.firewall.allow", Title: "Opening inbound HTTP/HTTPS", Weight: vps.StepWeights["edge.firewall.allow"]},
+	{ID: "data.inventory", Title: "Inventorying persistent data", Weight: vps.StepWeights["data.inventory"]},
+	{ID: "release.deliver", Title: "Delivering release", Weight: vps.StepWeights["release.deliver"]},
+	{ID: "release.verify", Title: "Verifying release", Weight: vps.StepWeights["release.verify"]},
+	{ID: "release.stage", Title: "Staging release", Weight: vps.StepWeights["release.stage"]},
+	{ID: "data.backup", Title: "Backing up persistent data", Weight: vps.StepWeights["data.backup"]},
+	{ID: "release.activate", Title: "Activating release", Weight: vps.StepWeights["release.activate"]},
+	{ID: "config.apply", Title: "Applying configuration", Weight: vps.StepWeights["config.apply"]},
 }
 
-// DeploySteps defines the steps in the VPS deploy phase.
+// DeploySteps defines the runtime-scope plan actions in order.
 var DeploySteps = []StepInfo{
-	{ID: "scenario_stop", Title: "Stopping existing scenario", Weight: vps.StepWeights["scenario_stop"]},
-	{ID: "caddy_install", Title: "Installing Caddy", Weight: vps.StepWeights["caddy_install"]},
-	{ID: "caddy_config", Title: "Configuring Caddy", Weight: vps.StepWeights["caddy_config"]},
-	{ID: "firewall_inbound", Title: "Opening inbound HTTP/HTTPS", Weight: vps.StepWeights["firewall_inbound"]},
-	{ID: "secrets_provision", Title: "Provisioning secrets", Weight: vps.StepWeights["secrets_provision"]},
-	{ID: "resource_start", Title: "Starting resources", Weight: vps.StepWeights["resource_start"]},
-	{ID: "scenario_deps", Title: "Starting dependencies", Weight: vps.StepWeights["scenario_deps"]},
-	{ID: "scenario_target", Title: "Starting scenario", Weight: vps.StepWeights["scenario_target"]},
-	{ID: "wait_for_ui", Title: "Waiting for UI to listen", Weight: vps.StepWeights["wait_for_ui"]},
-	{ID: "verify_local", Title: "Verifying local health", Weight: vps.StepWeights["verify_local"]},
-	{ID: "verify_https", Title: "Verifying HTTPS", Weight: vps.StepWeights["verify_https"]},
-	{ID: "verify_origin", Title: "Verifying origin reachability", Weight: vps.StepWeights["verify_origin"]},
-	{ID: "verify_public", Title: "Verifying public reachability", Weight: vps.StepWeights["verify_public"]},
+	{ID: "workload.stop", Title: "Stopping existing scenario", Weight: vps.StepWeights["workload.stop"]},
+	{ID: "edge.route.apply", Title: "Configuring edge route", Weight: vps.StepWeights["edge.route.apply"]},
+	{ID: "credentials.provision", Title: "Provisioning credentials", Weight: vps.StepWeights["credentials.provision"]},
+	{ID: "runtime.start_dependencies", Title: "Starting dependencies", Weight: vps.StepWeights["runtime.start_dependencies"]},
+	{ID: "workload.start", Title: "Starting scenario", Weight: vps.StepWeights["workload.start"]},
+	{ID: "verify.readiness", Title: "Verifying readiness", Weight: vps.StepWeights["verify.readiness"]},
+	{ID: "release.retain_predecessor", Title: "Retaining predecessor", Weight: vps.StepWeights["release.retain_predecessor"]},
 }
 
 // AllSteps returns all deployment steps in order.

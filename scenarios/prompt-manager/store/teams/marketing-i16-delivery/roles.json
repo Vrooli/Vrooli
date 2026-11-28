@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "marketing-i16-delivery",
+  "roles": [
+    {
+      "id": "marketing-i16-orchestrator",
+      "name": "Marketing I16 delivery orchestrator",
+      "description": "Accountable finite coordinator; owns goal, queue and epoch acceptance under the canonical large-effort-orchestration contract. No product implementation or activation."
+    }
+  ]
+}

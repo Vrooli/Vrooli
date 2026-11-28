@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -45,7 +46,7 @@ func Run(client *Client, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Scenario tests completed via %s\n", defaultValue(resp.Type, "unknown"))
+	fmt.Printf("Scenario tests completed via %s\n", textutil.FirstNonEmpty(resp.Type, "unknown"))
 	if len(resp.Command.Command) > 0 {
 		fmt.Printf("  Command : %s\n", strings.Join(resp.Command.Command, " "))
 	}
@@ -62,7 +63,7 @@ func Run(client *Client, args []string) error {
 		fmt.Printf("  Paths   : %s\n", strings.Join(req.Paths, ", "))
 	}
 	if len(req.Playbooks) > 0 {
-		fmt.Printf("  Playbook: %s\n", strings.Join(req.Playbooks, ", "))
+		fmt.Printf("  Workflow: %s\n", strings.Join(req.Playbooks, ", "))
 	}
 	if req.Filter != "" {
 		fmt.Printf("  Filter  : %s\n", req.Filter)
@@ -73,7 +74,7 @@ func Run(client *Client, args []string) error {
 // ParseArgs parses command line arguments for the run-tests command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
-		return Args{}, usageError("usage: run-tests <scenario> [--type phased] [--path <p>] [--playbook <pb>] [--filter text] [--json]")
+		return Args{}, usageError("usage: run-tests <scenario> [--type phased] [--path <p>] [--playbook <workflow>] [--filter text] [--json]")
 	}
 	out := Args{Scenario: args[0]}
 	fs := flag.NewFlagSet("run-tests", flag.ContinueOnError)
@@ -81,7 +82,7 @@ func ParseArgs(args []string) (Args, error) {
 	var pathArgs multiFlag
 	var playbookArgs multiFlag
 	fs.Var(&pathArgs, "path", "Limit to one or more files/dirs (repeatable)")
-	fs.Var(&playbookArgs, "playbook", "Limit to one or more playbooks (repeatable)")
+	fs.Var(&playbookArgs, "playbook", "Limit to one or more workflow files (legacy flag; repeatable)")
 	fs.StringVar(&out.Filter, "filter", "", "Pass through filter string to runner (e.g., test name)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
@@ -96,13 +97,6 @@ func ParseArgs(args []string) (Args, error) {
 
 func usageError(msg string) error {
 	return errors.New(msg)
-}
-
-func defaultValue(val, fallback string) string {
-	if strings.TrimSpace(val) == "" {
-		return fallback
-	}
-	return val
 }
 
 // multiFlag captures repeatable string flags.

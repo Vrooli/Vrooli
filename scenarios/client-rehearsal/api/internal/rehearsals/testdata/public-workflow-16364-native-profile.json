@@ -1,0 +1,87 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-sheets-native",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic Google Sheets Read API", "version": "1" },
+        "servers": [{ "url": "https://sheets.googleapis.com" }],
+        "paths": {
+          "/v4/spreadsheets/synthetic-sheet-document/values/products": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read",
+              "x-n8n-input-match": { "documentId": "synthetic-sheet-document", "sheetName": "products" },
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "range": "products",
+                        "majorDimension": "ROWS",
+                        "values": [
+                          ["product_name", "description", "image_url", "referral_link", "send_date"],
+                          ["Synthetic Lantern", "Compact outdoor light", "https://images.synthetic.invalid/lantern.png", "https://shop.synthetic.invalid/lantern", "2026-11-16"],
+                          ["Synthetic Mug", "Insulated travel mug", "", "", "2026-11-15"]
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v4/spreadsheets/synthetic-sheet-document/values/recipients": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read",
+              "x-n8n-input-match": { "documentId": "synthetic-sheet-document", "sheetName": "recipients" },
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "range": "recipients",
+                        "majorDimension": "ROWS",
+                        "values": [["email"], ["avery@example.invalid"], ["jules@example.invalid"]]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-gmail-native",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic Gmail Send API", "version": "1" },
+        "servers": [{ "url": "https://gmail.googleapis.com" }],
+        "paths": {
+          "/gmail/v1/users/me/messages/send": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": { "id": "synthetic-message-16364", "threadId": "synthetic-thread-16364", "labelIds": ["SENT"] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

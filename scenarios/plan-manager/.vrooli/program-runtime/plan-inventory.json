@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "plan-manager.plan-inventory",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "List non-archived plans through Plan Manager and return bounded identity/status metadata.",
+  "inputs": {"limit": {"type": "integer", "default": 40}, "offset": {"type": "integer", "default": 0}},
+  "assumptions": ["Plan Manager is reachable; ListPlans returns all matching plans without server pagination."],
+  "invariants": ["Read only; archived plans stay excluded.", "Do not return plan titles, descriptions, phases, or authored content.", "The typed owner list returns bounded pages and total/has_more metadata."],
+  "bindings": [{"id": "plan-manager/plans/list", "effect": "read"}],
+  "verbs": [],
+  "outputs": {"status": {"enum": ["ok", "partial", "unavailable", "failed"]}, "phase": {"enum": ["validate", "collect", "report"]}, "signals": {"description": "Plan id, slug, status, last update, page count, total, has_more, offset and limit."}, "errors": {"classes": ["invalid_input", "invalid_response", "binding_error", "scenario_unreachable", "deadline_exceeded", "no_grant", "not_run_eligible", "no_governed_binding", "kernel_runtime", "output_limit"]}},
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 40, "output_bytes": 65536},
+  "fixtures": [{"id": "reject-zero-limit", "inputs": {"limit": 0}, "expect": {"status": ["failed"], "errors": [{"class": "invalid_input"}]}, "requires": []}],
+  "rung": "S3",
+  "owner_skill": "plan-manager"
+}

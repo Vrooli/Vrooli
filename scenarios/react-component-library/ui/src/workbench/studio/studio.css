@@ -1,0 +1,5 @@
+/* Ordered aggregation preserves the original studio stylesheet cascade. */
+@import "./studio-shell.css";
+@import "./studio-workbench.css";
+@import "./studio-inspector.css";
+@import "./studio-assistance.css";

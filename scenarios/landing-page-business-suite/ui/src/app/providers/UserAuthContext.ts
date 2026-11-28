@@ -6,7 +6,7 @@ export interface UserAuthContextValue {
   isSessionLoading: boolean;
   user: UserAuthUser | null;
   logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
+  refreshSession: (options?: { requireAuthenticated?: boolean; expectedEmail?: string }) => Promise<void>;
 }
 
 export const UserAuthContext = createContext<UserAuthContextValue | null>(null);

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	corestorage "github.com/vrooli/api-core/storage"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -181,22 +182,22 @@ func buildFlowDefinition(raw map[string]any) (*basworkflows.WorkflowDefinitionV2
 	return def, nil
 }
 
-// marshalToFlowDefinition converts a map to WorkflowDefinitionV2 via JSON/protojson.
+// marshalToFlowDefinition delegates map-shaped input to the sole workflow
+// ingress adapter. The workflow service receives only typed V2 values after it.
 func marshalToFlowDefinition(defMap map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
-	// Normalize for proto serialization (wraps subflow args into JsonValue format, etc.)
-	normalizeForProto(defMap)
-
-	defBytes, err := json.Marshal(defMap)
+	raw, err := json.Marshal(defMap)
 	if err != nil {
 		return nil, err
 	}
-
-	var def basworkflows.WorkflowDefinitionV2
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(defBytes, &def); err != nil {
+	raw, err = NormalizeWorkflowDefinitionV2Bytes(raw)
+	if err != nil {
 		return nil, err
 	}
-
-	return &def, nil
+	definition := &basworkflows.WorkflowDefinitionV2{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, definition); err != nil {
+		return nil, err
+	}
+	return definition, nil
 }
 
 // inferFolderPath derives a logical folder path from the source file's directory.
@@ -253,13 +254,8 @@ func WriteConvertedWorkflow(project *database.ProjectIndex, result *ConvertResul
 		raw = buf.Bytes()
 	}
 
-	// Write atomically via temp file
-	tmp := absPath + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
-		return "", "", fmt.Errorf("write temp file: %w", err)
-	}
-	if err := os.Rename(tmp, absPath); err != nil {
-		return "", "", fmt.Errorf("rename temp file: %w", err)
+	if err := corestorage.WriteFileAtomic(absPath, raw, 0o644); err != nil {
+		return "", "", fmt.Errorf("write converted workflow: %w", err)
 	}
 
 	return absPath, filepath.ToSlash(relPath), nil
@@ -284,14 +280,8 @@ func WriteWorkflowInPlace(absPath string, workflow *basapi.WorkflowSummary) erro
 		raw = buf.Bytes()
 	}
 
-	// Write atomically via temp file
-	tmp := absPath + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
-		return fmt.Errorf("write temp file: %w", err)
-	}
-	if err := os.Rename(tmp, absPath); err != nil {
-		os.Remove(tmp) // Clean up on rename failure
-		return fmt.Errorf("rename temp file: %w", err)
+	if err := corestorage.WriteFileAtomic(absPath, raw, 0o644); err != nil {
+		return fmt.Errorf("write workflow in place: %w", err)
 	}
 
 	return nil

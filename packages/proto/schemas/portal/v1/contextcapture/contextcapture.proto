@@ -1,0 +1,55 @@
+syntax = "proto3";
+package vrooli.portal.v1.contextcapture;
+import "common/v1/surface.proto";
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/contextcapture;contextcapture_v1";
+
+// Account-owned context. Source claims are provenance, never desktop authority.
+service ContextCaptureService {
+ rpc Render(ReferenceRequest) returns (RenderResponse);
+ rpc CancelImport(ReconcileImportRequest) returns (DeleteResponse);
+ rpc ReconcileImport(ReconcileImportRequest) returns (ReconcileImportResponse);
+ rpc Import(ImportRequest) returns (Document);
+ rpc Read(ReferenceRequest) returns (ReadResponse);
+ rpc Delete(ReferenceRequest) returns (DeleteResponse);
+}
+message Bounds { sint32 x=1; sint32 y=2; uint32 width=3; uint32 height=4; }
+message Region { uint32 x=1; uint32 y=2; uint32 width=3; uint32 height=4; }
+message Point { double x=1; double y=2; }
+message Stroke { repeated Point points=1; }
+message Source {
+ common.v1.SurfaceRef surface=1;
+ string capture_id=2;
+ string display_id=3;
+ string geometry_revision=4;
+ google.protobuf.Timestamp captured_at=5;
+ Bounds bounds=6;
+}
+message ImportRequest { string request_id=6; Source source=1; Region region=2; repeated Stroke strokes=3; bytes png=4; uint32 retention_seconds=5; }
+message Document {
+ string request_id=8;
+ string id=1;
+ Source source=2;
+ Region region=3;
+ repeated Stroke strokes=4;
+ string original_sha256=5;
+ google.protobuf.Timestamp created_at=6;
+ google.protobuf.Timestamp expires_at=7;
+}
+message ReferenceRequest { string id=1; }
+message ReadResponse { Document document=1; bytes png=2; }
+message DeleteResponse {}
+
+enum ImportState {
+ IMPORT_STATE_UNSPECIFIED=0;
+ IMPORT_STATE_ABSENT=1;
+ IMPORT_STATE_STAGING=2;
+ IMPORT_STATE_READY=3;
+ IMPORT_STATE_UNAVAILABLE=4;
+}
+message ReconcileImportRequest { string request_id=1; }
+// Ready reports publication; Read validates the retained image bytes.
+message ReconcileImportResponse { string request_id=1; ImportState state=2; Document document=3; }
+
+// Selected crop with two-source-pixel red annotations; original remains unchanged.
+message RenderResponse { Document document=1; bytes png=2; string rendered_sha256=3; }

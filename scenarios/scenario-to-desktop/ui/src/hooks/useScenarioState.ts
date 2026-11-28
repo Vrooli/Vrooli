@@ -79,7 +79,7 @@ export interface UseScenarioStateResult {
     stage: string,
     result: unknown,
     formStateUpdates?: Partial<FormState>,
-    options?: Partial<SaveStateOptions>
+    options?: Partial<SaveStateOptions>,
   ) => Promise<void>;
   saveNow: () => Promise<void>;
   clearState: () => Promise<void>;
@@ -122,8 +122,11 @@ export function useScenarioState({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<StateChange[]>([]);
-  const [validationStatus, setValidationStatus] = useState<ValidationStatus | null>(null);
-  const [conflictState, setConflictState] = useState<ScenarioState | null>(null);
+  const [validationStatus, setValidationStatus] =
+    useState<ValidationStatus | null>(null);
+  const [conflictState, setConflictState] = useState<ScenarioState | null>(
+    null,
+  );
 
   // Query for fetching state
   const {
@@ -191,14 +194,17 @@ export function useScenarioState({
       setIsStale(false);
       setPendingChanges([]);
       setValidationStatus(null);
-      queryClient.invalidateQueries({ queryKey: ["scenario-state", scenarioName] });
+      void queryClient.invalidateQueries({
+        queryKey: ["scenario-state", scenarioName],
+      });
       onStateCleared?.();
     },
   });
 
   // Mutation for staleness check
   const stalenessMutation = useMutation({
-    mutationFn: (config: InputFingerprint) => checkStateStaleness(scenarioName, config),
+    mutationFn: (config: InputFingerprint) =>
+      checkStateStaleness(scenarioName, config),
     onSuccess: (response) => {
       setIsStale(response.changed);
       setPendingChanges(response.pending_changes || []);
@@ -235,14 +241,18 @@ export function useScenarioState({
         // Update local form state with any updates
         if (variables.formStateUpdates) {
           setLocalFormState((prev) =>
-            prev ? { ...prev, ...variables.formStateUpdates } : variables.formStateUpdates ?? null
+            prev
+              ? { ...prev, ...variables.formStateUpdates }
+              : (variables.formStateUpdates ?? null),
           );
         }
         setLocalHash(response.hash || null);
         setLastSavedAt(response.updated_at);
         setIsStale(false);
         // Invalidate query to get fresh stage data
-        queryClient.invalidateQueries({ queryKey: ["scenario-state", scenarioName] });
+        void queryClient.invalidateQueries({
+          queryKey: ["scenario-state", scenarioName],
+        });
       }
     },
     onError: (err: Error) => {
@@ -273,7 +283,7 @@ export function useScenarioState({
     // serverData is undefined during initial loading, null after error
     if (serverData === undefined) return;
 
-    if (serverData?.state) {
+    if (serverData.state) {
       // Server returned existing state - apply it to local
       setLocalFormState(serverData.state.form_state);
       setLocalHash(serverData.state.hash || null);
@@ -286,10 +296,14 @@ export function useScenarioState({
       onStateLoaded?.(serverData.state);
 
       // Check if manifest changed
-      if (serverData.manifest_changed && serverData.current_hash && serverData.stored_hash) {
+      if (
+        serverData.manifest_changed &&
+        serverData.current_hash &&
+        serverData.stored_hash
+      ) {
         onManifestChanged?.(serverData.current_hash, serverData.stored_hash);
       }
-    } else if (serverData && !serverData.state) {
+    } else {
       // Server returned empty (no existing state for this scenario)
       setLocalFormState(null);
       setLocalHash(null);
@@ -304,7 +318,8 @@ export function useScenarioState({
 
   // Staleness check interval - only runs when checkStalenessEnabled is true
   useEffect(() => {
-    if (!enabled || !checkStalenessEnabled || !scenarioName || !localHash) return;
+    if (!enabled || !checkStalenessEnabled || !scenarioName || !localHash)
+      return;
 
     const interval = setInterval(() => {
       // Only check if we have a manifest path
@@ -314,9 +329,17 @@ export function useScenarioState({
       }
     }, STALENESS_CHECK_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, checkStalenessEnabled, scenarioName, localHash, localFormState?.bundle_manifest_path]);
+  }, [
+    enabled,
+    checkStalenessEnabled,
+    scenarioName,
+    localHash,
+    localFormState?.bundle_manifest_path,
+  ]);
 
   // Debounced save
   const debouncedSave = useCallback(() => {
@@ -344,7 +367,7 @@ export function useScenarioState({
       pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates };
       debouncedSave();
     },
-    [debouncedSave, loadStatus.hasInitiallyLoaded]
+    [debouncedSave, loadStatus.hasInitiallyLoaded],
   );
 
   // Force save now
@@ -371,7 +394,7 @@ export function useScenarioState({
     async (config: InputFingerprint) => {
       await stalenessMutation.mutateAsync(config);
     },
-    [stalenessMutation]
+    [stalenessMutation],
   );
 
   // Save stage result - for persisting bundle/preflight results with proper stage tracking
@@ -380,7 +403,7 @@ export function useScenarioState({
       stage: string,
       result: unknown,
       formStateUpdates?: Partial<FormState>,
-      options?: Partial<SaveStateOptions>
+      options?: Partial<SaveStateOptions>,
     ) => {
       // CRITICAL: Do not save until initial load completes
       if (!loadStatus.hasInitiallyLoaded) {
@@ -393,7 +416,7 @@ export function useScenarioState({
         options,
       });
     },
-    [loadStatus.hasInitiallyLoaded, stageResultMutation]
+    [loadStatus.hasInitiallyLoaded, stageResultMutation],
   );
 
   // Resolve conflict
@@ -406,11 +429,14 @@ export function useScenarioState({
         onStateLoaded?.(conflictState);
       } else if (resolution === "local" && localFormState) {
         // Force save local state, ignoring hash check
-        saveMutation.mutate({ ...localFormState, ...pendingUpdatesRef.current });
+        saveMutation.mutate({
+          ...localFormState,
+          ...pendingUpdatesRef.current,
+        });
       }
       setConflictState(null);
     },
-    [conflictState, localFormState, saveMutation, onStateLoaded]
+    [conflictState, localFormState, saveMutation, onStateLoaded],
   );
 
   // Cleanup on unmount
@@ -443,10 +469,10 @@ export function useScenarioState({
     formState: localFormState,
     isLoading,
     isError,
-    error: error as Error | null,
+    error: error,
     hasInitiallyLoaded: loadStatus.hasInitiallyLoaded,
     isSaving: saveMutation.isPending || stageResultMutation.isPending,
-    saveError: (saveMutation.error || stageResultMutation.error) as Error | null,
+    saveError: saveMutation.error || stageResultMutation.error,
     lastSavedAt,
     isStale,
     pendingChanges,
@@ -457,7 +483,9 @@ export function useScenarioState({
     saveStageResult,
     saveNow,
     clearState,
-    refetch,
+    refetch: () => {
+      void refetch();
+    },
     resolveConflict,
     checkStaleness: checkStalenessManual,
     timestamps,

@@ -2,7 +2,7 @@
   "_metadata": {
     "entity": "prompt-manager",
     "generated_at": "2026-02-01T00:00:00-05:00",
-    "generator": "prd-control-tower",
+    "generator": "business-health",
     "schema_version": "1.0"
   },
   "imports": [

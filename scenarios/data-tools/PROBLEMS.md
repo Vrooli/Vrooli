@@ -1,5 +1,11 @@
 # Problems & Solutions
 
+### Filter transformations reject malformed conditions (2026-11-24 — resolved)
+- **Observed:** Numeric comparison parse failures were converted to comparison-equal (`0`), so a request like `age = not-a-number` could select rows as if the malformed literal matched. `fmt.Sscanf` also accepted numeric prefixes such as `20junk`; missing fields, unsupported operators, and malformed expressions silently produced empty results. The API reported transform validation errors as server failures.
+- **Changed:** Filter conditions are parsed and validated before applying them; integer and float literals use strict parsing; missing fields, unsupported operators/types, and malformed operands return an actionable error. The transform route returns HTTP 400 for invalid client conditions.
+- **Verified:** `GOWORK=off go test ./internal/dataprocessor ./cmd/server -run 'TestFilterRejectsInvalidConditionsInsteadOfReturningMisleadingRows|TestCompareOrdered|TestDataTransformRejectsInvalidFilterAsClientError' -count=1 -v`; full API package suite `GOWORK=off go test ./... -count=1`; Test Genie unit run `20261124-030336-6e4f3b75` passed (L1; test architecture warnings remain).
+- **Disposition:** selected behavior finding 1 open → 0 open after owner verification. This historical record does not disposition the separate old test, storage, workflow, or edge-case statements below.
+
 ## Recent Updates (2025-10-12 - Improver Pass 14 - Final Validation Confirmation)
 
 ### Validation Summary (CURRENT STATE - Pass 14)
@@ -339,7 +345,7 @@ Data-tools is in excellent shape. All core functionality works, performance exce
 1. **Database Transformation Constraint (RESOLVED)**
    - **Problem**: `data_transformations` table constraint didn't include 'sort' type, causing violations
    - **Solution**: Updated database constraint and added TransformSort implementation in transformer.go
-   - **Files Changed**: `initialization/storage/postgres/data-tools-schema.sql`, `api/internal/dataprocessor/transformer.go`
+   - **Files Changed**: `api/internal/<domain>/storage/postgres/data-tools-schema.sql`, `api/internal/dataprocessor/transformer.go`
    - **Result**: Sort transformations now work correctly
 
 2. **Missing Format Validation (RESOLVED)**

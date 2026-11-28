@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-datsketch-ipad-mini-6-neutral-uv-oriented-180-v2",
+  "status": "candidate_only_unqualified",
+  "asset": {
+    "path": "ipad-mini-screen-uv-oriented-180-v2.glb",
+    "media_type": "model/gltf-binary",
+    "size_bytes": 1939592,
+    "sha256": "0326fd47e7df4a065978eaae76e6789cb3027f54bab6f3f7fdef1bdfb867e52e",
+    "source_sha256": "a462088b7bd84b7752802c109beee04110047c3b1a4f355624c863f790e93d5e",
+    "neutral_derivative_sha256": "8cd65349dcd38cb4f47fd897779db97dbbbf0fc7f6c81cd6c2ab05eaa6b47b5e",
+    "source_model": "IPad Mini 6 2021",
+    "creator": "DatSketch",
+    "source_url": "https://sketchfab.com/3d-models/ipad-mini-6-2021-f363c2b1c74a462588db184bd4fb024e",
+    "license": "CC BY 4.0",
+    "attribution": "iPad mini 6 2021 by DatSketch, adapted under CC BY 4.0.",
+    "modification": "Starting from the neutral-screen, UV-normalized v1 derivative, appended one private TEXCOORD_0 view and changed only screen accessor 36 to map (u,v) to (1-u,1-v). Existing geometry, neutral screen, hierarchy and all earlier BIN bytes are preserved.",
+    "display": {
+      "node_index": 14,
+      "mesh_index": 10,
+      "primitive_index": 0,
+      "material_index": 10,
+      "texture_index": 1,
+      "image_index": 1,
+      "uv_accessor_index": 36,
+      "uv_buffer_view_index": 18,
+      "uv_min": [
+        0,
+        0
+      ],
+      "uv_max": [
+        1,
+        1
+      ],
+      "screen_plane_mm": [
+        117.281,
+        177.229
+      ]
+    },
+    "source_geometry_bounds_mm": [
+      134.423,
+      195.0,
+      8.775
+    ],
+    "claims": "Source GLB measurements under the glTF metre assumption only. Not manufacturer CAD, independently measured device geometry, physical qualification, or Apple-endorsed. Whole-model depth includes protruding features; body-only depth is unknown.",
+    "derivation": {
+      "script_sha256": "06bea2c8e564edd8f83b9ec63f3615bd975b5895a8de388c1d9d1cce8b504116",
+      "manifest_sha256": "27194956926c342cd7027beda77ad06f1cf2c0795d16ad5b06d0eb068c3da0df",
+      "receipt_sha256": "9918742ff697ec0c8169b473478b3e08009a5a50fb015bf024d7666c61ae4b96",
+      "orientation_source_sha256": "16d88943240dffae0e14e4743beefa1ed61e7efb4b5aa6cb00ecf2ac4b63749c",
+      "oriented_uv_sha256": "e8661ce4dcfe996a6b4ddfb6c957c1985227ca237120ef4a8070f255c5d3ee62",
+      "preserved_source_bin_prefix_sha256": "296bdea52cb2d2637acc0f15b806844e530ac839d6ce396e327814a426da679b",
+      "native_reference": "hero-4 found the app raster rotated 180 degrees; v2 corrects UV direction only"
+    },
+    "parent_derivative_sha256": "16d88943240dffae0e14e4743beefa1ed61e7efb4b5aa6cb00ecf2ac4b63749c"
+  }
+}

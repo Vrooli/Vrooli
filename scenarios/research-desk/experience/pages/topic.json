@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "topic",
+    "title": "Topic",
+    "routes": [
+      "/topics/:topic"
+    ],
+    "purpose": "One topic's last research write, mission edit and last review apart with their files, its workstreams, commissions over time and what changed since the last look.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-013"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Facts with evidence (research write, mission edit, last review), workstreams, commissions and changes."
+    },
+    {
+      "id": "loading",
+      "description": "Reading the topic's files."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "empty",
+      "description": "The topic has no workstreams or commissions yet: each section says none."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

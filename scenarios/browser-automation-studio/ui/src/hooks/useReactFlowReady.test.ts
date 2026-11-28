@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act } from '@/test-utils';
 import type { ReactFlowInstance } from 'reactflow';
+import { createReactFlowViewport } from '@/test-utils';
 import { useReactFlowReady } from './useReactFlowReady';
 
 // Mock the logger to avoid console noise
@@ -37,7 +38,7 @@ describe('useReactFlowReady', () => {
   it('returns false when not in visual mode', () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 100, y: 100, zoom: 0.5 }),
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 100, y: 100, zoom: 0.5 })),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(() =>
@@ -66,7 +67,7 @@ describe('useReactFlowReady', () => {
   it('returns true when instance is ready with non-default viewport', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 100, y: 50, zoom: 0.8 }),
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport()),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(() =>
@@ -88,7 +89,7 @@ describe('useReactFlowReady', () => {
   it('waits for viewport to change from default for non-empty workflows', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 }), // Default viewport
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 0, y: 0, zoom: 1 })),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(
@@ -108,7 +109,7 @@ describe('useReactFlowReady', () => {
     expect(result.current).toBe(false);
 
     // Simulate fitView completing
-    mockInstance.getViewport = vi.fn().mockReturnValue({ x: 150, y: 100, zoom: 0.7 });
+    mockInstance.getViewport = vi.fn().mockReturnValue(createReactFlowViewport({ x: 150, y: 100, zoom: 0.7 }));
 
     await act(async () => {
       vi.advanceTimersByTime(200);
@@ -120,7 +121,7 @@ describe('useReactFlowReady', () => {
   it('forces ready state after timeout', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 }), // Stays default
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 0, y: 0, zoom: 1 })),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(() =>
@@ -145,7 +146,7 @@ describe('useReactFlowReady', () => {
   it('resets ready state when workflow changes', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 100, y: 50, zoom: 0.8 }),
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport()),
     } as unknown as ReactFlowInstance;
 
     const { result, rerender } = renderHook(
@@ -174,4 +175,48 @@ describe('useReactFlowReady', () => {
     });
     expect(result.current).toBe(true);
   });
+
+  it('cancels pending checks when a workflow is replaced and on unmount', () => {
+    const oldViewport = vi.fn().mockReturnValue(createReactFlowViewport({ x: 0, y: 0, zoom: 1 }));
+    const instance = { project: vi.fn(), getViewport: oldViewport } as unknown as ReactFlowInstance;
+    const { result, rerender, unmount } = renderHook(
+      ({ workflowId, currentInstance }) => useReactFlowReady({ reactFlowInstance: currentInstance, viewMode: 'visual', nodeCount: 2, workflowId }),
+      { initialProps: { workflowId: 'old', currentInstance: instance as ReactFlowInstance | null } },
+    );
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    rerender({ workflowId: 'new', currentInstance: null });
+    oldViewport.mockReturnValue(createReactFlowViewport({ x: 200, y: 200, zoom: 0.5 }));
+    act(() => vi.advanceTimersByTime(600));
+    expect(result.current).toBe(false);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cleans pending checks when leaving visual mode and rechecks on return', () => {
+    const instance = { project: vi.fn(), getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 0, y: 0, zoom: 1 })) } as unknown as ReactFlowInstance;
+    const { result, rerender } = renderHook(
+      ({ viewMode }) => useReactFlowReady({ reactFlowInstance: instance, viewMode, nodeCount: 2 }),
+      { initialProps: { viewMode: 'visual' as 'visual' | 'code' } },
+    );
+    rerender({ viewMode: 'code' });
+    expect(result.current).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    instance.getViewport = vi.fn().mockReturnValue(createReactFlowViewport({ x: 100, y: 50, zoom: 0.5 }));
+    rerender({ viewMode: 'visual' });
+    expect(result.current).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+
+  it('remains immediately ready when switching between empty workflows', () => {
+    const { result, rerender } = renderHook(
+      ({ workflowId }) => useReactFlowReady({ reactFlowInstance: null, viewMode: 'visual', nodeCount: 0, workflowId }),
+      { initialProps: { workflowId: 'first-empty' } },
+    );
+    expect(result.current).toBe(true);
+    rerender({ workflowId: 'second-empty' });
+    expect(result.current).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
 });

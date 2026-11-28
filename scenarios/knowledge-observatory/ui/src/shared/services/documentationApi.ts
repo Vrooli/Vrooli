@@ -178,11 +178,6 @@ export interface DocUnifiedSearchResponse {
   took_ms: number;
 }
 
-export interface DocResetConfig {
-  max_age_days?: number;
-  keep_min_entries?: number;
-}
-
 export interface DocContentResponse {
   path: string;
   content: string;
@@ -190,25 +185,6 @@ export interface DocContentResponse {
   doc_type?: string;
   size: number;
   modified_at: string;
-  can_reset: boolean;
-  reset_config?: DocResetConfig;
-}
-
-export interface DocResetRequest {
-  path: string;
-  max_age_days?: number;
-  keep_min_entries?: number;
-  preview_only?: boolean;
-}
-
-export interface DocResetResponse {
-  path: string;
-  doc_type: string;
-  removed_count: number;
-  kept_count: number;
-  removed_entries?: string[];
-  new_content?: string;
-  preview_only: boolean;
 }
 
 export interface DeepSearchRequest {
@@ -327,16 +303,24 @@ export async function fetchScenarioDocTree(scenarioName: string): Promise<DocTre
   return normalizeDocTreeNode(data);
 }
 
+// fetchScenarioDocHealth posts to the KnowledgeObservatoryService.DocHealth
+// Connect-RPC endpoint (Connect protocol's JSON unary form: POST
+// /<package>.<service>/<method> with `Content-Type: application/json`).
+// The legacy REST GET endpoint was removed; this is the only doc-health
+// surface.
 export async function fetchScenarioDocHealth(scenarioName: string): Promise<ScenarioDocHealth> {
   const trimmed = scenarioName.trim();
   if (!trimmed) {
     throw new Error("Scenario name is required");
   }
-  const url = buildApiUrl(`/api/v1/scenarios/${encodeURIComponent(trimmed)}/docs/health`, {
-    baseUrl: API_BASE,
-  });
+  const url = buildApiUrl(
+    "/knowledge_observatory.v1.KnowledgeObservatoryService/DocHealth",
+    { baseUrl: API_BASE },
+  );
   const res = await fetch(url, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenarioName: trimmed }),
     cache: "no-store",
   });
 
@@ -350,17 +334,100 @@ export async function fetchScenarioDocHealth(scenarioName: string): Promise<Scen
     throw new Error("Invalid doc health response");
   }
 
+  // Proto uses camelCase by default for JSON serialization.
+  const scenarioNameOut = toNonEmptyString(data.scenarioName) ?? trimmed;
+  const healthScore = toFiniteNumber(data.healthScore) ?? 0;
+  const totalDocs = toFiniteNumber(data.totalDocs) ?? 0;
+  const misplaced = normalizeMisplacedDocsProto(data.misplacedDocs);
+  const missing = normalizeMissingDocIdentifiers(data.missingDocs);
+  const extra = normalizeStringList(data.extraDocs);
+  const temporary = normalizeStringList(data.temporaryDocs);
+  const warnings = normalizeFindings(data.contractFindings)
+    .concat(normalizeFindings(data.contentFindings))
+    .concat(normalizeFindings(data.referenceFindings))
+    .concat(normalizeFindings(data.manifestFindings));
+
   return {
-    scenario_name: toNonEmptyString(data.scenario_name) ?? trimmed,
-    health_score: toFiniteNumber(data.health_score) ?? 0,
-    total_docs: toFiniteNumber(data.total_docs) ?? 0,
-    misplaced_docs: normalizeMisplacedDocs(data.misplaced_docs),
-    missing_docs: normalizeStringList(data.missing_docs),
-    extra_docs: normalizeStringList(data.extra_docs),
-    warnings: normalizeWarnings(data.warnings),
-    can_auto_fix: toBoolean(data.can_auto_fix) ?? false,
-    fix_category: toNonEmptyString(data.fix_category) ?? "none",
+    scenario_name: scenarioNameOut,
+    health_score: healthScore,
+    total_docs: totalDocs,
+    misplaced_docs: misplaced,
+    missing_docs: missing,
+    extra_docs: extra,
+    warnings,
+    can_auto_fix: misplaced.length > 0,
+    fix_category: deriveFixCategory(misplaced.length, missing.length, extra.length, temporary.length),
   };
+}
+
+function normalizeMisplacedDocsProto(raw: unknown): MisplacedDoc[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MisplacedDoc[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const actual = toNonEmptyString(item.actualPath);
+    const expected = toNonEmptyString(item.expectedPath);
+    const docType = toNonEmptyString(item.docType) ?? "";
+    const severity = severityProtoToString(toNonEmptyString(item.severity));
+    if (!actual || !expected) continue;
+    out.push({ actual_path: actual, expected_path: expected, doc_type: docType, severity });
+  }
+  return out;
+}
+
+function normalizeMissingDocIdentifiers(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue;
+    const docType = toNonEmptyString(entry.docType);
+    if (docType) out.push(docType);
+  }
+  return out;
+}
+
+function normalizeFindings(raw: unknown): DocWarning[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: DocWarning[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue;
+    const code = toNonEmptyString(entry.code) ?? "finding";
+    const rawMessage = toNonEmptyString(entry.message) ?? "";
+    const path = toNonEmptyString(entry.path);
+    const docType = toNonEmptyString(entry.docType);
+    const severity = severityProtoToString(toNonEmptyString(entry.severity));
+    const parts: string[] = [rawMessage];
+    if (path) parts.push(`(${path})`);
+    if (docType) parts.push(`[${docType}]`);
+    out.push({ type: code, message: parts.filter(Boolean).join(" "), severity });
+  }
+  return out;
+}
+
+function severityProtoToString(value: string | null | undefined): string {
+  switch (value) {
+    case "DOC_HEALTH_SEVERITY_INFO":
+      return "info";
+    case "DOC_HEALTH_SEVERITY_WARNING":
+      return "warning";
+    case "DOC_HEALTH_SEVERITY_FAILURE":
+      return "error";
+    default:
+      return "warning";
+  }
+}
+
+function deriveFixCategory(misplaced: number, missing: number, extra: number, temporary: number): string {
+  const hasMisplaced = misplaced > 0;
+  const hasAgent = missing > 0 || extra > 0 || temporary > 0;
+  if (hasMisplaced && !hasAgent) return "all_auto";
+  if (!hasMisplaced && hasAgent) return "all_agent";
+  if (hasMisplaced && hasAgent) return "mixed";
+  return "none";
 }
 
 export async function searchDocFiles(request: DocFileSearchRequest): Promise<DocFileSearchResult[]> {
@@ -448,8 +515,6 @@ export async function fetchDocContent(path: string, format?: string): Promise<Do
     doc_type: toNonEmptyString(data.doc_type),
     size: toFiniteNumber(data.size) ?? 0,
     modified_at: toNonEmptyString(data.modified_at) ?? "",
-    can_reset: toBoolean(data.can_reset) ?? false,
-    reset_config: normalizeResetConfig(data.reset_config),
   };
 }
 
@@ -578,45 +643,6 @@ export async function autoFixDocs(scenarioName: string, dryRun?: boolean): Promi
   }
   const data = (await res.json().catch(() => null)) as unknown;
   return normalizeDocAutoFixResponse(data);
-}
-
-export async function resetDocContent(request: DocResetRequest): Promise<DocResetResponse> {
-  const trimmed = request.path.trim();
-  if (!trimmed) {
-    throw new Error("Document path is required");
-  }
-  const url = buildApiUrl("/api/v1/docs/reset", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      path: trimmed,
-      max_age_days: request.max_age_days,
-      keep_min_entries: request.keep_min_entries,
-      preview_only: request.preview_only,
-    }),
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const errorPayload = (await res.json().catch(() => null)) as unknown;
-    throw new Error(parseErrorMessage(errorPayload, `Doc reset failed: ${res.status}`));
-  }
-
-  const data = (await res.json().catch(() => null)) as unknown;
-  if (!isRecord(data)) {
-    throw new Error("Invalid doc reset response");
-  }
-
-  return {
-    path: toNonEmptyString(data.path) ?? trimmed,
-    doc_type: toNonEmptyString(data.doc_type) ?? "",
-    removed_count: toFiniteNumber(data.removed_count) ?? 0,
-    kept_count: toFiniteNumber(data.kept_count) ?? 0,
-    removed_entries: normalizeStringList(data.removed_entries),
-    new_content: toNonEmptyString(data.new_content),
-    preview_only: toBoolean(data.preview_only) ?? false,
-  };
 }
 
 const normalizeDeepSearchJob = (value: unknown): DeepSearchJob => {
@@ -768,22 +794,6 @@ const normalizeUnifiedResults = (value: unknown): DocUnifiedSearchResult[] => {
   });
 };
 
-const normalizeWarnings = (value: unknown): DocWarning[] => {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => normalizeWarning(item) ?? []);
-};
-
-const normalizeResetConfig = (value: unknown): DocResetConfig | undefined => {
-  if (!isRecord(value)) return undefined;
-  const maxAge = toFiniteNumber(value.max_age_days);
-  const keepMin = toFiniteNumber(value.keep_min_entries);
-  if (maxAge === undefined && keepMin === undefined) return undefined;
-  return {
-    max_age_days: maxAge,
-    keep_min_entries: keepMin,
-  };
-};
-
 const normalizeWarning = (value: unknown): DocWarning | undefined => {
   if (!isRecord(value)) return undefined;
   const type = toNonEmptyString(value.type);
@@ -796,26 +806,6 @@ const normalizeWarning = (value: unknown): DocWarning | undefined => {
     severity,
     expected_path: toNonEmptyString(value.expected_path),
   };
-};
-
-const normalizeMisplacedDocs = (value: unknown): MisplacedDoc[] => {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!isRecord(item)) return [];
-    const actual = toNonEmptyString(item.actual_path);
-    const expected = toNonEmptyString(item.expected_path);
-    const docType = toNonEmptyString(item.doc_type);
-    const severity = toNonEmptyString(item.severity);
-    if (!actual || !expected || !docType || !severity) return [];
-    return [
-      {
-        actual_path: actual,
-        expected_path: expected,
-        doc_type: docType,
-        severity,
-      },
-    ];
-  });
 };
 
 const normalizeStringList = (value: unknown): string[] => {

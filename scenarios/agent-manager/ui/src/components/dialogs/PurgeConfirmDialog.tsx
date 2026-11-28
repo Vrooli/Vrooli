@@ -1,7 +1,8 @@
 // Purge confirmation dialog with DELETE confirmation
 
 import { useState } from "react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import {
   Dialog,
   DialogBody,
@@ -11,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Input } from "../ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../ui/label";
 
 export interface PurgePreview {
@@ -101,16 +102,10 @@ export function PurgeConfirmDialog({
           )}
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleConfirm}
-            disabled={loading || confirmText.trim() !== "DELETE"}
-          >
-            {loading ? "Deleting..." : "Confirm Delete"}
-          </Button>
+          <OverlayActionBar className="flex-row-reverse [&_[data-action-id=confirm-delete]]:border-destructive [&_[data-action-id=confirm-delete]]:bg-destructive [&_[data-action-id=confirm-delete]]:text-destructive-foreground" actions={[
+            { id: "confirm-delete", label: loading ? "Deleting..." : "Confirm Delete", onSelect: handleConfirm, disabled: loading || confirmText.trim() !== "DELETE", primary: true },
+            { id: "cancel", label: "Cancel", onSelect: () => handleOpenChange(false) },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

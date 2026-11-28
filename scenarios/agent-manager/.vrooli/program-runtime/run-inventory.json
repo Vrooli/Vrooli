@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.run-inventory",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "List bounded Agent Manager runs with the safe columns used by the CLI inventory view.",
+  "inputs": {
+    "limit": {
+      "type": "integer",
+      "default": 20
+    },
+    "offset": {
+      "type": "integer",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "default": "",
+      "description": "Optional run status enum name."
+    },
+    "tag_prefix": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "assumptions": [
+    "Agent Manager's typed ListRuns response is the source of run inventory and pagination metadata."
+  ],
+  "invariants": [
+    "Read only; never wait, poll, or infer progress from successive snapshots.",
+    "Return only id, label, status, phase, execution mode, progress, source and updated timestamp; omit imported-session identity and all prompt/result content.",
+    "Every row is scoped to the requested offset/limit and total/has_more are preserved."
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/run/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {"description": "Curated CLI inventory columns and pagination metadata; imported-session identity is omitted."},
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "invalid_response",
+        "binding_error",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "no_grant",
+        "not_run_eligible",
+        "no_governed_binding",
+        "kernel_runtime",
+        "output_limit"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 50,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "reject-zero-limit",
+      "inputs": {
+        "limit": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

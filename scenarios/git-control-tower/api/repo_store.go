@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"git-control-tower/internal/dbschema"
 )
 
 const activeRepoKey = "active_repo_id"
@@ -36,12 +38,12 @@ type RepoStore interface {
 
 // SQLiteRepoStore stores repository records in SQLite.
 type SQLiteRepoStore struct {
-	db  *sql.DB
+	db  dbschema.DB
 	now func() time.Time
 }
 
 // NewSQLiteRepoStore creates a new repo store backed by SQLite.
-func NewSQLiteRepoStore(db *sql.DB) *SQLiteRepoStore {
+func NewSQLiteRepoStore(db dbschema.DB) *SQLiteRepoStore {
 	return &SQLiteRepoStore{db: db, now: time.Now}
 }
 

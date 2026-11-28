@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aquila · Where should Browser &amp; devices open?</title>
+  <script>
+    (() => {
+      const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+      let theme;
+      try { theme = localStorage.getItem('aquila-decision-theme'); } catch {}
+      document.documentElement.dataset.theme = theme === 'dark' || theme === 'light'
+        ? theme
+        : (systemTheme.matches ? 'dark' : 'light');
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f8f7f4;
+      --paper: #fffefa;
+      --ink: #1d2a2b;
+      --muted: #526160;
+      --line: #dcded6;
+      --quiet: #eeefea;
+      --accent: #145849;
+      --on-accent: #fff;
+      --accent-line: #79a697;
+      --accent-soft: #e8f1eb;
+      --stage: #e6eae4;
+      --stage-glow: #f6f7f1;
+      --stage-edge: #cdd6cd;
+      --current: #9c572b;
+      --shadow: 0 18px 40px #1a30261f, 0 3px 7px #1a302619;
+      --width: 1264px;
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #141c1b;
+      --paper: #1b2422;
+      --ink: #f1f3e9;
+      --muted: #aebeb5;
+      --line: #35423e;
+      --quiet: #222e2a;
+      --accent: #b0dfc9;
+      --on-accent: #142c23;
+      --accent-line: #65927e;
+      --accent-soft: #263c33;
+      --stage: #24342e;
+      --stage-glow: #33473e;
+      --stage-edge: #3b5147;
+      --current: #e9ab80;
+      --shadow: 0 18px 40px #080d0c59, 0 3px 7px #080d0c4c;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0;
+      min-width: 0;
+      background: var(--page);
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; }
+    button:focus-visible, a:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+    }
+    a { color: var(--accent); }
+    a:hover { text-decoration-thickness: 2px; }
+    h1, h2, h3, p, figure { margin: 0; }
+    strong { font-weight: 675; }
+    .wrap { width: min(var(--width), calc(100% - 104px)); margin-inline: auto; }
+    .masthead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 77px;
+      border-bottom: 1px solid var(--line);
+    }
+    .identity, .entry-name, .action, .caption-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .identity strong { font-size: 17px; letter-spacing: -.04em; }
+    .identity span { color: var(--muted); font-size: 13px; font-weight: 560; }
+    .identity-divider { width: 1px; height: 14px; background: var(--line); margin-inline: 6px; }
+    .logo {
+      width: 34px;
+      height: 34px;
+      padding: 3px;
+      display: block;
+      background: #183d34;
+      border-radius: 9px;
+    }
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .icon-button:hover { background: var(--quiet); }
+    .icon { width: 17px; height: 17px; display: inline-block; flex: 0 0 auto; }
+    .sun { display: none; }
+    [data-theme="dark"] .sun { display: inline-block; }
+    [data-theme="dark"] .moon { display: none; }
+    .review {
+      display: grid;
+      grid-template-columns: minmax(0, .71fr) minmax(0, 1.29fr);
+      gap: clamp(36px, 4.3vw, 70px);
+      padding-block: 67px 65px;
+      align-items: start;
+    }
+    h1, h2 { line-height: 1.03; letter-spacing: -.068em; font-weight: 720; text-wrap: balance; }
+    h1 { font-size: clamp(50px, 5.2vw, 77px); }
+    h1 span { display: block; }
+    .opening {
+      max-width: 34ch;
+      margin-top: 23px;
+      color: var(--muted);
+      font-size: clamp(16px, 1.36vw, 19px);
+      line-height: 1.52;
+    }
+    .before-after {
+      display: grid;
+      gap: 8px;
+      margin-block: 24px 23px;
+      padding-block: 15px;
+      border-block: 1px solid var(--line);
+    }
+    .before-after p {
+      display: grid;
+      grid-template-columns: 79px 1fr;
+      gap: 8px;
+      align-items: baseline;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .before-after strong { display: flex; align-items: center; gap: 7px; color: var(--ink); }
+    .before-after strong::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
+    .before-after p:first-child strong::before { background: var(--current); }
+    .option-controls { display: grid; gap: 8px; }
+    .option {
+      display: grid;
+      width: 100%;
+      grid-template-columns: 28px minmax(0, 1fr) 16px;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper);
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .option:hover { border-color: var(--accent-line); }
+    .option[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-line); }
+    .letter {
+      display: grid;
+      place-items: center;
+      height: 28px;
+      width: 28px;
+      background: var(--quiet);
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 720;
+    }
+    .option[aria-pressed="true"] .letter { background: var(--accent); color: var(--on-accent); }
+    .option-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; line-height: 1.3; }
+    .option-title strong { font-size: 15px; }
+    .recommended { color: var(--accent); font-size: 11px; font-weight: 660; }
+    .option-detail { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; margin-top: 3px; }
+    .option-marker {
+      width: 15px;
+      height: 15px;
+      border: 1px solid var(--accent-line);
+      border-radius: 50%;
+    }
+    .option[aria-pressed="true"] .option-marker {
+      border: 4px solid var(--accent);
+      background: var(--paper);
+    }
+    .comparison { min-width: 0; }
+    .entry-line {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-height: 44px;
+      margin-bottom: 11px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 550;
+    }
+    .entry-name {
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 675;
+      white-space: nowrap;
+    }
+    .entry-name .icon { width: 14px; height: 14px; color: var(--accent); }
+    .entry-line > .icon { width: 15px; height: 15px; }
+    .entry-line .action { margin-left: auto; }
+    .stage {
+      border: 1px solid var(--stage-edge);
+      border-radius: 20px;
+      padding: clamp(14px, 2.15vw, 30px);
+      background: radial-gradient(ellipse at 20% 0%, var(--stage-glow), transparent 72%), var(--stage);
+    }
+    .screen {
+      display: block;
+      width: 100%;
+      padding: 0;
+      position: relative;
+      border: 0;
+      border-radius: 10px;
+      background: var(--paper);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      cursor: zoom-in;
+    }
+    .screen picture, .screen img { display: block; width: 100%; height: auto; }
+    .screen img { aspect-ratio: 1440 / 900; }
+    .expand {
+      display: grid;
+      place-items: center;
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      width: 42px;
+      height: 42px;
+      border: 1px solid #ffffff6b;
+      border-radius: 9px;
+      background: #182c25;
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .screen:is(:hover, :focus-visible) .expand { opacity: 1; }
+    .main-caption {
+      padding: 15px 0 0;
+    }
+    .caption-heading { font-size: 14px; font-weight: 695; flex-wrap: wrap; }
+    h2.caption-heading { line-height: 1.35; letter-spacing: 0; }
+    .fidelity { color: var(--muted); font-size: 11px; font-weight: 575; white-space: nowrap; }
+    .fidelity::before { content: "·"; margin-right: 7px; }
+    .caption-copy > p { max-width: 55ch; margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .action {
+      justify-content: center;
+      width: max-content;
+      min-height: 44px;
+      padding: 9px 13px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      color: var(--on-accent);
+      background: var(--accent);
+      text-decoration: none;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 675;
+    }
+    .action:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .workflow {
+      padding-block: 49px 48px;
+      border-block: 1px solid var(--line);
+    }
+    .workflow-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    h2 { font-size: clamp(33px, 4.3vw, 60px); }
+    .workflow-head > p { max-width: 47ch; color: var(--muted); font-size: 15px; }
+    .workflow-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .workflow-grid figure { min-width: 0; }
+    .workflow-grid .stage { padding: clamp(12px, 1.6vw, 22px); border-radius: 15px; }
+    .workflow-grid figcaption { padding-top: 13px; }
+    .workflow-grid h3 { font-size: 17px; line-height: 1.3; letter-spacing: -.025em; }
+    .workflow-grid figcaption p { margin-top: 4px; max-width: 50ch; color: var(--muted); font-size: 14px; line-height: 1.45; }
+    .workflow-grid .fidelity { align-self: center; line-height: 1; }
+    .workspace-note { margin-top: 26px; font-size: 14px; color: var(--muted); }
+    .workspace-note strong { color: var(--ink); }
+    .today { border-bottom: 1px solid var(--line); }
+    .today summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 63px;
+      font-weight: 675;
+      cursor: pointer;
+      list-style: none;
+    }
+    .today summary::-webkit-details-marker { display: none; }
+    .today summary .icon { color: var(--muted); }
+    .today[open] summary .icon { transform: rotate(180deg); }
+    .today-content {
+      display: grid;
+      grid-template-columns: minmax(0, 46ch) minmax(0, 230px);
+      gap: 22px;
+      padding: 0 0 26px;
+      align-items: start;
+    }
+    .today-content p { color: var(--muted); font-size: 14px; }
+    .today-content p + p { margin-top: 9px; }
+    .today-content img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 11px; }
+    .today-content figcaption { margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .decision {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 28px;
+      padding-block: 40px 55px;
+    }
+    .decision h2 { max-width: 19ch; font-size: clamp(27px, 3.5vw, 47px); text-wrap: initial; }
+    .decision h2 strong { color: var(--accent); }
+    .decision p { max-width: 49ch; color: var(--muted); font-size: 15px; }
+    .decision p + p { margin-top: 10px; }
+    dialog {
+      width: max-content;
+      max-width: calc(100vw - 24px);
+      max-height: calc(100dvh - 24px);
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop { background: #081510c4; }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 0 9px; }
+    #zoom-title { font-weight: 675; font-size: 14px; }
+    #zoom-image { display: block; width: auto; height: auto; max-width: 100%; max-height: calc(100dvh - 100px); border-radius: 7px; object-fit: contain; }
+    @media (max-width: 1110px) {
+      .wrap { width: calc(100% - 64px); }
+      .review { gap: 27px; }
+    }
+    @media (max-width: 900px) {
+      .wrap { width: calc(100% - 40px); }
+      .masthead { min-height: 62px; }
+      .review { grid-template-columns: minmax(0, 1fr); gap: 15px; padding-block: 27px 37px; }
+      h1 { font-size: clamp(43px, 11.2vw, 67px); text-wrap: initial; }
+      h1 span { display: inline; }
+      .opening { font-size: 16px; margin-top: 14px; }
+      .before-after { margin-block: 16px; padding-block: 9px; gap: 5px; }
+      .option { padding: 10px; }
+      .entry-line { margin-bottom: 8px; }
+      .main-caption { padding-top: 12px; }
+      .workflow { padding-block: 30px; }
+      .workflow-head { display: block; margin-bottom: 15px; }
+      .workflow-head > p { margin-top: 8px; font-size: 14px; }
+      .workflow-grid { gap: 16px; }
+      .workflow-grid h3 { font-size: 15px; }
+      .workflow-grid figcaption { padding-top: 9px; }
+      .workflow-grid figcaption p { font-size: 13px; }
+      .workspace-note { margin-top: 19px; }
+      .decision { padding-block: 29px 37px; }
+    }
+    @media (max-width: 550px) {
+      h1 span { display: block; }
+      .entry-line > .icon, .entry-step { display: none; }
+      .entry-line .action { font-size: 12px; padding-inline: 10px; gap: 6px; }
+      .stage { padding: 12px; border-radius: 15px; }
+      .screen img { aspect-ratio: 390 / 844; }
+      .workflow-grid .stage { padding: 5px; border-radius: 11px; }
+      .workflow-grid .screen { border-radius: 7px; }
+      .workflow-grid .expand {
+        position: static;
+        width: 100%;
+        height: 30px;
+        border: 0;
+        border-top: 1px solid var(--line);
+        border-radius: 0;
+        background: var(--paper);
+        color: var(--muted);
+        opacity: 1;
+      }
+      .today-content, .decision { grid-template-columns: minmax(0, 1fr); }
+      .today-content figure { max-width: 220px; }
+      .decision { gap: 10px; }
+    }
+    @media (max-width: 350px) {
+      .wrap { width: calc(100% - 28px); }
+      .identity-divider { margin-inline: 1px; }
+      .option { gap: 8px; }
+      .stage { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <svg aria-hidden="true" width="0" height="0" style="position:absolute">
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2 2.7 3 5.7 3 9s-1 6.3-3 9c-2-2.7-3-5.7-3-9s1-6.3 3-9Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.8 14a8.6 8.6 0 0 1-10.9-10.9A8.7 8.7 0 1 0 20.8 14Z"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+  <header class="masthead wrap">
+    <div class="identity">
+      <img class="logo" src="aquila.svg" alt="" width="34" height="34">
+      <strong>Aquila</strong>
+      <span class="identity-divider" aria-hidden="true"></span>
+      <span>Browser &amp; devices</span>
+    </div>
+    <button class="icon-button" type="button" id="theme-toggle" aria-label="Use dark appearance">
+      <svg class="icon moon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-moon"/></svg>
+      <svg class="icon sun" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sun"/></svg>
+    </button>
+  </header>
+  <main class="wrap">
+    <section class="review" aria-labelledby="decision-title">
+      <div>
+        <h1 id="decision-title"><span>What should</span> <span>open first?</span></h1>
+        <p class="opening">You want to check a page. No agent is running.</p>
+        <div class="before-after">
+          <p><strong>Today</strong><span>A finished run leaves only <b>Close</b>.</span></p>
+          <p><strong>Proposed</strong><span>Open your browser any time.</span></p>
+        </div>
+        <div class="option-controls" role="group" aria-label="Compare what opens first">
+          <button type="button" class="option" aria-pressed="true" aria-controls="open-screen" data-flow="browser">
+            <span class="letter">A</span>
+            <span>
+              <span class="option-title"><strong>Open the browser</strong><span class="recommended">Recommended</span></span>
+              <span class="option-detail">Resume your last browser or device.</span>
+            </span>
+            <span class="option-marker" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="option" aria-pressed="false" aria-controls="picker-screen" data-flow="picker">
+            <span class="letter">B</span>
+            <span>
+              <span class="option-title"><strong>Choose what to open</strong></span>
+              <span class="option-detail">See all browsers and devices first.</span>
+            </span>
+            <span class="option-marker" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="comparison" aria-label="First screen comparison">
+        <div class="entry-line">
+          <span class="entry-name">
+            <svg class="icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-globe"/></svg>
+            Browser &amp; devices
+          </span>
+          <svg class="icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+          <span class="entry-step">First screen</span>
+          <a class="action" id="try-flow" href="prototype.html?start=browser">
+            <span>Try option A</span>
+            <svg class="icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><use href="#i-arrow"/></svg>
+          </a>
+        </div>
+        <div aria-live="polite">
+          <figure id="open-screen" data-panel="browser">
+            <div class="stage">
+              <button class="screen" type="button" aria-label="Enlarge Open the browser preview" data-zoom="Open the browser">
+                <picture data-shot="open">
+                  <source media="(max-width: 550px)" srcset="open-phone.webp">
+                  <img src="open-desktop.webp" width="1440" height="900" alt="Aquila directly opens Studio browser on Kiln &amp; Co. The target name and Share action sit above the page.">
+                </picture>
+                <span class="expand" aria-hidden="true"><svg class="icon" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-expand"/></svg></span>
+              </button>
+            </div>
+            <figcaption class="main-caption">
+              <div class="caption-copy">
+                <h2 class="caption-heading">Your page opens <span class="fidelity">Prototype</span></h2>
+                <p>The first visit starts <strong>Studio browser</strong>. Tap the target name to switch browsers or devices.</p>
+              </div>
+            </figcaption>
+          </figure>
+          <figure id="picker-screen" data-panel="picker" hidden>
+            <div class="stage">
+              <button class="screen" type="button" aria-label="Enlarge Choose what to open preview" data-zoom="Choose what to open">
+                <picture data-shot="picker">
+                  <source media="(max-width: 550px)" srcset="picker-phone.webp">
+                  <img src="picker-desktop.webp" width="1440" height="900" alt="Aquila opens a list with Studio browser, Pixel 9, Desk phone, and an Add target action.">
+                </picture>
+                <span class="expand" aria-hidden="true"><svg class="icon" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-expand"/></svg></span>
+              </button>
+            </div>
+            <figcaption class="main-caption">
+              <div class="caption-copy">
+                <h2 class="caption-heading">The list opens <span class="fidelity">Prototype</span></h2>
+                <p>Check which devices are available. Tap <strong>Studio browser</strong> to reach the same page as A.</p>
+              </div>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="workflow" aria-labelledby="workflow-title">
+      <div class="workflow-head">
+        <h2 id="workflow-title">Keep your place</h2>
+        <p>In both options, browsers and devices stay available across conversations. Open one yourself or let an agent pick up from where you left off.</p>
+      </div>
+      <div class="workflow-grid">
+        <figure>
+          <div class="stage">
+            <button class="screen" type="button" aria-label="Enlarge the handoff preview" data-zoom="Hand off control">
+              <picture data-shot="handoff">
+                <source media="(max-width: 550px)" srcset="handoff-phone.webp">
+                <img src="handoff-desktop.webp" loading="lazy" width="1440" height="900" alt="The same Studio browser page stays open while the header says Codex is driving and offers Take control.">
+              </picture>
+              <span class="expand" aria-hidden="true"><svg class="icon" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-expand"/></svg></span>
+            </button>
+          </div>
+          <figcaption>
+            <div class="caption-heading"><h3>Hand off control</h3><span class="fidelity">Prototype</span></div>
+            <p>Choose <strong>Share</strong> to let Codex drive. Use <strong>Take control</strong> to continue on the same page.</p>
+          </figcaption>
+        </figure>
+        <figure>
+          <div class="stage">
+            <button class="screen" type="button" aria-label="Enlarge the device preview" data-zoom="Switch to a device">
+              <picture data-shot="device">
+                <source media="(max-width: 550px)" srcset="device-phone.webp">
+                <img src="device-desktop.webp" loading="lazy" width="1440" height="900" alt="An emulated Pixel 9 appears in Aquila's viewer with device controls.">
+              </picture>
+              <span class="expand" aria-hidden="true"><svg class="icon" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-expand"/></svg></span>
+            </button>
+          </div>
+          <figcaption>
+            <div class="caption-heading"><h3>Switch to a device</h3><span class="fidelity">Prototype</span></div>
+            <p>Open a real phone or emulator from the same list. The controls match the device you choose.</p>
+          </figcaption>
+        </figure>
+      </div>
+      <p class="workspace-note"><strong>Already in a conversation?</strong> Its browser shortcut opens the shared workspace in either option.</p>
+    </section>
+
+    <details class="today">
+      <summary>
+        See today's Browser pane
+        <svg class="icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chevron"/></svg>
+      </summary>
+      <div class="today-content">
+        <div>
+          <p>The current pane tries to reconnect to the conversation's browser. When the run has finished, <strong>Close</strong> is the only action in the message.</p>
+          <p>Captured from the served Aquila app at 390 × 844 using a synthetic finished run. <a href="../CAPTURE.md">Capture notes</a></p>
+        </div>
+        <figure>
+          <button class="screen" type="button" aria-label="Enlarge today's Browser pane" data-zoom="Today's Browser pane">
+            <img src="../current-phone-dark.png" loading="lazy" width="390" height="844" style="aspect-ratio:390/844" alt="The current Aquila Browser pane says The agent run has finished and shows only a Close action.">
+          </button>
+          <figcaption>Captured · Current Aquila on phone</figcaption>
+        </figure>
+      </div>
+    </details>
+
+    <section class="decision" aria-labelledby="reply-title">
+      <h2 id="reply-title">Which should we design, <strong>A</strong> or <strong>B</strong>?</h2>
+      <div>
+        <p><strong>A</strong> saves a tap when you want to get back to the same page. <strong>B</strong> gives you a chance to check every available browser or device before you enter.</p>
+        <p>Reply with A or B to set the direction for the design spec. Without a reply, the decision stays open. The prototype uses illustrative data.</p>
+      </div>
+    </section>
+  </main>
+  <dialog id="zoom" aria-labelledby="zoom-title">
+    <div class="dialog-head">
+      <p id="zoom-title"></p>
+      <form method="dialog">
+        <button class="icon-button" aria-label="Close enlarged preview">
+          <svg class="icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-close"/></svg>
+        </button>
+      </form>
+    </div>
+    <img id="zoom-image" alt="">
+  </dialog>
+  <script>
+    const root = document.documentElement;
+    const themeToggle = document.querySelector('#theme-toggle');
+    const tryFlow = document.querySelector('#try-flow');
+    const flowButtons = document.querySelectorAll('[data-flow]');
+    const flowPanels = document.querySelectorAll('[data-panel]');
+    const pictures = document.querySelectorAll('[data-shot]');
+    let flow = 'browser';
+
+    const updateLink = () => {
+      tryFlow.href = `prototype.html?start=${flow}&theme=${root.dataset.theme}`;
+      tryFlow.querySelector('span').textContent = flow === 'browser' ? 'Try option A' : 'Try option B';
+    };
+    const updateAppearance = () => {
+      const dark = root.dataset.theme === 'dark';
+      themeToggle.setAttribute('aria-label', `Use ${dark ? 'light' : 'dark'} appearance`);
+      const suffix = dark ? '' : '-light';
+      for (const picture of pictures) {
+        const shot = picture.dataset.shot;
+        picture.querySelector('source').srcset = `${shot}-phone${suffix}.webp`;
+        picture.querySelector('img').src = `${shot}-desktop${suffix}.webp`;
+      }
+      updateLink();
+    };
+    updateAppearance();
+    themeToggle.addEventListener('click', () => {
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('aquila-decision-theme', root.dataset.theme); } catch {}
+      updateAppearance();
+    });
+
+    for (const button of flowButtons) {
+      button.addEventListener('click', () => {
+        flow = button.dataset.flow;
+        for (const control of flowButtons) control.setAttribute('aria-pressed', control === button);
+        for (const panel of flowPanels) panel.hidden = panel.dataset.panel !== flow;
+        updateLink();
+      });
+    }
+
+    const zoom = document.querySelector('#zoom');
+    const zoomTitle = document.querySelector('#zoom-title');
+    const zoomImage = document.querySelector('#zoom-image');
+    for (const button of document.querySelectorAll('[data-zoom]')) {
+      button.addEventListener('click', () => {
+        const img = button.querySelector('img');
+        if (!img.complete || img.naturalWidth === 0) return;
+        zoomTitle.textContent = button.dataset.zoom;
+        zoomImage.src = img.currentSrc || img.src;
+        zoomImage.alt = img.alt;
+        zoom.showModal();
+      });
+    }
+    zoom.addEventListener('click', (event) => {
+      if (event.target !== zoom) return;
+      const {top, right, bottom, left} = zoom.getBoundingClientRect();
+      if (event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom) zoom.close();
+    });
+  </script>
+</body>
+</html>

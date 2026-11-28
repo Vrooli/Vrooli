@@ -1,0 +1,154 @@
+# Problems — Meta-Optimization Manager
+
+Persistent register of known issues, tech debt, and deferred work
+specific to **this** scenario. Future agents read this file to avoid
+re-discovering the same constraint.
+
+This file ships empty in newly generated scenarios. Append entries as
+they appear.
+
+## What belongs here
+
+- **Known bugs** that are real but not yet worth fixing
+- **Tech debt** — workarounds that need a real fix later
+- **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
+- **Constraints discovered the hard way** that aren't visible from
+  the code (e.g., "this resource needs warm-up before the first call;
+  see commit X")
+
+## What does NOT belong here
+
+- **Generic template issues** — those go in
+  [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+- **Open feature requests** — track those in PRD operational targets
+- **Code comments** — if the constraint is local to one file, a
+  comment there is more discoverable
+- **Test failures** — fix them, don't document them
+
+> Note: fleet-level gaps that this scenario *measures* (e.g. MISSING Answer
+> cells, the Validate experience-ladder, the SKETCH Guide denominator) are
+> **domain data**, not this scenario's debt — they live in the space docs and
+> the runtime gaps registry, not here.
+
+## Entry template
+
+Use this shape so entries are scannable. Append newest at the bottom.
+
+```markdown
+### YYYY-MM-DD — short title
+
+**Symptom:** What goes wrong, observable from outside the system.
+
+**Root cause:** What actually causes it (or "unknown" if not yet diagnosed).
+
+**Workaround:** What to do today to keep moving.
+
+**Real fix:** What needs to happen for this entry to be deleted.
+
+**Owner:** Who should drive the fix (or "unassigned").
+
+**Refs:** Code paths, related issues, prior commits.
+```
+
+## Entries
+
+### 2026-06-28 — numerator substrate moved CLI shell-out → typed API↔API
+
+**Change:** The live **numerator** reads (Answer/Validate/Guide) no longer shell out to the owner CLIs. `NumeratorJoiner` (`api/internal/coverage/numeratorclient.go`) now resolves each owner's API base URL through `api-core/discovery` and calls a typed Connect-RPC client — search-hub `RegistryService.ListProviders`, test-genie `RunsService.GetSelfHealth`, prompt-manager `GraphService.GetHealthScores` (a contract added in the same change; prompt-manager had no proto before) — concurrently, each bounded by a short ~3s deadline. A slow/unreachable owner degrades to an honest per-projection `UNAVAILABLE` instead of stalling the whole board on a serial ~30s CLI timeout.
+
+**Why:** `test-genie health --json` (the old shell-out) could hang ~25s while the scenario was `running/healthy`, and MoM's serial per-owner 30s timeout let one slow owner stall the whole scoreboard (`unavailable: unexpected EOF`). The shell-out substrate — each read spawning a process doing its own resolution/retries with no deadline MoM controls — was the root cause; typed API↔API with a MoM-controlled deadline is the correct fix. The test-genie hang itself is owner-owned (filed to test-genie QA), not fixed here.
+
+**Note:** the **denominator** path (`SpaceReader`) still uses the owner `space --projection` verb (with a doc-parse fallback); only its timeout was tightened (5s). See the resolved entry below.
+
+### 2026-06-24 — `space --projection` verb (RESOLVED)
+
+**Status:** RESOLVED. The shared read contract — a `space --projection <p> --json` verb on search-hub/test-genie/prompt-manager — **is built** (shared `api-core/spacecli`, registered in all three owners' CLI domains) and works live. `SpaceReader` (`api/internal/coverage/spacereader.go`) now takes the preferred verb path, falling back to the direct `api-core/spacedoc` doc parse only when an owner CLI is unreachable. (This entry previously claimed the verb was unbuilt — stale; corrected 2026-06-28.)
+
+**Refs:** `api/internal/coverage/spacereader.go`; `../concepts/ARCHITECTURE.md` (Contracts And Data Flow); the three `*/docs/spaces/*-space.md` docs.
+
+### 2026-06-26 — trials live-model path still returns an error verdict
+
+**Symptom:** The first live operator run (`trial/G1`, 2026-08-12) completed with `TRIAL_VERDICT_ERROR` rather than a scored pass/fail. Run ID: `5afd2d5d-d3b3-48fc-8b9d-1f18fbca247b`.
+
+**Root cause:** Confirmed scope-root mismatch. The runner created a task with `--scope-path fixture.TargetDir` but omitted `--project-root`, so Agent Manager used its configured default project root. Workspace Sandbox prefixes scoped diff paths with the relative path from `ProjectRoot` to `ScopePath`; the evaluator then applied that repo-rooted patch with `git apply -p1` inside a copy containing only the target tree. Reproduction with the fixture path `scenarios/meta-optimization-manager/api/internal/trials/fixtures/add-feature/target` failed in both `git apply` and the `patch` fallback because that prefixed file does not exist in the copy. Separately, `agentJudge` is `nil` in production — all five current fixtures carry an oracle, but a future oracle-less family still yields `VerdictError` after dispatch.
+
+**Workaround:** Keep OT-P1-001 unaccepted until a live pass; treat the recorded error as a real empirical data point, not as a passing score. The API currently omits the detailed runner error, so inspect the agent-manager/trials logs when reproducing.
+
+**Fix applied:** Task creation now sets `--project-root` equal to `fixture.TargetDir`, making `ScopePath == ProjectRoot`. Workspace Sandbox therefore emits target-relative diff paths that the evaluator can apply to its target-only copy. The runner test asserts this exact command contract.
+
+**Fix applied:** The production evaluator now validates a fixture before service dispatch: deterministic-oracle fixtures and negative abstention fixtures proceed, and oracle-less positive fixtures proceed only when an agent-judge is configured. Otherwise the service records `VerdictError` with the fixture revision without invoking Agent Manager. Focused tests cover the refusal, the oracle/negative success paths, configured-judge acceptance, and service-level no-dispatch/history behavior.
+
+**Remaining:** Run one live-model trial against the `bugfix` fixture using an already approved local judge/model and retain its raw `run diff` as evidence. Keep this entry open until a scored live run is recorded. A 2026-11-24 availability probe found the configured `meta-optimization-manager/trials` role resolves to `codex/gpt-6-luna` from `codex-subscription`; although local Ollama tags exist, the MoM role is not configured to use them, and production `NewEvaluator` has `judge:nil`. No run was dispatched because this unit prohibited subscription/external calls and model installation. The pre-dispatch guard prevents an unscorable task from consuming a sandboxed run, but it does not produce the missing empirical result or expose a detailed diagnostic on the wire. Evidence and exact next owner step are recorded in the PT2 run's `evidence/PT2-SCENARIO-TO-DESKTOP-PREREQUISITES.md`.
+
+**Owner:** this scenario; live-model readback remains unverified.
+
+**Refs:** `api/internal/trials/runner.go`, `runner_test.go`, `evaluator.go` (`applyDiff`, the `nil` judge); workspace-sandbox `scopePathPrefix` and `diff.GenerateOptions.PathPrefix`; evidence `PT5-meta-optimization-manager-scoped-diff-2026-11-24.json`.
+
+### 2026-06-24 — convergence coordinated-edit walkthrough is unproven mechanization
+
+**Symptom:** The add/delete coordinated-edit count (a reference-pattern-fitness sub-lens) has no existing programmatic engine.
+
+**Root cause:** That sub-lens is a skill (judgment) today; mechanizing the *counting* is genuinely new work and may be fragile.
+
+**Workaround:** Mark its findings lower-confidence until proven against a frozen template fixture.
+
+**Real fix:** Build + validate the walkthrough counter; promote its confidence once it matches hand-audited counts.
+
+**Owner:** unassigned.
+
+**Refs:** `scenarios/meta-optimization-manager/docs/reference/REFERENCE_PATTERN_FITNESS.md`; requirement MOM-CONVERGENCE-001.
+
+### 2026-06-24 — prd-control-tower LLM generation returned HTTP 500
+
+**Symptom:** `prd-control-tower prd generate … --publish` failed with `api error (500)`.
+
+**Root cause:** The generation LLM backend was unavailable (env); the deterministic validator (`prd validate`) was healthy.
+
+**Workaround:** PRD hand-authored to the canonical template and validated deterministically (0 violations).
+
+**Real fix:** None required for this scenario; if a regeneration is wanted later, retry once the LLM backend is healthy.
+
+**Owner:** unassigned.
+
+**Refs:** `DECISIONS.md` (2026-06-24 documentation-first row).
+
+## Architecture Drift
+
+### 2026-08-11 — comprehensive maturity suite still has pre-existing debt
+
+**Symptom:** The comprehensive Meta-Optimization Manager validation suite remains partially red across architecture, UI, logging, dependencies, quality, docs, storage, and workflow checks.
+
+**Root cause:** The findings were present independently of the three-signal Answer numerator and are not regressions in this plan's coverage behavior. Focused coverage, snapshot, client, and race tests pass; live Answer cells agree across status, list, explain, and focus.
+
+**Workaround:** Keep plan acceptance evidence scoped to the changed coverage contract and record the comprehensive findings as deferred maturity debt.
+
+**Real fix:** Resolve each existing finding in its owning domain, then refresh the scenario baseline and comprehensive run.
+
+**Owner:** scenario-qa / owning domains.
+
+**Refs:** Plan `search-hub-trustworthy-retrieval-and-honest-readiness`; fresh comprehensive validation was recorded during Phase 10.
+
+Use this section for deferred findings from `architecture-lenses`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| _None yet._ |  |  |  |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+
+## Work ladder — learning owner queue, 2026-09-09
+
+- Rung: W3 scoped empirical focus-source extension under the operator-approved adaptive learning work.
+- Evidence: Runtime failure/refusal telemetry omitted later semantic corrections and unresolved learning ownership. The new typed read retains owner, state, evidence and truncation without feedback/claim capabilities.
+- Validation: `go test ./internal/focus ./handlers/focus` passes; Test Genie unit run `20260909-191450-55aea902` passed. Existing Test Genie fleet fixtures were updated from retired Scenario to canonical Target field so the focused package compiles against current proto.

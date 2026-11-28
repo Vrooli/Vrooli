@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "audio-tools.browser-first-partial-context/v1",
+  "runId": "audio-tools-first-partial-context-20261123-01",
+  "recordedAt": "2026-11-23",
+  "evidenceClass": "single-run synthetic-media diagnostic; not qualification",
+  "capture": {
+    "surface": "Audio Tools Dictation Studio product UI",
+    "browser": "Google Chrome 150.0.7871.128, headless",
+    "mediaSource": "Chrome fake microphone using the local WAV fixture",
+    "fixtureSha256": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e",
+    "uiAsset": "dist-live/assets/DictationStudioPage-C4a86rri.js",
+    "apiBuildIdentity": "sha256:e26ae972b0026588cb0494724a8746b2379b23e0dc44d73e185deedc08666497"
+  },
+  "route": {
+    "providerId": "sherpa-stt",
+    "providerTier": "local",
+    "modelId": "sherpa-onnx/streaming-zipformer-en-2023-06-26"
+  },
+  "denominator": {
+    "attempts": 1,
+    "completed": 1,
+    "failed": 0,
+    "pageErrors": 0
+  },
+  "diagnostic": {
+    "state": "completed",
+    "terminalReason": "final",
+    "startToCaptureReadyMs": 13.1,
+    "captureSampleRate": 48000,
+    "streamSampleRateHz": 16000,
+    "captureCallbackCount": 587,
+    "captureCallbackMaxCostRatio": 0.04218748211860657,
+    "signalObserved": true,
+    "firstSignalSample": 1254,
+    "firstPartialLatencyMs": 1096.6749992370605,
+    "firstPartialCapturedSamples": 18773,
+    "firstPartialAvailableAudioMs": 1094.9375,
+    "firstPartialExcessLatencyMs": 1.7374992370605469,
+    "stopToFinalTailMs": 87.30000019073586,
+    "capturedSequence": 250,
+    "sentSequence": 250,
+    "processedSequence": 250,
+    "capturedSamples": 200363,
+    "committedSamples": 200363,
+    "doneSent": true
+  },
+  "interpretation": "The visible first partial followed approximately 1.095 seconds of captured post-onset audio; only 1.7 ms remained as excess wall latency in this run. This points to model/context accumulation rather than browser processing backlog. The capture callback maximum cost ratio was 0.042.",
+  "limitations": [
+    "One synthetic-media attempt; it does not establish p95, repeatability, or physical-microphone behavior.",
+    "The transcript was not scored for lexical quality in this run.",
+    "Matching captured, sent, processed, and committed cursors proves sample accounting for this trace, not general losslessness.",
+    "The result does not qualify other browsers, operating systems, devices, or hardware profiles."
+  ]
+}

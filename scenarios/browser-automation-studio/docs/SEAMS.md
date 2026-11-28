@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 21819)
+Total output lines: 1926
+
 # Seam Discovery and Enforcement
 
 This document catalogs the architectural seams in browser-automation-studio for testability and maintainability.
@@ -18,6 +21,69 @@ This document catalogs the architectural seams in browser-automation-studio for 
 | Good | Interface defined, some test doubles, may need enforcement |
 | Weak | Interface exists but not consistently used or easy to bypass |
 | Missing | No interface, direct concrete dependencies |
+
+---
+
+## Test Infrastructure Boundaries
+
+### 1. Go API Test Utilities (New / Enforced)
+
+**Location:** `api/internal/testutil`
+
+**Contract:**
+- Shared API test utilities live under `internal/testutil`.
+- Production Go files must not import `github.com/vrooli/browser-automation-studio/internal/testutil`.
+- New Go files must not import the legacy top-level `github.com/vrooli/browser-automation-studio/testutil` package.
+- The boundary is enforced by `api/internal/testutil/no_prod_import_test.go`.
+
+**Status:** Good
+- Package documentation now defines the intended subpackages: `fixtures`, `mocks`, `db`, `httpx`, and `assertx`.
+- `api/internal/testutil/fixtures` now contains canonical recording/session fixtures for `domain.RecordingSession`, recording timeline entries, recording actions, page events, and session profiles. Service-level recording tests should use these builders instead of repeating full domain structs. Tests inside `services/recording/persistence` remain package-local because importing fixtures there would create a Go import cycle through the persistence package.
+- `api/internal/testutil/mocks` now contains canonical fakes for recurring seams: `shared.DirectoryScanner`, `shared.WorkflowIndexer`, `shared.ProjectIndexer`, plus function-backed `workflow.CatalogService` and `workflow.ExecutionService` fakes for tool-execution and future handler-style tests that need only a narrow service slice.
+- `api/internal/testutil/integration` contains shared optional-integration gates for short mode, required environment variables, required local commands, and health-checkable HTTP services. Playwright, Ollama, MinIO, and FFmpeg tests should use these helpers instead of hand-rolled `t.Skip` strings.
+- The old `api/testutil` package still exists and should be retired incrementally; a boundary test now prevents new imports from depending on it while useful recording/session factory behavior moves into `internal/testutil/fixtures`.
+
+### 2. Driver Test Helpers (Enforced)
+
+**Location:** `playwright-driver/tests/helpers`
+
+**Contract:**
+- Driver production code under `playwright-driver/src` must not import helper modules from `tests/helpers`.
+- The boundary is enforced by `playwright-driver/tests/unit/boundaries/no-prod-testutil-imports.test.ts`.
+
+**Status:** Good
+- The import boundary is now covered by the driver unit suite.
+- `tests/helpers/README.md` and `playwright-driver/docs/internal/SEAMS.md` document the current helper responsibilities: Playwright object fakes, HTTP mocks, fetch/API response helpers, typed instruction builders, config fixtures, and the compatibility barrel.
+- `tests/helpers/fetch-mocks.ts` now centralizes global fetch installation, JSON/text response builders, and request inspection for vision-client and record-mode callback route tests. New unit tests should use it instead of assigning `global.fetch` or constructing ad hoc `Response` objects.
+- Record-mode route tests now use the shared HTTP route harness to cover validation and lifecycle contracts without launching a browser. `recording-validation.test.ts` locks selector and replay-preview response mapping; `recording-lifecycle.test.ts` locks status and stop idempotency/cleanup behavior.
+- Session, recording, and telemetry builders should be added only when those seams recur across tests.
+
+### 3. UI Test Utilities (Enforced)
+
+**Location:** `ui/src/test-utils`
+
+**Contract:**
+- UI production modules under `ui/src` must not import from `src/test-utils`.
+- The boundary is enforced by `ui/vitest/boundaries/test-utils-imports.test.ts`.
+- `ui/scripts/run-vitest.mjs` has an explicit smoke/full split: default `pnpm test` runs stable smoke projects, and `pnpm test:full` (which passes `--suite full`) runs all configured Vitest projects.
+
+**Status:** Good
+- The boundary check runs in the default smoke suite through the `boundaries` Vitest project.
+- `src/test-utils` now has focused entry points for `render`, `hooks`, `mocks`, `fixtures`, and `stores`, with compatibility exports for older `testHelpers` and `renderHook` imports.
+- Fetch-based API adapter, store, component, and recording-state tests should use `installFetchMock` plus `fetchJsonResponse`, `fetchTextResponse`, or `fetchEmptyResponse` from `@/test-utils` instead of hand-rolled `global.fetch` response objects.
+- The shared fetch seam now covers representative API adapter tests; the `projectStore`, `scenarioStore`, `workflowStore`, and `entitlementStore` suites; `ProjectDetail`; and recording viewport sync tests. UI tests should not assign `global.fetch` or `window.fetch` directly.
+- Workflow builder tests should use the canonical ReactFlow, Monaco, drag-event, workflow-node, workflow-edge, viewport, validation-response, and workflow-store fixtures from `@/test-utils` instead of redefining canvas/editor shims locally.
+- Assertion helpers still need to be added as recurring domain expectations emerge.
+
+### 4. CLI Environment and Test Utilities (Enforced)
+
+**Location:** `cli/internal/appctx/context.go`, `cli/internal/testutil`
+
+**Seam:** `appctx.EnvReader` controls token environment lookup. Production defaults to `appctx.OSEnv`; owner tests inject `testutil.MapEnv` without mutating process-global environment.
+
+**Test utility contract:** Shared CLI helpers live under `cli/internal/testutil` and are imported only from test files. `cli/internal/testutil/no_prod_import_test.go` checks the compiled production import graph.
+
+**Status:** Good for token lookup. Other CLI environment reads remain inventoried for later owner-level migration.
 
 ---
 
@@ -95,7 +161,6 @@ type PlanCompiler interface {
 type Recorder interface {
     RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (RecordResult, error)
     RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error
-    MarkCrash(ctx context.Context, executionID uuid.UUID, failure contracts.StepFailure) error
 }
 
 type ExecutionRepository interface {
@@ -161,21 +226,18 @@ type Repository interface {
 
 ---
 
-### 6. Database Backend Dialect Seam (Good)
+### 6. Database Storage Seam (Good)
 
-**Location:** `api/database/connection.go`, `api/database/dialect.go`, `api/automation/executor/integration_test.go`
+**Location:** `api/database/connection.go`, `api/database/repository_test.go`
 
 **Controls:**
-- `BAS_DB_BACKEND` selects runtime backend (`postgres` default, `sqlite` opt-in)
-- `BAS_TEST_BACKEND` toggles test backend (Postgres testcontainer vs SQLite temp file)
-- `database.Dialect` and `DialectProvider` drive placeholder rebinding and value encoding
+- `BAS_SQLITE_PATH` overrides the resolved SQLite file path
+- `DATABASE_URL` is NOT honored. It does not name a scenario, so an inherited value redirects every scenario a process starts; `BAS_SQLITE_PATH` is the scenario-scoped override.
 
 **Status:** Good
-- `NewConnection` provisions Postgres or SQLite and sets the dialect provider for value types
-- Executor and repository tests resolve the backend from `BAS_TEST_BACKEND` (preferred) or `BAS_DB_BACKEND`, so a sqlite runtime config no longer spins up a Postgres container by surprise
-- Dialect-aware truncate/reset logic keeps integration tests portable instead of relying on Postgres-only TRUNCATE/`$1` SQL
-- SQLite paths mirror resource defaults via `sqliteDSN`; Postgres path sticks to the container DSN
-- Test harness forces `BAS_DB_BACKEND` to the resolved backend and restores BAS/POSTGRES/SQLITE envs after each run to avoid leakage between suites
+- `NewConnection` opens a single SQLite file (driver: `modernc.org/sqlite`, pure Go) and applies the canonical schema from `api/internal/<domain>/storage/sqlite/schemas/` idempotently
+- The SQLite file path is resolved through `api-core/storage` (`ProfileAuto`), keeping mutable runtime data outside the deploy tree on every OS
+- `setupTestDB` in `repository_test.go` opens a temp SQLite file and runs the same schema bootstrap — production and test paths share schema
 
 ---
 
@@ -288,16 +350,77 @@ type WorkflowResolver interface {
 
 ### 10. AI Client Seam (Good)
 
-**Location:** `api/services/ai/client.go`
+**Location:** `api/handlers/ai/gateway_client.go`
 
-**Interface:** `api/services/ai/interface.go`
+**Interfaces:** `api/services/ai/interface.go`
 - `AIClient` with `ExecutePrompt` and `Model`
-- Compile-time enforcement on `OpenRouterClient` and `MockAIClient`
+- `RolePromptClient` for role-based Gateway requests and fake clients
 
 **Status:** Good
-- Shell-out integration is confined to `OpenRouterClient`
-- `MockAIClient` enables workflow tests without the executable
-- Injected via `WorkflowServiceOptions`
+- User-facing inference routes through AI Gateway for provider routing and metering
+- Injected interfaces keep workflow and handler tests independent of provider services
+- The former BAS OpenRouter provider chain has been removed
+
+---
+
+### 10.5 Workflow ingress and execution manifest seams (Strong)
+
+**Locations:** `api/services/workflow/v2_flow_builder.go`,
+`api/services/workflow/converter.go`, and
+`api/automation/execution-writer/result_manifest.go`
+
+**Contracts:**
+
+- `BuildFlowDefinitionV2ForWrite` is the only map-to-workflow path for newly
+  authored project, recording, and AI writes. It accepts strict V2 protojson
+  only and validates every node and edge before persistence.
+- `ConvertExternalWorkflow` is the explicitly named migration boundary. It is
+  the only workflow service path that may use the legacy V1-to-V2 adapter when
+  ingesting a supported external workflow.
+- `buildResultManifestPayload` owns the durable `result.json` projection. The
+  `FileWriter` retains synchronization and filesystem placement, while the
+  manifest contract remains a pure, independently tested concern.
+
+### Execution writer ownership modules
+
+`api/automation/execution-writer/` now separates the durable execution record
+without changing its public `ExecutionWriter` interface:
+
+- `artifact_config.go`: writer-wide and per-execution collection profiles.
+- `result_manifest.go`: pure `result.json` projection.
+- `timeline.go`: timeline creation and durable protobuf-JSON projection.
+- `telemetry.go`: optional telemetry collection and timeline-log projection.
+- `external_artifacts.go`: video/trace/HAR/custom file policy and storage.
+
+`FileWriter` remains the composition root for synchronization, step outcomes,
+checkpointing, and storage wiring. Domain modules do not import test helpers.
+
+### Recording handler ownership modules
+
+`api/handlers/record_mode_*.go` separates public routes by recording concern:
+
+- `lifecycle`: live recording start/stop/status;
+- `navigation`: navigation commands and read-side state/history;
+- `frames`: HTTP frames and deterministic driver packet decoding;
+- `actions`: action ingest, page attribution, timeline persistence, and typed
+  WebSocket projection;
+- `persistence`: session-profile resolution and durable browser state;
+- `validation`: selector validation and replay preview.
+
+The remaining `record_mode.go` is the composition surface for browser-session
+creation/closure, debug proxying, generated-workflow ingress, and a small set
+of transport endpoints that have not yet formed an independent domain.
+
+**Enforcement:**
+
+- `v2_flow_builder_test.go` proves a V1 `type`/`data` node is rejected for a
+  normal write and a typed V2 action is accepted.
+- `result_manifest_test.go` protects the stable fallback manifest when a
+  timeline has not yet been produced.
+- `cli/import_boundary_test.go`, `ui/vitest/boundaries/test-utils-imports.test.ts`,
+  `playwright-driver/tests/unit/boundaries/no-prod-testutil-imports.test.ts`,
+  and `api/internal/testutil/no_prod_import_test.go` prevent each delivery
+  surface from depending on server implementation or test-only code.
 
 ---
 
@@ -312,59 +435,39 @@ type WorkflowResolver interface {
 
 ---
 
-### 24. Credit Service Seam (Strong)
+### 24. Credit Usage Read Seam (Strong)
 
 **Location:** `api/services/credits/`
 
 **Interface:** `api/services/credits/interface.go`
 ```go
 type CreditService interface {
-    CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error)
-    Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
-    ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
     GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error)
-    GetOperationCost(op OperationType) int
-    LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error
     GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error)
     GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error)
-    CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error)
 }
 ```
 
 **Test Doubles:**
-- `services/credits/mock.go`: `MockService` - Full interface mock with configurable responses
-- `services/credits/entitlement_provider.go`: `MockEntitlementProvider` - Controls tier/limit behavior
+- Entitlement limit providers keep the local read model testable.
+
+**Billing ownership:**
+- AI inference authorization and usage are owned by AI Gateway; workflow quota admission and reservations are owned by LPBS.
+- The BAS fixed-cost `Charge` path and its local credit/operation writers were removed after production caller search found no callers. The legacy usage reads and schema remain until the UI is migrated to authoritative LPBS-backed usage.
+- The shared monetization outbox remains for the governed desktop usage journey.
 
 **Status:** Strong
-- Clean interface separating credit checking from charging
-- Multiple testing seams: `EntitlementProvider`, `LPBSReporter`, `Dialect` flag
-- Comprehensive test coverage with SQLite in-memory database
+- Read-only interface for BAS's legacy local usage surfaces
+- `EntitlementProvider` isolates limit reads; the shared outbox is tested against a fake LPBS authority
+- AI billing and workflow reservations do not pass through this service
 - Compile-time enforcement via `var _ CreditService = (*Service)(nil)`
 
 **Architecture:**
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      CreditService                               │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ EntitlementProvider │───▶ GetAICreditsLimit()             │   │
-│  │ (testing seam)      │    CanUseAIWithEntitlement()        │   │
-│  └──────────────────┘    GetEntitlement()                    │   │
-│                          └─────────────────────────────────┘   │
-│                                                                  │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ LPBSReporter     │───▶ ReportUsage()                      │   │
-│  │ (testing seam)   │    (async to central LPBS)             │   │
-│  └──────────────────┘    └─────────────────────────────────┘   │
-│                                                                  │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ Database Dialect │───▶ PostgreSQL (production)            │   │
-│  │ (testing seam)   │    SQLite (unit tests)                 │   │
-│  └──────────────────┘    └─────────────────────────────────┘   │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+CreditService read methods ──▶ legacy BAS usage tables
+EntitlementProvider ─────────▶ current signed lease limit
+BAS desktop usage journey ───▶ monetization-go durable outbox ──▶ LPBS
 ```
 
 **Testing Example:**
@@ -377,9 +480,7 @@ svc := credits.NewService(credits.ServiceOptions{
     EntitlementProvider: &credits.MockEntitlementProvider{
         Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
         AICreditsLimit: 500,
-        CanUseAI: true,
     },
-    LPBSReporter: &mockLPBSReporter{}, // Captures reports for verification
 })
 ```
 
@@ -407,24 +508,26 @@ type Tier string // TierFree, TierSolo, TierPro, TierStudio, TierBusiness
 ```go
 type EntitlementProvider interface {
     GetEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error)
-    GetAICreditsLimit(tier entitlement.Tier) int
-    CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool
+}
+
+type EntitlementLimitProvider interface {
+    LimitForEntitlement(ent *entitlement.Entitlement) (int, bool)
 }
 ```
 
 **Test Doubles:**
 - `services/credits/entitlement_provider.go`: `MockEntitlementProvider`
-- `services/entitlement/context.go`: Context injection for tier overrides
+- Production reads come from the verified shared snapshot or `entitlement.Service`.
 
 **Status:** Strong
 - `EntitlementProvider` interface enables testing credit logic without real entitlement service
-- Context-based override allows middleware tier injection for testing
+- The local usage service does not decide whether AI requests are allowed.
 - Cache with configurable TTL (5 min default)
 - Offline grace period (5 hours) for resilience
 
 **Testing Patterns:**
 
-1. **Mock Provider (preferred for unit tests):**
+1. **Mock Provider (for read-model tests):**
 ```go
 mock := &credits.MockEntitlementProvider{
     Entitlement: &entitlement.Entitlement{
@@ -432,66 +535,21 @@ mock := &credits.MockEntitlementProvider{
         Status: entitlement.StatusActive,
     },
     AICreditsLimit: 500,
-    CanUseAI: true,
 }
-```
-
-2. **Context Override (for integration/handler tests):**
-```go
-ctx := entitlement.WithEntitlement(ctx, &entitlement.Entitlement{
-    Tier: entitlement.TierBusiness,
-})
-// Credits service will use this entitlement instead of fetching
 ```
 
 ---
 
-### 26. LPBS Reporter Seam (Strong)
+### 26. LPBS Usage Outbox (Strong)
 
-**Location:** `api/services/credits/service.go`
-
-**Interface:**
-```go
-type LPBSReporter interface {
-    ReportUsage(ctx context.Context, report LPBSUsageReport) error
-}
-
-type LPBSUsageReport struct {
-    UserIdentity string                  `json:"user_identity"`
-    LimitKey     string                  `json:"limit_key"`
-    UsageAmount  int64                   `json:"usage_amount"`
-    AppBundleKey string                  `json:"app_bundle_key"`
-    Metadata     LPBSUsageReportMetadata `json:"metadata,omitempty"`
-}
-```
+**Location:** `api/services/credits/monetization_transport.go` and `packages/monetization-go`
 
 **Status:** Strong
-- Enables capturing and verifying usage reports in tests
-- Async reporting (goroutine with retry) doesn't block local operations
-- Reports include operation type, model, tokens, and BYOK flag
+- BAS retains the durable outbox for its governed desktop monetization journey.
+- The local fixed-cost Charge/report path is removed; no production BAS path creates AI usage events.
+- AI Gateway owns AI usage, while LPBS owns workflow reservation admission.
 
-**Test Example:**
-```go
-type mockLPBSReporter struct {
-    reports []credits.LPBSUsageReport
-    mu      sync.Mutex
-}
-
-func (m *mockLPBSReporter) ReportUsage(ctx context.Context, report credits.LPBSUsageReport) error {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    m.reports = append(m.reports, report)
-    return nil
-}
-
-// In test
-reporter := &mockLPBSReporter{}
-svc := credits.NewService(credits.ServiceOptions{
-    LPBSReporter: reporter,
-    // ...
-})
-// After operations, verify: reporter.reports
-```
+**Proof:** `TestUsageOutboxSurvivesServiceRestart` exercises the durable BAS outbox with a local fake LPBS HTTP authority.
 
 ---
 
@@ -779,191 +837,23 @@ func TestRecordingPipeline_EndToEnd(t *testing.T) {
 
 ---
 
-## TypeScript Playwright-Driver Seams
+### 29. Execution Artifact Retention Seam (Strong)
 
-### 12. InstructionHandler Seam (Strong)
+**Location:** `api/services/retention/retention.go`
 
-**Location:** `playwright-driver/src/handlers/base.ts`
+**Purpose:** Select terminal executions for artifact cleanup and, in apply mode, delete their artifact directories and DB index rows together. Owns the retention business logic so the Connect handler (`handlers/executions/retention.go`) and CLI stay thin.
 
-**Interface:**
-```typescript
-interface InstructionHandler {
-    getSupportedTypes(): string[];
-    execute(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult>;
-}
-```
+**Interfaces:**
 
-**Status:** Strong
-- Clean strategy pattern
-- Handler registry for dispatch
-- Base class provides common utilities
-
----
-
-### 13. SessionManager Seam (Good)
-
-**Location:** `playwright-driver/src/session/manager.ts`, `playwright-driver/src/session/browser-manager.ts`
-
-**Current Implementation:**
-```typescript
-// BrowserManager extracted to handle browser lifecycle
-class BrowserManager {
-    private browser: Browser | null = null;
-    async getOrLaunchBrowser(config: Config): Promise<Browser>
-    async closeBrowser(): Promise<void>
-    async verifyBrowserLaunch(): Promise<string | null>
-}
-
-// SessionManager delegates to BrowserManager
-class SessionManager {
-    private browserManager: BrowserManager;
-    constructor(config: Config) {
-        this.browserManager = new BrowserManager();
-    }
-}
-```
-
-**Status:** Good (UPDATED 2026-01-03)
-- BrowserManager extracted from SessionManager
-- Handles browser lifecycle (launch, close, health verification)
-- SessionManager delegates browser operations to BrowserManager
-- Session layer has clean separation of concerns
-
-**Remaining Opportunity:**
-- Consider interface extraction for BrowserManager for unit testing SessionManager logic
-
-### 14. RecordingBuffer Seam (Strong)
-
-**Location:** `playwright-driver/src/recording/buffer.ts`
-
-**Interface:**
-```typescript
-// Pure functions for action buffer management
-initRecordingBuffer(sessionId: string): void
-bufferRecordedAction(sessionId: string, action: RecordedAction): void
-getRecordedActions(sessionId: string): RecordedAction[]
-getRecordedActionCount(sessionId: string): number
-clearRecordedActions(sessionId: string): void
-removeRecordedActions(sessionId: string): void
-```
-
-**Status:** Strong
-- Module-level state encapsulated in dedicated file
-- Clean functional interface
-- No dependencies on presentation layer (routes)
-- Session layer imports from recording, not routes
-
-**History:**
-- Previously, action buffering state lived in `routes/record-mode.ts` as a module-level Map
-- This caused `session/manager.ts` to import from `routes/` (presentation layer importing from route layer)
-- Refactored to move state to `recording/buffer.ts` where it belongs (domain/coordination layer)
-
----
-
-### 15. AI Element Analyzer Seam (Good)
-
-**Location:** `api/handlers/ai/ai_analysis.go`
-
-**Interface:**
 ```go
-type ElementAnalyzer interface {
-    Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error)
+// api/services/retention/retention.go
+type FileSystem interface {
+    DirSize(dir string) (sizeBytes int64, exists bool, err error) // missing dir -> (0,false,nil)
+    RemoveAll(dir string) error
 }
-```
 
-**Status:** Good
-- HTTP handler now delegates to the analyzer, keeping transport separate from DOM extraction and Ollama prompting
-- Default implementation (`AIElementAnalyzer`) wires `DOMExtractor` and `OllamaClient`, but tests inject `mockElementAnalyzer` for isolated domain coverage
-- `WithElementAnalyzer` option allows swapping implementations without changing handler wiring
-
----
-
-### 16. Playwright-Driver Router Seam (Strong)
-
-**Location:** `playwright-driver/src/routes/router.ts`
-
-**Interface:**
-```typescript
-type RouteHandler = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  params: Record<string, string>
-) => Promise<void>;
-
-class Router {
-  get(path: string, handler: RouteHandler): void
-  post(path: string, handler: RouteHandler): void
-  handle(req: IncomingMessage, res: ServerResponse): Promise<boolean>
-}
-```
-
-**Status:** Strong
-- Clean declarative route registration
-- Path parameter extraction (`:id` → `params.id`)
-- Automatic 404/405 handling
-- Separates routing coordination from HTTP server setup
-
----
-
-### 17. Playwright-Driver Outcome Builder Seam (Strong)
-
-**Location:** `playwright-driver/src/domain/outcome-builder.ts`
-
-**Interface:**
-```typescript
-function buildStepOutcome(params: BuildOutcomeParams): StepOutcome
-function toDriverOutcome(
-  outcome: StepOutcome,
-  screenshotData?: { base64?: string; ... },
-  domSnapshot?: DOMSnapshot
-): DriverOutcome
-```
-
-**Status:** Strong
-- Centralizes outcome construction logic
-- Separates domain transformation from route handling
-- Clean interface with explicit parameters
-- `routes/session-run.ts` delegates to these functions instead of inline building
-
----
-
-### 18. Playwright-Driver Metrics Server Seam (Strong)
-
-**Location:** `playwright-driver/src/utils/metrics-server.ts`
-
-**Interface:**
-```typescript
-function createMetricsServer(port: number): Promise<Server>
-function closeMetricsServer(server: Server): Promise<void>
-```
-
-**Status:** Strong
-- Separates metrics endpoint from main HTTP server
-- Clean lifecycle functions for startup and shutdown
-- Infrastructure concern isolated from business logic
-
----
-
-## Recording Reconciliation Seams
-
-The recording reconciliation system consists of three interconnected seams that transform raw browser events into a clean, user-friendly timeline. See `docs/architecture/reconciliation.md` for the full architecture.
-
-### 19. Recording Reconciliation - Action Merge Seam (Strong)
-
-**Location:** `ui/src/domains/recording/services/ActionMergeService.ts`
-
-**Interface:**
-```typescript
-interface ActionMergeService {
-    mergeConsecutiveActions(actions: RecordedAction[]): MergedAction[];
-    getMergeDescription(meta?: MergedActionMeta): string | null;
-}
-```
-
-**Test File:** `ui/src/domains/recording/utils/mergeActions.test.ts`
-
-**Status:** Strong
-- Pure functions, no side effects
+type ExecutionStore interface {
+    ListExecutions(ctx, workflowID, projectID *uuid.UUID, limit,…1819 tokens truncated…ctions, no side effects
 - Comprehensive unit tests
 - No external dependencies
 - Mirrors backend logic in `api/handlers/record_mode.go`
@@ -1051,9 +941,9 @@ type HubInterface interface {
     // Recording-related methods (EventBroadcaster subset)
     BroadcastRecordingAction(sessionID string, action any)
     BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any)
-    BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
+    BroadcastBinaryFrame(sessionID string, frame []byte) // canonical source envelope + JPEG
     BroadcastPageEvent(sessionID string, event any)
-    HasRecordingSubscribers(sessionID string) bool
+    HasRecordingFrameSubscribers(sessionID string) bool
     // ... other methods
 }
 ```
@@ -1101,6 +991,44 @@ interface RetryService {
 
 ---
 
+### 30. Accessibility Snapshot Capture + Contract Seam (Strong)
+
+**Locations:**
+- Driver: `playwright-driver/src/tracing/accessibility-snapshot.ts` (`AccessibilitySnapshotter`, `normalizeAccessibilityTree`, `parseDomSnapshot`)
+- Handler: `api/handlers/capture/producer.go` (accessibility `fileProducer`), `api/handlers/capture/inline_accessibility.go` (inline read + 2 MiB cap)
+- Proto: `CaptureType.CAPTURE_TYPE_ACCESSIBILITY = 7`, `CaptureRequest.inline_accessibility = 9`, `CaptureResponse.accessibility_json = 7`, `ArtifactType.ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT = 8`
+
+**What it captures:** `CAPTURE_TYPE_ACCESSIBILITY` requests a normalized JSON snapshot of the Chromium accessibility tree. The driver walks the AX tree via CDP `Accessibility.getFullAXTree` at a settled point (session close, on the final page — after `wait_for` and any `interaction_flow_json`, the same point the final screenshot fires), joins per-node geometry + `data-testid` from one `DOMSnapshot.captureSnapshot`, and writes `accessibility.json`. It rides the same capability plumbing as the perf trace (`RequiresAccessibility` → plan metadata `requiresAccessibility` → preflight `NeedsAccessibility` → driver `required_capabilities.accessibility` + `artifact_paths.accessibility_dir`). `ExportToFolder` lands the file flat in the capture out dir; the accessibility `fileProducer` surfaces it (absent → unavailable artifact, never an error).
+
+**Frozen contract — `bas-accessibility-snapshot/v1`** (field names are stable; another scenario builds against this):
+```json
+{
+  "contract": "bas-accessibility-snapshot/v1",
+  "url": "<final page url>",
+  "viewport": {"width": 1440, "height": 900, "deviceScaleFactor": 1},
+  "captured_at": "<RFC3339>",
+  "node_count": 0,
+  "truncated": false,
+  "root": {
+    "role": "...", "name": "...", "description": "...", "value": "...",
+    "states": ["focusable"],
+    "bounds": {"x": 0, "y": 0, "width": 0, "height": 0},
+    "dom": {"testid": "...", "tag": "div"},
+    "children": []
+  },
+  "meta": {"frames": "main-only", "source": "cdp-accessibility"}
+}
+```
+Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-string scalar fields are omitted rather than nulled; main frame only in v1; node count capped (`truncated` flips true past the cap). `inline_accessibility` returns the same JSON inline in `CaptureResponse.accessibility_json` (server-capped at 2 MiB, silent truncation) and independently drives the capture (a caller need not also list the capture type).
+
+**Test Doubles:**
+- Driver: `normalizeAccessibilityTree`/`parseDomSnapshot` are pure (golden-file test `tests/unit/accessibility-snapshot.test.ts`); `AccessibilitySnapshotter` takes a `cdpFactory` seam so `capture()` runs against a fake CDP with no real browser.
+- Handler: `InlineAccessibilityConfig.readInlineAccessibility` + accessibility `fileProducer` covered by `handlers/capture/inline_accessibility_test.go` / `producer_test.go` via the existing `fakeExecutor` export seam.
+
+**Status:** Strong — pure normalizer, injectable CDP factory, golden coverage, graceful degradation on every failure path.
+
+---
+
 ## Seam Enforcement Matrix
 
 | Seam | Interface | Test Double | Compile Check | Priority |
@@ -1110,7 +1038,7 @@ interface RetryService {
 | Recorder | Yes | Yes | Yes | - |
 | EventSink | Yes | Yes | Yes | - |
 | Repository | Yes | Yes | Yes | Medium |
-| Database Backend | Env flags `BAS_DB_BACKEND`/`BAS_TEST_BACKEND` + `database.Dialect` (tests default to `BAS_TEST_BACKEND` else `BAS_DB_BACKEND`) | Postgres testcontainer handle, SQLite temp DB in tests | N/A | Medium |
+| Database Storage | `BAS_SQLITE_PATH` override; `api-core/storage` resolves the canonical SQLite file and builds the DSN | Temp-file SQLite via `setupTestDB` (and in-memory `sql.Open("sqlite", ":memory:")` for credits tests) | N/A | Medium |
 | Storage | Yes | Yes (MemoryStorage) | Yes | - |
 | WebSocket Hub | Yes | Yes (MockHub) | Yes | - |
 | WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |
@@ -1122,14 +1050,13 @@ interface RetryService {
 | Router (TS) | Yes | N/A (coordination) | N/A | - |
 | OutcomeBuilder (TS) | Yes | N/A (pure functions) | N/A | - |
 | MetricsServer (TS) | Yes | N/A (infrastructure) | N/A | - |
-| ActionMergeService (TS) | Yes | N/A (pure functions) | N/A | - |
 | AIReconciliationService (TS) | Yes | N/A (pure functions) | N/A | - |
 | WorkflowSyncRepository | Yes | Yes (Mock) | Yes | - |
 | EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
 | RetryService (TS) | Yes | N/A (pure functions) | N/A | - |
-| CreditService | Yes | Yes (MockService, MockEntitlementProvider) | Yes | - |
+| Accessibility Snapshot (TS + Go) | Yes (`cdpFactory`, pure normalizer, `fileProducer`) | Yes (fake CDP + golden; `fakeExecutor`) | Yes | - |
+| CreditService | Yes | Yes (fake Credits, MockEntitlementProvider) | Yes | - |
 | EntitlementProvider | Yes | Yes (MockEntitlementProvider) | Yes | - |
-| LPBSReporter | Yes | Yes (mockLPBSReporter in tests) | Yes | - |
 | Recording (ActionRepository) | Yes | Yes (MockRepository) | Yes | - |
 | ActionRecorder | Yes | Yes (TestRecordingHub, MockHub) | Yes | - |
 
@@ -1238,8 +1165,7 @@ When adding new dependencies:
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement pass #2: Removed unused BaseHandler.buildOutcome (consolidated in domain/outcome-builder.ts); replaced any types with Page in assertion handler; replaced console.log with injected logger in assertNotExists |
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement: Added Router (#16), OutcomeBuilder (#17), MetricsServer (#18) seams; extracted domain/outcome-builder.ts, utils/metrics-server.ts, routes/router.ts; updated responsibility boundaries |
 | 2025-12-09 | Claude | Added RecordingBuffer seam (#14), Playwright-Driver Responsibility Boundaries section; moved action buffer state from routes to recording/buffer.ts |
-| 2025-12-09 | Assistant | Hardened test backend resolution (BAS_TEST_BACKEND -> BAS_DB_BACKEND fallback) and env reset to keep Postgres/SQLite toggles aligned |
-| 2025-12-09 | Assistant | Documented DB backend seam and executor test harness for Postgres/SQLite |
+| 2026-04-16 | Assistant | Removed Postgres backend; SQLite-only via `modernc.org/sqlite`. Database Backend seam collapsed to single-driver Database Storage seam |
 | 2025-11-29 | Claude | Initial seam discovery and documentation |
 | 2025-11-29 | Claude | Added Responsibility Boundaries section, apierror package |
 
@@ -1256,36 +1182,16 @@ The codebase follows a layered architecture with clear responsibilities:
 | **Coordination** | `services/workflow/`, `services/live-capture/` | Orchestration, business flow |
 | **Domain Rules** | `automation/` | Execution contracts, engine abstraction, format conversion |
 | **Infrastructure** | `database/`, `storage/`, `websocket/` | Persistence, storage, real-time |
-| **Cross-cutting** | `internal/` | Shared utilities, error handling, dependency wiring |
+| **Cross-cutting** | `internal/` | Shared utilities, error handling and path/configuration policy |
 
-### Dependency Wiring (NEW - 2025-12-16)
+### Dependency Wiring (current)
 
-**Location:** `internal/wire/`
+**Location:** `handlers/handler.go` (`InitDefaultDepsWithOptions`), called by `api/main.go`
 
-**Purpose:** Centralized dependency injection that separates infrastructure setup from business logic.
-
-**Interface:**
-```go
-type Dependencies struct {
-    WorkflowService   *workflow.WorkflowService
-    RecordModeService *livecapture.Service       // services/live-capture
-    RecordingService  archiveingestion.IngestionServiceInterface
-    WorkflowValidator *workflowvalidator.Validator
-    Storage           storage.StorageInterface
-    RecordingsRoot    string
-    ReplayRenderer    ReplayRenderer
-    SessionProfiles   *archiveingestion.SessionProfileStore
-    UXMetricsRepo     uxmetrics.Repository
-}
-
-func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error)
-```
-
-**Benefits:**
-- Single source of truth for production dependency construction
-- Clear separation between infrastructure and business logic
-- Easier testing through explicit dependency injection
-- Handler construction simplified to receiving pre-wired dependencies
+The previous `internal/wire.BuildDependencies` implementation had no callers and
+duplicated the production graph. It has been removed. Handler dependencies are
+assembled by `InitDefaultDepsWithOptions`; tests and custom composition use
+`NewHandlerWithDeps`.
 
 ### Recording Services Clarification (UPDATED - 2025-12-17)
 
@@ -1547,7 +1453,7 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
 - Domain types (ElementInfo, SelectorOption, etc.)
 
 **Current mitigation:**
-- `AIAnalysisHandler` is now transport-only and defers to an injected `ElementAnalyzer` (defaulting to `AIElementAnalyzer`), so DOM extraction and Ollama prompting can be exercised without HTTP concerns.
+- `AIAnalysisHandler` is now transport-only and defers to an injected `ElementAnalyzer` (defaulting to `AIElementAnalyzer`), so DOM extraction and role-aware model prompting can be exercised without HTTP concerns.
 - Handler timeouts use `constants.AIAnalysisTimeout` rather than inlined durations to keep cross-cutting configuration centralized.
 
 **Remaining opportunity:**
@@ -1691,3 +1597,58 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
 **Recommended Approach:**
 - Core `SyncProjectWorkflows` algorithm tests require filesystem mocking infrastructure
 - Consider using `afero` or similar for testable filesystem operations
+
+---
+
+## CaptureService Connect-RPC Seam (New, 2026-05-18)
+
+**Location:** `api/handlers/capture/{service,module,mocks_test}.go`
+
+Capture is the **first proto-first Connect-RPC handler in BAS**. The rest of the API is REST-only on chi. Capture mounts the generated `captureconnect.CaptureServiceHandler` next to the chi router — side-by-side, not replacing — so future domains can migrate incrementally. The list of mounted Connect services lives in `main.go` under the "Connect-RPC services (side-by-side with chi REST routes)" block; adding a second service is one line.
+
+**Seam interface:**
+- `capture.Deps.Executor` — calls `ExecuteAdhocWorkflowAPIWithOptions(ctx, *basexecution.ExecuteAdhocRequest, *workflow.ExecuteOptions)`. The capture handler builds a navigate DAG from the typed request and delegates; the executor owns artifact production.
+- `capture.Deps.Resolver` — exposes `ResolveScenarioURLDefault(ctx, slug) (string, error)`. Lets capture accept the `scenario=<slug>,path=<path>` shorthand without coupling to a specific lookup implementation.
+- `capture.Deps.Now` — clock injection for `duration_ms` so tests are deterministic.
+
+Capture viewport precedence is explicit request dimensions first, then a complete
+`settings.viewport_width`/`settings.viewport_height` pair from
+`interaction_flow_json`, then the existing 1440×900 capture default. The flow
+uses the same workflow normalizer as `execute-adhoc`, including the
+`executionViewport` compatibility form. A partial pair or an inherited value
+outside the CaptureRequest dimension bounds is InvalidArgument before executor
+effects. A request that supplies only device scale factor still inherits the
+flow's viewport and preserves that scale factor. Other interaction-flow
+settings remain outside this capture contract; the flow contributes only its
+viewport plus spliced nodes/edges.
+
+**Tests:** `service_test.go` covers the HTTP/Connect contract, explicit dimensions, inherited and aliased workflow viewports, fallback dimensions, invalid geometry before effects, scenario shorthand, dry-run, and flow normalization/splicing.
+
+**Status:** Strong (proto-first contract, deps interface, mock-friendly).
+
+---
+
+## Evidence and Replay Package Seam
+
+**Location:** `api/services/evidence`
+
+Evidence owns the storage-independent contract for browser-captured material:
+
+- `DefaultPolicy` defines classification, retention, access, size, and redaction defaults.
+- `DescribeFile` computes SHA-256 and portable metadata without serializing a capture path.
+- `SanitizeHAR` removes secret-bearing headers, query parameters, and request/response bodies before a derivative can leave protected storage.
+- `BuildReplayPackage` creates the versioned `bas-evidence/v1` / `bas-replay/v1` renderer handoff from identifiers, manifests, timeline entries, and presentation metadata only.
+
+**Disclosure boundary:** raw HAR remains `PROTECTED_STORAGE_ONLY`; neither execution artifact listings nor `/api/v1/recordings/assets/...` expose a URL or bytes for it. Recorded-HAR API and CLI commands return safe metadata (integrity, classification, retention, and access policy). Video and trace artifacts remain individually authorized through their asset URLs.
+
+**Tests:** `services/evidence/*_test.go`, `automation/execution-writer/external_artifacts_test.go`, `services/workflow/execution_results_test.go`, and `handlers/recordings_test.go` cover policy assignment, secret redaction, path non-disclosure, storage-independent replay construction, and raw-HAR route rejection.
+
+**Status:** Strong.
+
+```
+
+---
+
+## Measures Ownership Boundary
+
+Selector candidates and step telemetry are embedded evidence owned by workflows and executions. BAS does not expose standalone historical measures for either substrate: selector quality is evaluated by workflow/execution validation, and telemetry is consumed through its owning replay or execution artifact. The `session_checkpoints` table is bounded crash-recovery state, removed by completion and retention cleanup; current resumability is the relevant operational concern, not a historical trend. These three substrates are declared as explicit `measures.omitted` entries in `cli/manifest.json` so Measures Health does not imply they are unowned analytics domains.

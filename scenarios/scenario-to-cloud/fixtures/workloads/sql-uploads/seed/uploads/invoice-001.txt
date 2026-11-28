@@ -1,0 +1,1 @@
+invoice-001 fixture bytes

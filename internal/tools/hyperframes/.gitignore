@@ -1,0 +1,2 @@
+# This npm CLI artifact uses an existing integrity lock, outside scenario UIs.
+!package-lock.json

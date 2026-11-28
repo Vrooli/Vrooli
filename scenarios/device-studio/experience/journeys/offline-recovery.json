@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "offline-recovery",
+    "title": "Offline editing and interrupted work",
+    "purpose": "Preserve useful local work and recover durable operations without duplicate paid submissions after offline periods or restart.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-012"
+    ]
+  },
+  "steps": [
+    {
+      "page": "shot",
+      "state": "unsaved",
+      "intent": "Recognize local edits versus saved and submitted revisions.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "offline",
+      "intent": "Continue supported local editing while external calls remain unavailable.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "interrupted",
+      "intent": "Inspect retained operation identity and partial artifacts after interruption.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "recovering",
+      "intent": "Reconcile authoritative worker/provider/accounting state before retry.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "partial",
+      "intent": "Inspect incomplete outputs without mistaking them for final delivery.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "success",
+      "intent": "Open validated complete output once recovery actually succeeds.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "offline-recovery-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Preserve useful local work and recover durable operations without duplicate paid submissions after offline periods or restart.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

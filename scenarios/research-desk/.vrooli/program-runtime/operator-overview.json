@@ -1,0 +1,95 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "research-desk.operator-overview",
+  "version": "1",
+  "purpose": "Read a safe needs-you count summary or a bounded research-topic overview through the existing owner bindings.",
+  "inputs": {
+    "view": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "needs-you",
+        "topics"
+      ]
+    }
+  },
+  "assumptions": [
+    "Research Desk remains the authority for the selected read; caller identity is preserved by Program Runtime."
+  ],
+  "invariants": [
+    "Read-only: invoke exactly one selected Research Desk read binding.",
+    "For needs-you, return counts and readability only; never return or store item IDs, titles, bodies, answers, options, links, packet names, secrets, source paths or unreadable details.",
+    "For topics, return at most eight slugs and numeric mission/commission counts; omit titles, IDs, paths, write details, warnings, errors, aliases, and workspace data.",
+    "Unavailable, partial, and failed owner reads remain explicit in the envelope."
+  ],
+  "bindings": [
+    {
+      "id": "research-desk/operator/needs-you",
+      "effect": "read"
+    },
+    {
+      "id": "research-desk/activity/topics",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "result": "For needs-you: item_count, older_list_count, observed_at, unreadable_count, details_redacted and truncation status only. For topics: total count, at most eight topic slugs and numeric commission/mission counts, and a truncation flag."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "The single Research Desk binding invoked."
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 8,
+    "output_bytes": 4096
+  },
+  "fixtures": [
+    {
+      "id": "invalid-view",
+      "inputs": {
+        "view": "answer"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "research-desk"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "research-desk",
+  "verbs": [
+    "gather",
+    "validate"
+  ]
+}

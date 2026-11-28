@@ -1,0 +1,84 @@
+{
+  "id": "plugsky",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "plugsky",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "enterprise_reseller_agreement_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Terms §4 says resale/sublicensing is prohibited except as expressly permitted by an Enterprise agreement; lifetime terms §6 require a separate Enterprise reseller agreement and exclude resale/white-label from lifetime seats. Self-serve and lifetime are not qualifying plans.",
+              "Executed Enterprise agreement/order form must state Vrooli's downstream application/customer scope, customer key/account architecture, brand, model families/endpoints, limits, pricing, service commitments and rights/precedence.",
+              "Plugsky supplies hosted routing but Terms §7 name opencode.ai, NVIDIA NIM and others as underlying providers. Identify the actual provider for each route and confirm its terms and model publisher/license separately.",
+              "Confirm current catalog and route availability, fair-use limits, data/DPA, trust/regions, SLA remedies and upstream failure responsibility. Self-serve price list is not Enterprise reseller pricing.",
+              "Provider agreement/rule, exact models, trust and Vrooli price require separate human decisions; no route is enabled by this proposal."
+            ],
+            "clause": "Terms §§3, 4, 5, 7–8; Lifetime Terms §§6–8",
+            "reason": "Official Terms condition service resale on an Enterprise agreement; official lifetime terms state own-use only and describe an Enterprise reseller agreement. This supports a conditional Enterprise candidate only.",
+            "source_anchors": [
+              {
+                "url": "https://plugsky.com/legal/terms",
+                "anchor": "Terms §§3, 4, 5, 7–8; Lifetime Terms §§6–8",
+                "document_date": "effective 2026-06-20, version 1.0; lifetime terms effective 2026-10-16",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §4 permits service resale/sublicense only as expressly allowed by an Enterprise agreement.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "enterprise_reseller_agreement_only",
+                "supplier_id": "plugsky"
+              },
+              {
+                "url": "https://plugsky.com/legal/lifetime-terms",
+                "anchor": "Lifetime Terms §§6–8",
+                "document_date": "2026-10-16",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Lifetime Terms §6–8 exclude resale/white-label rights absent the separate Enterprise agreement.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "enterprise_reseller_agreement_only",
+                "supplier_id": "plugsky"
+              }
+            ]
+          }
+        ],
+        "evidence": {
+          "url": "https://plugsky.com/legal/terms",
+          "document_date": "effective 2026-06-20, version 1.0; lifetime terms effective 2026-10-16",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_enterprise_reseller_agreement_upstream_model_permissions_route_quote_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Plugsky's model/catalog tags do not establish the active upstream serving provider or that provider's downstream permission; provider terms apply per route.",
+      "evidence": [
+        "https://plugsky.com/legal/terms",
+        "https://plugsky.com/lifetime-terms",
+        "https://plugsky.com/pricing"
+      ]
+    }
+  }
+}

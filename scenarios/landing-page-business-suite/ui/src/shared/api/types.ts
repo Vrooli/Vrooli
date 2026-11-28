@@ -45,10 +45,12 @@ export interface Variant {
 }
 
 export interface VariantSnapshotMeta {
-  slug: string;
-  name: string;
-  description?: string;
-  axes: VariantAxes;
+	slug: string;
+	name: string;
+	description?: string;
+	weight?: number;
+	status?: 'active' | 'archived';
+	axes: VariantAxes;
   header_config?: LandingHeaderConfig;
   seo_config?: Record<string, unknown>;
 }
@@ -113,6 +115,7 @@ export interface PricingOverview {
   bundle: BundleProduct;
   monthly: PlanOption[];
   yearly: PlanOption[];
+  credit_topups?: PlanOption[];
   updated_at: string;
 }
 
@@ -165,8 +168,14 @@ export interface DownloadStorageSettingsSnapshot {
   access_key_id_set: boolean;
   secret_access_key_set: boolean;
   session_token_set: boolean;
-  credentials_from_env: boolean;
+  credentials_from_authority: boolean;
   settings_row_available: boolean;
+  access_key_id_state?: 'configured' | 'missing' | 'unavailable' | 'authority_error';
+  secret_access_key_state?: 'configured' | 'missing' | 'unavailable' | 'authority_error';
+  session_token_state?: 'configured' | 'missing' | 'unavailable' | 'authority_error';
+  credentials_source?: string;
+  credential_detail?: string;
+  session_token_optional?: boolean;
 }
 
 export interface DownloadArtifact {
@@ -195,6 +204,19 @@ export interface DownloadStorefront {
   label: string;
   url: string;
   badge?: string;
+}
+
+/**
+ * Operator-authored "signing pending / unsigned build" disclosure shown where a
+ * download happens. Configured per app and per platform in the download
+ * catalog metadata; the public projection validates and bounds the copy.
+ */
+export interface SigningNotice {
+  title: string;
+  body: string;
+  severity: 'info' | 'warning';
+  link_label?: string;
+  link_url?: string;
 }
 
 export interface DownloadApp {
@@ -270,6 +292,8 @@ export type SectionType =
 export interface ContentSection {
   id: number;
   variant_id: number;
+  /** Stable identifier within a JSON-backed variant snapshot. */
+  key?: string;
   section_type: SectionType;
   content: Record<string, unknown>;
   order: number;
@@ -280,6 +304,8 @@ export interface ContentSection {
 
 export interface LandingSection {
   id?: number;
+  /** Stable identifier within the selected variant snapshot. */
+  key?: string;
   section_type: string;
   content: Record<string, unknown>;
   order: number;
@@ -344,7 +370,7 @@ export interface HeaderBehaviorConfig {
   hide_on_scroll: boolean;
 }
 
-// Public branding info included in landing config
+// Shared SEO branding inputs; not part of the public presentation response.
 export interface LandingBranding {
   site_name: string;
   tagline?: string | null;
@@ -354,6 +380,7 @@ export interface LandingBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  support_email?: string | null;
   coming_soon_enabled?: boolean | null;
   coming_soon_message?: string | null;
 }
@@ -363,30 +390,22 @@ export interface LandingBranding {
 import type { StripeCoupon } from './schemas/billing.schema';
 export type { StripeCoupon };
 
-export interface LandingConfigResponse {
-  variant: {
-    id?: number;
-    slug: string;
-    name: string;
-    description?: string;
-    axes?: VariantAxes;
-  };
-  sections: LandingSection[];
-  pricing?: PricingOverview;
-  downloads: DownloadApp[];
-  header: LandingHeaderConfig;
-  branding?: LandingBranding;
-  coupon_mappings?: Record<string, string>;
-  intro_offers?: StripeCoupon[];
-  fallback: boolean;
-}
+// Keep response validation and its type under one schema authority.
+export type { LandingConfigResponse } from './schemas/landing.schema';
 
 export interface MetricEvent {
   event_type: 'page_view' | 'scroll_depth' | 'click' | 'form_submit' | 'conversion' | 'download';
-  variant_id: number;
+  variant_slug: string;
   session_id: string;
   visitor_id?: string;
   event_data?: Record<string, unknown>;
+  event_id?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  landing_path?: string;
+  referrer?: string;
+  traffic_class?: 'human' | 'bot' | 'internal';
 }
 
 export interface AnalyticsSummary {
@@ -405,6 +424,7 @@ export interface VariantStats {
   cta_clicks: number;
   conversions: number;
   downloads: number;
+  exposures?: number;
   conversion_rate: number;
   avg_scroll_depth?: number;
   trend?: 'up' | 'down' | 'stable';
@@ -435,6 +455,7 @@ export interface EntitlementPayload {
   features?: string[];
   credits?: CreditInfo;
   subscription?: SubscriptionInfo;
+  billing_cycle_start?: number;
 }
 
 export interface BundleCatalogEntry {
@@ -470,6 +491,12 @@ export interface SiteBranding {
   coming_soon_message?: string | null;
   created_at?: string;
   updated_at?: string;
+  legal_name?: string | null;
+  contact_address?: string | null;
+  privacy_policy_markdown?: string | null;
+  terms_markdown?: string | null;
+  privacy_effective_date?: string | null;
+  terms_effective_date?: string | null;
 }
 
 export interface SiteBrandingUpdate {
@@ -496,6 +523,12 @@ export interface SiteBrandingUpdate {
   smtp_from?: string;
   coming_soon_enabled?: boolean;
   coming_soon_message?: string;
+  legal_name?: string;
+  contact_address?: string;
+  privacy_policy_markdown?: string;
+  terms_markdown?: string;
+  privacy_effective_date?: string;
+  terms_effective_date?: string;
 }
 
 export interface WaitlistEmail {
@@ -513,9 +546,17 @@ export interface PublicBranding {
   favicon_url?: string | null;
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
+  canonical_base_url?: string | null;
   support_chat_url?: string | null;
   coming_soon_enabled?: boolean | null;
   coming_soon_message?: string | null;
+  support_email?: string | null;
+  legal_name?: string | null;
+  contact_address?: string | null;
+  privacy_policy_markdown?: string | null;
+  terms_markdown?: string | null;
+  privacy_effective_date?: string | null;
+  terms_effective_date?: string | null;
 }
 
 // Uploaded asset
@@ -557,7 +598,7 @@ export interface VariantSEOResponse {
   og_title: string;
   og_description: string;
   og_image_url?: string;
-  twitter_card?: 'summary' | 'summary_large_image' | string;
+  twitter_card?: string;
   canonical_url?: string;
   favicon_url?: string;
   apple_touch_icon_url?: string;

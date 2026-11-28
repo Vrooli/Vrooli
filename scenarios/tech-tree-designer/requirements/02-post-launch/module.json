@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "description": "Expanded September 2026 target obligations; planned protocols are not execution evidence.",
+    "module": "02-post-launch",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TTD-ONTOLOGY-002",
+      "title": "Inspectable intended hierarchy",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "When navigating intended capabilities, TTD SHOULD expose hierarchy, relationship meaning, mappings, exclusions and uncertainty with bounded focus queries.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned ONTOLOGY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-UX-002",
+      "title": "Recoverable accessible design experience",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "When users browse or review a design, TTD SHOULD support keyboard and textual graph access, compact layouts and loading, empty, partial, stale, validation, permission and recovery states.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned UX protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-FULFILLMENT-001",
+      "title": "Evidence-aware contribution",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "When scenarios map to capabilities, TTD SHOULD distinguish proposed contribution, implemented contribution and verified fulfillment with source/evidence applicability.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned ONTOLOGY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-FULFILLMENT-002",
+      "title": "Reviewed bottom-up learning",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "When implementation evidence suggests ontology corrections, TTD SHOULD retain proposed changes as reviewable authored revisions rather than silently rewriting the intended model.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned ONTOLOGY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-LIFECYCLE-001",
+      "title": "Alternatives and retention",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "When proposals branch, change or are abandoned, TTD SHOULD preserve comparison, lineage, referenced reviewed content and explicit retention/deletion consequences.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned LIFECYCLE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-EXPERIMENT-001",
+      "title": "Qualified isolated experiments",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "Where draft execution is authorized, TTD SHOULD reuse qualified workspace and control-plane isolation and bind evidence to exact inputs, runtime identities, allowances and cleanup outcomes.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned EXPERIMENT protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-PARITY-001",
+      "title": "Typed cross-surface parity",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "When a design operation is exposed, TTD SHOULD provide equivalent API, CLI and operator behavior for identity, findings, permissions and recovery without UI-only business rules.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned PARITY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    }
+  ]
+}

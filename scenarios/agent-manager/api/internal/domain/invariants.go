@@ -105,8 +105,8 @@ func (r *Run) CheckRunSandboxInvariant() bool {
 		return true
 	}
 
-	phaseOrd := phaseOrdinal(r.Phase)
-	sandboxCreatingOrd := phaseOrdinal(RunPhaseSandboxCreating)
+	phaseOrd := r.Phase.Ordinal()
+	sandboxCreatingOrd := RunPhaseSandboxCreating.Ordinal()
 
 	// If we're past sandbox creation, we must have a sandbox ID
 	if phaseOrd > sandboxCreatingOrd && r.SandboxID == nil {
@@ -156,19 +156,20 @@ func (r *Run) CheckApprovalStateInvariant() bool {
 	return true
 }
 
-// INV_TERMINAL_IMMUTABLE: Terminal states cannot transition back
+// INV_TERMINAL_IMMUTABLE remains the task-lifecycle invariant identifier.
 const InvTerminalImmutable = "INV_TERMINAL_IMMUTABLE"
 
-// CheckTerminalImmutabilityInvariant verifies terminal states are respected.
-// This should be called BEFORE a status transition to validate it.
+// CheckTerminalTransition is retained for callers that use the older method
+// name. Run transitions are governed by the canonical RunStatus graph, which
+// includes explicit continuation edges from terminal outcomes.
 func (r *Run) CheckTerminalTransition(newStatus RunStatus) bool {
-	if r.Status.IsTerminal() && !newStatus.IsTerminal() {
+	if allowed, reason := r.Status.CanTransitionTo(newStatus); !allowed {
 		return checkInvariant(false, &InvariantViolationError{
-			Invariant:   InvTerminalImmutable,
-			Description: "cannot transition from terminal state to non-terminal",
+			Invariant:   "INV_RUN_STATUS_TRANSITION",
+			Description: "run status transition is not allowed",
 			Entity:      "Run",
 			EntityID:    r.ID.String(),
-			Details:     fmt.Sprintf("current=%s (terminal), proposed=%s", r.Status, newStatus),
+			Details:     fmt.Sprintf("current=%s, proposed=%s: %s", r.Status, newStatus, reason),
 		})
 	}
 	return true
@@ -193,8 +194,8 @@ const InvPhaseSequence = "INV_PHASE_SEQUENCE"
 
 // CheckPhaseTransition verifies a phase transition is valid.
 func (r *Run) CheckPhaseTransition(newPhase RunPhase) bool {
-	currentOrd := phaseOrdinal(r.Phase)
-	newOrd := phaseOrdinal(newPhase)
+	currentOrd := r.Phase.Ordinal()
+	newOrd := newPhase.Ordinal()
 
 	// Phases should only advance (except for retry which resets to same phase)
 	if newOrd < currentOrd {
@@ -221,34 +222,6 @@ func (r *Run) CheckPhaseTransition(newPhase RunPhase) bool {
 	}
 
 	return true
-}
-
-// phaseOrdinal returns the numeric order of a phase for comparison.
-func phaseOrdinal(phase RunPhase) int {
-	switch phase {
-	case RunPhaseQueued:
-		return 0
-	case RunPhaseInitializing:
-		return 1
-	case RunPhaseSandboxCreating:
-		return 2
-	case RunPhaseRunnerAcquiring:
-		return 3
-	case RunPhaseExecuting:
-		return 4
-	case RunPhaseCollectingResults:
-		return 5
-	case RunPhaseAwaitingReview:
-		return 6
-	case RunPhaseApplying:
-		return 7
-	case RunPhaseCleaningUp:
-		return 8
-	case RunPhaseCompleted:
-		return 9
-	default:
-		return 0
-	}
 }
 
 // =============================================================================
@@ -489,9 +462,13 @@ func (r *Run) GetLifecycleState() LifecycleState {
 		return LifecycleStateNew
 	case RunStatusStarting, RunStatusRunning:
 		return LifecycleStateActive
-	case RunStatusNeedsReview:
+	case RunStatusNeedsReview, RunStatusParked:
+		// Both are paused-but-resumable: the process has exited yet the run is
+		// non-terminal and awaiting an external signal (operator review / async
+		// result). They can receive events (the resume message) but emit no
+		// heartbeat, which is exactly LifecycleStateReviewable's contract.
 		return LifecycleStateReviewable
-	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return LifecycleStateFinished
 	default:
 		return LifecycleStateNew

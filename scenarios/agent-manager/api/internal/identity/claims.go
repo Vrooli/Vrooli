@@ -4,8 +4,25 @@ import "github.com/google/uuid"
 
 // Claims represents the identity claims embedded in an agent token.
 type Claims struct {
-	RunID      uuid.UUID         `json:"run_id"`
-	TaskID     uuid.UUID         `json:"task_id"`
+	// Purpose separates dispatcher credentials from ordinary active run tokens.
+	Purpose string    `json:"purpose,omitempty"`
+	RunID   uuid.UUID `json:"run_id"`
+	TaskID  uuid.UUID `json:"task_id"`
+	// ConversationID is the agent thread the run belongs to. A recovered run and
+	// a child run inherit their source's, and an attached run's is derived from
+	// its harness session, so a relying scenario can tell that two runs continue
+	// one line of work. Tokens minted before the claim existed omit it, and a
+	// relying scenario then treats the run id as the whole lineage.
+	ConversationID string `json:"conversation_id,omitempty"`
+	// Subject is the verified owner account that requested the run. It is
+	// distinct from ProfileKey, which names the agent configuration.
+	Subject string `json:"subject,omitempty"`
+	// WorkspaceID is deployment-owned tenancy context. It is populated from
+	// Agent Manager configuration, never from prompt text or an agent label.
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	// Scopes is an explicit, attenuated capability list. An empty list means
+	// no delegated scopes; authority is never inferred from its absence.
+	Scopes     []string          `json:"scopes"`
 	ProfileKey string            `json:"profile_key"`
 	ScopePath  string            `json:"scope_path"`
 	IssuedAt   int64             `json:"iat"`

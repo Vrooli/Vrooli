@@ -32,13 +32,13 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/envx"
 )
 
 // Config holds all tunable configuration for the browser-automation-studio API.
@@ -87,8 +87,8 @@ type Config struct {
 	// When enabled, detailed timing data is collected and exposed for bottleneck analysis.
 	Performance PerformanceConfig
 
-	// AIProvider controls the AI provider fallback chain configuration.
-	AIProvider AIProviderConfig
+	// LPBSFallback holds the local journey's LPBS URL fallback.
+	LPBSFallback LPBSFallbackConfig
 }
 
 // TimeoutsConfig groups timeout-related settings.
@@ -185,9 +185,18 @@ type DatabaseConfig struct {
 	RetryJitterFactor float64
 }
 
+// DefaultMaxConcurrentExecutions is the shared fallback for config and the
+// workflow owner when no explicit cap is supplied.
+const DefaultMaxConcurrentExecutions = 4
+
 // ExecutionConfig controls workflow execution timeout calculation.
 // Formula: base + (stepCount * perStep), clamped to [min, max]
 type ExecutionConfig struct {
+	// MaxConcurrentExecutions bounds workflow runners and browser sessions in
+	// this BAS API process. At capacity, new runs fail fast before persistence.
+	// Env: BAS_EXECUTION_MAX_CONCURRENT (default: 4)
+	MaxConcurrentExecutions int
+
 	// BaseTimeout is the minimum overhead for session setup, network round-trips, etc.
 	// Env: BAS_EXECUTION_BASE_TIMEOUT_MS (default: 30000)
 	BaseTimeout time.Duration
@@ -207,6 +216,12 @@ type ExecutionConfig struct {
 	// MaxTimeout prevents timeouts from exceeding the HTTP client timeout.
 	// Env: BAS_EXECUTION_MAX_TIMEOUT_MS (default: 270000, 4.5 minutes)
 	MaxTimeout time.Duration
+
+	// ExplicitMaxTimeout bounds a workflow's opt-in settings.timeout_ms value.
+	// It is intentionally separate from MaxTimeout so existing workflows keep
+	// their conservative dynamic timeout while long-running workflows can opt in.
+	// Env: BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS (default: 7200000, 2 hours)
+	ExplicitMaxTimeout time.Duration
 
 	// MaxSubflowDepth limits recursion depth for nested subflows.
 	// Env: BAS_EXECUTION_MAX_SUBFLOW_DEPTH (default: 5)
@@ -256,11 +271,6 @@ type WebSocketConfig struct {
 	// ClientSendBufferSize is the channel buffer size for outgoing JSON messages per client.
 	// Env: BAS_WS_CLIENT_SEND_BUFFER_SIZE (default: 256)
 	ClientSendBufferSize int
-
-	// ClientBinaryBufferSize is the channel buffer size for binary frame data per client.
-	// Holds ~2 seconds at 60 FPS.
-	// Env: BAS_WS_CLIENT_BINARY_BUFFER_SIZE (default: 120)
-	ClientBinaryBufferSize int
 
 	// ClientReadLimit is the maximum message size the client can send.
 	// Env: BAS_WS_CLIENT_READ_LIMIT (default: 512)
@@ -434,7 +444,8 @@ type StorageConfig struct {
 // ArtifactLimitsConfig controls size limits for collected artifacts.
 // These are global defaults that can be overridden per-execution via ArtifactCollectionConfig.
 type ArtifactLimitsConfig struct {
-	// MaxScreenshotBytes is the maximum screenshot size before truncation.
+	// MaxScreenshotBytes is the maximum encoded screenshot size to retain.
+	// Encoded screenshots are indivisible, so over-budget images are omitted.
 	// Env: BAS_ARTIFACT_MAX_SCREENSHOT_BYTES (default: 4194304, 4MB)
 	MaxScreenshotBytes int
 
@@ -450,9 +461,10 @@ type ArtifactLimitsConfig struct {
 	// Env: BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES (default: 65536, 64KB)
 	MaxNetworkPreviewBytes int
 
-	// DefaultProfile is the default artifact collection profile when not specified.
+	// DefaultProfile is the default artifact collection profile used for executions
+	// that do not supply an explicit per-execution artifact config.
 	// Valid values: "full", "standard", "minimal", "debug", "none"
-	// Env: BAS_ARTIFACT_DEFAULT_PROFILE (default: "full")
+	// Env: BAS_ARTIFACT_DEFAULT_PROFILE (default: "standard")
 	DefaultProfile string
 }
 
@@ -494,12 +506,6 @@ type EntitlementConfig struct {
 	// Env: BAS_ENTITLEMENT_SERVICE_URL (default: "")
 	ServiceURL string
 
-	// ServiceSecret is the shared secret for service-to-service authentication with LPBS.
-	// Used for reporting usage data via POST /api/v1/usage/report.
-	// Generate with: openssl rand -base64 32
-	// Env: BAS_LPBS_SERVICE_SECRET (default: "")
-	ServiceSecret string
-
 	// CacheTTL is how long to cache entitlement responses before re-checking.
 	// Tradeoff: Higher = fewer network calls, slower to reflect subscription changes.
 	// Lower = more responsive to upgrades/downgrades, more API load.
@@ -510,38 +516,6 @@ type EntitlementConfig struct {
 	// Should be short to avoid blocking user operations.
 	// Env: BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS (default: 5000)
 	RequestTimeout time.Duration
-
-	// OfflineGracePeriod is how long to allow operations when the entitlement service is unreachable.
-	// Uses cached entitlements during this period; after expiry, falls back to free tier.
-	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 18000000, 5 hours)
-	OfflineGracePeriod time.Duration
-
-	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
-	// Env: BAS_ENTITLEMENT_DEFAULT_TIER (default: "free")
-	DefaultTier string
-
-	// TierLimits defines the execution limits per tier per calendar month.
-	// Parsed from JSON: {"free": 50, "solo": 200, "pro": -1, "studio": -1, "business": -1}
-	// -1 means unlimited. These can be overridden via BAS_ENTITLEMENT_TIER_LIMITS_JSON.
-	TierLimits map[string]int
-
-	// AICreditsLimits defines the AI credits limit per tier per calendar month.
-	// Parsed from JSON: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
-	// -1 means unlimited. 0 means no access.
-	// Env: BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON
-	AICreditsLimits map[string]int
-
-	// WatermarkTiers lists tiers that should have watermarks applied to exports.
-	// Env: BAS_ENTITLEMENT_WATERMARK_TIERS (default: "free,solo")
-	WatermarkTiers []string
-
-	// AITiers lists tiers that have access to AI-powered features.
-	// Env: BAS_ENTITLEMENT_AI_TIERS (default: "pro,studio,business")
-	AITiers []string
-
-	// RecordingTiers lists tiers that have access to live recording features.
-	// Env: BAS_ENTITLEMENT_RECORDING_TIERS (default: "solo,pro,studio,business")
-	RecordingTiers []string
 }
 
 // PerformanceConfig controls debug performance mode for frame streaming diagnostics.
@@ -574,37 +548,11 @@ type PerformanceConfig struct {
 	StreamToWebSocket bool
 }
 
-// AIProviderConfig controls the AI provider fallback chain.
-// The chain tries providers in order: BYOK → VrooliAPI → DevMode → Block
-type AIProviderConfig struct {
-	// EnableBYOK allows users to provide their own OpenRouter keys via header.
-	// When true, requests with X-BYOK-OpenRouter-Key header use the user's key.
-	// Env: BAS_AI_ENABLE_BYOK (default: true)
-	EnableBYOK bool
-
-	// EnableVrooliAPI enables the Vrooli external AI API (when available).
-	// This is the paid tier that charges credits.
-	// Env: BAS_AI_ENABLE_VROOLI_API (default: true)
-	EnableVrooliAPI bool
-
-	// EnableDevMode enables the dev mode fallback using resource-openrouter.
-	// This is always available if the resource is installed locally.
-	// Env: BAS_AI_ENABLE_DEV_MODE (default: true)
-	EnableDevMode bool
-
-	// BYOKValidationTTL is how long to cache BYOK key validation results.
-	// Tradeoff: Higher = fewer validation calls, slower to detect revoked keys.
-	// Env: BAS_AI_BYOK_VALIDATION_TTL_MS (default: 300000, 5 minutes)
-	BYOKValidationTTL time.Duration
-
-	// VrooliAPIURL is the URL for Vrooli's external AI service.
-	// Placeholder for now - returns unavailable until service is built.
-	// Env: BAS_AI_VROOLI_API_URL (default: "")
-	VrooliAPIURL string
-
-	// DefaultModel is the AI model to use when not specified.
-	// Env: BAS_AI_DEFAULT_MODEL (default: "openai/gpt-4o-mini")
-	DefaultModel string
+// LPBSFallbackConfig holds a fallback used only by local monetization journeys.
+// Inference routing is owned by AI Gateway. The legacy BAS_AI_VROOLI_API_URL
+// environment variable remains accepted for existing local configurations.
+type LPBSFallbackConfig struct {
+	BaseURL string
 }
 
 var (
@@ -616,13 +564,30 @@ var (
 // The configuration is loaded once and cached for the lifetime of the process.
 func Load() *Config {
 	configOnce.Do(func() {
-		globalConfig = loadFromEnv()
+		globalConfig = loadFromEnv(envx.OS{})
 	})
 	return globalConfig
 }
 
-// loadFromEnv creates a new Config populated from environment variables.
-func loadFromEnv() *Config {
+// LoadWithEnv creates a fresh configuration from an explicit environment reader.
+// Unlike Load, it does not cache the result, so callers can safely validate
+// operator-provided configuration without mutating process environment state.
+func LoadWithEnv(reader envx.Reader) *Config {
+	if reader == nil {
+		reader = envx.OS{}
+	}
+	return loadFromEnv(reader)
+}
+
+// loadFromEnv creates a new Config populated from the supplied environment.
+func loadFromEnv(reader envx.Reader) *Config {
+	parseDurationMs := func(name string, fallback int) time.Duration { return parseDurationMsFrom(reader, name, fallback) }
+	parseInt := func(name string, fallback int) int { return parseIntFrom(reader, name, fallback) }
+	parseInt64 := func(name string, fallback int64) int64 { return parseInt64From(reader, name, fallback) }
+	parseFloat := func(name string, fallback float64) float64 { return parseFloatFrom(reader, name, fallback) }
+	parseBool := func(name string, fallback bool) bool { return parseBoolFrom(reader, name, fallback) }
+	parseString := func(name, fallback string) string { return parseStringFrom(reader, name, fallback) }
+
 	return &Config{
 		Timeouts: TimeoutsConfig{
 			DefaultRequest:      parseDurationMs("BAS_TIMEOUT_DEFAULT_REQUEST_MS", 5000),
@@ -649,26 +614,32 @@ func loadFromEnv() *Config {
 			RetryJitterFactor: parseFloat("BAS_DB_RETRY_JITTER_FACTOR", 0.25),
 		},
 		Execution: ExecutionConfig{
-			BaseTimeout:            parseDurationMs("BAS_EXECUTION_BASE_TIMEOUT_MS", 30000),
-			PerStepTimeout:         parseDurationMs("BAS_EXECUTION_PER_STEP_TIMEOUT_MS", 10000),
-			PerStepSubflowTimeout:  parseDurationMs("BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS", 15000),
-			MinTimeout:             parseDurationMs("BAS_EXECUTION_MIN_TIMEOUT_MS", 90000),
-			MaxTimeout:             parseDurationMs("BAS_EXECUTION_MAX_TIMEOUT_MS", 270000),
-			MaxSubflowDepth:        parseInt("BAS_EXECUTION_MAX_SUBFLOW_DEPTH", 5),
-			DefaultEntryTimeout:    parseDurationMs("BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS", 3000),
-			MinEntryTimeout:        parseDurationMs("BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS", 250),
-			DefaultRetryDelay:      parseDurationMs("BAS_EXECUTION_DEFAULT_RETRY_DELAY_MS", 750),
-			DefaultBackoffFactor:   parseFloat("BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR", 1.5),
-			CompletionPollInterval: parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
-			AdhocCleanupInterval:   parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
-			AdhocRetentionPeriod:   parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 600000),
-			SeedCleanupTimeout:     parseDurationMs("BAS_EXECUTION_SEED_CLEANUP_TIMEOUT_MS", 900000),
-			HeartbeatInterval:      parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
+			MaxConcurrentExecutions: parseInt("BAS_EXECUTION_MAX_CONCURRENT", DefaultMaxConcurrentExecutions),
+			BaseTimeout:             parseDurationMs("BAS_EXECUTION_BASE_TIMEOUT_MS", 30000),
+			PerStepTimeout:          parseDurationMs("BAS_EXECUTION_PER_STEP_TIMEOUT_MS", 10000),
+			PerStepSubflowTimeout:   parseDurationMs("BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS", 15000),
+			MinTimeout:              parseDurationMs("BAS_EXECUTION_MIN_TIMEOUT_MS", 90000),
+			MaxTimeout:              parseDurationMs("BAS_EXECUTION_MAX_TIMEOUT_MS", 270000),
+			ExplicitMaxTimeout:      parseDurationMs("BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS", 7200000),
+			MaxSubflowDepth:         parseInt("BAS_EXECUTION_MAX_SUBFLOW_DEPTH", 5),
+			DefaultEntryTimeout:     parseDurationMs("BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS", 3000),
+			MinEntryTimeout:         parseDurationMs("BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS", 250),
+			DefaultRetryDelay:       parseDurationMs("BAS_EXECUTION_DEFAULT_RETRY_DELAY_MS", 750),
+			DefaultBackoffFactor:    parseFloat("BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR", 1.5),
+			CompletionPollInterval:  parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
+			AdhocCleanupInterval:    parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
+			// Long-running governed workflows must remain queryable until the
+			// owning validation provider has collected terminal evidence. Keep
+			// the default retention above the explicit two-hour execution cap;
+			// operators can still lower it deliberately through the env override.
+			AdhocRetentionPeriod: parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 7200000),
+			SeedCleanupTimeout:   parseDurationMs("BAS_EXECUTION_SEED_CLEANUP_TIMEOUT_MS", 900000),
+			HeartbeatInterval:    parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
 		},
 		WebSocket: WebSocketConfig{
-			ClientSendBufferSize:   parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),
-			ClientBinaryBufferSize: parseInt("BAS_WS_CLIENT_BINARY_BUFFER_SIZE", 120),
-			ClientReadLimit:        parseInt64("BAS_WS_CLIENT_READ_LIMIT", 512),
+			ClientSendBufferSize: parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),
+			// Enough for bounded 4 KiB UTF-8 text input plus its JSON envelope.
+			ClientReadLimit: parseInt64("BAS_WS_CLIENT_READ_LIMIT", 8192),
 		},
 		Events: EventsConfig{
 			PerExecutionBuffer: parseInt("BAS_EVENTS_PER_EXECUTION_BUFFER", 200),
@@ -716,7 +687,7 @@ func loadFromEnv() *Config {
 			MaxDOMSnapshotBytes:    parseInt("BAS_ARTIFACT_MAX_DOM_SNAPSHOT_BYTES", 524288),
 			MaxConsoleEntryBytes:   parseInt("BAS_ARTIFACT_MAX_CONSOLE_ENTRY_BYTES", 16384),
 			MaxNetworkPreviewBytes: parseInt("BAS_ARTIFACT_MAX_NETWORK_PREVIEW_BYTES", 65536),
-			DefaultProfile:         parseString("BAS_ARTIFACT_DEFAULT_PROFILE", "full"),
+			DefaultProfile:         parseString("BAS_ARTIFACT_DEFAULT_PROFILE", "standard"),
 		},
 		HTTP: HTTPConfig{
 			MaxBodyBytes:     parseInt64("BAS_HTTP_MAX_BODY_BYTES", 1048576),
@@ -726,17 +697,9 @@ func loadFromEnv() *Config {
 			CORSMaxAge:       parseInt("BAS_HTTP_CORS_MAX_AGE", 300),
 		},
 		Entitlement: EntitlementConfig{
-			ServiceURL:         parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
-			ServiceSecret:      parseString("BAS_LPBS_SERVICE_SECRET", ""),
-			CacheTTL:           parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
-			RequestTimeout:     parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
-			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 18000000),
-			DefaultTier:        parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
-			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
-			AICreditsLimits:    parseAICreditsLimits("BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON"),
-			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
-			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "solo,pro,studio,business"),
-			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
+			ServiceURL:     parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
+			CacheTTL:       parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
+			RequestTimeout: parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
 		},
 		Performance: PerformanceConfig{
 			Enabled:            parseBool("BAS_PERF_ENABLED", true),
@@ -745,13 +708,8 @@ func loadFromEnv() *Config {
 			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),
 			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
 		},
-		AIProvider: AIProviderConfig{
-			EnableBYOK:        parseBool("BAS_AI_ENABLE_BYOK", true),
-			EnableVrooliAPI:   parseBool("BAS_AI_ENABLE_VROOLI_API", true),
-			EnableDevMode:     parseBool("BAS_AI_ENABLE_DEV_MODE", true),
-			BYOKValidationTTL: parseDurationMs("BAS_AI_BYOK_VALIDATION_TTL_MS", 300000),
-			VrooliAPIURL:      parseString("BAS_AI_VROOLI_API_URL", ""),
-			DefaultModel:      parseString("BAS_AI_DEFAULT_MODEL", "openai/gpt-4o-mini"),
+		LPBSFallback: LPBSFallbackConfig{
+			BaseURL: parseString("BAS_LPBS_URL", parseString("BAS_AI_VROOLI_API_URL", "")),
 		},
 	}
 }
@@ -779,8 +737,14 @@ func (c *Config) Validate() error {
 	}
 
 	// Execution validation
+	if c.Execution.MaxConcurrentExecutions < 1 {
+		return fmt.Errorf("MaxConcurrentExecutions must be at least 1, got %d", c.Execution.MaxConcurrentExecutions)
+	}
 	if c.Execution.MinTimeout > c.Execution.MaxTimeout {
 		return fmt.Errorf("MinTimeout (%v) cannot be greater than MaxTimeout (%v)", c.Execution.MinTimeout, c.Execution.MaxTimeout)
+	}
+	if c.Execution.ExplicitMaxTimeout < c.Execution.MinTimeout {
+		return fmt.Errorf("ExplicitMaxTimeout (%v) cannot be less than MinTimeout (%v)", c.Execution.ExplicitMaxTimeout, c.Execution.MinTimeout)
 	}
 	if c.Execution.MaxSubflowDepth < 1 {
 		return fmt.Errorf("MaxSubflowDepth must be at least 1, got %d", c.Execution.MaxSubflowDepth)
@@ -902,10 +866,6 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("Entitlement.RequestTimeout must be positive, got %v", c.Entitlement.RequestTimeout)
 		}
 	}
-	if c.Entitlement.TierLimits == nil {
-		return fmt.Errorf("Entitlement.TierLimits cannot be nil")
-	}
-
 	// Performance validation
 	if c.Performance.LogSummaryInterval < 0 {
 		return fmt.Errorf("Performance.LogSummaryInterval must be non-negative, got %d", c.Performance.LogSummaryInterval)
@@ -918,8 +878,9 @@ func (c *Config) Validate() error {
 }
 
 // parseDurationMs parses an environment variable as milliseconds and returns a time.Duration.
-func parseDurationMs(envVar string, defaultMs int) time.Duration {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseDurationMsFrom(reader envx.Reader, envVar string, defaultMs int) time.Duration {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return time.Duration(defaultMs) * time.Millisecond
 	}
@@ -931,8 +892,9 @@ func parseDurationMs(envVar string, defaultMs int) time.Duration {
 }
 
 // parseInt parses an environment variable as an integer.
-func parseInt(envVar string, defaultVal int) int {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseIntFrom(reader envx.Reader, envVar string, defaultVal int) int {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -944,8 +906,9 @@ func parseInt(envVar string, defaultVal int) int {
 }
 
 // parseInt64 parses an environment variable as an int64.
-func parseInt64(envVar string, defaultVal int64) int64 {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseInt64From(reader envx.Reader, envVar string, defaultVal int64) int64 {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -957,8 +920,9 @@ func parseInt64(envVar string, defaultVal int64) int64 {
 }
 
 // parseFloat parses an environment variable as a float64.
-func parseFloat(envVar string, defaultVal float64) float64 {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseFloatFrom(reader envx.Reader, envVar string, defaultVal float64) float64 {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -970,8 +934,9 @@ func parseFloat(envVar string, defaultVal float64) float64 {
 }
 
 // parseBool parses an environment variable as a boolean.
-func parseBool(envVar string, defaultVal bool) bool {
-	value := strings.TrimSpace(strings.ToLower(os.Getenv(envVar)))
+func parseBoolFrom(reader envx.Reader, envVar string, defaultVal bool) bool {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(strings.ToLower(value))
 	if value == "" {
 		return defaultVal
 	}
@@ -979,8 +944,9 @@ func parseBool(envVar string, defaultVal bool) bool {
 }
 
 // parseString returns an environment variable value or a default.
-func parseString(envVar string, defaultVal string) string {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseStringFrom(reader envx.Reader, envVar string, defaultVal string) string {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -988,8 +954,9 @@ func parseString(envVar string, defaultVal string) string {
 }
 
 // parseStringList parses a comma-separated environment variable into a slice.
-func parseStringList(envVar string, defaultVal string) []string {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseStringListFrom(reader envx.Reader, envVar string, defaultVal string) []string {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		value = defaultVal
 	}
@@ -1004,101 +971,5 @@ func parseStringList(envVar string, defaultVal string) []string {
 			result = append(result, trimmed)
 		}
 	}
-	return result
-}
-
-// parseTierLimits parses tier limits from JSON or returns defaults.
-// JSON format: {"free": 50, "solo": 200, "pro": -1}
-// -1 means unlimited.
-func parseTierLimits(envVar string) map[string]int {
-	defaults := map[string]int{
-		"free":     50,
-		"solo":     200,
-		"pro":      -1, // unlimited
-		"studio":   -1, // unlimited
-		"business": -1, // unlimited
-	}
-
-	value := strings.TrimSpace(os.Getenv(envVar))
-	if value == "" {
-		return defaults
-	}
-
-	// Try to parse as JSON
-	result := make(map[string]int)
-	// Simple JSON parsing without importing encoding/json to keep config lightweight
-	// Format: {"key": value, "key2": value2}
-	value = strings.Trim(value, "{}")
-	if value == "" {
-		return defaults
-	}
-
-	pairs := strings.Split(value, ",")
-	for _, pair := range pairs {
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
-		valStr := strings.TrimSpace(parts[1])
-		if val, err := strconv.Atoi(valStr); err == nil {
-			result[key] = val
-		}
-	}
-
-	// Merge with defaults (defaults take precedence for missing keys)
-	for k, v := range defaults {
-		if _, exists := result[k]; !exists {
-			result[k] = v
-		}
-	}
-
-	return result
-}
-
-// parseAICreditsLimits parses AI credits limits from JSON or returns defaults.
-// JSON format: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
-// -1 means unlimited. 0 means no access.
-func parseAICreditsLimits(envVar string) map[string]int {
-	defaults := map[string]int{
-		"free":     0,    // No AI access
-		"solo":     50,   // Basic usage
-		"pro":      500,  // Power users
-		"studio":   2000, // Teams
-		"business": -1,   // Unlimited
-	}
-
-	value := strings.TrimSpace(os.Getenv(envVar))
-	if value == "" {
-		return defaults
-	}
-
-	// Try to parse as JSON
-	result := make(map[string]int)
-	value = strings.Trim(value, "{}")
-	if value == "" {
-		return defaults
-	}
-
-	pairs := strings.Split(value, ",")
-	for _, pair := range pairs {
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
-		valStr := strings.TrimSpace(parts[1])
-		if val, err := strconv.Atoi(valStr); err == nil {
-			result[key] = val
-		}
-	}
-
-	// Merge with defaults (defaults take precedence for missing keys)
-	for k, v := range defaults {
-		if _, exists := result[k]; !exists {
-			result[k] = v
-		}
-	}
-
 	return result
 }

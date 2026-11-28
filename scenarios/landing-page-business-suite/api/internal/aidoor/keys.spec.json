@@ -1,0 +1,35 @@
+{
+  "machine": "SM5",
+  "target_level": 3,
+  "kinds": ["device", "session"],
+  "facts": ["revoked", "expired", "membership_removed", "parent_revoked", "parent_expired"],
+  "device_fact_count": 3,
+  "session_fact_count": 5,
+  "include_absent": true,
+  "events": [
+    {"name":"issue", "actor":"issuer", "effect":"issue", "success":200, "denied":403},
+    {"name":"authenticate", "actor":"target", "effect":"none", "success":404},
+    {"name":"mint_child", "actor":"target", "effect":"mint", "success":200, "device_only":true, "denied":400},
+    {"name":"mint_excess_cap", "actor":"target", "effect":"none", "success":400},
+    {"name":"mint_excess_ttl", "actor":"target", "effect":"none", "success":400},
+    {"name":"revoke_self", "actor":"target", "effect":"revoke_self", "success":204},
+    {"name":"revoke_child", "actor":"target", "effect":"revoke_child", "success":204, "device_only":true, "denied":403},
+    {"name":"revoke_parent", "actor":"target", "effect":"none", "success":403},
+    {"name":"revoke_unrelated", "actor":"target", "effect":"none", "success":403},
+    {"name":"model_out_of_scope", "actor":"target", "effect":"none", "success":403},
+    {"name":"expire", "actor":"environment", "effect":"expire", "success":204},
+    {"name":"parent_revoke", "actor":"parent", "effect":"parent_revoke", "success":204},
+    {"name":"parent_expire", "actor":"environment", "effect":"parent_expire", "success":204},
+    {"name":"membership_remove", "actor":"environment", "effect":"membership_remove", "success":204}
+  ],
+  "traces": [
+    {"name":"device_self_revoke", "kind":"device", "events":["authenticate","mint_child","revoke_child","revoke_child","revoke_self","authenticate","revoke_self","mint_child","issue"]},
+    {"name":"session_scope_and_self_revoke", "kind":"session", "events":["authenticate","mint_child","revoke_parent","revoke_unrelated","model_out_of_scope","revoke_self","authenticate","revoke_self"]},
+    {"name":"parent_revoke", "kind":"session", "events":["authenticate","parent_revoke","authenticate","mint_child","revoke_self","parent_revoke","issue"]},
+    {"name":"parent_expiry", "kind":"session", "events":["authenticate","parent_expire","authenticate","parent_expire","issue"]},
+    {"name":"session_expiry", "kind":"session", "events":["authenticate","expire","authenticate","expire","issue"]},
+    {"name":"device_expiry", "kind":"device", "events":["authenticate","expire","authenticate","expire","issue"]},
+    {"name":"device_membership_removed", "kind":"device", "events":["authenticate","membership_remove","authenticate","issue","membership_remove"]},
+    {"name":"session_membership_removed", "kind":"session", "events":["authenticate","membership_remove","authenticate","revoke_parent","issue","membership_remove"]}
+  ]
+}

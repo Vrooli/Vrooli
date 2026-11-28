@@ -3,13 +3,12 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
+	"sync"
 	"time"
-
-	"github.com/google/uuid"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/domain"
@@ -17,6 +16,9 @@ import (
 	"scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/tasks/fix"
 	"scenario-to-desktop-api/tasks/investigate"
+
+	"github.com/google/uuid"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // PipelineStore defines the interface for accessing pipeline status.
@@ -33,7 +35,7 @@ type InvestigationStore interface {
 	GetForPipeline(pipelineID, id string) (*domain.Investigation, error)
 	GetActive(pipelineID string) (*domain.Investigation, error)
 	List(pipelineID string, limit int) ([]*domain.Investigation, error)
-	Update(id string, fn func(inv *domain.Investigation)) error
+	UpdateDetails(id string, details json.RawMessage) error
 	UpdateStatus(id string, status domain.InvestigationStatus) error
 	UpdateProgress(id string, progress int) error
 	UpdateRunID(id, runID string) error
@@ -58,11 +60,21 @@ type AgentExecutor interface {
 
 // Service orchestrates task execution for both investigation and fix workflows.
 type Service struct {
-	invStore      InvestigationStore
-	pipelineStore PipelineStore
-	agentSvc      AgentExecutor
-	progressHub   ProgressBroadcaster
-	handlers      *HandlerRegistry
+	invStore       InvestigationStore
+	pipelineStore  PipelineStore
+	agentSvc       AgentExecutor
+	progressHub    ProgressBroadcaster
+	handlers       *HandlerRegistry
+	pipelineAPIURL string
+
+	// lifetimeCtx owns asynchronous task work. It is intentionally independent
+	// from an individual Connect/HTTP request: a task must survive the request
+	// that created it, but must not outlive the scenario process.
+	lifetimeCtx    context.Context
+	lifetimeCancel context.CancelFunc
+	workers        sync.WaitGroup
+	mu             sync.Mutex
+	stopped        bool
 }
 
 // NewService creates a new task service with registered handlers.
@@ -71,13 +83,18 @@ func NewService(
 	pipelineStore PipelineStore,
 	agentSvc AgentExecutor,
 	hub ProgressBroadcaster,
+	pipelineAPIURL string,
 ) *Service {
+	lifetimeCtx, lifetimeCancel := context.WithCancel(context.Background())
 	s := &Service{
-		invStore:      invStore,
-		pipelineStore: pipelineStore,
-		agentSvc:      agentSvc,
-		progressHub:   hub,
-		handlers:      NewHandlerRegistry(),
+		invStore:       invStore,
+		pipelineStore:  pipelineStore,
+		agentSvc:       agentSvc,
+		progressHub:    hub,
+		handlers:       NewHandlerRegistry(),
+		pipelineAPIURL: strings.TrimRight(pipelineAPIURL, "/"),
+		lifetimeCtx:    lifetimeCtx,
+		lifetimeCancel: lifetimeCancel,
 	}
 
 	// Register handlers
@@ -89,83 +106,122 @@ func NewService(
 
 // TriggerTask starts a new task (investigate or fix).
 func (s *Service) TriggerTask(ctx context.Context, req domain.CreateTaskRequest) (*domain.Investigation, error) {
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid request: %w", err)
+	if s.isStopped() {
+		return nil, fmt.Errorf("task service is shutting down")
 	}
 
-	// Get handler for task type
-	handler, ok := s.handlers.Get(req.TaskType)
-	if !ok {
-		return nil, fmt.Errorf("unsupported task type: %s", req.TaskType)
-	}
-
-	// Validate pipeline exists
-	pipelineStatus, ok := s.pipelineStore.Get(req.PipelineID)
-	if !ok {
-		return nil, fmt.Errorf("pipeline not found: %s", req.PipelineID)
-	}
-
-	// Check if agent-manager is available
-	if !s.agentSvc.IsAvailable(ctx) {
-		return nil, fmt.Errorf("agent-manager is not available; please ensure it is running")
-	}
-
-	// Check for existing active investigation
-	active, err := s.invStore.GetActive(req.PipelineID)
+	handler, pipelineStatus, sourceFindings, err := s.validateTaskRequest(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check active investigation: %w", err)
-	}
-	if active != nil {
-		return nil, fmt.Errorf("task %s is already in progress", active.ID)
+		return nil, err
 	}
 
-	// For fix tasks, get source investigation
-	var sourceInv *domain.Investigation
-	var sourceFindings *string
-	if req.TaskType == domain.TaskTypeFix {
-		if req.SourceInvestigationID == "" {
-			return nil, fmt.Errorf("source_investigation_id is required for fix tasks")
-		}
-		sourceInv, err = s.invStore.GetForPipeline(req.PipelineID, req.SourceInvestigationID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get source investigation: %w", err)
-		}
-		if sourceInv == nil {
-			return nil, fmt.Errorf("source investigation not found: %s", req.SourceInvestigationID)
-		}
-		if sourceInv.Status != domain.InvestigationStatusCompleted {
-			return nil, fmt.Errorf("source investigation status is %s, expected completed", sourceInv.Status)
-		}
-		if sourceInv.Findings == nil || *sourceInv.Findings == "" {
-			return nil, fmt.Errorf("source investigation has no findings")
-		}
-		sourceFindings = sourceInv.Findings
-	}
-
-	// Create investigation record
-	now := time.Now()
-	inv := &domain.Investigation{
-		ID:         uuid.New().String(),
-		PipelineID: req.PipelineID,
-		Status:     domain.InvestigationStatusPending,
-		Progress:   0,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-	}
-
-	if err := s.invStore.Create(inv); err != nil {
+	inv, err := s.createPendingInvestigation(req.PipelineID)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create investigation: %w", err)
 	}
 
-	// Create cancellation context
-	taskCtx, cancel := context.WithCancel(context.Background())
-	s.invStore.SetCancel(inv.ID, cancel)
-
-	// Start background task
-	go s.runTask(taskCtx, inv.ID, pipelineStatus, &req, handler, sourceFindings)
+	if err := s.startTask(inv, req, pipelineStatus, handler, sourceFindings); err != nil {
+		return nil, err
+	}
 
 	return inv, nil
+}
+
+func (s *Service) isStopped() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stopped
+}
+
+func (s *Service) validateTaskRequest(ctx context.Context, req domain.CreateTaskRequest) (TaskHandler, *pipeline.Status, *string, error) {
+	if err := req.Validate(); err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid request: %w", err)
+	}
+	handler, ok := s.handlers.Get(req.TaskType)
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("unsupported task type: %s", req.TaskType)
+	}
+	pipelineStatus, ok := s.pipelineStore.Get(req.PipelineID)
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("pipeline not found: %s", req.PipelineID)
+	}
+	if !s.agentSvc.IsAvailable(ctx) {
+		return nil, nil, nil, fmt.Errorf("agent-manager is not available; please ensure it is running")
+	}
+	if err := s.ensureNoActiveTask(req.PipelineID); err != nil {
+		return nil, nil, nil, err
+	}
+	sourceFindings, err := s.sourceFindings(req)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return handler, pipelineStatus, sourceFindings, nil
+}
+
+func (s *Service) ensureNoActiveTask(pipelineID string) error {
+	active, err := s.invStore.GetActive(pipelineID)
+	if err != nil {
+		return fmt.Errorf("failed to check active investigation: %w", err)
+	}
+	if active != nil {
+		return fmt.Errorf("task %s is already in progress", active.ID)
+	}
+	return nil
+}
+
+func (s *Service) sourceFindings(req domain.CreateTaskRequest) (*string, error) {
+	if req.TaskType != domain.TaskTypeFix {
+		return nil, nil
+	}
+	if req.SourceInvestigationID == "" {
+		return nil, fmt.Errorf("source_investigation_id is required for fix tasks")
+	}
+	source, err := s.invStore.GetForPipeline(req.PipelineID, req.SourceInvestigationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get source investigation: %w", err)
+	}
+	if source == nil {
+		return nil, fmt.Errorf("source investigation not found: %s", req.SourceInvestigationID)
+	}
+	if source.Status != domain.InvestigationStatusCompleted {
+		return nil, fmt.Errorf("source investigation status is %s, expected completed", source.Status)
+	}
+	if source.Findings == nil || *source.Findings == "" {
+		return nil, fmt.Errorf("source investigation has no findings")
+	}
+	return source.Findings, nil
+}
+
+func (s *Service) createPendingInvestigation(pipelineID string) (*domain.Investigation, error) {
+	now := time.Now()
+	inv := &domain.Investigation{ID: uuid.New().String(), PipelineID: pipelineID, Status: domain.InvestigationStatusPending, CreatedAt: now, UpdatedAt: now}
+	if err := s.invStore.Create(inv); err != nil {
+		return nil, err
+	}
+	// The store owns the persisted object after Create. Return a detached
+	// snapshot so background task updates cannot race with the response object
+	// held by the caller.
+	returned := *inv
+	return &returned, nil
+}
+
+func (s *Service) startTask(inv *domain.Investigation, req domain.CreateTaskRequest, pipelineStatus *pipeline.Status, handler TaskHandler, sourceFindings *string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stopped {
+		if err := s.invStore.UpdateStatus(inv.ID, domain.InvestigationStatusCancelled); err != nil {
+			slog.Warn("failed to cancel task created during shutdown", "task_id", inv.ID, "error", err)
+		}
+		return fmt.Errorf("task service is shutting down")
+	}
+	taskCtx, cancel := context.WithCancel(s.lifetimeCtx)
+	s.invStore.SetCancel(inv.ID, cancel)
+	s.workers.Add(1)
+	go func() {
+		defer s.workers.Done()
+		s.runTask(taskCtx, inv.ID, pipelineStatus, &req, handler, sourceFindings)
+	}()
+	return nil
 }
 
 // runTask executes the task in the background.
@@ -182,7 +238,7 @@ func (s *Service) runTask(
 
 	// Update status to running
 	if err := s.invStore.UpdateStatus(invID, domain.InvestigationStatusRunning); err != nil {
-		log.Printf("[task] failed to update status to running: %v", err)
+		slog.Error("failed to update task status to running", "task_id", invID, "error", err)
 		return
 	}
 
@@ -208,9 +264,10 @@ func (s *Service) runInvestigation(
 
 	// Build prompt and context
 	input := TaskInput{
-		Pipeline:  pipelineStatus,
-		Request:   req,
-		Iteration: 1,
+		PipelineAPIURL: s.pipelineAPIURL,
+		Pipeline:       pipelineStatus,
+		Request:        req,
+		Iteration:      1,
 	}
 
 	result, err := handler.BuildPromptAndContext(ctx, input)
@@ -225,6 +282,10 @@ func (s *Service) runInvestigation(
 	// Execute via agent-manager
 	agentResult, err := s.executeAgent(ctx, invID, handler.AgentTag(), result.Prompt, result.Attachments)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			s.markTaskCancelled(invID)
+			return
+		}
 		s.handleTaskError(ctx, invID, pipelineStatus.PipelineID, fmt.Sprintf("agent execution failed: %v", err))
 		return
 	}
@@ -243,7 +304,7 @@ func (s *Service) runFixLoop(
 	sourceFindings *string,
 ) {
 	// Determine pipeline API URL for verification
-	pipelineAPIURL := "http://localhost:15020"
+	pipelineAPIURL := s.pipelineAPIURL
 
 	// Create loop state
 	loopState := fix.NewLoopState(fix.DefaultLoopConfig(req.MaxIterations, pipelineAPIURL))
@@ -270,6 +331,7 @@ func (s *Service) runFixLoop(
 
 		// Build prompt for this iteration
 		input := TaskInput{
+			PipelineAPIURL:     pipelineAPIURL,
 			Pipeline:           pipelineStatus,
 			Request:            req,
 			SourceFindings:     sourceFindings,
@@ -287,6 +349,11 @@ func (s *Service) runFixLoop(
 		iterationTag := fmt.Sprintf("%s-iter%d", handler.AgentTag(), iteration)
 		agentResult, err := s.executeAgent(ctx, invID, iterationTag, result.Prompt, result.Attachments)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				loopState.FinalStatus = FixStatusUserStopped
+				s.storeFixResults(ctx, invID, pipelineStatus, req, loopState, sourceFindings)
+				return
+			}
 			// Record failed iteration but continue if possible
 			record := domain.FixIterationRecord{
 				Number:       iteration,
@@ -315,7 +382,8 @@ func (s *Service) runFixLoop(
 		shouldContinue, _ := handler.ShouldContinue(ctx, nil, agentResult)
 		if !shouldContinue {
 			// Check if build artifacts exist to confirm success
-			artifactsExist, _ := fix.CheckBuildArtifacts(ctx, pipelineAPIURL, pipelineStatus.PipelineID, 10*time.Second)
+			latest, _ := s.pipelineStore.Get(pipelineStatus.PipelineID)
+			artifactsExist := fix.CheckBuildArtifacts(latest)
 			loopState.FinalStatus = fix.DetermineOutcome(loopState, agentResult, artifactsExist)
 			break
 		}
@@ -361,7 +429,7 @@ func (s *Service) executeAgent(
 
 	// Store run ID
 	if err := s.invStore.UpdateRunID(invID, runID); err != nil {
-		log.Printf("[task] failed to store run ID: %v", err)
+		slog.Warn("failed to store task agent run ID", "task_id", invID, "error", err)
 	}
 
 	// Poll for completion
@@ -461,19 +529,19 @@ func (s *Service) storeInvestigationResults(
 			errorMsg = "Agent completed but did not produce any findings."
 		}
 		if err := s.invStore.UpdateErrorWithDetails(invID, errorMsg, detailsJSON); err != nil {
-			log.Printf("[task] failed to store error with details: %v", err)
+			slog.Warn("failed to store task error details", "task_id", invID, "error", err)
 		}
 		s.broadcastProgress(pipelineStatus.PipelineID, invID, EventInvestigationFailed, 0, errorMsg)
 		return
 	}
 
 	if err := s.invStore.UpdateFindings(invID, findings, detailsJSON); err != nil {
-		log.Printf("[task] failed to store findings: %v", err)
+		slog.Warn("failed to store investigation findings", "task_id", invID, "error", err)
 	}
 
 	s.broadcastProgress(pipelineStatus.PipelineID, invID, EventInvestigationCompleted, 100, "Investigation complete")
-	log.Printf("[task] completed investigation %s (run=%s, duration=%ds, tokens=%d)",
-		invID, result.RunID, result.DurationSeconds, result.TokensUsed)
+	slog.Info("completed investigation task", "task_id", invID, "run_id", result.RunID,
+		"duration_seconds", result.DurationSeconds, "tokens_used", result.TokensUsed)
 }
 
 // storeFixResults stores the results of a fix task.
@@ -520,21 +588,26 @@ func (s *Service) storeFixResults(
 	switch loopState.FinalStatus {
 	case FixStatusSuccess:
 		if err := s.invStore.UpdateFindings(invID, findings, detailsJSON); err != nil {
-			log.Printf("[task] failed to store fix findings: %v", err)
+			slog.Warn("failed to store fix findings", "task_id", invID, "error", err)
 		}
 		s.broadcastProgress(pipelineStatus.PipelineID, invID, EventFixCompleted, 100,
 			fix.TerminationReason(loopState.FinalStatus, loopState.CurrentIteration, loopState.Config.MaxIterations))
+	case FixStatusUserStopped:
+		if err := s.invStore.UpdateDetails(invID, detailsJSON); err != nil {
+			slog.Warn("failed to store stopped task details", "task_id", invID, "error", err)
+		}
+		s.markTaskCancelled(invID)
 
 	default:
 		errorMsg := fix.TerminationReason(loopState.FinalStatus, loopState.CurrentIteration, loopState.Config.MaxIterations)
 		if err := s.invStore.UpdateErrorWithDetails(invID, errorMsg, detailsJSON); err != nil {
-			log.Printf("[task] failed to store fix error: %v", err)
+			slog.Warn("failed to store fix error", "task_id", invID, "error", err)
 		}
 		s.broadcastProgress(pipelineStatus.PipelineID, invID, EventFixFailed, 0, errorMsg)
 	}
 
-	log.Printf("[task] completed fix task %s (iterations=%d, status=%s)",
-		invID, loopState.CurrentIteration, loopState.FinalStatus)
+	slog.Info("completed fix task", "task_id", invID, "iterations", loopState.CurrentIteration,
+		"status", loopState.FinalStatus)
 }
 
 // buildFixFindingsSummary creates a human-readable summary of the fix loop.
@@ -564,29 +637,33 @@ func buildFixFindingsSummary(loopState *fix.LoopState) string {
 func (s *Service) updateLoopState(ctx context.Context, invID string, loopState *fix.LoopState) {
 	stateJSON, err := loopState.ToJSON()
 	if err != nil {
-		log.Printf("[task] failed to serialize loop state: %v", err)
+		slog.Warn("failed to serialize fix-loop state", "task_id", invID, "error", err)
 		return
 	}
 
 	// Update the investigation details with the current loop state
-	_ = s.invStore.Update(invID, func(inv *domain.Investigation) {
-		inv.Details = stateJSON
-	})
+	_ = s.invStore.UpdateDetails(invID, stateJSON)
 }
 
 // handleTaskError updates the investigation with an error.
 func (s *Service) handleTaskError(ctx context.Context, invID, pipelineID, errorMsg string) {
 	if err := s.invStore.UpdateError(invID, errorMsg); err != nil {
-		log.Printf("[task] failed to store error: %v", err)
+		slog.Warn("failed to store task error", "task_id", invID, "error", err)
 	}
 	s.broadcastProgress(pipelineID, invID, EventTaskFailed, 0, errorMsg)
-	log.Printf("[task] task %s failed: %s", invID, errorMsg)
+	slog.Error("task failed", "task_id", invID, "error", errorMsg)
+}
+
+func (s *Service) markTaskCancelled(invID string) {
+	if err := s.invStore.UpdateStatus(invID, domain.InvestigationStatusCancelled); err != nil {
+		slog.Warn("failed to mark task cancelled", "task_id", invID, "error", err)
+	}
 }
 
 // updateProgress updates progress and broadcasts.
 func (s *Service) updateProgress(ctx context.Context, invID, pipelineID string, progress int, message string) {
 	if err := s.invStore.UpdateProgress(invID, progress); err != nil {
-		log.Printf("[task] failed to update progress: %v", err)
+		slog.Warn("failed to update task progress", "task_id", invID, "error", err)
 	}
 	s.broadcastProgress(pipelineID, invID, EventTaskProgress, float64(progress), message)
 }
@@ -622,25 +699,52 @@ func (s *Service) StopTask(ctx context.Context, pipelineID, taskID string) error
 		return fmt.Errorf("task is not running (status=%s)", inv.Status)
 	}
 
-	// Cancel the task context
-	if cancel := s.invStore.TakeCancel(taskID); cancel != nil {
+	// Persist cancellation before releasing the worker. This makes the terminal
+	// state visible before the worker handles context cancellation.
+	cancel := s.invStore.TakeCancel(taskID)
+	statusErr := s.invStore.UpdateStatus(taskID, domain.InvestigationStatusCancelled)
+	if cancel != nil {
 		cancel()
 	}
 
 	// Stop the agent run if we have a run ID
 	if inv.AgentRunID != nil && *inv.AgentRunID != "" {
 		if err := s.agentSvc.StopRun(ctx, *inv.AgentRunID); err != nil {
-			log.Printf("[task] failed to stop agent run: %v", err)
+			slog.Warn("failed to stop task agent run", "task_id", taskID, "error", err)
 		}
 	}
 
-	// Update status
-	if err := s.invStore.UpdateStatus(taskID, domain.InvestigationStatusCancelled); err != nil {
-		return fmt.Errorf("failed to update task status: %w", err)
+	if statusErr != nil {
+		return fmt.Errorf("failed to update task status: %w", statusErr)
 	}
 
 	s.broadcastProgress(pipelineID, taskID, EventTaskStopped, 0, "Task stopped by user")
 	return nil
+}
+
+// Shutdown cancels all active tasks and waits until their worker goroutines
+// return. Callers should provide a bounded context during process shutdown.
+// Once shutdown starts, TriggerTask rejects new work.
+func (s *Service) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	if !s.stopped {
+		s.stopped = true
+		s.lifetimeCancel()
+	}
+	s.mu.Unlock()
+
+	done := make(chan struct{})
+	go func() {
+		s.workers.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // IsAgentAvailable checks if agent-manager is available.

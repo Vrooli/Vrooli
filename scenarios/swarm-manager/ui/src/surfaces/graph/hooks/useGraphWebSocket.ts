@@ -44,6 +44,15 @@ const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 30_000;
 const BACKOFF_MULTIPLIER = 2;
 const INVALIDATION_DEBOUNCE_MS = 150;
+// The Plan board refetches a whole cross-entity projection, so its refresh is
+// an order of magnitude more expensive than a graph snapshot refetch. A burst
+// of mutations — a batch queue, a multi-item decision, an agent run changing
+// several items — must collapse into one refetch rather than one per event.
+const PLAN_INVALIDATION_DEBOUNCE_MS = 750;
+
+export function invalidationDebounceFor(lens: GraphLens): number {
+  return lens === "plan" ? PLAN_INVALIDATION_DEBOUNCE_MS : INVALIDATION_DEBOUNCE_MS;
+}
 // `buildWsUrl(..., { appendSuffix: true })` contributes the `/ws` prefix.
 // This hook should only provide the graph stream path segment.
 const WS_PATH = "/graph";
@@ -62,13 +71,20 @@ function extractNodeId(message: WSMessage): string | null {
   return typeof message.data.id === "string" ? message.data.id : null;
 }
 
-function affectsLens(message: WSMessage, lens: GraphLens): boolean {
+export function affectsLens(message: WSMessage, lens: GraphLens): boolean {
   if (message.type === "heartbeat") {
     return false;
   }
 
   if (message.type === "invalidate") {
     return Array.isArray(message.data.lenses) && message.data.lenses.includes(lens);
+  }
+
+  // Edge changes reshape the topology graph. The Plan board is a column
+  // projection over items and gates and never renders an edge, so refetching
+  // it on an edge event is work that cannot change what the operator sees.
+  if (lens === "plan") {
+    return false;
   }
 
   return message.type === "edge-add" || message.type === "edge-remove";
@@ -88,7 +104,9 @@ export function useGraphWebSocket({ enabled, lens, onNodePulse }: UseGraphWebSoc
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
 
   const scheduleRefresh = useCallback(
-    (delay = INVALIDATION_DEBOUNCE_MS) => {
+    (delay = invalidationDebounceFor(lensRef.current)) => {
+      // Clearing a pending timer is what collapses a burst: only the last
+      // event in a window schedules the refetch that actually runs.
       if (invalidateTimerRef.current) {
         clearTimeout(invalidateTimerRef.current);
       }

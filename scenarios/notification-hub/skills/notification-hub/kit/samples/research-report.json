@@ -1,0 +1,512 @@
+{
+  "template": "research-report",
+  "meta": {
+    "title": "GPU image work is live. Most of the rest waited on shared files and on you.",
+    "lede": "GPU image work landed before the allowance ended; two asks wait on you and parked work resumes tomorrow.",
+    "topic": "Local model performance",
+    "producer": "Research supervisor",
+    "sentAt": "2026-11-16T22:00:00Z",
+    "timezone": "UTC",
+    "notice": "Sample data for previewing the template. Workstreams, numbers, levels and estimates here are illustrative."
+  },
+  "commission": {
+    "id": "local-models/commission-7",
+    "label": "Commission 7",
+    "startedAt": "2026-11-16T06:00:00Z",
+    "endedAt": "2026-11-16T22:00:00Z",
+    "ended": "allowance",
+    "agentHours": 41.5
+  },
+  "states": [
+    {
+      "key": "landed",
+      "label": "Landed",
+      "tone": "good"
+    },
+    {
+      "key": "running",
+      "label": "Running",
+      "tone": "accent"
+    },
+    {
+      "key": "parked",
+      "label": "Parked until 17 Nov",
+      "tone": "warn"
+    },
+    {
+      "key": "waiting_on_you",
+      "label": "Waiting on you",
+      "tone": "crit"
+    }
+  ],
+  "summary": {
+    "source": {
+      "status": "real",
+      "label": "topic work plan"
+    },
+    "title": "Ten workstreams, one landed",
+    "tiles": [
+      {
+        "value": 1,
+        "text": "landed live: GPU for GPU-capable work",
+        "tone": "good"
+      },
+      {
+        "value": 4,
+        "text": "new measurements"
+      },
+      {
+        "value": 7,
+        "text": "parked until tomorrow",
+        "tone": "warn"
+      },
+      {
+        "value": 2,
+        "text": "waiting on a decision from you",
+        "tone": "crit"
+      }
+    ]
+  },
+  "measurements": {
+    "source": {
+      "status": "real",
+      "label": "topic scorecard records"
+    },
+    "items": [
+      {
+        "title": "Whisper idle GPU memory",
+        "unit": "MiB",
+        "values": [
+          {
+            "label": "11 Nov",
+            "value": 1867
+          },
+          {
+            "label": "15 Nov",
+            "value": 3
+          }
+        ],
+        "better": "lower",
+        "verdict": "good",
+        "note": "The idle speech model now gives back its GPU memory.",
+        "workstream": "LM1"
+      },
+      {
+        "title": "Dependency scanner time",
+        "unit": "x",
+        "values": [
+          {
+            "label": "Before",
+            "value": 23.54
+          },
+          {
+            "label": "After",
+            "value": 1
+          }
+        ],
+        "better": "lower",
+        "verdict": "good",
+        "note": "23.5x faster in a pinned benchmark. Not serving yet.",
+        "workstream": "LM20"
+      },
+      {
+        "title": "Background removal, one image",
+        "unit": "s",
+        "values": [
+          {
+            "label": "CPU",
+            "value": 0.354
+          },
+          {
+            "label": "GPU",
+            "value": 0.906
+          }
+        ],
+        "better": "lower",
+        "verdict": "warn",
+        "note": "The GPU path is 2.6x slower. Output is identical.",
+        "workstream": "LM19"
+      },
+      {
+        "title": "Kernel slab memory",
+        "unit": "GB",
+        "values": [
+          {
+            "label": "Earlier",
+            "value": 12.85
+          },
+          {
+            "label": "15 Nov",
+            "value": 12.99
+          }
+        ],
+        "better": "lower",
+        "verdict": "bad",
+        "note": "Still growing. Only a reboot frees it today.",
+        "workstream": "LM18"
+      }
+    ]
+  },
+  "scorecard": {
+    "source": {
+      "status": "real",
+      "label": "supervisor review"
+    },
+    "title": "Seven dimensions, how far from the target",
+    "scale": {
+      "max": 100,
+      "unit": "%"
+    },
+    "judgedBy": "Research supervisor review",
+    "judgedAt": "2026-11-16T22:00:00Z",
+    "levels": [
+      "Not started",
+      "Early",
+      "Partial",
+      "Working",
+      "Done"
+    ],
+    "dimensions": [
+      {
+        "key": "contracts",
+        "title": "Task contracts and routing",
+        "was": 30,
+        "now": 30,
+        "target": 100,
+        "level": "Partial",
+        "reason": "19 typed roles exist, but 21 files in 11 owners still name model tags directly.",
+        "today": "19 typed roles over 11 Ollama roles; 21 files in 11 owners still name model tags."
+      },
+      {
+        "key": "currency",
+        "title": "Model currency and task fit",
+        "was": 12,
+        "now": 12,
+        "target": 100,
+        "level": "Early",
+        "reason": "Only 0-1 samples per role; no compact candidate has been run.",
+        "today": "Three models cover every text role on 0-1 samples; no compact candidate run."
+      },
+      {
+        "key": "rights",
+        "title": "Rights in configuration",
+        "was": 25,
+        "now": 30,
+        "target": 100,
+        "level": "Early",
+        "reason": "The shared evaluator is wired into four callers but nothing has run live.",
+        "today": "Shared evaluator wired into four callers; nothing run live."
+      },
+      {
+        "key": "residency",
+        "title": "Residency and placement",
+        "was": 35,
+        "now": 50,
+        "target": 100,
+        "level": "Partial",
+        "reason": "Idle GPU memory measured at 3 MiB; unload-then-wake is still unmeasured.",
+        "today": "Whisper idle at 3 MiB GPU; no unload-then-wake measured."
+      },
+      {
+        "key": "runtime",
+        "title": "Runtime throughput and latency",
+        "level": "Not started",
+        "reason": "No per-role latency data exists, so this remains Not started.",
+        "today": "Ollama 0.30.10, one request at a time, uniform 8192 context; per-role latency unmeasured."
+      },
+      {
+        "key": "vectors",
+        "title": "Embedding and vector stores",
+        "was": 15,
+        "now": 13,
+        "target": 100,
+        "level": "Early",
+        "reason": "The CPU reranker broke this commission, so one earlier result no longer holds.",
+        "today": "33 collections, recipe identity unknown in all 33; CPU reranker broken."
+      },
+      {
+        "key": "evaluation",
+        "title": "Evaluation and optimization",
+        "was": 18,
+        "now": 20,
+        "target": 100,
+        "level": "Early",
+        "reason": "652 retrieval cases exist; the optimize engine refuses before any effect.",
+        "today": "652 retrieval cases; optimize engine exists in source and refuses before any effect."
+      }
+    ]
+  },
+  "workstreams": {
+    "source": {
+      "status": "real",
+      "label": "topic work plan"
+    },
+    "title": "What each one is waiting for",
+    "weights": [
+      {
+        "key": "hold",
+        "label": "Hold",
+        "effect": "Parked next commission"
+      },
+      {
+        "key": "normal",
+        "label": "Normal",
+        "effect": "Runs in plan order"
+      },
+      {
+        "key": "more",
+        "label": "More",
+        "effect": "Gets an owner first"
+      }
+    ],
+    "items": [
+      {
+        "id": "LM17",
+        "title": "GPU for GPU-capable work",
+        "state": "landed",
+        "note": "Live. Background image 21.0 s and text-to-image 15.9 s on GPU; challenge passed.",
+        "weight": "normal",
+        "steerable": false
+      },
+      {
+        "id": "LM1",
+        "title": "Residency and placement",
+        "state": "parked",
+        "note": "Whisper residency proven; idle unload, wake time and mixed test remain.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM16",
+        "title": "Host sentinel to fix loop",
+        "state": "parked",
+        "note": "Replay flags the image job within 13 min 20 s; the weekly per-owner report is partial."
+      },
+      {
+        "id": "LM20",
+        "title": "Machine-wide performance",
+        "state": "parked",
+        "note": "Scanner 23.5x faster, but a restart problem kept it out of serving.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM19",
+        "title": "Multimodal proving grounds",
+        "state": "parked",
+        "note": "First CPU/GPU fixture done: the GPU path works but is slower.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM4",
+        "title": "One eligibility boundary",
+        "state": "parked",
+        "note": "Six owners migrated; the rest wait on files other agents are editing.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM5",
+        "title": "Rights as machine-readable facts",
+        "state": "parked",
+        "note": "Waits on shared evaluator files other agents are editing.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM7",
+        "title": "Disk accounting and reclaim",
+        "state": "parked",
+        "note": "Owner paths overlap changes other agents have not finished.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM2",
+        "title": "Evaluation and unattended optimization",
+        "state": "waiting_on_you",
+        "note": "All 36 retrieval suites lack independent denominators; needs your call.",
+        "weight": "normal"
+      },
+      {
+        "id": "LM18",
+        "title": "Non-model memory reclaim",
+        "state": "waiting_on_you",
+        "note": "The 13 GB kernel slab is the biggest win; reboot requires your call.",
+        "weight": "normal"
+      }
+    ]
+  },
+  "feedback": {
+    "source": {
+      "status": "partial",
+      "label": "topic feedback/",
+      "note": "Read from feedback files; applied status is checked against the work."
+    },
+    "items": [
+      {
+        "said": "Proceed with all recommendations please.",
+        "when": "16 Nov, 05:54",
+        "changed": "LM20 and LM19 were briefed and staffed this commission.",
+        "status": "applied"
+      },
+      {
+        "said": "The machine: memory, swap, GPU and missed incidents.",
+        "when": "Your standing complaint",
+        "changed": "GPU work went first because it gives a measured win in its first two hours; LM17 landed.",
+        "status": "applied"
+      },
+      {
+        "said": "Owners fell back to source-only work when a gate blocked live work.",
+        "when": "Review, 12 and 14 Nov",
+        "changed": "A checkpoint with no live measurement is now challenged instead of accepted.",
+        "status": "partly",
+        "why": "Two owners still filed source-only checkpoints this commission."
+      }
+    ]
+  },
+  "next": {
+    "source": {
+      "status": "real",
+      "label": "topic mission estimates"
+    },
+    "title": "The plan after these ten",
+    "unit": "h",
+    "note": "Agent hours, low to high. Each line moves a different scorecard dimension.",
+    "items": [
+      {
+        "id": "LM3",
+        "title": "Vector stores, then the fleet upgrade",
+        "why": "Recipe identity is unknown in all 33 collections; every later upgrade needs it.",
+        "low": 180,
+        "high": 320,
+        "dimension": "vectors"
+      },
+      {
+        "id": "LM9",
+        "title": "Runtime speed per role",
+        "why": "No role has a measured latency yet, so no speed claim can be checked.",
+        "low": 70,
+        "high": 140,
+        "dimension": "runtime"
+      },
+      {
+        "id": "LM8",
+        "title": "Model currency sweeps",
+        "why": "Picks newer models per role once latency is measurable.",
+        "low": 140,
+        "high": 280,
+        "dimension": "currency"
+      },
+      {
+        "id": "LM20",
+        "title": "Machine-wide performance (remaining)",
+        "why": "Gets the 23.5x faster scanner into serving.",
+        "low": 150,
+        "high": 200,
+        "dimension": "residency"
+      }
+    ]
+  },
+  "technical": [
+    {
+      "label": "Subject key",
+      "value": "research-desk:local-models:report:commission-7"
+    },
+    {
+      "label": "Weights",
+      "value": "answer keys weight.<workstream id> = hold|normal|more; written back to the topic work plan before the next commission"
+    }
+  ],
+  "asks": [
+    {
+      "id": "research-desk:local-models:retrieval-denominators",
+      "title": "Build independent retrieval denominators?",
+      "question": "Choose how to create denominators for 36 retrieval suites.",
+      "state": "open",
+      "workstream": "LM2"
+    },
+    {
+      "id": "research-desk:local-models:kernel-slab-reboot",
+      "title": "Approve reboot for kernel slab reclaim?",
+      "question": "Reboot may reclaim 13 GB of kernel slab memory.",
+      "state": "open",
+      "workstream": "LM18"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "lm17-gpu-path",
+      "title": "GPU path output and latency",
+      "format": "measure",
+      "decidedBy": "agent",
+      "sides": {
+        "a": {
+          "label": "CPU",
+          "fields": {
+            "backgroundImageSeconds": 21,
+            "textToImageSeconds": 15.9
+          }
+        },
+        "b": {
+          "label": "GPU",
+          "fields": {
+            "backgroundImageSeconds": 21,
+            "textToImageSeconds": 15.9
+          }
+        }
+      },
+      "verdict": {
+        "text": "GPU path is live and the fresh challenge found no remaining issue."
+      },
+      "items": [
+        {
+          "label": "Background image, seconds",
+          "a": 21,
+          "b": 21,
+          "unit": "s"
+        },
+        {
+          "label": "Text-to-image, seconds",
+          "a": 15.9,
+          "b": 15.9,
+          "unit": "s"
+        }
+      ],
+      "method": [
+        "Compared retained LM17 run timings."
+      ],
+      "limits": [
+        "Illustrative sample values; not a new measurement."
+      ],
+      "workstream": "LM17"
+    }
+  ],
+  "feedbackReceipts": [
+    {
+      "id": "fb-allow-recommendations",
+      "title": "Proceed with recommendations",
+      "said": "Proceed with all recommendations.",
+      "status": "applied",
+      "changed": "LM20 and LM19 received owners this commission.",
+      "reason": "Both recommendations were staffed.",
+      "progress": {
+        "label": "Applied",
+        "now": 2,
+        "was": 0,
+        "target": 2,
+        "unit": "items"
+      }
+    },
+    {
+      "id": "fb-live-checkpoints",
+      "title": "Challenge source-only checkpoints",
+      "said": "Owners fell back to source-only work.",
+      "status": "planned",
+      "changed": "Two source-only checkpoints remain to challenge.",
+      "reason": "Continue the challenge next commission.",
+      "progress": {
+        "label": "Resolved",
+        "now": 1,
+        "was": 0,
+        "target": 2,
+        "unit": "items"
+      }
+    }
+  ]
+}

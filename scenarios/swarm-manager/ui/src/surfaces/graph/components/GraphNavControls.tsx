@@ -39,7 +39,7 @@ export function GraphNavControls() {
     (dx: number, dy: number) => {
       if (!flowInstance) return;
       const vp = flowInstance.getViewport();
-      flowInstance.setViewport(
+      void flowInstance.setViewport(
         { x: vp.x + dx, y: vp.y + dy, zoom: vp.zoom },
         { duration: 200 },
       );
@@ -48,15 +48,15 @@ export function GraphNavControls() {
   );
 
   const handleZoomIn = useCallback(() => {
-    flowInstance?.zoomIn({ duration: 200 });
+    void flowInstance?.zoomIn({ duration: 200 });
   }, [flowInstance]);
 
   const handleZoomOut = useCallback(() => {
-    flowInstance?.zoomOut({ duration: 200 });
+    void flowInstance?.zoomOut({ duration: 200 });
   }, [flowInstance]);
 
   const handleFitView = useCallback(() => {
-    flowInstance?.fitView({ padding: 0.2, maxZoom: 1.2, duration: 300 });
+    void flowInstance?.fitView({ padding: 0.2, maxZoom: 1.2, duration: 300 });
   }, [flowInstance]);
 
   return (

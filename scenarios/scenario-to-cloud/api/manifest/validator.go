@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/vps"
@@ -26,6 +27,45 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 	out := in
 	var issues []domain.ValidationIssue
 
+	out, issues = validateManifestHeader(out, issues)
+	out, issues = validateScenarioIdentity(out, issues)
+	out, issues = normalizeDependencies(out, issues)
+	out, issues = normalizeBundle(out, issues)
+	out, issues = normalizePorts(out, issues)
+	out, issues = validateEdge(out, issues)
+	out, issues = validateBundleRequirements(out, issues)
+	issues = append(issues, validateBackupPolicy(out.Backup)...)
+
+	return out, stableIssues(issues)
+}
+
+func validateBackupPolicy(policy *domain.ManifestBackup) []domain.ValidationIssue {
+	if policy == nil {
+		return nil
+	}
+	var issues []domain.ValidationIssue
+	add := func(field, message, hint string) {
+		issues = append(issues, domain.ValidationIssue{Path: "backup." + field, Message: message, Hint: hint, Severity: domain.SeverityError})
+	}
+	if strings.TrimSpace(policy.DestinationName) == "" {
+		add("destination_name", "backup destination name is required", "Create and credential an off-host destination in data-backup-manager before applying this policy.")
+	}
+	if schedule, err := time.ParseDuration(strings.TrimSpace(policy.Schedule)); err != nil || schedule <= 0 {
+		add("schedule", "backup schedule must be a positive duration", "Use a duration supported by data-backup-manager, such as 24h.")
+	}
+	if drill, err := time.ParseDuration(strings.TrimSpace(policy.RecoveryDrillSchedule)); err != nil || drill <= 0 {
+		add("recovery_drill_schedule", "recovery drill schedule must be a positive duration", "Use a duration such as 168h.")
+	}
+	if policy.KeepHourly < 0 || policy.KeepDaily < 0 || policy.KeepWeekly < 0 || policy.KeepMonthly < 0 || policy.KeepAnnual < 0 {
+		add("retention", "backup retention values cannot be negative", "Set each keep_* field to zero or greater.")
+	}
+	if policy.KeepHourly+policy.KeepDaily+policy.KeepWeekly+policy.KeepMonthly+policy.KeepAnnual == 0 {
+		add("retention", "at least one backup retention tier must be positive", "Choose an explicit keep_* retention tier; do not rely on DBM defaults.")
+	}
+	return issues
+}
+
+func validateManifestHeader(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	if strings.TrimSpace(out.Version) == "" {
 		issues = append(issues, domain.ValidationIssue{
 			Path:     "version",
@@ -52,45 +92,63 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 	}
 
 	if out.Target.Type == "vps" {
-		if out.Target.VPS == nil {
-			issues = append(issues, domain.ValidationIssue{
-				Path:     "target.vps",
-				Message:  "target.vps is required when target.type is 'vps'",
-				Hint:     "Provide at least {\"host\":\"<ip-or-hostname>\"} and SSH auth info.",
-				Severity: domain.SeverityError,
-			})
-		} else {
-			if strings.TrimSpace(out.Target.VPS.Host) == "" {
-				issues = append(issues, domain.ValidationIssue{
-					Path:     "target.vps.host",
-					Message:  "VPS host is required",
-					Hint:     "Set to the VPS public IP (recommended) or DNS name.",
-					Severity: domain.SeverityError,
-				})
-			}
-			if out.Target.VPS.Port == 0 {
-				out.Target.VPS.Port = 22
-			}
-			if strings.TrimSpace(out.Target.VPS.User) == "" {
-				out.Target.VPS.User = "root"
-			}
-			if strings.TrimSpace(out.Target.VPS.Workdir) == "" {
-				out.Target.VPS.Workdir = domain.DefaultVPSWorkdir
-			}
-			out.Target.VPS.PreservePaths = StableUniqueStrings(out.Target.VPS.PreservePaths)
-			for _, preservePath := range out.Target.VPS.PreservePaths {
-				if err := validatePreservePath(preservePath); err != nil {
-					issues = append(issues, domain.ValidationIssue{
-						Path:     "target.vps.preserve_paths",
-						Message:  fmt.Sprintf("invalid preserve path %q", preservePath),
-						Hint:     err.Error(),
-						Severity: domain.SeverityError,
-					})
-				}
-			}
-		}
+		out, issues = normalizeVPSTarget(out, issues)
+	}
+	return out, issues
+}
+
+func normalizeVPSTarget(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
+	if out.Target.VPS == nil {
+		issues = append(issues, domain.ValidationIssue{
+			Path:     "target.vps",
+			Message:  "target.vps is required when target.type is 'vps'",
+			Hint:     "Provide at least {\"host\":\"<ip-or-hostname>\"} and SSH auth info.",
+			Severity: domain.SeverityError,
+		})
+		return out, issues
 	}
 
+	managerOwned := strings.TrimSpace(out.Target.VPS.ComputeManagerInstanceID) != ""
+	if strings.TrimSpace(out.Target.VPS.Host) == "" && !managerOwned {
+		issues = append(issues, domain.ValidationIssue{
+			Path:     "target.vps.host",
+			Message:  "VPS host is required unless target is bound to a Compute Manager instance",
+			Hint:     "Use a verified Compute Manager instance reference; Scenario-to-Cloud resolves its host from the manager before deployment.",
+			Severity: domain.SeverityError,
+		})
+	}
+	if !managerOwned {
+		if out.Target.VPS.Port == 0 {
+			out.Target.VPS.Port = 22
+		}
+		if strings.TrimSpace(out.Target.VPS.User) == "" {
+			out.Target.VPS.User = "root"
+		}
+	}
+	if strings.TrimSpace(out.Target.VPS.Workdir) == "" {
+		out.Target.VPS.Workdir = domain.DefaultVPSWorkdir
+	}
+	out.Target.VPS.PreservePaths = StableUniqueStrings(out.Target.VPS.PreservePaths)
+	issues = append(issues, validateVPSTargetPreservePaths(out.Target.VPS.PreservePaths)...)
+	return out, issues
+}
+
+func validateVPSTargetPreservePaths(paths []string) []domain.ValidationIssue {
+	var issues []domain.ValidationIssue
+	for _, preservePath := range paths {
+		if err := validatePreservePath(preservePath); err != nil {
+			issues = append(issues, domain.ValidationIssue{
+				Path:     "target.vps.preserve_paths",
+				Message:  fmt.Sprintf("invalid preserve path %q", preservePath),
+				Hint:     err.Error(),
+				Severity: domain.SeverityError,
+			})
+		}
+	}
+	return issues
+}
+
+func validateScenarioIdentity(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	if strings.TrimSpace(out.Scenario.ID) == "" {
 		issues = append(issues, domain.ValidationIssue{
 			Path:     "scenario.id",
@@ -99,7 +157,10 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			Severity: domain.SeverityError,
 		})
 	}
+	return out, issues
+}
 
+func normalizeDependencies(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	// Dependencies snapshot (scenario-dependency-analyzer) should be explicit and include the target scenario.
 	out.Dependencies.Scenarios = StableUniqueStrings(out.Dependencies.Scenarios)
 	out.Dependencies.Resources = StableUniqueStrings(out.Dependencies.Resources)
@@ -129,7 +190,10 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			Severity: domain.SeverityWarn,
 		})
 	}
+	return out, issues
+}
 
+func normalizeBundle(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	// Bundle inclusions should be explicit for deterministic packaging.
 	out.Bundle.Scenarios = StableUniqueStrings(out.Bundle.Scenarios)
 	out.Bundle.Resources = StableUniqueStrings(out.Bundle.Resources)
@@ -148,20 +212,20 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			Severity: domain.SeverityError,
 		})
 	}
+	return out, issues
+}
 
+func normalizePorts(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	// Initialize ports map if nil
 	if out.Ports == nil {
 		out.Ports = make(domain.ManifestPorts)
 	}
-	// Set defaults for standard ports if not specified
+	// Set defaults for standard listener ports if not specified.
 	if out.Ports["ui"] == 0 {
 		out.Ports["ui"] = 3000
 	}
 	if out.Ports["api"] == 0 {
 		out.Ports["api"] = 3001
-	}
-	if out.Ports["ws"] == 0 {
-		out.Ports["ws"] = 3002
 	}
 	if invalid := findInvalidPorts(out.Ports); len(invalid) > 0 {
 		for _, p := range invalid {
@@ -181,7 +245,10 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			Severity: domain.SeverityError,
 		})
 	}
+	return out, issues
+}
 
+func validateEdge(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	if strings.TrimSpace(out.Edge.Domain) == "" {
 		issues = append(issues, domain.ValidationIssue{
 			Path:     "edge.domain",
@@ -228,7 +295,10 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			Severity: domain.SeverityWarn,
 		})
 	}
+	return out, issues
+}
 
+func validateBundleRequirements(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
 	if !out.Bundle.IncludePackages {
 		issues = append(issues, domain.ValidationIssue{
 			Path:     "bundle.include_packages",
@@ -256,8 +326,7 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			Severity: domain.SeverityWarn,
 		})
 	}
-
-	return out, stableIssues(issues)
+	return out, issues
 }
 
 // mergeRequiredResources adds any required resources from the scenario's service.json
@@ -305,13 +374,7 @@ func mergeRequiredResources(out domain.CloudManifest, issues *[]domain.Validatio
 // looksLikeDomain returns true if the string appears to be a valid domain name.
 func looksLikeDomain(d string) bool {
 	d = strings.TrimSpace(d)
-	if d == "" {
-		return false
-	}
-	if strings.Contains(d, "://") || strings.Contains(d, "/") {
-		return false
-	}
-	if strings.HasPrefix(d, ".") || strings.HasSuffix(d, ".") {
+	if !validDomainCandidate(d) {
 		return false
 	}
 	host := strings.TrimSuffix(d, ".")
@@ -319,6 +382,17 @@ func looksLikeDomain(d string) bool {
 		return false
 	}
 	labels := strings.Split(host, ".")
+	return validDomainLabels(labels)
+}
+
+func validDomainCandidate(domain string) bool {
+	if domain == "" || strings.Contains(domain, "://") || strings.Contains(domain, "/") {
+		return false
+	}
+	return !strings.HasPrefix(domain, ".") && !strings.HasSuffix(domain, ".")
+}
+
+func validDomainLabels(labels []string) bool {
 	if len(labels) < 2 {
 		return false
 	}
@@ -416,6 +490,17 @@ func Contains(in []string, value string) bool {
 }
 
 func validatePreservePath(p string) error {
+	if err := validateRawPreservePath(p); err != nil {
+		return err
+	}
+	clean := path.Clean(p)
+	if err := validateCleanPreservePath(clean); err != nil {
+		return err
+	}
+	return validateScenarioPreservePath(clean)
+}
+
+func validateRawPreservePath(p string) error {
 	if strings.TrimSpace(p) == "" {
 		return fmt.Errorf("path must not be empty")
 	}
@@ -428,13 +513,20 @@ func validatePreservePath(p string) error {
 	if strings.HasPrefix(p, "~") {
 		return fmt.Errorf("path must not use '~'; use a workdir-relative path like scenarios/<scenario-id>/data")
 	}
-	clean := path.Clean(p)
+	return nil
+}
+
+func validateCleanPreservePath(clean string) error {
 	if clean == "." {
 		return fmt.Errorf("path must not resolve to current directory")
 	}
 	if clean == ".." || strings.HasPrefix(clean, "../") {
 		return fmt.Errorf("path must stay within target.vps.workdir")
 	}
+	return nil
+}
+
+func validateScenarioPreservePath(clean string) error {
 	if clean == "scenarios" || !strings.HasPrefix(clean, "scenarios/") {
 		return fmt.Errorf("path must target a scenario subtree, e.g. scenarios/<scenario-id>/data")
 	}

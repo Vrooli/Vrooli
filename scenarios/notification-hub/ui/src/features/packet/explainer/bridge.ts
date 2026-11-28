@@ -1,0 +1,97 @@
+/**
+ * The Hub's side of the explainer bridge. The sealed page can only post
+ * messages; everything it sends is untrusted input and is validated here
+ * before anything in the Hub reacts to it. The page's half is `frameBridge.js`.
+ */
+export const BRIDGE_PROTOCOL = 1;
+
+/** Frame heights the Hub accepts, in CSS pixels. */
+export const MIN_FRAME_HEIGHT = 80;
+export const MAX_FRAME_HEIGHT = 6000;
+/** A pre-fill value larger than this (as JSON) is ignored. */
+const MAX_PREFILL_BYTES = 16 * 1024;
+const MAX_QUESTION_ID = 96;
+const MAX_ENTRY_PATH = 512;
+const MAX_ANSWER_BYTES = 32 * 1024;
+const MAX_ANSWER_KEY = 96;
+const MAX_ANSWER_LABEL = 160;
+const ATTACHMENT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/;
+
+export type BridgeMessage =
+  | { type: "swipe"; direction: "previous" | "next" }
+  | { type: "height"; height: number }
+  | { type: "open"; name: string; path: string }
+  | { type: "prefill"; questionId: string; value: unknown }
+  | { type: "answer"; operation: "set"; key: string; label: string; value: unknown }
+  | { type: "answer"; operation: "remove"; key: string }
+  | { type: "open-ask"; askId: string }
+  | { type: "note"; key: string; label: string }
+  | { type: "asset"; requestId: string; name: string; path: string };
+
+/**
+ * The message a frame posted, or null when it must be ignored: it did not
+ * come from the explainer's own window, it is not in the protocol, or a field
+ * is out of bounds.
+ */
+export function parseBridgeMessage(event: Pick<MessageEvent, "source" | "data">, frame: Window | null): BridgeMessage | null {
+  if (!frame || event.source !== frame) return null;
+  const data: unknown = event.data;
+  if (!data || typeof data !== "object") return null;
+  const message = data as Record<string, unknown>;
+  if (message.hub !== BRIDGE_PROTOCOL) return null;
+  switch (message.type) {
+    case "swipe":
+      return message.direction === "previous" || message.direction === "next" ? { type: "swipe", direction: message.direction } : null;
+    case "height": {
+      const height = message.height;
+      if (typeof height !== "number" || !Number.isFinite(height)) return null;
+      return { type: "height", height: Math.min(MAX_FRAME_HEIGHT, Math.max(MIN_FRAME_HEIGHT, Math.ceil(height))) };
+    }
+    case "open": {
+      const { name, path } = message;
+      if (typeof name !== "string" || !ATTACHMENT_NAME.test(name)) return null;
+      if (path !== undefined && (typeof path !== "string" || path.length > MAX_ENTRY_PATH)) return null;
+      return { type: "open", name, path: typeof path === "string" ? path : "" };
+    }
+    case "prefill": {
+      const { questionId, value } = message;
+      if (typeof questionId !== "string" || !questionId || questionId.length > MAX_QUESTION_ID) return null;
+      let size = 0;
+      try {
+        size = JSON.stringify(value ?? null).length;
+      } catch {
+        return null;
+      }
+      return size <= MAX_PREFILL_BYTES ? { type: "prefill", questionId, value } : null;
+    }
+    case "answer": {
+      const { operation, key } = message;
+      if (typeof key !== "string" || !key.trim() || key.length > MAX_ANSWER_KEY) return null;
+      if (operation === "remove") return { type: "answer", operation, key };
+      const { label, value } = message;
+      if (operation !== "set" || typeof label !== "string" || !label.trim() || label.length > MAX_ANSWER_LABEL) return null;
+      let size = 0;
+      try { size = JSON.stringify(value ?? null).length; } catch { return null; }
+      return size <= MAX_ANSWER_BYTES ? { type: "answer", operation, key, label, value } : null;
+    }
+    case "open-ask": {
+      const askId = message.askId;
+      return typeof askId === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(askId) ? { type: "open-ask", askId } : null;
+    }
+    case "note": {
+      const { key, label } = message;
+      return typeof key === "string" && key.trim() && key.length <= MAX_ANSWER_KEY && typeof label === "string" && label.trim() && label.length <= MAX_ANSWER_LABEL
+        ? { type: "note", key, label }
+        : null;
+    }
+    case "asset": {
+      const { requestId, name, path } = message;
+      if (typeof requestId !== "string" || !/^a[0-9]{1,8}$/.test(requestId)) return null;
+      if (typeof name !== "string" || !ATTACHMENT_NAME.test(name)) return null;
+      if (path !== undefined && (typeof path !== "string" || !path || path.length > MAX_ENTRY_PATH || path.split("/").some((part) => !part || part === "." || part === ".."))) return null;
+      return { type: "asset", requestId, name, path: typeof path === "string" ? path : "" };
+    }
+    default:
+      return null;
+  }
+}

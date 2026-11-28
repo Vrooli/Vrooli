@@ -1,0 +1,207 @@
+package runtimeapp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	platform "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/runtimesupervisor"
+)
+
+// ResolveNativeOperatorSource reads only the bounded maintained source pointer.
+// The root broker neither scans a home tree nor executes source to resolve it.
+// A temporarily absent checkout does not prevent machine lease supervision.
+func ResolveNativeOperatorSource(home string) (string, error) {
+	path := repocontract.SourceRootPointerPath(home)
+	if path == "" {
+		return "", errors.New("native operator source pointer requires a home")
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !info.Mode().IsRegular() || info.Size() > 4096 {
+		return "", errors.New("native source pointer must be a bounded regular file")
+	}
+	f, err := openNativeSourcePointer(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	actual, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if !actual.Mode().IsRegular() || !os.SameFile(info, actual) {
+		return "", errors.New("native source pointer changed while opening")
+	}
+	data, err := io.ReadAll(io.LimitReader(f, 4097))
+	if err != nil {
+		return "", err
+	}
+	if len(data) > 4096 {
+		return "", errors.New("native operator source pointer exceeds bound")
+	}
+	root := strings.TrimSpace(string(data))
+	if root == "" || !filepath.IsAbs(root) || filepath.Clean(root) != root || strings.ContainsAny(root, "\x00\r\n") {
+		return "", errors.New("native operator source pointer is not canonical")
+	}
+	return root, nil
+}
+
+type nativeBrokerObserver interface {
+	Close() error
+	ResumeManagedUpdate(context.Context) error
+}
+type nativeBrokerSupervisorEffects struct {
+	operator      func(context.Context, platform.NativeSystemServiceBrokerOptions, platform.NativeBrokerOperatorCommand) (platform.NativeBrokerOperatorCommandResult, error)
+	supervisor    func(context.Context, platform.NativeSystemServiceBrokerOptions) (platform.NativeBrokerOperatorCommandResult, error)
+	startObserver func(context.Context, string, string, func(context.Context) error, func(context.Context) error) (nativeBrokerObserver, error)
+	serve         func(context.Context, func(context.Context) error, func(context.Context) error) error
+}
+
+func startNativeBrokerObserver(ctx context.Context, home, root string, quiesce func(context.Context) error, acquire func(context.Context) error) (nativeBrokerObserver, error) {
+	c := resources.NewController(root, home)
+	if err := c.ConfigureNativeOpenRGBSystemOwner(quiesce); err != nil {
+		return nil, err
+	}
+	if err := c.ConfigureNativeOpenRGBAcquisition(acquire); err != nil {
+		return nil, err
+	}
+	observer, err := c.StartNativeOpenRGBObserver(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &nativeOpenRGBBrokerObserver{NativeOpenRGBObserver: observer, controller: c}, nil
+}
+
+type nativeOpenRGBBrokerObserver struct {
+	*resources.NativeOpenRGBObserver
+	controller *resources.Controller
+}
+
+func (o *nativeOpenRGBBrokerObserver) ResumeManagedUpdate(ctx context.Context) error {
+	return o.controller.ResumeNativeOpenRGBUpdate(ctx)
+}
+
+// The privileged parent hosts only fixed native resource operations. The sole
+// generic fleet/SQLite/process supervisor runs under the actual operator token.
+func (app *Service) runNativeSystemBrokerSupervisor(ctx context.Context, home string, opts SupervisorRunOptions, e nativeBrokerSupervisorEffects) (retErr error) {
+	o := *opts.NativeSystemBroker
+	if home != o.OperatorHome {
+		return errors.New("native supervisor logical home differs from validated operator")
+	}
+	var observerMu sync.Mutex
+	var observer nativeBrokerObserver
+	observerRoot := ""
+	currentObserver := func() nativeBrokerObserver { observerMu.Lock(); defer observerMu.Unlock(); return observer }
+	defer func() {
+		if current := currentObserver(); current != nil {
+			retErr = errors.Join(retErr, current.Close())
+		}
+	}()
+	quiesce := func(ctx context.Context) error {
+		_, err := e.operator(ctx, o, platform.NativeBrokerOperatorCommand{Action: platform.NativeBrokerOperatorLightingQuiesce, Scenario: "lighting-control", SourceRoot: home})
+		return err
+	}
+	attach := func(operation context.Context) error {
+		if err := operation.Err(); err != nil {
+			return err
+		}
+		observerMu.Lock()
+		defer observerMu.Unlock()
+		root, err := ResolveNativeOperatorSource(home)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if observer != nil && observerRoot == root {
+			return nil
+		}
+		if observer != nil {
+			old := observer
+			observer = nil
+			observerRoot = ""
+			if err = old.Close(); err != nil {
+				return err
+			}
+		}
+
+		observer, err = e.startObserver(ctx, home, root, quiesce, func(operation context.Context) error {
+			source, err := ResolveNativeOperatorSource(home)
+			if err != nil {
+				return err
+			}
+			_, err = e.operator(operation, o, platform.NativeBrokerOperatorCommand{Action: platform.NativeBrokerOperatorOpenRGBSoftwareAcquire, Scenario: "openrgb", SourceRoot: source})
+			return err
+		})
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if err == nil && observer != nil {
+			observerRoot = root
+		}
+		return err
+	}
+	tick := func(operation context.Context) error {
+		if err := attach(operation); err != nil {
+			return err
+		}
+		if current := currentObserver(); current != nil {
+			return current.ResumeManagedUpdate(operation)
+		}
+		return nil
+	}
+	// Attach before the user loop can call its fixed resource peer. Absence stays
+	// inert and later preparation is attached by the bounded root resource tick.
+	_ = attach(ctx)
+	actor := func(operation context.Context) error {
+		result, err := e.supervisor(operation, o)
+		if err != nil {
+			return fmt.Errorf("actual-operator supervisor: %w: %s", err, strings.TrimSpace(string(result.Output)))
+		}
+		if operation.Err() != nil {
+			return operation.Err()
+		}
+		return fmt.Errorf("actual-operator supervisor exited unexpectedly with status %d", result.ExitCode)
+	}
+	return e.serve(ctx, tick, actor)
+}
+
+func serveNativeBrokerActors(parent context.Context, tick func(context.Context) error, actor func(context.Context) error) error {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { err := actor(ctx); cancel(); done <- err }()
+	ticker := time.NewTicker(runtimesupervisor.DefaultRenewInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case err := <-done:
+			return err
+		case <-parent.Done():
+			cancel()
+			return errors.Join(parent.Err(), <-done)
+		case <-ctx.Done():
+			return <-done
+		case <-ticker.C:
+			operation, stop := context.WithTimeout(ctx, 45*time.Second)
+			err := tick(operation)
+			stop()
+			if err != nil && ctx.Err() == nil {
+				fmt.Fprintf(os.Stderr, "native lighting resource continuation: %v\n", err)
+			}
+		}
+	}
+}

@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -19,13 +21,27 @@ import (
 
 // PricingHandler provides HTTP handlers for pricing endpoints.
 type PricingHandler struct {
-	svc       pricing.Service
-	statsRepo repository.StatsRepository
+	svc           pricing.Service
+	statsRepo     repository.StatsRepository
+	subscriptions pricing.SubscriptionRepository
+	quotaStore    pricing.QuotaObservationRepository
+	liveQuotaMu   sync.Mutex
+	liveQuota     *liveQuotaCache
 }
 
 // NewPricingHandler creates a new pricing handler.
-func NewPricingHandler(svc pricing.Service, statsRepo repository.StatsRepository) *PricingHandler {
-	return &PricingHandler{svc: svc, statsRepo: statsRepo}
+func NewPricingHandler(svc pricing.Service, statsRepo repository.StatsRepository, subscriptions ...pricing.SubscriptionRepository) *PricingHandler {
+	var subscriptionStore pricing.SubscriptionRepository
+	if len(subscriptions) > 0 {
+		subscriptionStore = subscriptions[0]
+	}
+	return &PricingHandler{svc: svc, statsRepo: statsRepo, subscriptions: subscriptionStore}
+}
+
+// NewPricingHandlerWithQuota adds the optional provider quota observation read
+// surface while preserving the existing constructor for lightweight callers.
+func NewPricingHandlerWithQuota(svc pricing.Service, statsRepo repository.StatsRepository, subscriptions pricing.SubscriptionRepository, quotaStore pricing.QuotaObservationRepository) *PricingHandler {
+	return &PricingHandler{svc: svc, statsRepo: statsRepo, subscriptions: subscriptions, quotaStore: quotaStore}
 }
 
 // RegisterRoutes registers pricing API routes on the given router.
@@ -54,6 +70,108 @@ func (h *PricingHandler) RegisterRoutes(r *mux.Router) {
 
 	// Comparison endpoint
 	r.HandleFunc("/api/v1/pricing/compare", h.CompareModels).Methods("POST")
+	r.HandleFunc("/api/v1/pricing/subscription-periods", h.ListSubscriptionPeriods).Methods("GET")
+	r.HandleFunc("/api/v1/pricing/subscription-periods", h.CreateSubscriptionPeriod).Methods("POST")
+	r.HandleFunc("/api/v1/pricing/subscription-periods/{id}", h.DeleteSubscriptionPeriod).Methods("DELETE")
+	r.HandleFunc("/api/v1/pricing/quota-observations", h.ListQuotaObservations).Methods("GET")
+	r.HandleFunc("/api/v1/pricing/live-quota", h.LiveQuota).Methods("GET")
+}
+
+func (h *PricingHandler) ListQuotaObservations(w http.ResponseWriter, r *http.Request) {
+	if h.quotaStore == nil {
+		writeSimpleError(w, r, "quota_observation", "quota observations are unavailable")
+		return
+	}
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		} else {
+			writeSimpleError(w, r, "quota_observation", "limit must be between 1 and 100")
+			return
+		}
+	}
+	var rows []pricing.QuotaObservation
+	var err error
+	if r.URL.Query().Has("account_scope") {
+		scope := strings.TrimSpace(r.URL.Query().Get("account_scope"))
+		if scope == "" {
+			writeSimpleError(w, r, "quota_observation", "account_scope must not be empty")
+			return
+		}
+		store, ok := h.quotaStore.(pricing.ScopedQuotaObservationRepository)
+		if !ok {
+			writeSimpleError(w, r, "quota_observation", "scoped quota observations are unavailable")
+			return
+		}
+		rows, err = store.ListScopedQuotaObservations(r.Context(), scope, r.URL.Query().Get("provider"), r.URL.Query().Get("pool"), r.URL.Query().Get("window"), limit)
+	} else {
+		rows, err = h.quotaStore.ListQuotaObservations(r.Context(), r.URL.Query().Get("provider"), r.URL.Query().Get("pool"), r.URL.Query().Get("window"), limit)
+	}
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	// Freshness is evaluated on read, not frozen at ingestion. A reading whose
+	// reset has passed cannot describe the current provider window.
+	now := time.Now().UTC()
+	for i := range rows {
+		rows[i].Freshness = pricing.Freshness(&rows[i], now, pricing.QuotaFreshnessMaxAge)
+		if rows[i].ResetAt != nil && !rows[i].ResetAt.After(now) {
+			rows[i].Freshness = pricing.ObservationStale
+		}
+	}
+	writeJSON(w, http.StatusOK, rows)
+}
+
+func (h *PricingHandler) ListSubscriptionPeriods(w http.ResponseWriter, r *http.Request) {
+	if h.subscriptions == nil {
+		writeSimpleError(w, r, "subscription", "subscription periods are unavailable")
+		return
+	}
+	periods, err := h.subscriptions.ListSubscriptionPeriods(r.Context(), r.URL.Query().Get("provider"), r.URL.Query().Get("plan_ref"))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, periods)
+}
+
+func (h *PricingHandler) CreateSubscriptionPeriod(w http.ResponseWriter, r *http.Request) {
+	if h.subscriptions == nil {
+		writeSimpleError(w, r, "subscription", "subscription periods are unavailable")
+		return
+	}
+	var request struct {
+		Provider       string    `json:"provider"`
+		PlanRef        string    `json:"plan_ref"`
+		StartsAt       time.Time `json:"starts_at"`
+		EndsAt         time.Time `json:"ends_at"`
+		AmountMicroUSD int64     `json:"amount_micro_usd"`
+		QuotaTokens    int64     `json:"quota_tokens"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
+		writeSimpleError(w, r, "request", err.Error())
+		return
+	}
+	period := &domain.SubscriptionPeriod{Provider: request.Provider, PlanRef: request.PlanRef, StartsAt: request.StartsAt, EndsAt: request.EndsAt, AmountMicroUSD: request.AmountMicroUSD, QuotaTokens: request.QuotaTokens}
+	if err := h.subscriptions.CreateSubscriptionPeriod(r.Context(), period); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, period)
+}
+
+func (h *PricingHandler) DeleteSubscriptionPeriod(w http.ResponseWriter, r *http.Request) {
+	if h.subscriptions == nil {
+		writeSimpleError(w, r, "subscription", "subscription periods are unavailable")
+		return
+	}
+	if err := h.subscriptions.DeleteSubscriptionPeriod(r.Context(), mux.Vars(r)["id"]); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // =============================================================================
@@ -112,13 +230,11 @@ type CreateAliasRequest struct {
 
 // SettingsResponse is the HTTP response for pricing settings.
 type SettingsResponse struct {
-	HistoricalAverageDays   int `json:"historicalAverageDays"`
 	ProviderCacheTTLSeconds int `json:"providerCacheTtlSeconds"`
 }
 
 // UpdateSettingsRequest is the HTTP request for updating settings.
 type UpdateSettingsRequest struct {
-	HistoricalAverageDays   *int `json:"historicalAverageDays,omitempty"`
 	ProviderCacheTTLSeconds *int `json:"providerCacheTtlSeconds,omitempty"`
 }
 
@@ -382,9 +498,11 @@ func (h *PricingHandler) DeleteAlias(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Note: The service doesn't have a DeleteAlias method, but the repository does.
-	// For now, return not implemented until the service interface is extended.
-	writeError(w, r, domain.NewValidationError("endpoint", "delete alias not yet implemented"))
+	if err := h.svc.DeleteAlias(r.Context(), model, runnerType); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 // GetSettings handles GET /api/v1/pricing/settings
@@ -397,7 +515,6 @@ func (h *PricingHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 	ttlSeconds := int(settings.ProviderCacheTTL.Seconds())
 	writeJSON(w, http.StatusOK, SettingsResponse{
-		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: ttlSeconds,
 	})
 }
@@ -424,13 +541,6 @@ func (h *PricingHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Apply updates
-	if req.HistoricalAverageDays != nil {
-		if *req.HistoricalAverageDays < 1 || *req.HistoricalAverageDays > 365 {
-			writeSimpleError(w, r, "historicalAverageDays", "must be between 1 and 365")
-			return
-		}
-		settings.HistoricalAverageDays = *req.HistoricalAverageDays
-	}
 	if req.ProviderCacheTTLSeconds != nil {
 		if *req.ProviderCacheTTLSeconds < 60 || *req.ProviderCacheTTLSeconds > 86400 {
 			writeSimpleError(w, r, "providerCacheTtlSeconds", "must be between 60 and 86400")
@@ -446,7 +556,6 @@ func (h *PricingHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) 
 
 	ttlSeconds := int(settings.ProviderCacheTTL.Seconds())
 	writeJSON(w, http.StatusOK, SettingsResponse{
-		HistoricalAverageDays:   settings.HistoricalAverageDays,
 		ProviderCacheTTLSeconds: ttlSeconds,
 	})
 }
@@ -577,7 +686,7 @@ func (h *PricingHandler) CompareModels(w http.ResponseWriter, r *http.Request) {
 // Helpers
 // =============================================================================
 
-// decodePathParam URL-decodes a path parameter (for model names with slashes like "anthropic/claude-3-opus").
+// decodePathParam URL-decodes a path parameter, including provider/model IDs.
 func decodePathParam(param string) string {
 	decoded, err := url.PathUnescape(param)
 	if err != nil {

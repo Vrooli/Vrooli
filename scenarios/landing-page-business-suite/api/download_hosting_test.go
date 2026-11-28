@@ -2,11 +2,18 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 // mockDownloadStorage implements DownloadStorage for testing
@@ -21,6 +28,8 @@ type mockDownloadStorage struct {
 	headSize          int64
 	headContentType   string
 	headErr           error
+	readBody          []byte
+	readErr           error
 }
 
 func (m *mockDownloadStorage) TestConnection(ctx context.Context, bucket string) error {
@@ -37,6 +46,13 @@ func (m *mockDownloadStorage) PresignPut(ctx context.Context, bucket, key string
 
 func (m *mockDownloadStorage) HeadObject(ctx context.Context, bucket, key string) (etag string, size int64, contentType string, err error) {
 	return m.headEtag, m.headSize, m.headContentType, m.headErr
+}
+
+func (m *mockDownloadStorage) ReadObject(ctx context.Context, bucket, key string) (io.ReadCloser, int64, string, error) {
+	if m.readErr != nil {
+		return nil, 0, "", m.readErr
+	}
+	return io.NopCloser(strings.NewReader(string(m.readBody))), int64(len(m.readBody)), m.headContentType, nil
 }
 
 // mockStorageProvider implements DownloadStorageProvider for testing
@@ -58,36 +74,30 @@ func (m *mockStorageProvider) New(ctx context.Context, settings DownloadStorageS
 
 func TestNewDownloadHostingService(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 	if service == nil {
 		t.Fatal("NewDownloadHostingService returned nil")
 	}
-	if service.db != db {
-		t.Error("Expected service to hold reference to provided db")
-	}
 	// Should have default s3 provider
-	if _, ok := service.providers["s3"]; !ok {
+	if !service.HasProvider("s3") {
 		t.Error("Expected default s3 provider to be registered")
 	}
 }
 
 func TestNewDownloadHostingService_WithCustomProvider(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	customProvider := &mockStorageProvider{storage: &mockDownloadStorage{}}
 	service := NewDownloadHostingService(db, customProvider)
 
-	if _, ok := service.providers["s3"]; !ok {
+	if !service.HasProvider("s3") {
 		t.Error("Expected s3 provider to be registered")
 	}
 }
 
 func TestDownloadHostingService_GetSettings_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -104,7 +114,6 @@ func TestDownloadHostingService_GetSettings_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_GetSettings_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	// Insert test settings
@@ -145,7 +154,6 @@ func TestDownloadHostingService_GetSettings_Success(t *testing.T) {
 
 func TestDownloadHostingService_GetSettings_EmptyBundleKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 	ctx := context.Background()
@@ -158,7 +166,6 @@ func TestDownloadHostingService_GetSettings_EmptyBundleKey(t *testing.T) {
 
 func TestDownloadHostingService_SaveSettings_Create(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -197,7 +204,6 @@ func TestDownloadHostingService_SaveSettings_Create(t *testing.T) {
 
 func TestDownloadHostingService_SaveSettings_Update(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	// Insert initial settings
@@ -232,7 +238,6 @@ func TestDownloadHostingService_SaveSettings_Update(t *testing.T) {
 
 func TestDownloadHostingService_SaveSettings_ValidationErrors(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -266,14 +271,6 @@ func TestDownloadHostingService_SaveSettings_ValidationErrors(t *testing.T) {
 				return DownloadStorageSettingsUpdate{Bucket: &bucket, SignedURLTTLSeconds: &ttl}
 			}(),
 		},
-		{
-			name: "mismatched credentials",
-			update: func() DownloadStorageSettingsUpdate {
-				bucket := "test-bucket"
-				accessKey := "key"
-				return DownloadStorageSettingsUpdate{Bucket: &bucket, AccessKeyID: &accessKey}
-			}(),
-		},
 	}
 
 	for _, tt := range tests {
@@ -288,10 +285,13 @@ func TestDownloadHostingService_SaveSettings_ValidationErrors(t *testing.T) {
 
 func TestDownloadHostingService_SettingsSnapshot_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
-	service := NewDownloadHostingService(db)
+	// An installed-but-empty authority models a fresh deployment; a service
+	// without any credential boundary reports "unavailable" instead.
+	service := NewDownloadHostingService(db).WithCredentialIO(delivery.CredentialIO{
+		Read: func(context.Context, string) (string, error) { return "", nil },
+	})
 	ctx := context.Background()
 
 	snapshot, err := service.SettingsSnapshot(ctx, "unconfigured_bundle")
@@ -310,14 +310,13 @@ func TestDownloadHostingService_SettingsSnapshot_NotConfigured(t *testing.T) {
 	if snapshot.SignedURLTTLSeconds != 900 {
 		t.Errorf("Expected default TTL 900, got %d", snapshot.SignedURLTTLSeconds)
 	}
-	if !snapshot.CredentialsFromEnv {
-		t.Error("Expected CredentialsFromEnv to be true for unconfigured settings")
+	if !snapshot.CredentialsFromAuthority {
+		t.Error("Expected CredentialsFromAuthority to be true for unconfigured settings")
 	}
 }
 
 func TestDownloadHostingService_TestConnection_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: nil}
@@ -343,7 +342,6 @@ func TestDownloadHostingService_TestConnection_Success(t *testing.T) {
 
 func TestDownloadHostingService_TestConnection_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -360,7 +358,6 @@ func TestDownloadHostingService_TestConnection_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_TestConnection_Error(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: errors.New("connection failed")}
@@ -385,7 +382,6 @@ func TestDownloadHostingService_TestConnection_Error(t *testing.T) {
 
 func TestDownloadHostingService_PresignUpload_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -433,7 +429,6 @@ func TestDownloadHostingService_PresignUpload_Success(t *testing.T) {
 
 func TestDownloadHostingService_PresignUpload_MissingFilename(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{}
@@ -462,7 +457,6 @@ func TestDownloadHostingService_PresignUpload_MissingFilename(t *testing.T) {
 
 func TestDownloadHostingService_PresignUpload_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -478,7 +472,6 @@ func TestDownloadHostingService_PresignUpload_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -529,7 +522,6 @@ func TestDownloadHostingService_CommitArtifact_Success(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_GitCommitHash(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -598,7 +590,6 @@ func TestDownloadHostingService_CommitArtifact_GitCommitHash(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -621,6 +612,11 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 	}
 
 	releaseID := "550e8400-e29b-41d4-a716-446655440000"
+	payload := []byte("release artifact bytes")
+	digest := sha512.Sum512(payload)
+	mockStorage.headSize = int64(len(payload))
+	mockStorage.readBody = payload
+	digestText := base64.StdEncoding.EncodeToString(digest[:])
 	req := CommitArtifactRequest{
 		Bucket:           "test-bucket",
 		ObjectKey:        "artifacts/relid-app/1.0.0/app.zip",
@@ -629,6 +625,7 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 		Platform:         "linux",
 		ReleaseVersion:   "1.0.0",
 		ReleaseID:        releaseID,
+		SHA512:           digestText,
 	}
 
 	artifact, err := service.CommitArtifact(ctx, "release_id_test", req)
@@ -665,9 +662,93 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 	}
 }
 
-func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
+func TestDownloadHostingService_CommitArtifact_RejectsDownloadedByteMismatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+
+	actualPayload := []byte("actual object bytes")
+	expectedPayload := []byte("reviewed artifact bytes")
+	expectedDigest := sha512.Sum512(expectedPayload)
+	mockStorage := &mockDownloadStorage{
+		headEtag:        "mismatch-etag",
+		headSize:        int64(len(actualPayload)),
+		headContentType: "application/octet-stream",
+		readBody:        actualPayload,
+	}
+	service := NewDownloadHostingService(db, &mockStorageProvider{storage: mockStorage})
+	if _, err := db.Exec(`
+		INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
+		VALUES ('commit_byte_mismatch', 's3', 'test-bucket', 'us-east-1', 900)
+	`); err != nil {
+		t.Fatalf("insert storage settings: %v", err)
+	}
+
+	_, err := service.CommitArtifact(context.Background(), "commit_byte_mismatch", CommitArtifactRequest{
+		Bucket: "test-bucket", ObjectKey: "artifacts/mismatch/app.zip", ReleaseID: "release-mismatch",
+		ReleaseVersion: "1.0.0", SHA512: base64.StdEncoding.EncodeToString(expectedDigest[:]),
+	})
+	if err == nil || !strings.Contains(err.Error(), "verify uploaded artifact bytes") {
+		t.Fatalf("expected downloaded-byte verification failure, got %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM download_artifacts WHERE bundle_key = 'commit_byte_mismatch'`).Scan(&count); err != nil {
+		t.Fatalf("count rejected artifacts: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("byte-mismatched artifact was persisted: %d rows", count)
+	}
+}
+
+func TestDownloadHostingService_CommitArtifact_RejectsSHA256Mismatch(t *testing.T) {
+	db := setupTestDB(t)
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+	actualPayload := []byte("actual object bytes")
+	expectedPayload := []byte("different artifact bytes")
+	expectedDigest := sha256.Sum256(expectedPayload)
+	mockStorage := &mockDownloadStorage{headEtag: "sha256-mismatch", headSize: int64(len(actualPayload)), readBody: actualPayload}
+	service := NewDownloadHostingService(db, &mockStorageProvider{storage: mockStorage})
+	if _, err := db.Exec(`INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds) VALUES ('commit_sha256_mismatch', 's3', 'test-bucket', 'us-east-1', 900)`); err != nil {
+		t.Fatalf("insert storage settings: %v", err)
+	}
+	_, err := service.CommitArtifact(context.Background(), "commit_sha256_mismatch", CommitArtifactRequest{
+		Bucket: "test-bucket", ObjectKey: "artifacts/mismatch/app.zip", SHA256: hex.EncodeToString(expectedDigest[:]),
+	})
+	if err == nil || !strings.Contains(err.Error(), "object SHA256") {
+		t.Fatalf("expected SHA256 mismatch refusal, got %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM download_artifacts WHERE bundle_key = 'commit_sha256_mismatch'`).Scan(&count); err != nil {
+		t.Fatalf("count rejected artifacts: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("SHA256-mismatched artifact was persisted: %d rows", count)
+	}
+}
+
+func TestDownloadHostingService_CommitArtifact_VerifiesAndStoresSHA256(t *testing.T) {
+	db := setupTestDB(t)
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+	payload := []byte("verified object bytes")
+	digest := sha256.Sum256(payload)
+	mockStorage := &mockDownloadStorage{headEtag: "sha256-verified", headSize: int64(len(payload)), readBody: payload}
+	service := NewDownloadHostingService(db, &mockStorageProvider{storage: mockStorage})
+	if _, err := db.Exec(`INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds) VALUES ('commit_sha256_verified', 's3', 'test-bucket', 'us-east-1', 900)`); err != nil {
+		t.Fatalf("insert storage settings: %v", err)
+	}
+	wantSHA256 := hex.EncodeToString(digest[:])
+	artifact, err := service.CommitArtifact(context.Background(), "commit_sha256_verified", CommitArtifactRequest{
+		Bucket: "test-bucket", ObjectKey: "artifacts/verified/app.zip", SHA256: wantSHA256,
+	})
+	if err != nil || artifact == nil || artifact.SHA256 != wantSHA256 {
+		t.Fatalf("artifact=%+v err=%v, want verified sha256 %s", artifact, err, wantSHA256)
+	}
+}
+
+func TestDownloadHostingService_CommitArtifact_RejectsImmutableObjectReplacement(t *testing.T) {
+	db := setupTestDB(t)
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -700,26 +781,26 @@ func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
 		t.Fatalf("First CommitArtifact failed: %v", err)
 	}
 
-	// Update version
+	// A reused object key with different observed bytes is a publication
+	// conflict. The existing artifact remains authoritative.
 	mockStorage.headEtag = "def456"
 	req.ReleaseVersion = "2.0.0"
 
-	artifact2, err := service.CommitArtifact(ctx, "upsert_test", req)
-	if err != nil {
-		t.Fatalf("Second CommitArtifact failed: %v", err)
+	if _, err := service.CommitArtifact(ctx, "upsert_test", req); !errors.Is(err, delivery.ErrImmutableArtifactConflict) {
+		t.Fatalf("expected immutable artifact conflict, got %v", err)
 	}
 
-	if artifact1.ID != artifact2.ID {
-		t.Errorf("Expected same ID on upsert, got %d and %d", artifact1.ID, artifact2.ID)
+	artifactAfter, err := service.GetArtifact(ctx, "upsert_test", artifact1.ID)
+	if err != nil {
+		t.Fatalf("GetArtifact after rejected replacement failed: %v", err)
 	}
-	if artifact2.ReleaseVersion != "2.0.0" {
-		t.Errorf("Expected updated version '2.0.0', got '%s'", artifact2.ReleaseVersion)
+	if artifactAfter.ReleaseVersion != "1.0.0" {
+		t.Errorf("rejected replacement changed release version to %q", artifactAfter.ReleaseVersion)
 	}
 }
 
 func TestDownloadHostingService_CommitArtifact_HeadObjectError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -751,7 +832,6 @@ func TestDownloadHostingService_CommitArtifact_HeadObjectError(t *testing.T) {
 
 func TestDownloadHostingService_GetArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -798,7 +878,6 @@ func TestDownloadHostingService_GetArtifact_Success(t *testing.T) {
 
 func TestDownloadHostingService_GetArtifact_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 	ctx := context.Background()
@@ -814,7 +893,6 @@ func TestDownloadHostingService_GetArtifact_NotFound(t *testing.T) {
 
 func TestDownloadHostingService_ListArtifacts_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -878,7 +956,6 @@ func TestDownloadHostingService_ListArtifacts_Pagination(t *testing.T) {
 
 func TestDownloadHostingService_PresignGetArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -929,7 +1006,7 @@ func TestSanitizeObjectFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := sanitizeObjectFilename(tt.input)
+			result := delivery.SanitizeObjectFilename(tt.input)
 			if result != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
 			}
@@ -949,7 +1026,7 @@ func TestBuildObjectKey(t *testing.T) {
 		ReleaseVersion: "1.0.0",
 	}
 
-	key, err := buildObjectKey(settings, "test_bundle", req)
+	key, err := delivery.BuildObjectKey(settings, "test_bundle", req)
 	if err != nil {
 		t.Fatalf("buildObjectKey failed: %v", err)
 	}
@@ -1019,7 +1096,7 @@ func TestNormalizeOptionalString_ValidValue(t *testing.T) {
 }
 
 func TestStableS3URI_Basic(t *testing.T) {
-	result := stableS3URI("my-bucket", "path/to/object.zip")
+	result := delivery.StableS3URI("my-bucket", "path/to/object.zip")
 	expected := "s3://my-bucket/path/to/object.zip"
 	if result != expected {
 		t.Errorf("expected '%s', got '%s'", expected, result)
@@ -1027,7 +1104,7 @@ func TestStableS3URI_Basic(t *testing.T) {
 }
 
 func TestStableS3URI_EmptyKey(t *testing.T) {
-	result := stableS3URI("my-bucket", "")
+	result := delivery.StableS3URI("my-bucket", "")
 	expected := "s3://my-bucket/"
 	if result != expected {
 		t.Errorf("expected '%s', got '%s'", expected, result)
@@ -1042,7 +1119,7 @@ func TestS3DownloadStorageProvider_ProviderKey(t *testing.T) {
 }
 
 func TestRandomHex_Generates12Chars(t *testing.T) {
-	result, err := randomHex(6)
+	result, err := delivery.RandomHex(6)
 	if err != nil {
 		t.Fatalf("randomHex failed: %v", err)
 	}
@@ -1054,7 +1131,7 @@ func TestRandomHex_Generates12Chars(t *testing.T) {
 func TestRandomHex_GeneratesUnique(t *testing.T) {
 	results := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		hex, err := randomHex(6)
+		hex, err := delivery.RandomHex(6)
 		if err != nil {
 			t.Fatalf("randomHex failed: %v", err)
 		}
@@ -1077,7 +1154,7 @@ func TestBuildObjectKey_WithAllSegments(t *testing.T) {
 		ReleaseVersion: "1.0.0",
 	}
 
-	key, err := buildObjectKey(settings, "test_bundle", req)
+	key, err := delivery.BuildObjectKey(settings, "test_bundle", req)
 	if err != nil {
 		t.Fatalf("buildObjectKey failed: %v", err)
 	}
@@ -1113,7 +1190,7 @@ func TestBuildObjectKey_WithoutOptionalSegments(t *testing.T) {
 		Filename: "simple.bin",
 	}
 
-	key, err := buildObjectKey(settings, "bundle", req)
+	key, err := delivery.BuildObjectKey(settings, "bundle", req)
 	if err != nil {
 		t.Fatalf("buildObjectKey failed: %v", err)
 	}
@@ -1128,7 +1205,6 @@ func TestBuildObjectKey_WithoutOptionalSegments(t *testing.T) {
 
 func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1138,7 +1214,7 @@ func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *t
 		SignedURLTTLSeconds: 900,
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err == nil {
 		t.Error("expected error for unsupported provider")
 	}
@@ -1149,7 +1225,6 @@ func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *t
 
 func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1160,7 +1235,7 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testi
 		SignedURLTTLSeconds: 900,
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err == nil {
 		t.Error("expected error for invalid endpoint")
 	}
@@ -1168,7 +1243,6 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testi
 
 func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1189,7 +1263,7 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T)
 				SignedURLTTLSeconds: tt.ttl,
 			}
 
-			err := service.validateStorageSettings(settings)
+			err := service.ValidateStorageSettings(settings)
 			if err == nil {
 				t.Errorf("expected error for TTL %d", tt.ttl)
 			}
@@ -1199,7 +1273,6 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T)
 
 func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1208,12 +1281,11 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 		Provider:            "s3",
 		Bucket:              "test-bucket",
 		SignedURLTTLSeconds: 900,
-		AccessKeyID:         "access-key",
 	}
 
-	err := service.validateStorageSettings(settings)
-	if err == nil {
-		t.Error("expected error for mismatched credentials")
+	err := service.ValidateStorageSettings(settings)
+	if err != nil {
+		t.Errorf("credential authority keeps credentials out of settings; got: %v", err)
 	}
 
 	// Only secret, no access key
@@ -1221,18 +1293,16 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 		Provider:            "s3",
 		Bucket:              "test-bucket",
 		SignedURLTTLSeconds: 900,
-		SecretAccessKey:     "secret-key",
 	}
 
-	err = service.validateStorageSettings(settings)
-	if err == nil {
-		t.Error("expected error for mismatched credentials")
+	err = service.ValidateStorageSettings(settings)
+	if err != nil {
+		t.Errorf("credential authority keeps credentials out of settings; got: %v", err)
 	}
 }
 
 func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1242,11 +1312,9 @@ func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing
 		Region:              "us-east-1",
 		Endpoint:            "https://s3.amazonaws.com",
 		SignedURLTTLSeconds: 900,
-		AccessKeyID:         "access-key",
-		SecretAccessKey:     "secret-key",
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err != nil {
 		t.Errorf("expected no error for valid settings, got: %v", err)
 	}
@@ -1254,7 +1322,6 @@ func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing
 
 func TestDownloadHostingService_ListArtifacts_WithSearchQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -1303,7 +1370,6 @@ func TestDownloadHostingService_ListArtifacts_WithSearchQuery(t *testing.T) {
 
 func TestDownloadHostingService_ListArtifacts_WithPlatformFilter(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 

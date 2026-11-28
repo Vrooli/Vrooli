@@ -1,18 +1,14 @@
 {
-  "module": "cli",
-  "description": "CLI tools for event ingest, query, subscribe, and stats",
-  "operational_targets": [
-    "OT-P2-002"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-08-25T14:43:36-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-CLI-001",
       "title": "ScenarioApp integration",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "CLI built on cli-core ScenarioApp with auto-config, API client, and consistent UX",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "children": [
         "REQ-CLI-001A",
         "REQ-CLI-001B"
@@ -20,35 +16,28 @@
       "validation": [
         {
           "type": "test",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "cli/app_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-CLI-001A",
       "title": "Auto-config port detection",
-      "description": "CLI auto-detects API port via vrooli scenario port discovery",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
+      "criticality": "P1",
+      "description": "CLI auto-detects API port via vrooli scenario port discovery",
       "children": [
         "REQ-CLI-001A1"
-      ],
-      "criticality": "P1"
+      ]
     },
     {
       "id": "REQ-CLI-001A1",
       "title": "Fallback to default port",
-      "description": "CLI falls back to configured default port when auto-detection fails",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "criticality": "P1",
+      "description": "CLI falls back to configured default port when auto-detection fails",
       "children": [
         "REQ-CLI-001A1a"
       ]
@@ -56,12 +45,9 @@
     {
       "id": "REQ-CLI-001B",
       "title": "Consistent error formatting",
-      "description": "CLI formats API errors with consistent human-readable output",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "criticality": "P1",
+      "description": "CLI formats API errors with consistent human-readable output",
       "children": [
         "REQ-CLI-001B1"
       ]
@@ -69,120 +55,99 @@
     {
       "id": "REQ-CLI-002",
       "title": "Query command",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "vrooli-events query with --type, --source, --correlation-id, --since, --limit, --json flags",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
+      "children": [
+        "REQ-CLI-002A",
+        "REQ-CLI-002B"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "cli/cmd_query_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-CLI-002A",
-        "REQ-CLI-002B"
       ]
     },
     {
       "id": "REQ-CLI-003",
       "title": "Subscribe command",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "vrooli-events subscribe with --type, --source, --target, --json flags",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
+      "children": [
+        "REQ-CLI-003A",
+        "REQ-CLI-003B"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "cli/cmd_subscribe_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "cli/cmd_subscribe_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-CLI-003A",
-        "REQ-CLI-003B"
       ]
     },
     {
       "id": "REQ-CLI-004",
       "title": "Stats command",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "vrooli-events stats shows store health, subscriber count, event count, size",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
+      "children": [
+        "REQ-CLI-004A",
+        "REQ-CLI-004B"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "cli/cmd_stats_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-CLI-004A",
-        "REQ-CLI-004B"
       ]
     },
     {
       "id": "REQ-CLI-005",
       "title": "Ingest command",
+      "status": "in_progress",
+      "criticality": "P1",
       "description": "vrooli-events ingest with --event-id, --type, --source, --target, --correlation-id, --payload, --json flags",
-      "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
+      "children": [
+        "REQ-CLI-005A",
+        "REQ-CLI-005B"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "complete",
-          "ref": "cli/cmd_ingest_test.go"
+          "status": "failing"
         }
-      ],
-      "criticality": "P1",
-      "children": [
-        "REQ-CLI-005A",
-        "REQ-CLI-005B"
       ]
     },
     {
       "id": "REQ-CLI-001A1a",
       "title": "Default port from config file",
-      "description": "Falls back to port from scenario config file before hardcoded default",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Falls back to port from scenario config file before hardcoded default"
     },
     {
       "id": "REQ-CLI-001B1",
       "title": "Structured error with exit codes",
-      "description": "Different exit codes for connection errors, validation errors, and server errors",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Different exit codes for connection errors, validation errors, and server errors"
     },
     {
       "id": "REQ-CLI-002A",
       "title": "Query flag parsing",
-      "description": "Parses --type, --source, --correlation-id, --since, --limit flags with validation",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "criticality": "P1",
+      "description": "Parses --type, --source, --correlation-id, --since, --limit flags with validation",
       "children": [
         "REQ-CLI-002A1"
       ]
@@ -190,32 +155,23 @@
     {
       "id": "REQ-CLI-002A1",
       "title": "Since timestamp format validation",
-      "description": "Validates --since as RFC3339 timestamp or duration string",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Validates --since as RFC3339 timestamp or duration string"
     },
     {
       "id": "REQ-CLI-002B",
       "title": "Query output formatting",
-      "description": "Supports --json for machine output and human-readable table for terminal",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Supports --json for machine output and human-readable table for terminal"
     },
     {
       "id": "REQ-CLI-003A",
       "title": "SSE connection establishment",
-      "description": "Opens EventSource connection with pattern filter query parameters",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "criticality": "P1",
+      "description": "Opens EventSource connection with pattern filter query parameters",
       "children": [
         "REQ-CLI-003A1"
       ]
@@ -223,32 +179,23 @@
     {
       "id": "REQ-CLI-003A1",
       "title": "Connection retry on failure",
-      "description": "Auto-retries SSE connection with backoff on network errors",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Auto-retries SSE connection with backoff on network errors"
     },
     {
       "id": "REQ-CLI-003B",
       "title": "Graceful shutdown on signal",
-      "description": "SIGINT/SIGTERM cleanly closes SSE connection and flushes output",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "SIGINT/SIGTERM cleanly closes SSE connection and flushes output"
     },
     {
       "id": "REQ-CLI-004A",
       "title": "Health endpoint request",
-      "description": "Calls GET /health and parses response into structured stats",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "criticality": "P1",
+      "description": "Calls GET /health and parses response into structured stats",
       "children": [
         "REQ-CLI-004A1"
       ]
@@ -256,32 +203,23 @@
     {
       "id": "REQ-CLI-004A1",
       "title": "Connection timeout handling",
-      "description": "Times out after configurable duration with clear error message",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Times out after configurable duration with clear error message"
     },
     {
       "id": "REQ-CLI-004B",
       "title": "Stats output modes",
-      "description": "Table format for terminal, --json for machine consumption",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Table format for terminal, --json for machine consumption"
     },
     {
       "id": "REQ-CLI-005A",
       "title": "Event envelope construction",
-      "description": "Builds EventEnvelope from --event-id, --type, --source, --target, --correlation-id flags",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
       "criticality": "P1",
+      "description": "Builds EventEnvelope from --event-id, --type, --source, --target, --correlation-id flags",
       "children": [
         "REQ-CLI-005A1"
       ]
@@ -289,22 +227,16 @@
     {
       "id": "REQ-CLI-005A1",
       "title": "Auto-generated event ID",
-      "description": "Generates UUID event ID when --event-id not provided",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Generates UUID event ID when --event-id not provided"
     },
     {
       "id": "REQ-CLI-005B",
       "title": "Ingest response handling",
-      "description": "Displays success with event ID or structured error on failure",
       "status": "complete",
-      "operational_targets": [
-        "OT-P1-013"
-      ],
-      "criticality": "P1"
+      "criticality": "P1",
+      "description": "Displays success with event ID or structured error on failure"
     }
   ]
 }

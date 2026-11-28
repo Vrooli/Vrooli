@@ -1,0 +1,1 @@
+{"gate":"affinity-compatible","assetId":"calibration-affinity-compatible","kind":"component","runner":"static","requiredFailureCode":"catalog.affinity_compatible","catalogAsset":"asset.json","source":"broken.tsx","mutation":"affinity-incompatible","description":"Claims default-kit affinity while requiring a conversion-only property."}

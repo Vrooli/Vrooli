@@ -1,26 +1,4 @@
-/**
- * Injection Strategy Types
- *
- * This module defines the interface contract for injection strategies.
- * Each strategy implements a different mechanism for injecting the recording
- * script into browser pages.
- *
- * ## Strategy Overview
- *
- * | Strategy | How It Works | When to Use |
- * |----------|--------------|-------------|
- * | `init-script` | `context.addInitScript()` | RECOMMENDED for rebrowser-playwright |
- * | `cdp-injection` | `Page.addScriptToEvaluateOnNewDocument` | Fallback with full CDP control |
- * | `route-injection` | `context.route()` HTML modification | Standard playwright only |
- *
- * ## Why Multiple Strategies?
- *
- * - rebrowser-playwright breaks `context.route()` to evade bot detection
- * - Different providers/environments may have different capabilities
- * - Fallback strategies ensure recording works across configurations
- *
- * @module recording/injection/types
- */
+/** Types and diagnostics contracts for recording init-script injection. */
 
 import type { BrowserContext, Page } from 'rebrowser-playwright';
 import type winston from 'winston';
@@ -29,14 +7,8 @@ import type winston from 'winston';
 // Core Types
 // =============================================================================
 
-/**
- * Names of available injection strategies.
- *
- * - `init-script`: Uses `context.addInitScript()` - RECOMMENDED for rebrowser-playwright
- * - `cdp-injection`: Uses CDP `Page.addScriptToEvaluateOnNewDocument` - Chromium fallback
- * - `route-injection`: Uses `context.route()` HTML modification - Standard playwright only
- */
-export type InjectionStrategyName = 'init-script' | 'cdp-injection' | 'route-injection';
+/** The only recording injection path supported by the driver. */
+export type InjectionStrategyName = 'init-script';
 
 /**
  * Result of a script injection attempt.
@@ -44,13 +16,13 @@ export type InjectionStrategyName = 'init-script' | 'cdp-injection' | 'route-inj
 export interface InjectionResult {
   /** Whether injection succeeded */
   success: boolean;
-  /** Which strategy performed the injection */
+  /** Which injection path performed the injection */
   strategy: InjectionStrategyName;
   /** Error message if injection failed */
   error?: string;
   /** When the injection occurred */
   timestamp: string;
-  /** Additional strategy-specific metadata */
+  /** Additional injection metadata */
   metadata?: Record<string, unknown>;
 }
 
@@ -90,46 +62,7 @@ export interface InjectionStrategyOptions {
 // =============================================================================
 
 /**
- * Interface for injection strategies.
- *
- * Each strategy implements a different mechanism for injecting the recording
- * script into browser pages. The interface provides a consistent API for:
- * - Initialization (context-level setup)
- * - Injection (page-level script injection)
- * - Verification (checking if injection worked)
- * - Statistics tracking (diagnostics)
- * - Cleanup (resource release)
- *
- * ## Implementing a New Strategy
- *
- * ```typescript
- * class MyInjectionStrategy implements InjectionStrategy {
- *   readonly name = 'my-strategy' as InjectionStrategyName;
- *
- *   async initialize(context, options) {
- *     // Set up context-level hooks
- *   }
- *
- *   async injectScript(page, script) {
- *     // Inject script into page
- *     return { success: true, strategy: this.name, timestamp: new Date().toISOString() };
- *   }
- *
- *   async verify(page) {
- *     // Check if injection worked
- *     return true;
- *   }
- *
- *   // ... other methods
- * }
- * ```
- *
- * ## Strategy Selection
- *
- * The factory selects strategies based on:
- * 1. `INJECTION_STRATEGY` environment variable
- * 2. Explicit `injectionStrategy` option
- * 3. Provider capabilities (auto-select for rebrowser-playwright)
+ * Contract used by the init-script injector and its diagnostics.
  */
 export interface InjectionStrategy {
   /**
@@ -151,10 +84,7 @@ export interface InjectionStrategy {
   /**
    * Inject a script into a page.
    *
-   * Depending on the strategy, this may:
-   * - Be a no-op if injection happens at context level (init-script)
-   * - Inject into specific pages (cdp-injection)
-   * - Modify HTML responses (route-injection)
+   * For context-level init-script registration, this confirms page readiness.
    *
    * @param page - The page to inject into
    * @param script - The JavaScript to inject
@@ -194,60 +124,7 @@ export interface InjectionStrategy {
    */
   cleanup(): Promise<void>;
 
-  /**
-   * Check if this strategy supports a given provider.
-   *
-   * @param providerName - Name of the playwright provider (e.g., 'rebrowser-playwright')
-   * @returns True if this strategy works with the provider
-   */
-  supportsProvider(providerName: string): boolean;
-}
 
-// =============================================================================
-// Factory Types
-// =============================================================================
-
-/**
- * Options for creating an injection strategy.
- */
-export interface InjectionStrategyFactoryOptions {
-  /** Explicitly select a strategy by name */
-  strategyName?: InjectionStrategyName | 'auto';
-  /** Provider name for capability checking */
-  providerName?: string;
-  /** Logger for diagnostics */
-  logger?: winston.Logger;
-}
-
-/**
- * Options for auto-detecting a working strategy.
- */
-export interface AutoDetectorOptions {
-  /** Logger for diagnostics */
-  logger?: winston.Logger;
-  /** Order of strategies to try */
-  strategyOrder?: InjectionStrategyName[];
-  /** Timeout for each strategy verification (ms) */
-  verificationTimeoutMs?: number;
-}
-
-/**
- * Result of auto-detection.
- */
-export interface AutoDetectionResult {
-  /** Strategy that was selected */
-  strategy: InjectionStrategy | null;
-  /** Name of the selected strategy, or null if all failed */
-  strategyName: InjectionStrategyName | null;
-  /** Strategies that were tried and their results */
-  attempts: Array<{
-    strategy: InjectionStrategyName;
-    success: boolean;
-    error?: string;
-    durationMs: number;
-  }>;
-  /** Total time spent detecting */
-  totalDurationMs: number;
 }
 
 // =============================================================================

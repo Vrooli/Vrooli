@@ -144,30 +144,9 @@ w, err := makeHTTPRequest(HTTPTestRequest{
 
 ## Test Patterns
 
-### Error Testing with TestScenarioBuilder
+### Error and Success Testing
 
-```go
-patterns := NewTestScenarioBuilder().
-    AddInvalidUUID("/api/v1/issues/{id}", "GET").
-    AddNonExistentIssue("/api/v1/issues/{id}", "GET").
-    AddInvalidJSON("/api/v1/capture", "POST").
-    Build()
-
-suite := NewHandlerTestSuite("IssueHandler", router, "/api/v1/issues/{id}")
-suite.RunErrorTests(t, patterns)
-```
-
-### Success Testing
-
-```go
-suite.RunSuccessTest(t, "Success", HTTPTestRequest{
-    Method: "GET",
-    Path:   "/health",
-}, func(t *testing.T, w *httptest.ResponseRecorder) {
-    response := assertJSONResponse(t, w, http.StatusOK)
-    assertFieldEquals(t, response, "status", "healthy")
-})
-```
+Write cases at the handler boundary. Keep the request inputs and expected status/body in the test so each case states its own contract. `makeHTTPRequest` JSON-encodes `HTTPTestRequest.Body`; for malformed JSON, use `httptest.NewRequest` with the raw body bytes instead.
 
 ## Best Practices
 
@@ -245,7 +224,7 @@ testing::unit::run_all_tests \
 1. Create test function: `TestNewHandler(t *testing.T)`
 2. Set up logger, database (if needed), and router
 3. Add success test cases
-4. Add error test cases using TestScenarioBuilder
+4. Add explicit success and error cases at the handler boundary
 5. Verify database state changes (if applicable)
 
 ### Adding New Test Helpers
@@ -255,14 +234,6 @@ Add helpers to `test_helpers.go` following these patterns:
 - Use descriptive names
 - Include error handling
 - Document expected behavior
-
-### Adding New Error Patterns
-
-Add patterns to `test_patterns.go`:
-- Implement `ErrorTestPattern` interface
-- Provide clear name and description
-- Set expected HTTP status code
-- Include validation logic
 
 ## Continuous Improvement
 

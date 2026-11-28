@@ -42,15 +42,12 @@ Use keywords to trigger commands:
 2. **ALWAYS** prefer editing existing files
 3. **NEVER** install packages without permission
 4. **NEVER** create documentation unless explicitly requested
-5. **ALWAYS** read `/docs/context.md` and CLAUDE.md at session start
+5. **ALWAYS** read `/docs/context.md` at session start
 
 ## 📁 Documentation Structure
 Core files to read at session start:
-- `/CLAUDE.md` - Primary instructions (this overrides defaults!)
 - `/docs/context.md` - Project overview
-- `/docs/scratch/` - Previous session notes
+- `/docs/VISION.md` - Project vision
 
 ## 🎯 Remember The Mission
 Every line of code becomes **permanent intelligence** the system uses forever. You're not building features - you're expanding the system's ability to understand and solve problems autonomously.
-
-**When in doubt:** Read `/CLAUDE.md` - it contains the most up-to-date instructions and overrides everything else.

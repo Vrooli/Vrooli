@@ -1,30 +1,23 @@
 /**
- * useCursorAnimation hook
+ * useCursorAnimation
  *
- * Computes cursor animation plans for each frame and calculates
- * the current cursor position based on playback progress.
+ * Replay cursor positions come from recorded points or explicit editor
+ * overrides. The hook does not synthesize movement between unrelated events.
  */
 
-import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
+import { useMemo } from 'react';
 import type {
   ReplayFrame,
   ReplayPoint,
-  NormalizedPoint,
   CursorSpeedProfile,
   CursorPathStyle,
   CursorOverrideMap,
   CursorPlan,
-  Dimensions,
-  ReplayCursorInitialPosition,
 } from '../types';
-import {
-  clampNormalizedPoint,
-  applySpeedProfile,
-  interpolatePath,
-  generateStylizedPath,
-} from '../utils/cursorMath';
 import { toNormalizedPoint, toAbsolutePoint } from '../utils/geometry';
 import { FALLBACK_DIMENSIONS } from '../constants';
+
+export type CursorProvenance = 'observed' | 'edited' | 'derived' | 'missing';
 
 export interface UseCursorAnimationOptions {
   frames: ReplayFrame[];
@@ -33,14 +26,48 @@ export interface UseCursorAnimationOptions {
   isPlaying: boolean;
   isCursorEnabled: boolean;
   cursorOverrides: CursorOverrideMap;
-  cursorInitialPosition: ReplayCursorInitialPosition;
   basePathStyle: CursorPathStyle;
   baseSpeedProfile: CursorSpeedProfile;
 }
 
 export interface UseCursorAnimationResult {
-  cursorPlans: CursorPlan[];
+  cursorPlans: Array<CursorPlan | undefined>;
   cursorPosition: ReplayPoint | undefined;
+  cursorProvenance: CursorProvenance;
+}
+
+const isPoint = (point: ReplayPoint | null | undefined): point is ReplayPoint =>
+  typeof point?.x === 'number' && Number.isFinite(point.x)
+  && typeof point?.y === 'number' && Number.isFinite(point.y);
+
+function recordedPoints(frame: ReplayFrame): ReplayPoint[] {
+  if (frame.cursorProvenance === 'missing') return [];
+  const samples = frame.cursorTrailSamples?.filter(isPoint) ?? [];
+  if (samples.length > 0) return samples;
+  const trail = Array.isArray(frame.cursorTrail) ? frame.cursorTrail.filter(isPoint) : [];
+  if (trail.length > 0) return trail;
+  if (isPoint(frame.cursorPosition)) return [frame.cursorPosition];
+  if (isPoint(frame.clickPosition)) return [frame.clickPosition];
+  return [];
+}
+
+export function cursorSampleAtProgress(frame: ReplayFrame, progress: number): ReplayPoint | undefined {
+  if (frame.cursorProvenance === 'missing') return undefined;
+  const timedSamples = frame.cursorTrailSamples?.filter((sample) => isPoint(sample)
+    && typeof sample.elapsedMs === 'number' && Number.isFinite(sample.elapsedMs));
+  if (!timedSamples?.length) {
+    const points = recordedPoints(frame);
+    return points[points.length - 1];
+  }
+  const totalDuration = Math.max(0, frame.totalDurationMs ?? frame.durationMs ?? 0);
+  const actionDuration = Math.min(totalDuration, Math.max(0, frame.durationMs ?? totalDuration));
+  const elapsed = Math.min(actionDuration, Math.max(0, Math.min(1, progress)) * totalDuration);
+  let current: ReplayPoint | undefined;
+  for (const sample of timedSamples) {
+    if ((sample.elapsedMs ?? 0) > elapsed) break;
+    current = sample;
+  }
+  return current ? { x: current.x, y: current.y } : undefined;
 }
 
 export function useCursorAnimation({
@@ -50,159 +77,53 @@ export function useCursorAnimation({
   isPlaying,
   isCursorEnabled,
   cursorOverrides,
-  cursorInitialPosition,
   basePathStyle,
   baseSpeedProfile,
 }: UseCursorAnimationOptions): UseCursorAnimationResult {
-  const [cursorPosition, setCursorPosition] = useState<ReplayPoint | undefined>(undefined);
-  const randomSeedsRef = useRef<Record<string, NormalizedPoint>>({});
+  const cursorPlans = useMemo<Array<CursorPlan | undefined>>(() => frames.map((frame) => {
+    const points = recordedPoints(frame);
+    const override = cursorOverrides[frame.id];
+    if (points.length === 0 && !override?.target) return undefined;
 
-  // Reset random seeds when initial position changes
-  useEffect(() => {
-    randomSeedsRef.current = {};
-  }, [cursorInitialPosition]);
-
-  // Clear cursor position when disabled
-  useEffect(() => {
-    if (!isCursorEnabled) {
-      setCursorPosition(undefined);
-    }
-  }, [isCursorEnabled]);
-
-  const computeFallbackNormalized = useCallback((frameId: string, dims: Dimensions): NormalizedPoint => {
-    const width = dims.width || FALLBACK_DIMENSIONS.width;
-    const height = dims.height || FALLBACK_DIMENSIONS.height;
-    const computePadRatio = (size: number) => {
-      if (!size) {
-        return 0.08;
-      }
-      return Math.min(0.48, Math.max(12 / size, 0.08));
+    const dims = {
+      width: frame.viewport?.width || frame.screenshot?.width || FALLBACK_DIMENSIONS.width,
+      height: frame.viewport?.height || frame.screenshot?.height || FALLBACK_DIMENSIONS.height,
     };
-    const padX = computePadRatio(width);
-    const padY = computePadRatio(height);
+    const normalized = points
+      .map((point) => toNormalizedPoint(point, dims))
+      .filter((point): point is { x: number; y: number } => Boolean(point));
+    const first = normalized[0] ?? override?.target;
+    const last = override?.target ?? normalized[normalized.length - 1];
+    if (!first || !last) return undefined;
 
-    switch (cursorInitialPosition) {
-      case 'top-left':
-        return clampNormalizedPoint({ x: padX, y: padY });
-      case 'top-right':
-        return clampNormalizedPoint({ x: 1 - padX, y: padY });
-      case 'bottom-left':
-        return clampNormalizedPoint({ x: padX, y: 1 - padY });
-      case 'bottom-right':
-        return clampNormalizedPoint({ x: 1 - padX, y: 1 - padY });
-      case 'random': {
-        const seed = randomSeedsRef.current[frameId] || { x: Math.random(), y: Math.random() };
-        randomSeedsRef.current[frameId] = seed;
-        const usableX = Math.max(0.02, 1 - padX * 2);
-        const usableY = Math.max(0.02, 1 - padY * 2);
-        return clampNormalizedPoint({ x: padX + seed.x * usableX, y: padY + seed.y * usableY });
-      }
-      case 'center':
-      default:
-        return { x: 0.5, y: 0.5 };
-    }
-  }, [cursorInitialPosition]);
+    return {
+      frameId: frame.id,
+      dims,
+      startNormalized: first,
+      targetNormalized: last,
+      pathNormalized: normalized.slice(1, -1),
+      speedProfile: override?.speedProfile ?? baseSpeedProfile,
+      pathStyle: override?.pathStyle ?? basePathStyle,
+      hasRecordedTrail: points.length > 1,
+    };
+  }), [frames, cursorOverrides, basePathStyle, baseSpeedProfile]);
 
-  const cursorPlans = useMemo<CursorPlan[]>(() => {
-    const plans: CursorPlan[] = [];
-    let previousNormalized: NormalizedPoint | undefined;
+  const frame = frames[currentIndex];
+  const override = frame ? cursorOverrides[frame.id] : undefined;
+  const points = frame ? recordedPoints(frame) : [];
+  const cursorProvenance: CursorProvenance = override?.target
+    ? 'edited'
+    : points.length > 0 ? frame?.cursorProvenance ?? 'observed' : 'missing';
 
-    frames.forEach((frame) => {
-      const dims: Dimensions = {
-        width: frame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
-        height: frame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
-      };
+  let cursorPosition: ReplayPoint | undefined;
+  const plan = cursorPlans[currentIndex];
+  if (isCursorEnabled && plan) {
+    cursorPosition = override?.target
+      ? toAbsolutePoint(override.target, plan.dims)
+      : isPlaying || frameProgress > 0
+        ? cursorSampleAtProgress(frame!, frameProgress)
+        : points[points.length - 1];
+  }
 
-      const override = cursorOverrides[frame.id];
-
-      const recordedTrail = Array.isArray(frame.cursorTrail)
-        ? frame.cursorTrail.filter(
-            (point): point is ReplayPoint => typeof point?.x === 'number' && typeof point?.y === 'number',
-          )
-        : [];
-
-      const recordedTrailNormalized = recordedTrail
-        .map((point) => toNormalizedPoint(point, dims))
-        .filter((point): point is NormalizedPoint => Boolean(point))
-        .map(clampNormalizedPoint);
-
-      const recordedClickNormalized = toNormalizedPoint(frame.clickPosition ?? undefined, dims);
-
-      const overrideTargetNormalized = override?.target ? clampNormalizedPoint(override.target) : undefined;
-      const lastTrailPoint = recordedTrailNormalized[recordedTrailNormalized.length - 1];
-      const recordedTargetNormalized =
-        recordedTrailNormalized.length > 0 && lastTrailPoint
-          ? lastTrailPoint
-          : recordedClickNormalized ?? undefined;
-
-      const fallbackNormalized = computeFallbackNormalized(frame.id, dims);
-      const targetNormalized = overrideTargetNormalized ?? recordedTargetNormalized ?? fallbackNormalized;
-
-      const recordedIntermediate =
-        recordedTrailNormalized.length > 2
-          ? recordedTrailNormalized.slice(1, recordedTrailNormalized.length - 1)
-          : [];
-
-      let startNormalized = previousNormalized;
-      if (!startNormalized) {
-        const firstTrailPoint = recordedTrailNormalized[0];
-        if (firstTrailPoint) {
-          startNormalized = firstTrailPoint;
-        } else {
-          startNormalized = fallbackNormalized;
-        }
-      }
-
-      startNormalized = clampNormalizedPoint(startNormalized);
-
-      const overridePathStyle = override?.pathStyle;
-      const usingRecordedTrail = !overridePathStyle && recordedIntermediate.length > 0;
-      const effectivePathStyle = overridePathStyle ?? basePathStyle;
-      const generatedPath = usingRecordedTrail
-        ? recordedIntermediate
-        : generateStylizedPath(effectivePathStyle, startNormalized, targetNormalized, frame.id);
-
-      plans.push({
-        frameId: frame.id,
-        dims,
-        startNormalized,
-        targetNormalized,
-        pathNormalized: generatedPath,
-        speedProfile: override?.speedProfile ?? baseSpeedProfile,
-        pathStyle: effectivePathStyle,
-        hasRecordedTrail: usingRecordedTrail,
-        previousTargetNormalized: previousNormalized,
-      });
-
-      previousNormalized = targetNormalized;
-    });
-
-    return plans;
-  }, [frames, cursorOverrides, basePathStyle, baseSpeedProfile, computeFallbackNormalized]);
-
-  // Update cursor position based on current frame and progress
-  useEffect(() => {
-    if (!isCursorEnabled) {
-      return;
-    }
-    const plan = cursorPlans[currentIndex];
-    if (!plan) {
-      setCursorPosition(undefined);
-      return;
-    }
-    const normalizedPath = [plan.startNormalized, ...plan.pathNormalized, plan.targetNormalized];
-    if (normalizedPath.length === 0) {
-      setCursorPosition(undefined);
-      return;
-    }
-    const absolutePath = normalizedPath.map((point) => toAbsolutePoint(point, plan.dims));
-    const profiled = applySpeedProfile(isPlaying ? frameProgress : 1, plan.speedProfile);
-    const evaluated = interpolatePath(absolutePath, profiled);
-    setCursorPosition(evaluated);
-  }, [cursorPlans, currentIndex, frameProgress, isCursorEnabled, isPlaying]);
-
-  return {
-    cursorPlans,
-    cursorPosition,
-  };
+  return { cursorPlans, cursorPosition, cursorProvenance };
 }

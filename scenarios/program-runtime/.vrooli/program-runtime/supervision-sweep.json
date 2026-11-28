@@ -1,0 +1,140 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.supervision-sweep",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read fleet lifecycle state once and report running/health for a named delivery-scenario set, naming any that are not running or not healthy, so a supervisor runs one program instead of one status call per scenario.",
+  "inputs": {
+    "all_scenarios": {
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "When true, return one bounded summary for every scenario in the fleet instead of filtering a named set."
+    },
+    "page_offset": {
+      "type": "integer",
+      "required": false,
+      "default": 0,
+      "description": "Zero-based offset for all_scenarios pages."
+    },
+    "page_size": {
+      "type": "integer",
+      "required": false,
+      "default": 20,
+      "description": "Rows per all_scenarios page, capped at 20 to fit the default 4 KB output tier."
+    },
+    "scenarios": {
+      "type": "string",
+      "required": false,
+      "default": "agent-manager,prompt-manager,web-console,workflow-health,browser-automation-studio,scenario-to-desktop,nutrition-planner,personal-planner",
+      "description": "Comma-separated scenario slugs to supervise. Named requests return one bounded {name,status,health} row per requested slug in request order; absent or unobserved slugs use absent or unknown labels. Defaults to the delivery/product scenario set."
+    }
+  },
+  "assumptions": [
+    "the vrooli project control-plane API is reachable (the process that serves vrooli/scenario/list)"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "exactly one governed read (vrooli/scenario/list) is issued; no per-scenario fan-out",
+    "filter named requests before materializing at most 32; all_scenarios materializes at most 160 fleet rows and reports incomplete coverage beyond the bound",
+    "named requests return one name/status/health row per requested slug including absent or unknown rows, trimming only the returned suffix when needed to stay under 4 KB",
+    "named request envelopes never exceed the 4 KB output bound",
+    "the envelope is printed exactly once, on every path",
+    "at most 32 named scenarios or 160 all-fleet summaries are reported; incomplete coverage is marked partial"
+  ],
+  "bindings": [
+    {
+      "id": "vrooli/scenario/list",
+      "effect": "read"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "requested": "count of scenario slugs supervised after truncation",
+      "found": "count of requested slugs present in the fleet list",
+      "running": "count of requested scenarios whose lifecycle status is running",
+      "healthy": "count of requested scenarios whose health is healthy",
+      "attention": "list of {name, status, health} for requested scenarios that are not running or not healthy, plus any requested slug absent from the fleet list",
+      "scenarios": "for named requests, {name, status, health} rows in request order; the output may truncate a suffix; for all_scenarios=true, one page of fleet rows",
+      "page_offset": "offset consumed for the returned page",
+      "page_size": "bounded maximum rows in the page",
+      "total_scenarios": "number of fleet rows materialized within the 160-row bound",
+      "next_offset": "next page offset, or null when all rows have been returned",
+      "truncated": "true when more than 32 slugs were requested or named rows were trimmed to meet the output bound",
+      "source_truncated": "true when matching fleet rows exceed the bounded materialization"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "binding ids read"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 256,
+    "output_bytes": 4096
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "Requires the project control-plane API serving vrooli/scenario/list. When that endpoint is down the program returns status unavailable with reason scenario_unreachable; that is the honest sensor result, not a program defect."
+    },
+    {
+      "id": "empty-request",
+      "inputs": {
+        "scenarios": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "An empty scenario set after trimming is an invalid input the program reports as failed with class invalid_input before any read."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

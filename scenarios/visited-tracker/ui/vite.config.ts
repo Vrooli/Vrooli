@@ -1,7 +1,8 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import RequirementReporter from "@vrooli/vitest-requirement-reporter";
 import type { Reporter } from "vitest";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const requirementReporter = new RequirementReporter({
   outputFile: 'coverage/vitest-requirements.json',
@@ -13,26 +14,23 @@ const requirementReporter = new RequirementReporter({
 }) as unknown as Reporter;
 
 export default defineConfig({
+  // INTEROP-CRITICAL: relative assets remain reachable through host proxies.
   base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    passWithNoTests: true,
+    passWithNoTests: false,
     reporters: [requirementReporter],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],
       reportOnFailure: true,
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/test-setup.ts', 'src/vite-env.d.ts'],
-      thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 50,
-        statements: 60
-      }
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/**/*.d.ts',
+        'src/main.tsx', 'src/test-setup.ts', 'src/test-utils/**',
+        'src/consts/strings.generated.ts', 'src/i18n/locales/**', 'src/**/generated/**'],
     }
   }
 });

@@ -1,9 +1,16 @@
 package runlocal
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestParseArgsParsesRepeatableSelectors(t *testing.T) {
@@ -61,11 +68,61 @@ func TestMultiFlagSetIgnoresBlankValues(t *testing.T) {
 	}
 }
 
-func TestDefaultValueFallsBackForBlankStrings(t *testing.T) {
-	if got := defaultValue("  ", "fallback"); got != "fallback" {
-		t.Fatalf("expected fallback value, got %q", got)
+func TestRunUsesFallbackAndPreservesSelectedResponseType(t *testing.T) {
+	tests := []struct {
+		name         string
+		responseType string
+		want         string
+	}{
+		{name: "blank fallback", responseType: " \t", want: "Scenario tests completed via unknown"},
+		{name: "selected value remains unchanged", responseType: "  phased  ", want: "Scenario tests completed via   phased  "},
 	}
-	if got := defaultValue("present", "fallback"); got != "present" {
-		t.Fatalf("expected explicit value, got %q", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/api/v1/scenarios/demo/run-tests" {
+					t.Fatalf("request path = %q", r.URL.Path)
+				}
+				fmt.Fprintf(w, `{"type":%q}`, tt.responseType)
+			}))
+			defer server.Close()
+			api := cliutil.NewAPIClient(
+				cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}),
+				func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} },
+				func() string { return "" },
+			)
+			client := NewClient(api)
+			output := captureStdout(t, func() {
+				if err := Run(client, []string{"demo"}); err != nil {
+					t.Errorf("Run() error = %v", err)
+				}
+			})
+			if !strings.Contains(output, tt.want) {
+				t.Fatalf("Run() output = %q, want it to contain %q", output, tt.want)
+			}
+		})
 	}
+}
+
+func captureStdout(t *testing.T, run func()) string {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe() error = %v", err)
+	}
+	original := os.Stdout
+	os.Stdout = writer
+	defer func() { os.Stdout = original }()
+	run()
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close stdout writer: %v", err)
+	}
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	if err := reader.Close(); err != nil {
+		t.Fatalf("close stdout reader: %v", err)
+	}
+	return string(output)
 }

@@ -1,0 +1,67 @@
+{
+  "id": "reddit",
+  "daily_ceiling": 2,
+  "caption_limit": 0,
+  "action_kinds": [
+    "engage",
+    "publish"
+  ],
+  "post_types": [
+    {
+      "id": "comment_video",
+      "format_kind": "comment_video",
+      "caption_required": false
+    },
+    {
+      "id": "text_post",
+      "format_kind": "text",
+      "caption_required": true
+    }
+  ],
+  "disclosure_required": false,
+  "first_comment_supported": false,
+  "provenance": {
+    "source_kind": "commission_manual_handoff",
+    "confidence": "medium",
+    "captured_at": "2026-11-20",
+    "revisit_trigger": "before enabling automated publishing or changing platform-specific text limits",
+    "sources": [
+      "marketing-and-presence MISSION.md cadence and operator boundary",
+      "MP1 manual-handoff configuration brief"
+    ]
+  },
+  "retry": {
+    "retryable_codes": [
+      "timeout",
+      "temporarily_unavailable"
+    ],
+    "max_attempts": 2,
+    "backoff_minutes": 10
+  },
+  "formats": [
+    {
+      "kind": "comment_video",
+      "mime_types": [
+        "video/mp4",
+        "video/quicktime",
+        "video/webm"
+      ],
+      "max_bytes": 1073741824,
+      "max_duration_secs": 180,
+      "duration_resolved_per_identity": false,
+      "min_width": 50,
+      "min_height": 50,
+      "max_width": 4096,
+      "max_height": 4096,
+      "preview_fit": "native"
+    },
+    {
+      "kind": "text",
+      "text_only": true,
+      "mime_types": [
+        "text/plain"
+      ]
+    }
+  ],
+  "manual_handoff_only": true
+}

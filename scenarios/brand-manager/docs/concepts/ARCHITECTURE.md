@@ -1,117 +1,43 @@
-# Architecture
+# Architecture — Brand Manager
 
-Brand Manager follows a domain-driven design with clear layer separation.
+## Scenario Purpose
 
-## System Overview
+Record this scenario's actual system shape and durable architecture decisions. The [React-Vite architecture guide](../../../../docs/architecture/react-vite-scenario-architecture.md) owns the shared template pattern; this page owns only scenario-specific architecture.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    Surfaces                          │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────────┐  │
-│  │  CLI      │  │  REST API │  │  React UI (future)│  │
-│  │ cli/app.go│  │ handlers/ │  │  ui/src/          │  │
-│  └─────┬─────┘  └─────┬─────┘  └────────┬──────────┘  │
-│        │              │                  │             │
-│        └──────┐       │       ┌──────────┘             │
-│               ▼       ▼       ▼                        │
-│         ┌──────────────────────────┐                   │
-│         │     HTTP API Layer       │                   │
-│         │   [CODE: api/main.go]    │                   │
-│         └────────────┬─────────────┘                   │
-│                      │                                 │
-│         ┌────────────▼─────────────┐                   │
-│         │    Handler Layer         │                   │
-│         │ [CODE: api/handlers/     │                   │
-│         │  brands.go]              │                   │
-│         └────────────┬─────────────┘                   │
-│                      │ uses interfaces                 │
-│         ┌────────────▼─────────────┐                   │
-│         │   Repository Interfaces  │                   │
-│         │ [CODE: api/repository/   │                   │
-│         │  interfaces.go]          │                   │
-│         └────────────┬─────────────┘                   │
-│                      │ implemented by                  │
-│         ┌────────────▼─────────────┐                   │
-│         │   SQLite Repositories    │                   │
-│         │ [CODE: api/repository/   │                   │
-│         │  sqlite_brands.go]       │                   │
-│         └────────────┬─────────────┘                   │
-│                      │                                 │
-│         ┌────────────▼─────────────┐                   │
-│         │   Database Connection    │                   │
-│         │ [CODE: api/database/     │                   │
-│         │  connection.go]          │                   │
-│         └────────────┬─────────────┘                   │
-│                      │                                 │
-│         ┌────────────▼─────────────┐                   │
-│         │   SQLite (WAL mode)      │                   │
-│         │ [CODE: api/database/     │                   │
-│         │  schema.sql]             │                   │
-│         └──────────────────────────┘                   │
-└─────────────────────────────────────────────────────┘
-```
+## Scenario Shape
 
-## Domain Model
+Describe this scenario's actual API, UI, CLI, and contract surfaces. Link each responsibility to its implementation and its [domain owner map](DOMAINS.md).
 
-The core domain is defined in [CODE: api/domain/types.go]:
+## System Boundaries
 
-- **Brand** — Root aggregate containing identity, colors, typography, voice facets. Each facet is a value object stored as JSON in SQLite.
-- **BrandVersion** — Immutable snapshot of a Brand at a point in time. Created on every create/update.
-- **Assignment** — Links a Brand (at a specific version) to a scenario. One assignment per scenario (upsert semantics).
-- **BrandFilter** — Query filter for listing brands with optional name search, pagination.
+Read the scenario's [service declaration](../../.vrooli/service.json) for its declared runtime shape. Record product-owned code, shared packages, and external dependency boundaries that matter to this scenario.
 
-## Data Flow
+## Contracts And Data Flow
 
-### Create Brand
-1. Client sends `POST /api/v1/brands` with brand JSON
-2. [CODE: api/handlers/brands.go#CreateBrand] validates input, generates UUID
-3. [CODE: api/repository/sqlite_brands.go#Create] inserts brand with JSON-marshalled facets
-4. [CODE: api/repository/sqlite_versions.go#Create] creates initial version snapshot
-5. Response returns created brand with `version: 1`
+Describe the scenario's data and request paths. The shared guide documents the React-Vite proto-backed default; link any local REST exceptions or alternate contracts to their implementation.
 
-### Assign Brand to Scenario
-1. Client sends `POST /api/v1/assignments` with `brand_id` and `scenario_name`
-2. [CODE: api/handlers/brands.go#CreateAssignment] verifies brand exists, captures current version
-3. [CODE: api/repository/sqlite_assignments.go#Create] upserts assignment (one per scenario)
-4. Response returns assignment with captured brand version
+## Shared Infrastructure
 
-### Check Scenario Status
-1. Client sends `GET /api/v1/scenarios/{name}/status`
-2. [CODE: api/handlers/brands.go#GetScenarioStatus] queries assignment for scenario
-3. Returns `has_brand: true/false` with brand details if assigned
+List shared infrastructure this scenario actually uses and the boundary each use crosses. Keep product vocabulary and domain behavior with their owning domain.
 
-## Storage Architecture
+## Extension Rules
 
-See [DOC: docs/internal/STORAGE_AUDIT.md] for detailed storage audit.
+Describe where future changes to this scenario should land. Keep capability ownership in [`DOMAINS.md`](DOMAINS.md), workflow ownership in [`FLOWS.md`](FLOWS.md), and persistence ownership in [`DATA.md`](DATA.md).
 
-- **Database**: SQLite with WAL mode at `~/.vrooli/brand-manager/brand-manager.db`
-- **Schema**: 4 tables — `brands`, `brand_versions`, `assignments`, `assets` (see [CODE: api/database/schema.sql])
-- **Connection**: Via `api-core/database.Connect` with performance pragmas (see [CODE: api/database/connection.go#Connect])
-- **Assets**: Planned at `~/.vrooli/brand-manager/assets/{brand_id}/` (not yet implemented)
+## Architecture Maturity
 
-## Key Patterns
+State maturity only with current local code, tests, or operating evidence. Replace starter claims when this scenario's implementation differs from the template.
 
-| Pattern | Location | Purpose |
-|---------|----------|---------|
-| Repository interfaces | [CODE: api/repository/interfaces.go] | Decouple handlers from storage |
-| JSON facets in SQLite | [CODE: api/repository/sqlite_brands.go] | Store complex objects without joins |
-| Embedded schema | [CODE: api/database/connection.go] | Idempotent table creation on startup |
-| Version snapshots | [CODE: api/repository/sqlite_versions.go] | Immutable brand history |
-| Upsert assignments | [CODE: api/repository/sqlite_assignments.go] | One brand per scenario constraint |
-| Handler factory | [CODE: api/handlers/brands.go#New] | Dependency injection for testability |
+## Intentional Deviations
 
-## Dependency Direction
+Record durable deviations from the shared guide with their reason and revisit trigger. If none are known, confirm that against this scenario's code before writing that conclusion.
 
-```
-main.go → handlers → repository (interfaces) ← sqlite implementations
-                   → domain (types only)
-```
+## Documentation Architecture
 
-Handlers depend on repository interfaces, never concrete implementations. The `main.go` entry point wires concrete SQLite repositories into handlers.
+Keep one local source for each scenario concern: [`DOMAINS.md`](DOMAINS.md), [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md), [`INTEGRATIONS.md`](INTEGRATIONS.md), [`../internal/SEAMS.md`](../internal/SEAMS.md), and [`../internal/TESTING.md`](../internal/TESTING.md). Link details instead of copying their inventories.
 
-## Future Architecture (Planned)
+## Cross-References
 
-- **AI Generation**: AIProviderChain pattern (Ollama-first, OpenRouter fallback) for text and image generation
-- **Programmatic Application**: CSS custom property injection with `/* brand-manager:<element> */` markers
-- **Scenario Auditor Integration**: HTTP provider for branding compliance rules
-- **Discovery Scanner**: Auto-populate draft brands from existing scenario state
+- [Shared React-Vite scenario architecture](../../../../docs/architecture/react-vite-scenario-architecture.md)
+- [Declared scenario runtime contract](../../../../docs/architecture/the-declared-scenario.md)
+- [Durable decisions](../internal/DECISIONS.md)

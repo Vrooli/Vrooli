@@ -5,15 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/types"
+	"test-genie/internal/shared/filesystem"
 )
 
 // Reader abstracts file reading for parsing operations.
-type Reader interface {
-	ReadFile(path string) ([]byte, error)
-}
+type Reader = filesystem.FileReader
 
 // Parser parses requirement JSON files.
 type Parser interface {
@@ -41,22 +41,9 @@ func New(reader Reader) Parser {
 // NewDefault creates a Parser using the real file system.
 func NewDefault() Parser {
 	return &parser{
-		reader:     &osReader{},
+		reader:     filesystem.OS{},
 		normalizer: NewNormalizer(),
 	}
-}
-
-// osReader implements Reader using the os package.
-type osReader struct{}
-
-func (r *osReader) ReadFile(path string) ([]byte, error) {
-	return readFileFromOS(path)
-}
-
-// readFileFromOS reads a file from the OS filesystem.
-// This is a separate function to avoid import issues.
-func readFileFromOS(path string) ([]byte, error) {
-	return osReadFile(path)
 }
 
 // Parse reads and normalizes a single requirement file.
@@ -145,19 +132,20 @@ type rawModule struct {
 
 // rawRequirement supports both "validation" and "validations" fields.
 type rawRequirement struct {
-	ID          string          `json:"id"`
-	Title       string          `json:"title"`
-	Status      string          `json:"status"`
-	PRDRef      string          `json:"prd_ref,omitempty"`
-	Category    string          `json:"category,omitempty"`
-	Criticality string          `json:"criticality,omitempty"`
-	Description string          `json:"description,omitempty"`
-	Tags        []string        `json:"tags,omitempty"`
-	Children    []string        `json:"children,omitempty"`
-	DependsOn   []string        `json:"depends_on,omitempty"`
-	Blocks      []string        `json:"blocks,omitempty"`
-	Validation  []rawValidation `json:"validation,omitempty"`
-	Validations []rawValidation `json:"validations,omitempty"`
+	ID            string          `json:"id"`
+	Title         string          `json:"title"`
+	Status        string          `json:"status"`
+	PRDRef        string          `json:"prd_ref,omitempty"`
+	Category      string          `json:"category,omitempty"`
+	Criticality   string          `json:"criticality,omitempty"`
+	DeliveryScope string          `json:"delivery_scope,omitempty"`
+	Description   string          `json:"description,omitempty"`
+	Tags          []string        `json:"tags,omitempty"`
+	Children      []string        `json:"children,omitempty"`
+	DependsOn     []string        `json:"depends_on,omitempty"`
+	Blocks        []string        `json:"blocks,omitempty"`
+	Validation    []rawValidation `json:"validation,omitempty"`
+	Validations   []rawValidation `json:"validations,omitempty"`
 }
 
 // rawValidation supports flexible validation parsing.
@@ -198,17 +186,18 @@ func ParseFlexible(data []byte) (*types.RequirementModule, error) {
 		}
 
 		req := types.Requirement{
-			ID:          rawReq.ID,
-			Title:       rawReq.Title,
-			Status:      types.NormalizeDeclaredStatus(rawReq.Status),
-			PRDRef:      rawReq.PRDRef,
-			Category:    rawReq.Category,
-			Criticality: types.NormalizeCriticality(rawReq.Criticality),
-			Description: rawReq.Description,
-			Tags:        rawReq.Tags,
-			Children:    rawReq.Children,
-			DependsOn:   rawReq.DependsOn,
-			Blocks:      rawReq.Blocks,
+			ID:            rawReq.ID,
+			Title:         rawReq.Title,
+			Status:        types.NormalizeDeclaredStatus(rawReq.Status),
+			PRDRef:        rawReq.PRDRef,
+			Category:      rawReq.Category,
+			Criticality:   types.NormalizeCriticality(rawReq.Criticality),
+			DeliveryScope: types.NormalizeDeliveryScope(rawReq.DeliveryScope),
+			Description:   rawReq.Description,
+			Tags:          rawReq.Tags,
+			Children:      rawReq.Children,
+			DependsOn:     rawReq.DependsOn,
+			Blocks:        rawReq.Blocks,
 		}
 
 		// Support both "validation" and "validations" fields
@@ -218,11 +207,20 @@ func ParseFlexible(data []byte) (*types.RequirementModule, error) {
 		}
 
 		for _, rawVal := range rawValidations {
+			phase := rawVal.Phase
+			if strings.TrimSpace(phase) == "" {
+				// Legacy registries used phase names as validation types. Preserve
+				// that responsibility before normalizing the type to "test".
+				switch kind := strings.ToLower(strings.TrimSpace(rawVal.Type)); kind {
+				case "unit", "integration", "business":
+					phase = kind
+				}
+			}
 			val := types.Validation{
 				Type:       types.NormalizeValidationType(rawVal.Type),
 				Ref:        rawVal.Ref,
 				WorkflowID: rawVal.WorkflowID,
-				Phase:      rawVal.Phase,
+				Phase:      phase,
 				Status:     types.NormalizeValidationStatus(rawVal.Status),
 				Notes:      rawVal.Notes,
 				Scenario:   rawVal.Scenario,

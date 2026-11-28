@@ -1,0 +1,56 @@
+{
+  "coverage": "IN-REACH",
+  "description": "Producer-owned Business Digest reading.",
+  "format": "integer",
+  "id": "experiment_leaderboard",
+  "kind": "leaderboard",
+  "label": "Experiment leaderboard",
+  "sample": {
+    "basis": "authored structural sample; production validation pending",
+    "rows": [
+      {
+        "cta_clicks": 12,
+        "cta_trials": 50,
+        "denominator": 50,
+        "is_control": true,
+        "key": "control",
+        "label": "Control",
+        "rate": 0.36,
+        "value": 18,
+        "verdict": "EXPERIMENT_VERDICT_CONTROL"
+      },
+      {
+        "cta_clicks": 14,
+        "cta_trials": 50,
+        "denominator": 50,
+        "is_control": false,
+        "key": "variant-a",
+        "label": "Variant A",
+        "probability": 0.62,
+        "rate": 0.4,
+        "value": 20,
+        "verdict": "EXPERIMENT_VERDICT_INSUFFICIENT_DATA"
+      }
+    ],
+    "series": [
+      50
+    ],
+    "value": 50
+  },
+  "shape": "series",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "business-digest.v1",
+    "expectedUnit": "count",
+    "featureId": "digest_experiment",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest?windowDays=30",
+    "select": "digest_experiment",
+    "selector": "digest_experiment",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
+}

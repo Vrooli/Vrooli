@@ -5,77 +5,37 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 )
+
+// EnvReader is the ambient CLI environment seam used to resolve optional
+// bearer tokens. Tests inject a map-backed reader; production uses OSEnv.
+// seam: EnvReader
+type EnvReader interface {
+	LookupEnv(string) (string, bool)
+}
+
+type OSEnv struct{}
+
+func (OSEnv) LookupEnv(key string) (string, bool) { return os.LookupEnv(key) }
 
 type Context struct {
 	Name         string
-	Version      string
 	Core         *cliapp.ScenarioApp
 	ScenarioRoot string
 	TokenEnvVars []string
-}
-
-func (c *Context) APIPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(c.Core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
-}
-
-func (c *Context) APIV1Base() string {
-	base := strings.TrimRight(strings.TrimSpace(c.Core.HTTPClient.BaseURL()), "/")
-	if base == "" {
-		return ""
-	}
-	if strings.HasSuffix(base, "/api/v1") {
-		return base
-	}
-	return base + "/api/v1"
-}
-
-func (c *Context) APIRoot() string {
-	base := strings.TrimRight(strings.TrimSpace(c.Core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return strings.TrimSuffix(base, "/api/v1")
-	}
-	return base
-}
-
-func (c *Context) ResolvedAPIV1Base() string {
-	if c == nil || c.Core == nil {
-		return ""
-	}
-	if base := strings.TrimSpace(c.APIV1Base()); base != "" {
-		return base
-	}
-	base := cliutil.DetermineAPIBase(c.Core.APIBaseOptions())
-	if strings.TrimSpace(base) == "" {
-		return ""
-	}
-	return strings.TrimRight(base, "/") + "/api/v1"
-}
-
-func (c *Context) ResolvedAPIRoot() string {
-	base := strings.TrimRight(strings.TrimSpace(c.ResolvedAPIV1Base()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return strings.TrimSuffix(base, "/api/v1")
-	}
-	return base
+	Environment  EnvReader
 }
 
 func (c *Context) Token() string {
+	environment := c.Environment
+	if environment == nil {
+		environment = OSEnv{}
+	}
 	for _, env := range c.TokenEnvVars {
-		if value := strings.TrimSpace(os.Getenv(env)); value != "" {
-			return value
+		if raw, ok := environment.LookupEnv(env); ok {
+			if value := strings.TrimSpace(raw); value != "" {
+				return value
+			}
 		}
 	}
 	if c.Core == nil {

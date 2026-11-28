@@ -1,0 +1,10 @@
+# Android USB debugging access for the local device-control owner group.
+# Install with: sudo install -m 0644 51-android.rules /etc/udev/rules.d/51-android.rules
+# Then run: sudo udevadm control --reload-rules && sudo udevadm trigger
+# Replace/add a vendor line when using a manufacturer not listed here.
+SUBSYSTEM=="usb", ATTR{idVendor}=="04e8", MODE="0660", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="18d1", MODE="0660", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="22b8", MODE="0660", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="2717", MODE="0660", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="12d1", MODE="0660", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="0bb4", MODE="0660", GROUP="plugdev"

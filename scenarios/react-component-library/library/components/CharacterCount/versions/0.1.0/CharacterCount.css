@@ -1,0 +1,17 @@
+[data-rcl-character-count] {
+  display: block;
+  min-inline-size: 0;
+  color: var(--rcl-character-count-color, var(--color-muted-foreground));
+  font: var(--rcl-character-count-font, var(--text-caption));
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+[data-rcl-character-count][data-exceeded] {
+  color: var(--rcl-character-count-over-limit-color, var(--color-danger));
+  text-align: start;
+}
+
+[data-rcl-character-count-message] {
+  display: block;
+}

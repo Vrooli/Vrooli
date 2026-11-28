@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:TargetSwitcher",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 12,
+    "maximumLabelCharacters": 32,
+    "primaryAction": "not-applicable",
+    "property": "options",
+    "stableIdField": "id",
+    "typicalCount": 4
+  },
+  "version": "0.3.8"
+}

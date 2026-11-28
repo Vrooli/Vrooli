@@ -2,7 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
 
-const distDir = path.resolve(process.cwd(), 'dist')
+const outDirIndex = process.argv.indexOf('--outDir')
+const requestedOutDir = outDirIndex >= 0 ? process.argv[outDirIndex + 1] : ''
+if (outDirIndex >= 0 && (!requestedOutDir || requestedOutDir.startsWith('-'))) {
+  throw new Error('--outDir requires a directory path')
+}
+const outputDir = path.resolve(process.cwd(), requestedOutDir || 'dist')
 
 const CONTENT_TYPES = new Map([
   ['.js', true],
@@ -32,13 +37,13 @@ function walk(dir, onFile) {
   }
 }
 
-if (!fs.existsSync(distDir)) {
+if (!fs.existsSync(outputDir)) {
   process.exit(0)
 }
 
 let written = 0
 
-walk(distDir, (filePath) => {
+walk(outputDir, (filePath) => {
   if (!shouldGzip(filePath)) return
 
   const gzPath = `${filePath}.gz`

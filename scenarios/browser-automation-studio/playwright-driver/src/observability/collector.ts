@@ -118,7 +118,7 @@ export class ObservabilityCollector {
     const summary: ObservabilitySummary = {
       sessions: sessionSummary.total,
       recordings: sessionSummary.active_recordings,
-      browser_connected: browserStatus.healthy,
+      browser_connected: browserStatus.runtime_identity_status === 'reported',
     };
 
     // Determine overall status
@@ -161,11 +161,15 @@ export class ObservabilityCollector {
     return {
       status,
       message: browserStatus.healthy
-        ? `Chromium ${browserStatus.version || 'ready'}`
+        ? browserStatus.runtime_identity_status === 'reported'
+          ? `Chromium ${browserStatus.version || 'ready'}`
+          : 'Chromium ready; live runtime identity unavailable'
         : browserStatus.error || 'Unknown browser issue',
       hint: browserStatus.error ? this.getBrowserErrorHint(browserStatus.error) : undefined,
+      runtime_identity_status: browserStatus.runtime_identity_status ?? 'unavailable',
+      family: browserStatus.family,
       version: browserStatus.version,
-      connected: browserStatus.healthy,
+      connected: browserStatus.runtime_identity_status === 'reported',
       provider: playwrightProvider.name,
       capabilities: {
         evaluate_isolated: playwrightProvider.capabilities.evaluateIsolated,

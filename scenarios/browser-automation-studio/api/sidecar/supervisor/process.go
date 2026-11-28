@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/envkit-go"
 )
 
 // Process abstracts process operations for testing.
@@ -46,6 +47,7 @@ type NodeProcess struct {
 	script    string
 	port      int
 	log       *logrus.Logger
+	env       []string
 
 	cmd      *exec.Cmd
 	exitChan chan struct{}
@@ -62,13 +64,14 @@ type NodeProcess struct {
 //   - script: script to run within driverDir (e.g., "dist/server.js")
 //   - port: port for the driver to listen on
 //   - log: logger for process events
-func NewNodeProcess(nodePath, driverDir, script string, port int, log *logrus.Logger) *NodeProcess {
+func NewNodeProcess(nodePath, driverDir, script string, port int, log *logrus.Logger, env ...string) *NodeProcess {
 	return &NodeProcess{
 		nodePath:  nodePath,
 		driverDir: driverDir,
 		script:    script,
 		port:      port,
 		log:       log,
+		env:       append([]string(nil), env...),
 	}
 }
 
@@ -107,10 +110,16 @@ func (p *NodeProcess) Start() error {
 		p.log.Warn("API_PORT not set, using default for history callbacks")
 	}
 	historyCallbackURL := fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
-	p.cmd.Env = append(os.Environ(),
+	childEnv := envkit.Env{
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
-	)
+	}
+	// Pass the lifecycle-allocated metrics listener to the driver.
+	if metricsPort := os.Getenv("PLAYWRIGHT_DRIVER_METRICS_PORT"); metricsPort != "" {
+		childEnv = append(childEnv, fmt.Sprintf("METRICS_PORT=%s", metricsPort))
+	}
+	p.cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, childEnv)
+	p.cmd.Env = append(p.cmd.Env, p.env...)
 
 	// Capture stdout/stderr for logging
 	p.cmd.Stdout = &logWriter{log: p.log, level: logrus.InfoLevel, prefix: "[playwright-driver]"}
@@ -263,21 +272,23 @@ func (p *NodeProcess) resolveDriverDir() (string, error) {
 		return p.driverDir, nil
 	}
 
-	// Try to resolve relative to the API binary location
-	// The API binary is typically at: <scenario>/api/browser-automation-studio-api
-	// So we go up one level to get to <scenario>/
+	// Try to resolve relative to the API binary location. Development builds
+	// place the API at <scenario>/api/<binary>, while desktop bundles place it
+	// at <bundle>/bin/api/<binary> and stage the driver at <bundle>/<driver>.
+	// Check both layouts so the same sidecar supervisor owns the driver in each
+	// tier.
 	if execPath, err := os.Executable(); err == nil {
-		// Get the directory containing the executable (api/)
 		execDir := filepath.Dir(execPath)
-		// Go up one level to the scenario root
-		scenarioRoot := filepath.Dir(execDir)
-		// Construct the full path
-		candidatePath := filepath.Join(scenarioRoot, p.driverDir)
-		if absPath, err := filepath.Abs(candidatePath); err == nil {
-			// Check if this path exists
-			if _, err := os.Stat(absPath); err == nil {
-				p.log.WithField("path", absPath).Debug("Resolved driver directory relative to executable")
-				return absPath, nil
+		candidates := []string{
+			filepath.Join(filepath.Dir(execDir), p.driverDir),
+			filepath.Join(filepath.Dir(filepath.Dir(execDir)), p.driverDir),
+		}
+		for _, candidatePath := range candidates {
+			if absPath, err := filepath.Abs(candidatePath); err == nil {
+				if info, err := os.Stat(absPath); err == nil && info.IsDir() {
+					p.log.WithField("path", absPath).Debug("Resolved driver directory relative to executable")
+					return absPath, nil
+				}
 			}
 		}
 	}
@@ -327,140 +338,5 @@ func (w *logWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// MockProcess is a Process implementation for testing.
-type MockProcess struct {
-	StartErr      error
-	StopErr       error
-	WaitErr       error
-	StartCalled   int
-	StopCalled    int
-	SimulateCrash chan struct{} // Close to simulate a crash
-
-	mu       sync.Mutex
-	running  bool
-	pid      int
-	exitChan chan struct{}
-}
-
-// NewMockProcess creates a new MockProcess.
-func NewMockProcess() *MockProcess {
-	return &MockProcess{
-		SimulateCrash: make(chan struct{}),
-		pid:           12345,
-	}
-}
-
-// Start implements Process.
-func (m *MockProcess) Start() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.StartCalled++
-	if m.StartErr != nil {
-		return m.StartErr
-	}
-
-	m.running = true
-	m.exitChan = make(chan struct{})
-
-	// Capture the current crash channel - this ensures each Start() invocation
-	// listens to the crash channel that exists at that point in time.
-	// Tests can reassign SimulateCrash between restarts and each restart
-	// will pick up the new channel.
-	crashChan := m.SimulateCrash
-	exitChan := m.exitChan
-
-	// Monitor for simulated crash
-	go func() {
-		select {
-		case <-crashChan:
-			m.mu.Lock()
-			if m.running {
-				m.running = false
-				close(m.exitChan)
-			}
-			m.mu.Unlock()
-		case <-exitChan:
-			// Normal exit
-		}
-	}()
-
-	return nil
-}
-
-// Stop implements Process.
-func (m *MockProcess) Stop(gracePeriod time.Duration) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.StopCalled++
-	if m.StopErr != nil {
-		return m.StopErr
-	}
-
-	if m.running {
-		m.running = false
-		close(m.exitChan)
-	}
-
-	return nil
-}
-
-// Wait implements Process.
-func (m *MockProcess) Wait() error {
-	m.mu.Lock()
-	exitChan := m.exitChan
-	m.mu.Unlock()
-
-	if exitChan != nil {
-		<-exitChan
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.WaitErr
-}
-
-// Pid implements Process.
-func (m *MockProcess) Pid() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if !m.running {
-		return 0
-	}
-	return m.pid
-}
-
-// Running implements Process.
-func (m *MockProcess) Running() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.running
-}
-
-// ExitChan implements Process.
-func (m *MockProcess) ExitChan() <-chan struct{} {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.exitChan
-}
-
-// TriggerCrash simulates an unexpected process crash.
-// This is the preferred way to trigger crashes in tests as it properly
-// closes the exit channel that the supervisor monitors.
-func (m *MockProcess) TriggerCrash() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.running {
-		m.running = false
-		close(m.exitChan)
-	}
-}
-
-// compile-time checks
-var (
-	_ Process = (*NodeProcess)(nil)
-	_ Process = (*MockProcess)(nil)
-)
+// compile-time check
+var _ Process = (*NodeProcess)(nil)

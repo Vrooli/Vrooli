@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "review-to-resolution",
+    "title": "Move a finding to a verified resolution",
+    "purpose": "A maintainer opens the finding that needs attention, follows its evidence to the affected asset, and resolves it without losing the finding context.",
+    "prd_refs": ["OT-P0-014"]
+  },
+  "steps": [
+    {
+      "page": "review",
+      "state": "default",
+      "intent": "Identify the finding with the highest blast radius.",
+      "via": "review queue"
+    },
+    {
+      "page": "component-preview-workspace",
+      "state": "default",
+      "intent": "Inspect the affected asset, evidence and versions.",
+      "via": "open affected asset"
+    },
+    {
+      "page": "review",
+      "state": "default",
+      "intent": "Return to the queue with the resolution evidence attached.",
+      "via": "back to review"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-preserves-finding-context",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "The selected finding, its evidence and its affected asset remain identifiable when the maintainer moves between Review and the asset.",
+      "rationale": "The Review page and its projection are drafts; this claim records the intended cross-page behavior without pretending it is proven."
+    }
+  ],
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md"
+  }
+}

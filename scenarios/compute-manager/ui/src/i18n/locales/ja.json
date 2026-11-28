@@ -1,0 +1,138 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Compute Manager のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Compute Manager"
+  },
+  "data-display": {
+    "data-table": {
+      "access-is-limited": "アクセスが制限されています",
+      "all": "すべて",
+      "data-table-content": "データテーブルの内容",
+      "dense": "高密度",
+      "next": "次へ",
+      "previous": "前へ",
+      "roomy": "ゆったり",
+      "row-density": "行の密度"
+    }
+  },
+  "layout": {
+    "navigationLabel": "メインナビゲーション",
+    "mobileNavigationLabel": "モバイルナビゲーション",
+    "skipToContent": "コンテンツへスキップ",
+    "openNavigation": "ナビゲーションを開く",
+    "closeNavigation": "ナビゲーションを閉じる",
+    "nav": {
+      "dashboard": "ホーム",
+      "findings": "問題",
+      "request": "リクエスト",
+      "setup": "プロバイダー",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "providerSetup": {
+    "evidenceHeading": "検証エビデンス",
+    "verified": "検証済み",
+    "unverified": "未検証",
+    "waitingDecision": "電話での決定を待っています",
+    "checkedAt": "確認日時",
+    "evidenceSource": "出典",
+    "spendGate": "プロバイダーの設定は支出を承認しません。容量リクエストごとに、最新の保存済み見積もりと支出上限の承認が必要です。",
+    "akash": {
+      "title": "Akash",
+      "network": "ネットワーク:",
+      "effectMode": "エフェクトモード:",
+      "signerStatus": "Credential Authority 署名者:",
+      "priceStatus": "価格カタログ:",
+      "blockedReason": "ブロック理由:",
+      "notReported": "Compute Manager から報告されていません",
+      "signerVerified": "Credential Authority による検証済み",
+      "signerUnverified": "検証済み署名者の状態は返されていません",
+      "priceFresh": "出典付きの最新価格を利用できます",
+      "priceStale": "有効な最新の出典付き価格はありません",
+      "priceMissing": "価格情報は返されていません",
+      "blockedReasonMissing": "Compute Manager から具体的なブロック理由が返されていません",
+      "actionsDisabled": "Compute Manager が検証済みの前提条件と明示的な live エフェクトゲートを返すまで、設定操作は無効です。",
+      "descriptorMissing": "Compute Manager から Akash のプロバイダー記述子または準備状況が返されていません。ネットワーク、エフェクトモード、署名者検証、価格状況、ブロック理由はサーバーから取得できません。",
+      "noActions": "設定、検証、プロバイダー操作は利用できません。準備状況や費用は推測していません。",
+      "noOffer": "検証用のオファーまたはリージョンの対象がサーバーから返されていません。",
+      "noPriceFact": "Compute Manager から価格情報が返されていません。プロバイダー費用は推測していません。",
+      "walletDescriptor": "Credential Authority の記述子",
+      "walletEntryStatus": "安全な入力状態",
+      "walletIdentifierCaveat": "この記述子は識別子にすぎません。認証情報が存在すること、ウォレットに属すること、署名できることは証明されません。既存の sandbox-2 ウォレット認証情報だけを安全な Vrooli Onboarding から入力してください。この手順ではウォレットを作成またはインポートしません。",
+      "marketApiKey": "Akash読み取り専用マーケットAPIキー",
+      "marketApiKeyStatus": "マーケットソース資格情報の状態",
+      "marketApiKeyCaveat": "Akash公式Consoleの入札エンドポイントにはx-api-keyと既存デプロイのdseqが必要です。既存キーのみを安全なVrooli Onboardingから入力してください。Compute Managerはキー、アカウント、デプロイを作成しません。",
+      "marketApiKeyNextStep": "Akashアカウントを既にお持ちでキーがない場合は、Console Settings → API Keysでキーを作成し、安全なVrooli Onboardingから入力してください。",
+      "akashConsole": "Akash Consoleを開く",
+      "secureEntryAction": "安全な Vrooli Onboarding を開く"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ホーム",
+      "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
+      "inventoryTitle": "コンピュートインベントリ", "inventoryDescription": "稼働中のインスタンス、残り時間、未解決の問題。", "loading": "インベントリを読み込み中…", "error": "インベントリを読み込めません。", "empty": "稼働中のインスタンスはありません。", "openFindings": "未解決の問題", "noFindings": "未解決の調整問題はありません。", "state": "状態", "region": "リージョン", "size": "サイズ", "remaining": "残り"
+    },
+    "findings": { "title": "未解決の問題", "description": "オペレーターの対応が必要な調整問題。", "kind": "種類", "providerInstance": "プロバイダーインスタンス", "detail": "詳細", "error": "問題を読み込めません。", "empty": "未解決の調整問題はありません。" },
+    "instance": { "title": "インスタンス詳細", "description": "1つのインスタンスのプロバイダー、予約、登録状態。", "error": "インスタンスを読み込めません。", "loading": "インスタンスを読み込み中…", "state": "状態", "address": "アドレス", "provider": "プロバイダー"
+    },
+    "request": { "title": "容量をリクエスト", "description": "容量を作成する前に、上限のあるマシンの有効期間を選択します。", "provider": "プロバイダー", "region": "リージョン", "size": "サイズ", "lifetime": "有効期間（秒）", "estimate": "見積もりにはプロバイダーの最小請求単位を使用します。", "submit": "容量をリクエスト", "submitting": "容量をリクエスト中…", "success": "容量リクエストを受け付けました。", "error": "容量リクエストに失敗しました。マシンは作成されていません。", "validation": "正の有効期間を選択してください。", "newRequest": "別のリクエストを開始", "retryReceipt": "見積もりレシートを再読み込み", "receiptHeading": "保存済み見積もりと支出判定", "receiptKey": "リクエスト参照", "quoteState": "見積もり状態", "decision": "受け入れ判定", "requestState": "リクエスト状態", "instance": "作成されたインスタンス", "providerOffer": "プロバイダーのプラン", "selection": "選択内容", "serverCost": "サーバー月額", "ipv4Cost": "IPv4 月額", "totalCost": "選択した月額合計", "cap": "支出上限", "taxBasis": "税の扱い", "reason": "理由", "source": "価格情報源", "sourceVersion": "情報源バージョン", "observed": "観測日時", "expires": "有効期限", "fresh": "有効", "expired": "期限切れ", "unknown": "不明", "priceUnavailable": "検証済みのプロバイダー価格は保存されていません。金額は不明であり、ゼロとは見なしません。", "receiptMissing": "保存済みレシートはまだありません。安全な再試行のためリクエスト参照を保持してください。", "receiptPending": "このリクエストは未完了で、照合が必要な場合があります。完了状態になるまで別のリクエストを開始しないでください。", "receiptNote": "受け入れ判定は上限の判断であり、サーバー作成の確認ではありません。同じ参照を再利用しても作成は重複しません。" },
+    "adoption": { "title": "既存 VPS を採用", "description": "オペレーター所有の VPS を Compute Manager に登録します。サーバーの所有権は維持され、このフォームでは SSH パスワードを受け付けません。", "intro": "秘密ではない接続先と明示的な月額請求情報を入力します。送信後、保存済み見積もりと上限判定を表示します。", "displayName": "表示名（任意）", "host": "ホストアドレス", "user": "SSH ユーザー", "monthlyCostMinor": "月額合計（通貨の最小単位）", "currency": "ISO 通貨コード", "taxBasis": "税の扱い（税抜き / 税込み）", "continueLabel": "採用情報を記録", "addressRequired": "VPS のアドレスを入力してください。", "sshUserRequired": "SSH ユーザーを入力してください。", "monthlyCostInvalid": "通貨の最小単位で 0 以上の整数を入力してください。", "currencyInvalid": "3 文字の ISO 通貨コードを入力してください。", "taxBasisRequired": "合計が税抜きか税込みかを指定してください。", "stateLabel": "採用状態", "stateDraft": "下書き", "stateAwaitingSecret": "安全な初回接続資格情報を待機中", "stateCredentialStored": "安全なオンボーディングで資格情報を受理", "stateBridgeEnrolling": "Bridge 登録の検証待ち", "stateReady": "準備完了", "stateFailed": "要確認", "stateReleased": "解放済み", "monthlyCost": "申告された月額合計", "releaseSemantics": "解放で削除されるのは Compute Manager の記録と Bridge 接続のみです。VPS 自体は削除も変更もしません。", "verificationPending": "登録がまだ検証されていないため、このホストはデプロイに使用できません。", "minorUnits": "最小通貨単位", "createFailed": "採用を記録できませんでした。保存済み判定を確認し、同じリクエスト参照で再試行してください。", "credentialStepUnavailable": "安全な初回接続のオンボーディング先はまだ有効ではありません。パスワードは要求も送信もされていません。", "credentialStepAction": "安全なオンボーディングを続行", "quote": "保存済み見積もりと受け入れ判定", "admission": "受け入れ判定", "cap": "月額上限", "source": "情報源", "sourceUnknown": "利用不可", "observation": "観測日時", "expires": "有効期限" },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語",
+      "description": "このブラウザーの設定です。シナリオに必要な設定をすべてここに追加します。シェルの他の場所で重複させません。",
+      "preferences": "環境設定",
+      "themeHint": "ライト、ダーク、またはシステムに従う。",
+      "localeHint": "このコンソールにのみ適用されます。"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:",
+    "description": "このシナリオの API をポーリングし、その応答を表示します。"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

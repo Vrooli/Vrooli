@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Core supervision set — desktop and mobile target</title>
+<style>
+  :root { color-scheme: dark; font: 16px/1.45 system-ui, sans-serif; color: #eef2ff; background: #090f1e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; }
+  h1, h2, h3, p { margin: 0; }
+  .sheet { max-width: 1240px; margin: auto; }
+  .sheet > h1 { margin-bottom: 8px; font-size: 24px; }
+  .sheet > p { margin-bottom: 24px; color: #b9c4dc; }
+  .frames { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, .8fr); align-items: start; gap: 24px; }
+  .frame-label { margin: 0 0 8px; color: #aab6d1; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .screen { overflow: hidden; border: 1px solid #3b4964; border-radius: 20px; background: #101a2d; box-shadow: 0 18px 50px #0006; }
+  .progress { padding: 14px 18px; border-bottom: 1px solid #2b3850; color: #c3cee4; font-size: 13px; }
+  .content { padding: 24px; }
+  .content h2 { margin-bottom: 6px; font-size: 22px; }
+  .lede { max-width: 62ch; color: #c3cee4; }
+  .layout { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; margin-top: 18px; }
+  .panel { padding: 16px; border: 1px solid #3b4964; border-radius: 14px; background: #17233a; }
+  .panel h3 { margin-bottom: 6px; font-size: 15px; }
+  .hint, .subtle { color: #c3cee4; font-size: 13px; }
+  .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .item { min-height: 62px; padding: 12px; border: 1px solid #475674; border-radius: 10px; background: #111c30; }
+  .item strong { display: block; overflow-wrap: anywhere; }
+  .item span { display: block; margin-top: 3px; color: #ccd6ea; font-size: 12px; }
+  .item.locked { border-color: #4a91a2; }
+  .item.locked span { color: #bfe9ef; font-weight: 650; }
+  .count { margin-top: 12px; color: #d8e4ff; font-weight: 700; }
+  details { margin-top: 12px; }
+  summary { width: fit-content; color: #c2f5dc; cursor: pointer; font-weight: 650; }
+  .closure-list { columns: 2; margin: 10px 0 0; padding-left: 18px; color: #d5def1; font-size: 12px; }
+  .actions { position: sticky; bottom: 0; display: flex; justify-content: space-between; gap: 12px; padding: 12px 18px; border-top: 1px solid #3b4964; background: #111b2e; }
+  button { min-height: 44px; padding: 0 18px; border: 1px solid #7c8aa6; border-radius: 999px; background: transparent; color: #eef2ff; font: inherit; }
+  button.primary { border-color: #36d399; background: #16a879; color: #06170f; font-weight: 750; }
+  button:disabled { opacity: .55; }
+  .choice-confirm { margin-top: 14px; }
+  .mobile-wrap { width: min(100%, 390px); justify-self: center; }
+  .mobile .content { padding: 18px 16px 24px; }
+  .mobile .content h2 { font-size: 19px; }
+  .mobile .layout { display: flex; flex-direction: column; gap: 12px; }
+  .mobile .summary { order: 0; }
+  .mobile .choices { order: 1; }
+  .mobile .items { grid-template-columns: 1fr; }
+  .mobile .closure-list { columns: 1; }
+  .mobile .actions { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  @media (max-width: 800px) { body { padding: 16px; } .frames { grid-template-columns: 1fr; } }
+</style>
+<main class="sheet">
+  <h1>Core supervision set</h1>
+  <p>One selection model, composed for two media: desktop compares choices and consequences side by side; mobile reads the consequence first and then the long list.</p>
+  <div class="frames">
+    <section>
+      <p class="frame-label">Desktop · wide, simultaneous</p>
+      <div class="screen">
+        <div class="progress">Adjust · Core Set <span style="float:right">3 / 10</span></div>
+        <div class="content">
+          <h2>Choose services to supervise</h2>
+          <p class="lede">Your core set keeps selected services supervised. Recovery services are always included. To assign another service a tier, select it on the previous step first.</p>
+          <div class="layout">
+            <section class="panel choices">
+              <h3>Scenario choices</h3>
+              <p class="hint">Required recovery services are marked and cannot be removed.</p>
+              <div class="items">
+                <article class="item locked"><strong>agent-manager</strong><span>Required for recovery · always included</span></article>
+                <article class="item locked"><strong>prompt-manager</strong><span>Required for recovery · always included</span></article>
+                <article class="item"><strong>web-console</strong><span>Select a scenario on the previous step to add it.</span></article>
+                <article class="item"><strong>postgres</strong><span>Choose a selected scenario to supervise.</span></article>
+              </div>
+              <button class="primary choice-confirm">Confirm supervision set</button>
+            </section>
+            <section class="panel summary">
+              <h3>What this set will supervise</h3>
+              <p class="count">42 scenarios · 20 resources</p>
+              <details><summary>Review all 62 items</summary><ul class="closure-list"><li>agent-manager</li><li>prompt-manager</li><li>web-console</li><li>vrooli-autoheal</li><li>postgres</li><li>redis</li><li>…</li></ul></details>
+            </section>
+          </div>
+        </div>
+        <div class="actions"><button>Back</button><button disabled>Next</button></div>
+      </div>
+    </section>
+    <section class="mobile-wrap">
+      <p class="frame-label">Mobile · narrow, sequential</p>
+      <div class="screen mobile">
+        <div class="progress">Adjust · Core Set <span style="float:right">3 / 10</span></div>
+        <div class="content">
+          <h2>Choose services to supervise</h2>
+          <p class="lede">Recovery services are always included. Select other scenarios on the previous step before assigning a tier.</p>
+          <p class="hint" style="margin-top:8px">Confirm your changes below to save them before you continue.</p>
+          <div class="layout">
+            <section class="panel summary">
+              <h3>What this set will supervise</h3>
+              <p class="count">42 scenarios · 20 resources</p>
+              <details><summary>Review all 62 items</summary><ul class="closure-list"><li>agent-manager</li><li>prompt-manager</li><li>web-console</li><li>vrooli-autoheal</li><li>postgres</li><li>redis</li><li>…</li></ul></details>
+            </section>
+            <section class="panel choices">
+              <h3>Scenario choices</h3>
+              <div class="items">
+                <article class="item locked"><strong>agent-manager</strong><span>Required for recovery · always included</span></article>
+                <article class="item"><strong>web-console</strong><span>Select it on the previous step to add a tier.</span></article>
+              </div>
+              <button class="primary choice-confirm">Confirm supervision set</button>
+            </section>
+          </div>
+        </div>
+        <div class="actions"><button>Back</button><button disabled>Next</button></div>
+      </div>
+    </section>
+  </div>
+</main>
+</html>

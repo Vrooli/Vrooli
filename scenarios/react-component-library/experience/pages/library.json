@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "library",
+    "title": "Library",
+    "routes": [
+      "/library"
+    ],
+    "purpose": "Browse, search and open the published assets that compose pages, with honest availability and evidence.",
+    "prd_refs": [
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The asset gallery, filters and search results are usable before secondary metadata."
+    }
+  ],
+  "claims": [
+    {
+      "id": "library-results-state-covered",
+      "type": "state-covered",
+      "statement": "The library results surface is captured in each declared page state.",
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "loading",
+        "empty",
+        "request-error"
+      ],
+      "rationale": "The route reuses the proven catalog results surface; captures move the claim to machine tier."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Published assets are visible with kind filters and search."
+    },
+    {
+      "id": "loading",
+      "description": "Library assets are loading."
+    },
+    {
+      "id": "empty",
+      "description": "No assets match the active filters."
+    },
+    {
+      "id": "request-error",
+      "description": "Library retrieval failed and a recovery path is visible."
+    }
+  ],
+  "regions": [
+    {
+      "id": "library-results",
+      "required": true,
+      "purpose": "Render the library's loaded, empty or failed asset results.",
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "library-results": {
+        "testid": "components-page"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "Start · Library · Design · Review · Stats",
+    "status": "active",
+    "plan": "docs/concepts/WORKBENCH-MATURATION.md",
+    "changes": [
+      "Library owns the asset gallery that Components used to own",
+      "/components redirects here with its query string"
+    ]
+  }
+}

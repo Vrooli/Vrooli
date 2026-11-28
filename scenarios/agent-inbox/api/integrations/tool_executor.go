@@ -6,12 +6,9 @@
 // ARCHITECTURE:
 // - ToolExecutor: Central dispatcher for tool execution
 // - ScenarioHandler: Interface for scenario-specific tool handling
-// - Uses ToolRegistry for tool metadata lookup
-// - All scenarios use the Tool Execution Protocol via ProtocolHandler
 //
 // TESTING SEAMS:
 // - ScenarioHandler interface for mocking scenario implementations
-// - ToolRegistry can be injected for testing
 package integrations
 
 import (
@@ -46,7 +43,6 @@ type ToolExecutor struct {
 }
 
 // NewToolExecutor creates a new tool executor.
-// Scenario handlers are registered automatically by the ToolRegistry when tools are refreshed.
 func NewToolExecutor() *ToolExecutor {
 	return &ToolExecutor{
 		handlers: make(map[string]ScenarioHandler),
@@ -79,26 +75,6 @@ func (e *ToolExecutor) UnregisterHandler(scenario string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	delete(e.handlers, scenario)
-}
-
-// RegisterProtocolHandler creates and registers a ProtocolHandler for a scenario.
-// This is a convenience method for scenarios that implement the Tool Execution Protocol.
-// Parameters:
-//   - scenarioName: The name of the scenario (e.g., "scenario-to-cloud")
-//   - baseURL: The base URL of the scenario's API (e.g., "http://localhost:8080")
-//   - toolNames: List of tool names that this scenario provides
-//   - urlResolver: Optional URLResolver for re-resolving URL on connection failure
-func (e *ToolExecutor) RegisterProtocolHandler(scenarioName, baseURL string, toolNames []string, urlResolver ...URLResolver) {
-	cfg := ProtocolHandlerConfig{
-		ScenarioName: scenarioName,
-		BaseURL:      baseURL,
-		ToolNames:    toolNames,
-	}
-	if len(urlResolver) > 0 {
-		cfg.URLResolver = urlResolver[0]
-	}
-	handler := NewProtocolHandler(cfg)
-	e.RegisterHandler(handler)
 }
 
 // IsKnownTool checks if any handler can execute this tool.
@@ -207,7 +183,9 @@ func (e *ToolExecutor) extractExternalRunID(result interface{}, record *domain.T
 
 // failRecord marks a record as failed and returns it.
 func (e *ToolExecutor) failRecord(record *domain.ToolCallRecord, err error) *domain.ToolCallRecord {
-	record.Status = domain.StatusFailed
+	if transitionErr := record.TransitionTo(domain.StatusFailed); transitionErr != nil {
+		log.Printf("[ERROR] invalid tool failure transition: %v", transitionErr)
+	}
 	record.ErrorMessage = err.Error()
 	record.CompletedAt = time.Now()
 	resultJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
@@ -217,7 +195,9 @@ func (e *ToolExecutor) failRecord(record *domain.ToolCallRecord, err error) *dom
 
 // completeRecord marks a record as completed and returns it.
 func (e *ToolExecutor) completeRecord(record *domain.ToolCallRecord, result interface{}) *domain.ToolCallRecord {
-	record.Status = domain.StatusCompleted
+	if transitionErr := record.TransitionTo(domain.StatusCompleted); transitionErr != nil {
+		log.Printf("[ERROR] invalid tool completion transition: %v", transitionErr)
+	}
 	record.CompletedAt = time.Now()
 	resultJSON, err := json.Marshal(result)
 	if err != nil {

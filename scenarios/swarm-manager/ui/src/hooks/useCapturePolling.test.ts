@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCapturePolling } from "./useCapturePolling";
 import { useCaptureStore, captureStoreInitialState } from "../stores/capture-store";
@@ -11,17 +11,18 @@ function makeCapture(overrides: Partial<Capture> = {}): Capture {
     attachments: [],
     created: new Date().toISOString(),
     status: "classifying",
-    classification: null,
     ...overrides,
   };
 }
 
 function resetStore(captures: Capture[] = []) {
   const fetchCaptures = vi.fn().mockResolvedValue(undefined);
-  useCaptureStore.setState({
-    ...captureStoreInitialState,
-    captures,
-    fetchCaptures,
+  act(() => {
+    useCaptureStore.setState({
+      ...captureStoreInitialState,
+      captures,
+      fetchCaptures,
+    });
   });
   return fetchCaptures;
 }
@@ -32,18 +33,21 @@ describe("useCapturePolling", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     resetStore();
   });
 
   it("does not poll when no captures are classifying", () => {
     const fetchCaptures = resetStore([
-      makeCapture({ status: "classified" }),
+      makeCapture({ status: "failed" }),
     ]);
 
     renderHook(() => useCapturePolling());
 
-    vi.advanceTimersByTime(10_000);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
     expect(fetchCaptures).not.toHaveBeenCalled();
   });
 
@@ -56,11 +60,15 @@ describe("useCapturePolling", () => {
 
     expect(fetchCaptures).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(3_000);
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
     expect(fetchCaptures).toHaveBeenCalledTimes(1);
     expect(fetchCaptures).toHaveBeenCalledWith({ force: true });
 
-    vi.advanceTimersByTime(3_000);
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
     expect(fetchCaptures).toHaveBeenCalledTimes(2);
   });
 
@@ -72,7 +80,9 @@ describe("useCapturePolling", () => {
 
     renderHook(() => useCapturePolling());
 
-    vi.advanceTimersByTime(10_000);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
     expect(fetchCaptures).not.toHaveBeenCalled();
   });
 
@@ -81,7 +91,9 @@ describe("useCapturePolling", () => {
 
     renderHook(() => useCapturePolling());
 
-    vi.advanceTimersByTime(10_000);
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
     expect(fetchCaptures).not.toHaveBeenCalled();
   });
 });

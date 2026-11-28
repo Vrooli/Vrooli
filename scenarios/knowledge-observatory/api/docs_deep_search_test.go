@@ -36,10 +36,11 @@ func TestHandleDocsSearchDeep(t *testing.T) {
 			StartedAt: &startedAt,
 		},
 	}
-	srv := &Server{docDeepSearchService: service}
+	srv := &Server{docDeepSearchService: service, runCallerValidator: auth01FixtureVerifier{}}
 
 	body, _ := json.Marshal(DeepSearchRequest{Query: "docs", Scope: "global"})
 	req := httptest.NewRequest("POST", "/api/v1/docs/search/deep", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 	rec := httptest.NewRecorder()
 
 	srv.handleDocsSearchDeep(rec, req)

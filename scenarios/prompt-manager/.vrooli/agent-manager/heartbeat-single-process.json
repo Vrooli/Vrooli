@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-heartbeat-single-process",
+  "profileKey": "prompt-manager/heartbeat-inspection",
+  "description": "Portable profile for Prompt Manager single-process heartbeats (inspection members). The resource-owned code.inspection role determines the runner and model; this profile does not pin a model version or authorize the restricted supervision route. Keep the declared protected execution mode until an owner-approved role-policy change replaces it.",
+  "roleRef": "code.inspection",
+  "maxTurns": 200,
+  "timeout": "1800s",
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "prompt-manager",
+  "effort": "medium"
+}

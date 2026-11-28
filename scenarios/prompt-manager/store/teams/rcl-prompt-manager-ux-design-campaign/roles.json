@@ -1,0 +1,22 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "rcl-prompt-manager-ux-design-campaign",
+  "roles": [
+    {
+      "id": "rcl-prompt-manager-ux-design-coordinator",
+      "name": "Historical UX Campaign Coordinator",
+      "description": "Inactive historical leader; preserve old acceptance and retired heartbeat, no rehabilitation assignments."
+    },
+    {
+      "id": "rcl-rehabilitation-orchestrator",
+      "name": "Inactive Provisioning Record",
+      "description": "Unused disabled colliding binding; no run/task admitted; successor owns delivery."
+    },
+    {
+      "id": "rcl-delivery-orchestrator",
+      "name": "RCL Delivery Orchestrator",
+      "description": "Admits, steers and independently accepts rehabilitation epochs using the sole scenario goal ledger."
+    }
+  ]
+}

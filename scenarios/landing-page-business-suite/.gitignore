@@ -1,1 +1,37 @@
+# Compiled binaries (built at scenario start; should not be committed)
 cli/cli
+api/landing-page-business-suite-api
+api/landing-page-react-vite-api
+api/landing-page-react-vite-api.test
+api/0
+
+# Local runtime data and generated test captures
+/api/uploads/
+/.vrooli/state/
+/.vrooli/test-artifacts/
+
+# Private, unpublished PS4 sample drafts and their local source evidence.
+# Keep indexes, review notes, and immutable heads/revisions together on this
+# machine until the owner intentionally promotes a reviewed sample set.
+/docs/ps4/
+/config/presentations/r2-company-research-samples/
+/config/presentations/r3-eia-electricity-market-samples/
+/config/presentations/r4-vendor-shortlist-samples/
+/config/variants/r2-company-research-samples.json
+/config/variants/r3-eia-electricity-market-samples.json
+/config/variants/r4-vendor-shortlist-samples.json
+
+# Safe UI configuration template; real environment files stay ignored.
+!/ui/.env.example
+
+# Go test/coverage outputs
+*.test
+*.out
+coverage.out
+cover*.out
+coverage/
+api/.gocache/
+
+# Editor / OS junk
+.DS_Store
+/ui/landing-page-business-suite-ui

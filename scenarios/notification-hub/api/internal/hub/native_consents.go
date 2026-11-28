@@ -1,0 +1,211 @@
+package hub
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// Agent Manager owns interactive authorizations; its request notice is the only
+// source and category the Hub projects as a native permission request.
+const (
+	nativeConsentSource   = "agent-manager"
+	nativeConsentCategory = "authorization-requested"
+)
+
+// NativeConsentReader reads only the source's effective state. No approve,
+// dismiss, grant, delivery, or retry operation is part of this seam.
+type NativeConsentReader interface {
+	ReadConsent(context.Context, string) (NativeConsentStatus, error)
+}
+type (
+	NativeConsentStatus struct{ AuthorizationID, State, ReviewExpiresAt string }
+	NativeConsent       struct {
+		AuthorizationID, NotificationID, Source, Title, Body, ReviewURL string
+		State, ReviewExpiresAt, ObservedAt, CreatedAt                   string
+	}
+)
+
+type NativeConsentPage struct {
+	Consents   []NativeConsent
+	NextCursor string
+}
+type consentCursor struct{ Recipient, Query, CreatedAt, ID string }
+
+func (s *Service) SetNativeConsentReader(reader NativeConsentReader) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nativeConsentReader = reader
+}
+
+// ListNativeConsents projects existing recipient-owned source notifications.
+// It is not a shadow approval store. Closed records disappear only after an
+// authoritative read; unread/unknown records remain visibly unverified.
+func (s *Service) ListNativeConsents(ctx context.Context, recipient, query, cursor string, limit int) (NativeConsentPage, error) {
+	out := NativeConsentPage{Consents: []NativeConsent{}}
+	recipient, query = strings.TrimSpace(recipient), strings.TrimSpace(query)
+	if recipient == "" {
+		return out, ErrNotFound
+	}
+	if len(query) > 500 || len(cursor) > 2048 {
+		return out, ErrInvalidArgument
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 25
+	}
+	var after consentCursor
+	if cursor != "" {
+		b, e := base64.RawURLEncoding.DecodeString(cursor)
+		if e != nil || json.Unmarshal(b, &after) != nil || after.Recipient != recipient || after.Query != query || after.ID == "" || after.CreatedAt == "" {
+			return out, ErrInvalidArgument
+		}
+	}
+	// A request that arrived as a decision ask (or was raised again as one) is
+	// read there, not here.
+	sql := `SELECT id, title, body, context_url, dedupe_key, created_at FROM notifications WHERE requested_by = ? AND source_scenario = ? AND category = ? AND instr(lower(title || ' ' || body), lower(?)) > 0
+		AND NOT EXISTS (SELECT 1 FROM asks a WHERE a.source = ? AND a.source_event_type = ? AND json_valid(a.correlation_json) AND json_extract(a.correlation_json, '$.authorization_id') = notifications.dedupe_key)`
+	args := []any{recipient, nativeConsentSource, nativeConsentCategory, query, nativeConsentSource, nativeConsentDecisionType}
+	if cursor != "" {
+		sql += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
+		args = append(args, after.CreatedAt, after.CreatedAt, after.ID)
+	}
+	sql += ` ORDER BY created_at DESC, id DESC LIMIT ?`
+	args = append(args, limit+1)
+	rows, err := s.db.QueryContext(ctx, sql, args...)
+	if err != nil {
+		return out, err
+	}
+	candidates := []NativeConsent{}
+	for rows.Next() {
+		var c NativeConsent
+		if err = rows.Scan(&c.NotificationID, &c.Title, &c.Body, &c.ReviewURL, &c.AuthorizationID, &c.CreatedAt); err != nil {
+			rows.Close()
+			return out, err
+		}
+		c.Source = nativeConsentSource
+		c.State = "unavailable"
+		candidates = append(candidates, c)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return out, err
+	}
+	if len(candidates) > limit {
+		candidates = candidates[:limit]
+		last := candidates[len(candidates)-1]
+		b, _ := json.Marshal(consentCursor{Recipient: recipient, Query: query, CreatedAt: last.CreatedAt, ID: last.NotificationID})
+		out.NextCursor = base64.RawURLEncoding.EncodeToString(b)
+	}
+	s.mu.RLock()
+	reader := s.nativeConsentReader
+	s.mu.RUnlock()
+	// Bound the owner page, even if the source is slow. Failure is visible, never
+	// interpreted as an empty queue. At most four read-only requests run at once.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var wg sync.WaitGroup
+	jobs := make(chan int)
+	closed := make([]bool, len(candidates))
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				c := &candidates[i]
+				if !validNativeConsentIdentity(*c) {
+					c.ReviewURL = ""
+					continue
+				}
+				if reader == nil {
+					continue
+				}
+				status, e := reader.ReadConsent(ctx, c.AuthorizationID)
+				if e != nil || status.AuthorizationID != c.AuthorizationID {
+					continue
+				}
+				switch status.State {
+				case "pending":
+					expiry, e := time.Parse(time.RFC3339Nano, status.ReviewExpiresAt)
+					if e != nil || !expiry.After(s.clock.Now()) {
+						continue
+					}
+					c.State = "pending"
+					c.ReviewExpiresAt = status.ReviewExpiresAt
+					c.ObservedAt = storedTime(s.clock.Now())
+				case "approved", "revoked", "expired", "superseded":
+					closed[i] = true
+				}
+			}
+		}()
+	}
+	for i := range candidates {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	for i, c := range candidates {
+		if !closed[i] {
+			out.Consents = append(out.Consents, c)
+		}
+	}
+	return out, nil
+}
+
+// NativeConsentReviewURL is the original Agent Manager approval page when this
+// notification is a native permission request, and "" for every other
+// notification. It is the same identity test ListNativeConsents applies, and it
+// asks Agent Manager nothing: the page it names shows the live state.
+func (n Notification) NativeConsentReviewURL() string {
+	if n.SourceScenario != nativeConsentSource || n.Category != nativeConsentCategory {
+		return ""
+	}
+	if !validNativeConsentIdentity(NativeConsent{AuthorizationID: n.DedupeKey, ReviewURL: n.ContextURL}) {
+		return ""
+	}
+	return n.ContextURL
+}
+
+// nativeConsentDecisionType is the decision Agent Manager raises for a pending
+// permission request (orchestration.ConsentDecisionEventType).
+const nativeConsentDecisionType = "agent_manager.authorization_consent.decision_requested.v1"
+
+// NativeApprovalURL is Agent Manager's approval page when this ask is its
+// permission request, and "" for every other ask. Approval needs the
+// operator's own sign-in on that page, so the ask's "approve" option opens it
+// and AnswerAsk refuses an "approve" answer.
+func (a AskRecord) NativeApprovalURL() string {
+	if a.Source != nativeConsentSource || a.SourceEventType != nativeConsentDecisionType {
+		return ""
+	}
+	if !validNativeConsentIdentity(NativeConsent{AuthorizationID: a.Correlation["authorization_id"], ReviewURL: a.ContextURL}) {
+		return ""
+	}
+	return a.ContextURL
+}
+
+func validNativeConsentIdentity(c NativeConsent) bool {
+	id, e := uuid.Parse(c.AuthorizationID)
+	if e != nil || id.String() != c.AuthorizationID {
+		return false
+	}
+	u, e := url.Parse(c.ReviewURL)
+	if e != nil || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Hostname() == "" {
+		return false
+	}
+	if u.Scheme != "https" {
+		ip := net.ParseIP(u.Hostname())
+		if u.Scheme != "http" || (u.Hostname() != "localhost" && (ip == nil || !ip.IsLoopback())) {
+			return false
+		}
+	}
+	return u.Path == fmt.Sprintf("/api/v1/authorizations/%s/approve", c.AuthorizationID)
+}

@@ -1,0 +1,4064 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "react-component-library",
+  "description": "Single source of truth for the react-component-library CLI command surface. Schema-validated against cli-manifest/v1; cross-validated against each domain's Connect-RPC proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. ThemesService is used by the UI and DepsService supports dependency indexing and adoption validation; neither currently has a CLI command surface.",
+  "groups": [
+    {
+      "name": "adoptions",
+      "description": "Track which scenarios have adopted library components and detect drift",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List adoption records",
+          "flags": [
+            {
+              "name": "component-id",
+              "description": "Only adoptions for this component id"
+            },
+            {
+              "name": "scenario",
+              "description": "Only adoptions targeting this scenario"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of rows (default 200)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "ListAdoptions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "list-effective",
+          "description": "List direct and mediated usage for one catalog asset",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum number of rows (default 200)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "ListEffectiveAdoptions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "preflight",
+          "description": "Read the dependency, style, and CSS custom-property contract before an adoption",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Library component id"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Library version; defaults to latest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "PreflightAdoption"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "obligations",
+          "description": "Verify the durable files (resolved from the template ui/manifest.json) and contract dimensions for a scenario adoption",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "tokens-sync",
+          "description": "Synchronize required library token declarations into the scenario-managed ramp",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Report token changes without writing the managed region"
+            },
+            {
+              "name": "candidate",
+              "description": "Optional first-adoption component ID; include its released token requirements before adoption or package import exists",
+              "bind": {
+                "field": "candidate_component_id"
+              }
+            },
+            {
+              "name": "version",
+              "description": "Released candidate version; defaults to the component's latest version and requires --candidate",
+              "bind": {
+                "field": "candidate_version"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "SyncScenarioTokens"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "tokens-prune",
+          "description": "Remove managed token declarations that no live adoption requires",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "apply",
+              "description": "Apply the reported removals"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "PruneScenarioTokens"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "link",
+          "description": "Link a pinned component version through the governed package dependency",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Library component id"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Library version to link; defaults to latest"
+            },
+            {
+              "name": "import-subpath",
+              "description": "Explicit package export subpath"
+            },
+            {
+              "name": "confirm-existing",
+              "description": "Accept an existing different package dependency"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdoptionsService",
+            "method": "LinkAdoption"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "components",
+      "description": "Browse and re-index the local React component registry",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List indexed components",
+          "flags": [
+            {
+              "name": "match",
+              "description": "Case-insensitive substring filter"
+            },
+            {
+              "name": "tag",
+              "description": "Exact single-tag filter"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated multi-tag OR filter (any-of)"
+            },
+            {
+              "name": "category",
+              "description": "Filter by @category header value"
+            },
+            {
+              "name": "style",
+              "description": "Filter by component.json designStyles styleId",
+              "bind": {
+                "field": "style_id"
+              }
+            },
+            {
+              "name": "affinity",
+              "description": "Filter by design style affinity (native, compatible, discouraged)"
+            },
+            {
+              "name": "asset-kind",
+              "description": "Filter by asset kind: component or hook"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of rows (default 200)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "ListComponents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a component by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentsService",
+            "method": "GetComponent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "test",
+          "description": "Run a component, hook, or page story contract (page:<Name> uses --version workspace)",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Catalog asset id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Required release version, or workspace for a page subject"
+            },
+            {
+              "name": "closure",
+              "description": "Set true to include the version-pinned manifest closure",
+              "bind": {
+                "field": "include_closure"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentTestsService",
+            "method": "RunComponentTest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "sweep",
+          "description": "Run the durable five-stage test pipeline across every live library version",
+          "flags": [
+            {
+              "name": "resume",
+              "bool": true,
+              "description": "Skip versions with a prior non-blocked report"
+            },
+            {
+              "name": "closure",
+              "bool": true,
+              "description": "Include each version's pinned dependency closure",
+              "bind": {
+                "field": "include_closure"
+              }
+            },
+            {
+              "name": "component-id",
+              "description": "Run one component batch by UUID or library id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentTestsService",
+            "method": "SweepComponentTests"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "ingest",
+          "description": "Ingest a scenario-local TSX component and its relative-import companions as an indexed library draft",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Origin scenario name"
+            },
+            {
+              "name": "source-file",
+              "required": true,
+              "description": "TSX path relative to the origin scenario"
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "description": "Target library component slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "display-name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "description",
+              "description": "Short component description"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated tags"
+            },
+            {
+              "name": "slot",
+              "description": "Target component slot"
+            },
+            {
+              "name": "version",
+              "description": "Released version baseline when re-harvesting an existing component"
+            },
+            {
+              "name": "companion-files",
+              "description": "Optional comma-separated origin .ts/.tsx companions not reachable by relative imports",
+              "bind": {
+                "field": "source_files"
+              }
+            },
+            {
+              "name": "experience-contract",
+              "description": "Scenario-relative experience-component JSON contract to promote beside the immutable version",
+              "bind": {
+                "field": "experience_contract_path"
+              }
+            },
+            {
+              "name": "accept-behavior-loss",
+              "description": "Record and accept a static behavior-inventory loss so the blocked harvest proceeds (losses persist on the draft's parity report)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "IngestComponent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "draft-begin",
+          "description": "Begin one mutable component draft from the current release",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "bump",
+              "description": "Semver increment when --version is omitted",
+              "values": [
+                "major",
+                "minor",
+                "patch"
+              ],
+              "default": "patch"
+            },
+            {
+              "name": "version",
+              "description": "Explicit target release version; the draft suffix is added automatically"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "BeginComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "check",
+          "description": "Refresh the selected component index and run version checks before publication",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Draft or released version; defaults to the active draft or latest release"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "CheckComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "draft-publish",
+          "description": "Validate and atomically publish the active component draft",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "draft-version",
+              "description": "Draft to publish; defaults to the active draft"
+            },
+            {
+              "name": "version",
+              "description": "Release version; defaults to the draft version without its prerelease suffix"
+            },
+            {
+              "name": "changelog",
+              "description": "Changelog text for the release",
+              "bind": {
+                "field": "changelog_md"
+              }
+            },
+            {
+              "name": "acknowledge-parity-waiver",
+              "description": "Explicitly waive recorded ingest behavior-loss findings"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "PublishComponentVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "manifest-update",
+          "description": "Update governed component metadata and retire superseded released versions",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID",
+              "bind": {
+                "field": "component_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "display-name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "description",
+              "description": "Component description"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated tags"
+            },
+            {
+              "name": "latest-version",
+              "description": "Latest released version"
+            },
+            {
+              "name": "draft-version",
+              "description": "Active draft version"
+            },
+            {
+              "name": "retired-major-aliases",
+              "description": "Comma-separated non-current major aliases to withdraw; exact releases remain available"
+            },
+            {
+              "name": "clear-retired-major-aliases",
+              "bool": true,
+              "description": "Clear explicit major alias retirement decisions"
+            },
+            {
+              "name": "deprecated-versions",
+              "description": "Comma-separated released versions no longer exported"
+            },
+            {
+              "name": "replaced-by",
+              "description": "Comma-separated replacement catalog ids"
+            },
+            {
+              "name": "catalog-id",
+              "description": "Catalog asset id"
+            },
+            {
+              "name": "entry",
+              "description": "Explicit entry filename for multi-file version directories"
+            },
+            {
+              "name": "clear-supplemental-justification",
+              "bool": true,
+              "description": "Clear supplemental justification"
+            },
+            {
+              "name": "clear-catalog-id",
+              "bool": true,
+              "description": "Clear the catalog id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "UpdateComponentManifest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "index",
+          "description": "Re-index component manifests and reconcile the live registry",
+          "flags": [
+            {
+              "name": "no-reconcile",
+              "bool": true,
+              "description": "Skip version-ledger and presence reconciliation"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "retire",
+          "description": "Preflight asset retirement; --apply archives history and withdraws an unused deprecated asset",
+          "positionals": [
+            {
+              "name": "component",
+              "required": true,
+              "description": "Stable libraryId",
+              "bind": {
+                "field": "library_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply retirement after preflight, recovering any interrupted retirement first"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "RetireComponent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "content-set",
+          "description": "Write a component's source file (use - to read from stdin)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Component id"
+            },
+            {
+              "name": "file",
+              "required": true,
+              "description": "Path to new file body, or - for stdin",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Draft companion artifact name (for example story.json or styles.ts)"
+            },
+            {
+              "name": "expected-sha256",
+              "description": "Optimistic-concurrency guard; must match the current on-disk digest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComponentAuthoringService",
+            "method": "UpdateComponentContent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "preview",
+      "description": "Bundle components for the live-preview iframe",
+      "commands": [
+        {
+          "name": "bundle",
+          "description": "Print the esbuild-transpiled ES module for a component",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Component id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PreviewService",
+            "method": "GetPreviewBundle"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "versions",
+      "description": "List, fetch, and diff recorded versions of a component",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recorded versions for a component",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": false,
+              "description": "Stable libraryId or catalog UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "List every recorded version across the catalog"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of rows (default 100)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionsService",
+            "method": "ListVersions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show a specific recorded version (with optional content)",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            },
+            {
+              "name": "version",
+              "required": true,
+              "description": "Recorded @version value"
+            }
+          ],
+          "flags": [
+            {
+              "name": "with-content",
+              "description": "Include the full content body in the output",
+              "bind": {
+                "field": "include_content"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionsService",
+            "method": "GetVersion"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "diff",
+          "description": "Diff two versions (or a version and an adoption:<id>)",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": true,
+              "description": "Stable libraryId or catalog UUID"
+            },
+            {
+              "name": "from",
+              "required": true,
+              "description": "Source \u2014 @version value or adoption:<id>"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "description": "Target \u2014 @version value or adoption:<id>"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionsService",
+            "method": "DiffVersions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Report evicted versions with missing or mismatched mirror bytes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionLifecycleService",
+            "method": "Doctor"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "materialize",
+          "description": "Restore recorded release bytes into the authored library tree or a temporary directory",
+          "positionals": [
+            {
+              "name": "component-id",
+              "required": false,
+              "description": "Stable libraryId or catalog UUID"
+            },
+            {
+              "name": "version",
+              "required": false,
+              "description": "Recorded @version value"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Restore every recorded version"
+            },
+            {
+              "name": "into",
+              "description": "Write into a fresh temporary or inspection directory instead of the authored tree"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionLifecycleService",
+            "method": "MaterializeVersion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "recover-button-224",
+          "description": "Run the one-time recovery for the attested published Button 2.2.4 bundle when its version row is missing",
+          "flags": [
+            {
+              "name": "bundle",
+              "required": true,
+              "description": "Path to the authorized recovery bundle, readable by the RCL API host"
+            }
+          ],
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "reconcile-presence",
+          "description": "Preview or apply the API-owned reachability-based version storage plan",
+          "flags": [
+            {
+              "name": "component-id",
+              "description": "Only versions for this component or stable library id"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the API's current reachability plan; otherwise preview it"
+            }
+          ],
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VersionLifecycleService",
+            "method": "ReconcilePresence"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reap",
+          "description": "Preview and explicitly confirm safe version retirement",
+          "flags": [
+            {
+              "name": "component-id",
+              "description": "Only versions for this component"
+            },
+            {
+              "name": "library-id",
+              "description": "Only versions for this library id"
+            },
+            {
+              "name": "older-than-days",
+              "description": "Only versions older than this age"
+            },
+            {
+              "name": "plan-hash",
+              "description": "Exact hash returned by the dry-run plan"
+            },
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "Apply the exact reviewed plan"
+            }
+          ],
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "workflows",
+      "description": "Start and observe durable assisted extraction and adoption work",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Create an attributable assisted extract or adopt workflow",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Workflow kind: extract or adopt"
+            },
+            {
+              "name": "asset-id",
+              "description": "Catalog asset id for adoption work"
+            },
+            {
+              "name": "source-scenario",
+              "description": "Narrow source scenario for extraction"
+            },
+            {
+              "name": "source-path",
+              "description": "Source path for extraction"
+            },
+            {
+              "name": "target-scenario",
+              "description": "Narrow target scenario for adoption"
+            },
+            {
+              "name": "version",
+              "description": "Pinned requested version",
+              "bind": {
+                "field": "requested_version"
+              }
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Required replay-safe request key"
+            },
+            {
+              "name": "confirm-overwrite",
+              "description": "Pass explicit overwrite confirmation to the direct RCL path"
+            },
+            {
+              "name": "override-validation",
+              "description": "Pass explicit validation override to the direct RCL path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "StartWorkflow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List durable assisted workflows",
+          "flags": [
+            {
+              "name": "asset-id",
+              "description": "Filter by catalog asset id"
+            },
+            {
+              "name": "target-scenario",
+              "description": "Filter by target scenario"
+            },
+            {
+              "name": "active",
+              "description": "Only queued, running, or parked work",
+              "bind": {
+                "field": "active_only"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum workflows to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "ListWorkflows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a workflow by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Workflow id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "GetWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "promotion-readiness",
+          "description": "Read the parity, examples, dependency closure, origin replacement, and drift evidence required before calling an asset canonical",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "origin-scenario",
+              "description": "Origin scenario that must have a clean replacement adoption"
+            },
+            {
+              "name": "version",
+              "description": "Selected catalog version; defaults to the draft or latest version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowsService",
+            "method": "GetPromotionReadiness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "asset",
+      "description": "Run the governed edit-and-validate loop for one library asset",
+      "commands": [
+        {
+          "name": "check",
+          "description": "Inspect generated state and return one verdict for one catalog asset without writes",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id, for example controls.button"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Immutable version; defaults to latest"
+            },
+            {
+              "name": "profile",
+              "description": "Validation profile: publish (default) or edit"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Render the complete check response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "record-check",
+          "description": "Refresh generated files, run scoped gates and record their evidence; appearance gates may start BAS capture",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id, for example controls.button"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "local_only": true,
+              "description": "Render the complete check response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "description": "Read desired-state catalog maturity and deterministic next work",
+      "commands": [
+        {
+          "name": "gates",
+          "description": "Inspect one deterministic catalog gate without recording evidence",
+          "positionals": [
+            {
+              "name": "gate",
+              "required": false,
+              "description": "Executable gate id. Registry: graph-reconciled, dependency-rank, self-hosting, bas-genericity, token-vocabulary, fallback-parity, kit-compatibility, affinity-compatible, token-ramp-complete, scenario-token-requirements, released-version-immutable, version-mirror-integrity, specifier-shape, version-shape, field-ownership, release-provenance, version-liveness, dist-resolution, types, api, rtl, reduced-motion, performance, console-clean, surface-discipline, composition, composition-contract, documentation, examples, fixture-adversarial, tokens, conformance, lifecycle, i18n, selector-coverage, restyle-contract, manifest-identity, manifest-metadata, declaration-coverage, overlay-surface-composition, shared-style-ownership, style-injection, style-ownership, foreign-token-classes, utility-class, consumer-pin, deprecated-import, provenance-stamp, story-grammar, story-distinctness, harness-manifest, evidence-freshness"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Run every declared catalog gate"
+            },
+            {
+              "name": "asset-id",
+              "description": "Run the gate for one catalog asset only"
+            },
+            {
+              "name": "calibration-only",
+              "bool": true,
+              "description": "Run gate-owned planted-error fixtures without inspecting the corpus"
+            },
+            {
+              "name": "include-advisory",
+              "bool": true,
+              "description": "Include advisory gates such as documentation in --all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "RunGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "record-gate",
+          "description": "Run a catalog gate and persist its evidence; appearance gates can invoke BAS story capture",
+          "positionals": [
+            {
+              "name": "gate",
+              "required": false,
+              "description": "Executable gate id; see `catalog gates --help`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Run and record every declared catalog gate"
+            },
+            {
+              "name": "asset-id",
+              "description": "Run the gate for one catalog asset only"
+            },
+            {
+              "name": "calibration-only",
+              "bool": true,
+              "description": "Run gate-owned planted-error fixtures without inspecting the corpus"
+            },
+            {
+              "name": "include-advisory",
+              "bool": true,
+              "description": "Include advisory gates such as documentation in --all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "RecordGate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "graph",
+          "description": "Show catalog dependencies, dependents, closure bands, and blast radius for an asset",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Catalog asset id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "GetAssetRelationships"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "readiness",
+          "description": "Report catalog readiness, blast-radius triage, and runnable next steps",
+          "flags": [
+            {
+              "name": "floor",
+              "description": "Preview a stricter maturity floor without changing catalog config"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "GetReadiness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "corpus-report",
+          "description": "Emit all version and retention corpus invariants",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "build",
+          "description": "Generate all catalog-derived artifacts from authored sources",
+          "flags": [
+            {
+              "name": "check",
+              "bool": true,
+              "description": "Fail when derived outputs are stale"
+            },
+            {
+              "name": "list-stages",
+              "bool": true,
+              "description": "List the named derivation stages without running them"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sketch",
+      "description": "Design scenario pages from governed catalog assets and reconcile them with source",
+      "commands": [
+        {
+          "name": "render-candidate",
+          "description": "Render an exact saved candidate; JSON includes generated HTML and render identity",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "local_only": true
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash",
+              "local_only": true
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit"
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme"
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction"
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state",
+              "bind": {
+                "field": "preview_state"
+              }
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render"
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceCandidateService",
+            "method": "RenderCandidate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "inference",
+          "description": "Recover an existing inference by key or operation ID",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "key",
+              "description": "Original idempotency key, including after a lost response",
+              "bind": {
+                "field": "idempotency_key"
+              }
+            },
+            {
+              "name": "id",
+              "description": "Operation ID; use either id or key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceAssistService",
+            "method": "GetSketchInference"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "infer",
+          "description": "Request governed source-guided alternatives with durable replay",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario/page",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "intent",
+              "required": true,
+              "description": "Product outcome to design",
+              "local_only": true
+            },
+            {
+              "name": "user",
+              "required": true,
+              "repeatable": true,
+              "description": "Intended user; repeat for multiple users",
+              "local_only": true
+            },
+            {
+              "name": "task",
+              "required": true,
+              "repeatable": true,
+              "description": "Primary task; repeat for multiple tasks",
+              "local_only": true
+            },
+            {
+              "name": "design-source",
+              "description": "Optional scenario-relative design document",
+              "local_only": true
+            },
+            {
+              "name": "viewport",
+              "repeatable": true,
+              "description": "phone, tablet or desktop; defaults to phone and desktop",
+              "local_only": true
+            },
+            {
+              "name": "platform",
+              "default": "react-vite",
+              "description": "Target platform",
+              "local_only": true
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Design kit",
+              "local_only": true
+            },
+            {
+              "name": "candidate-limit",
+              "default": "3",
+              "description": "Maximum alternatives, from one to three"
+            },
+            {
+              "name": "allow-route-changes",
+              "bool": true,
+              "description": "Explicitly disable route preservation",
+              "local_only": true
+            },
+            {
+              "name": "allow-behavior-changes",
+              "bool": true,
+              "description": "Explicitly disable business-behavior preservation",
+              "local_only": true
+            },
+            {
+              "name": "key",
+              "required": true,
+              "description": "Stable idempotency key; reuse only for identical inputs",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceAssistService",
+            "method": "InferSketch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "propose",
+          "description": "Propose source-aware catalog alternatives from typed intent",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario/page",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "intent",
+              "required": true,
+              "description": "Product outcome to design",
+              "local_only": true
+            },
+            {
+              "name": "user",
+              "required": true,
+              "repeatable": true,
+              "description": "Intended user; repeat for multiple users",
+              "local_only": true
+            },
+            {
+              "name": "task",
+              "required": true,
+              "repeatable": true,
+              "description": "Primary task; repeat for multiple tasks",
+              "local_only": true
+            },
+            {
+              "name": "design-source",
+              "description": "Optional scenario-relative design document",
+              "local_only": true
+            },
+            {
+              "name": "viewport",
+              "repeatable": true,
+              "description": "phone, tablet or desktop; defaults to phone and desktop",
+              "local_only": true
+            },
+            {
+              "name": "platform",
+              "default": "react-vite",
+              "description": "Target platform",
+              "local_only": true
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Design kit"
+            },
+            {
+              "name": "candidate-limit",
+              "default": "3",
+              "description": "Maximum alternatives, from one to three"
+            },
+            {
+              "name": "allow-route-changes",
+              "bool": true,
+              "description": "Explicitly disable route preservation",
+              "local_only": true
+            },
+            {
+              "name": "allow-behavior-changes",
+              "bool": true,
+              "description": "Explicitly disable business-behavior preservation",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceAssistService",
+            "method": "ProposeSketch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "history",
+          "description": "Inspect immutable page design revisions",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "GetHistory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "recover",
+          "description": "Complete an interrupted page apply without overwriting intervening edits",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "RecoverSketch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read the authored sketch for one scenario page",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "GetSketch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "set",
+          "description": "Set the sketch template or viewport without disturbing other page fields",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "template",
+              "description": "Catalog page-template asset id",
+              "local_only": true
+            },
+            {
+              "name": "version",
+              "description": "Optional exact template version",
+              "local_only": true
+            },
+            {
+              "name": "viewport",
+              "description": "Viewport class"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "PutSketch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Reconcile every declared page region with observed source",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "VerifySketch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "import",
+          "description": "Classify local page components through all three reuse tiers",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "write",
+              "bool": true,
+              "description": "Persist the proposed sketch into the experience page"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "ImportPage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "place",
+          "description": "Place a built or declared catalog asset into a sketch region",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            },
+            {
+              "name": "region",
+              "required": true,
+              "description": "Declared page region id"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "description": "Catalog asset id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Optional exact built asset version"
+            },
+            {
+              "name": "note",
+              "description": "Placement constraint"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "Place"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "placeholder",
+          "description": "Record a genuinely new need after catalog reuse is exhausted",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            },
+            {
+              "name": "region",
+              "required": true,
+              "description": "Declared page region id"
+            },
+            {
+              "name": "placeholder",
+              "required": true,
+              "description": "Stable placeholder slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "intent",
+              "required": true,
+              "description": "At least 20 characters describing the missing behavior"
+            },
+            {
+              "name": "note",
+              "description": "Placement constraint"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "Placeholder"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "note",
+          "description": "Attach a scoped design constraint to the sketch",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "scope",
+              "required": true,
+              "description": "Page, region, or asset scope"
+            },
+            {
+              "name": "text",
+              "required": true,
+              "description": "Constraint text"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "AddNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "unplace",
+          "description": "Move a placement into the explicit unplaced set",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            },
+            {
+              "name": "region",
+              "required": true,
+              "description": "Placed region id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why the item no longer fits"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "Unplace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "template",
+          "description": "Swap the page template with an explicit region remap",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "description": "Catalog page-template asset id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "version",
+              "description": "Optional exact template version"
+            },
+            {
+              "name": "remap",
+              "repeatable": true,
+              "description": "Region mapping as old=new",
+              "local_only": true
+            },
+            {
+              "name": "confirm-unplaced",
+              "bool": true,
+              "description": "Confirm placements that cannot be remapped"
+            },
+            {
+              "name": "preview",
+              "bool": true,
+              "description": "Preview remaps and displaced placements without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "SetTemplate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "brief",
+          "description": "Emit ordered implementation work and its closing verification gate",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Scenario and page as <scenario>/<page>",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperienceService",
+            "method": "BuildBrief"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "page",
+      "description": "Capture, inspect and render served pages",
+      "commands": [
+        {
+          "name": "capture",
+          "description": "Capture a served scenario, URL or HTML file into one bundle: verified pixels per view and theme, an editable frozen page per view, and an outline",
+          "needs_api": false,
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Running scenario to capture"
+            },
+            {
+              "name": "route",
+              "description": "Scenario route; default /"
+            },
+            {
+              "name": "step",
+              "repeated": true,
+              "description": "State step before capture, e.g. click:Branches; repeat for more"
+            },
+            {
+              "name": "wait-selector",
+              "description": "CSS selector that must be visible before capture (scenario only)"
+            },
+            {
+              "name": "url",
+              "description": "Public http(s) page to capture"
+            },
+            {
+              "name": "file",
+              "description": "Local .html file to capture (for example an exported artifact)"
+            },
+            {
+              "name": "views",
+              "description": "phone, small-phone, tablet, desktop or WIDTHxHEIGHT, comma separated; default phone,desktop"
+            },
+            {
+              "name": "themes",
+              "description": "light, dark or light,dark; default light,dark"
+            },
+            {
+              "name": "out",
+              "description": "Bundle directory; default ~/.vrooli/data/react-component-library/ux-captures/<capture-id>"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "render",
+          "description": "Render an edited frozen page to verified pixels (fails on a blank image)",
+          "needs_api": false,
+          "positionals": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Edited .html page, usually a copy of a capture's page/<view>.html"
+            }
+          ],
+          "flags": [
+            {
+              "name": "views",
+              "description": "phone, small-phone, tablet, desktop or WIDTHxHEIGHT; default phone"
+            },
+            {
+              "name": "themes",
+              "description": "light, dark or light,dark; default light"
+            },
+            {
+              "name": "out",
+              "description": "Output path prefix; default the file path without .html"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Capture a screenshot and DOM tree with resolved asset provenance",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Running scenario slug"
+            },
+            {
+              "name": "route",
+              "required": true,
+              "description": "Concrete route such as /coverage"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PageService",
+            "method": "Inspect"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "wait-selector",
+              "description": "Wait for a visible page state before capturing"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "workspaces",
+      "description": "Author and version the durable workspace composition (pages, displays, states)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List workspace summaries newest-updated first",
+          "flags": [
+            {
+              "name": "provenance",
+              "description": "Optional provenance filter: authored, curated, imported, or forked"
+            },
+            {
+              "name": "query",
+              "description": "Case-insensitive name/summary/tag substring"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of rows (0 = server default, capped)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ListWorkspaces"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get the full workspace aggregate including pages, displays and states",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "GetWorkspace"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an authored workspace at revision 1",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Workspace name",
+              "required": true
+            },
+            {
+              "name": "summary",
+              "description": "Short human summary"
+            },
+            {
+              "name": "provenance",
+              "description": "Workspace provenance: authored, curated, imported, or forked"
+            },
+            {
+              "name": "tags",
+              "description": "Tag (repeat for more)",
+              "repeatable": true
+            },
+            {
+              "name": "binding-scenario",
+              "description": "Optional scenario experience binding"
+            },
+            {
+              "name": "binding-page",
+              "description": "Optional page binding inside binding-scenario"
+            },
+            {
+              "name": "theme-json",
+              "description": "Opaque client-owned theme JSON"
+            },
+            {
+              "name": "options-json",
+              "description": "Opaque client-owned workspace chrome JSON"
+            },
+            {
+              "name": "pages",
+              "description": "Proto-JSON array of WorkspacePage objects, or an object with a pages array",
+              "bind": {
+                "field": "pages",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "CreateWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "save",
+          "description": "Replace the aggregate and append a revision snapshot using an optimistic base revision",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "base-revision",
+              "description": "Revision observed when editing; a stale base is rejected",
+              "required": true
+            },
+            {
+              "name": "actor",
+              "description": "Actor recorded on the revision snapshot"
+            },
+            {
+              "name": "workspace",
+              "description": "Proto-JSON Workspace document path; the id positional overrides workspace.id",
+              "required": true,
+              "bind": {
+                "field": "workspace",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "SaveWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a workspace and its revision snapshots",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "DeleteWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "fork",
+          "description": "Copy a workspace into an editable fork and keep origin provenance",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id to copy",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Name for the editable fork"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ForkWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List bounded workspace revision snapshots newest-first",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum number of snapshots (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ListWorkspaceRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Check ids, ordering, devices and addressability without writing",
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Proto-JSON Workspace document path to validate",
+              "required": true,
+              "bind": {
+                "field": "workspace",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "ValidateWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "assist",
+          "description": "Propose a validated AI patch for one workspace page (never writes)",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "prompt",
+              "description": "What should change (1 to 2000 characters)",
+              "required": true
+            },
+            {
+              "name": "scope",
+              "description": "What the patch may touch: design, frame or layer (default design)",
+              "local_only": true
+            },
+            {
+              "name": "display",
+              "description": "Display id for frame or layer scope",
+              "local_only": true
+            },
+            {
+              "name": "node",
+              "description": "Layer id for layer scope",
+              "local_only": true
+            },
+            {
+              "name": "page",
+              "description": "Page id (default the first page)",
+              "bind": {
+                "field": "page_id"
+              }
+            },
+            {
+              "name": "state",
+              "description": "display=<state> pair selecting the state on screen (repeat for more)",
+              "repeatable": true,
+              "local_only": true
+            },
+            {
+              "name": "base-revision",
+              "description": "Revision the proposal must match (default: read the current one)"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable request key (default generated; retries with the same key do not re-dispatch)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "AssistWorkspace"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "export-seed",
+          "description": "Promote a workspace into the reviewed curated-template seed (writes the seed file, never the workspace)",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Workspace id to export",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "seed-id",
+              "description": "Curated id to write (required for an authored or forked workspace; must start with ws_curated_)"
+            },
+            {
+              "name": "file",
+              "description": "Seed file (default library/workspace-seeds.json under the scenario root)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search workspaces, pages, assets, commands and findings with honest index status",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search the unified index and report ranked results with index and semantic-leg status",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Free-text query; an empty query browses the curated destinations",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "ask",
+              "description": "Ask mode: an explicit mode that never silently replaces lexical results",
+              "bool": true
+            },
+            {
+              "name": "kind",
+              "description": "Result kind filter (repeatable): workspace, page, display, state, page-type, asset, command, evidence",
+              "repeatable": true,
+              "bind": {
+                "field": "kinds",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum results (0 = server default, capped)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "suggest",
+          "description": "Suggest query completions derived from indexed titles and tags",
+          "positionals": [
+            {
+              "name": "query",
+              "description": "Prefix or term to complete",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum suggestions (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Suggest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report index freshness and semantic-leg availability",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "GetSearchStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reindex",
+          "description": "Rebuild the lexical index from owned sources",
+          "flags": [
+            {
+              "name": "force",
+              "description": "Rebuild even when the index is current",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "review",
+      "description": "Triage server-owned findings and record durable dispositions",
+      "commands": [
+        {
+          "name": "findings",
+          "description": "List findings newest-first with optional filters",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Finding status: open, acknowledged, accepted, fixed, retired"
+            },
+            {
+              "name": "severity",
+              "description": "Severity: blocker, high, medium, low, info"
+            },
+            {
+              "name": "subject-kind",
+              "description": "Only findings for this subject kind"
+            },
+            {
+              "name": "query",
+              "description": "Case-insensitive message/evidence substring"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows (0 = server default)"
+            },
+            {
+              "name": "offset",
+              "description": "Zero-based offset into the filtered queue"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "ListFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "finding",
+          "description": "Get one finding with its durable dispositions",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Finding id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "GetFinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "disposition",
+          "description": "Record a decision with a reason and actor",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Finding id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "decision",
+              "description": "Durable decision recorded on the finding",
+              "required": true,
+              "values": [
+                "acknowledge",
+                "accept-risk",
+                "fix",
+                "retire"
+              ]
+            },
+            {
+              "name": "reason",
+              "description": "Reason recorded with the decision"
+            },
+            {
+              "name": "actor",
+              "description": "Actor recording the decision"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "RecordDisposition"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "assign",
+          "description": "Set the accountable owner for a finding",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Finding id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "owner",
+              "description": "Accountable owner",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "AssignFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "summary",
+          "description": "Return queue counts by severity and status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "GetReviewSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "acceptance",
+          "description": "Read a durable acceptance decision without rechecking or dispatching",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "bind": {
+                "field": "design_id"
+              }
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Acceptance operation ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "GetAcceptance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "accept",
+          "description": "Record an acceptance decision; incomplete evidence yields needs_evidence",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate",
+              "local_only": true
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "local_only": true
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash",
+              "local_only": true
+            },
+            {
+              "name": "render-hash",
+              "required": true,
+              "description": "Exact render hash being reviewed",
+              "local_only": true
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit",
+              "local_only": true
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme",
+              "local_only": true
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction",
+              "local_only": true
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state",
+              "local_only": true
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render",
+              "local_only": true
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render",
+              "local_only": true
+            },
+            {
+              "name": "critique",
+              "repeatable": true,
+              "description": "Review ID; repeat to include multiple reviews",
+              "local_only": true
+            },
+            {
+              "name": "actor",
+              "required": true,
+              "description": "Caller-declared decision actor; not independent review proof"
+            },
+            {
+              "name": "key",
+              "required": true,
+              "description": "Stable key; repeat identical inputs after a lost response",
+              "bind": {
+                "field": "idempotency_key"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "AcceptCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "acceptance-check",
+          "description": "Resolve current acceptance requirements without publishing a decision",
+          "positionals": [],
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario owning the candidate",
+              "local_only": true
+            },
+            {
+              "name": "design",
+              "required": true,
+              "description": "Design identity",
+              "local_only": true
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Exact saved candidate hash",
+              "local_only": true
+            },
+            {
+              "name": "render-hash",
+              "required": true,
+              "description": "Exact render hash being reviewed",
+              "bind": {
+                "field": "expected_render_hash"
+              }
+            },
+            {
+              "name": "kit",
+              "default": "vrooli-default",
+              "description": "Rendered design kit"
+            },
+            {
+              "name": "theme",
+              "default": "light",
+              "description": "Rendered theme"
+            },
+            {
+              "name": "direction",
+              "default": "ltr",
+              "description": "Rendered text direction"
+            },
+            {
+              "name": "state",
+              "description": "Declared preview state",
+              "local_only": true
+            },
+            {
+              "name": "missing-label",
+              "default": "Missing region",
+              "description": "Missing-region label used for this render"
+            },
+            {
+              "name": "failed-label",
+              "default": "Failed region",
+              "description": "Failed-region label used for this render"
+            },
+            {
+              "name": "critique",
+              "repeatable": true,
+              "description": "Review ID; repeat to include multiple reviews",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "CheckCandidateAcceptance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "activity",
+      "description": "Read the append-only mutation log and its bounded summary",
+      "commands": [
+        {
+          "name": "events",
+          "description": "List activity events newest-first with optional subject filters",
+          "flags": [
+            {
+              "name": "subject-kind",
+              "description": "Only events for this subject kind"
+            },
+            {
+              "name": "subject-id",
+              "description": "Only events for this subject id"
+            },
+            {
+              "name": "actor",
+              "description": "Only events attributed to this actor"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum events (0 = server default, capped)"
+            },
+            {
+              "name": "since",
+              "description": "Inclusive RFC3339 lower bound"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActivityService",
+            "method": "ListActivity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "summary",
+          "description": "Return bounded activity counts for the Stats activity view",
+          "flags": [
+            {
+              "name": "days",
+              "description": "Bounded window in days (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ActivityService",
+            "method": "GetActivitySummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Read the composed library-health snapshot with per-section availability",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Show every library-health section with its state and reason",
+          "flags": [
+            {
+              "name": "activity-days",
+              "description": "Bounded activity window in days (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LibraryHealthService",
+            "method": "GetLibraryHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "version_ledger",
+        "stateful": true,
+        "reason": "Replayable analytical projection over durable version facts."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "component_versions",
+        "reason": "Source projection consumed by version_ledger; the progression measure is the public analytical surface."
+      },
+      {
+        "domain": "component_test_reports",
+        "reason": "Bounded report payloads are summarized by component_version_test_rollup and version_ledger."
+      },
+      {
+        "domain": "adoption_records",
+        "reason": "Adoption facts are grouped per version in version_ledger."
+      },
+      {
+        "domain": "assisted_workflows",
+        "reason": "Workflow history is an operational integration substrate, not a catalog progression measure."
+      },
+      {
+        "domain": "builtin_themes",
+        "reason": "Built-in theme definitions are configuration seed data, not historical progression facts."
+      },
+      {
+        "domain": "version_ledger",
+        "reason": "A replayable analytical projection over version facts; its status is read through the version ledger and derived from the underlying version and adoption records, so an independent row-count measure would reward projection volume rather than library progression."
+      },
+      {
+        "domain": "findings",
+        "reason": "The current decision backlog is measured through Review summary by severity and status; durable disposition changes are in Activity. Raw finding row count has no time window and would conflate open work with accepted or retired history."
+      },
+      {
+        "domain": "workspace_assets",
+        "reason": "These are workspace-owned media inventory records surfaced by workspace asset reads. Their row count is not an outcome measure; usage and visual evidence are reviewed against the owning workspace and state."
+      },
+      {
+        "domain": "workspace_revisions",
+        "reason": "Revision rows are immutable recovery snapshots surfaced by workspace revision history. Snapshot volume describes edit frequency, not quality or successful outcomes; activity and state validation provide those signals."
+      },
+      {
+        "domain": "workspace_state_capture_attempts",
+        "reason": "Capture attempts are retry and recovery evidence. Attempt volume alone cannot distinguish failed transport, authentication absence, or useful state coverage; capture readiness and receipts remain tied to the current workspace state."
+      },
+      {
+        "domain": "workspace_visual_comparisons",
+        "reason": "Visual comparison rows are revision-scoped review evidence. Their count is not a quality outcome and can increase from repeated comparisons without improving a workspace."
+      },
+      {
+        "domain": "workspaces",
+        "reason": "Workspace inventory and readiness are already exposed through the workspace index and Library Health. A second persisted-row measure would duplicate that current-state projection and would not measure the time-windowed creation or use outcome."
+      }
+    ]
+  },
+  "exceptions": [
+    {
+      "command": "preview populate-store",
+      "class": "external_delegation",
+      "reason": "The command owns a filesystem-backed preview-store plan and delegates every package mutation to scenario-dependency-analyzer rather than a Connect RPC."
+    },
+    {
+      "command": "preview capture",
+      "class": "external_delegation",
+      "reason": "The command captures released component preview images through the scenario capture tool and has no Connect RPC request."
+    }
+  ],
+  "omitted": [
+    {
+      "service": "AdoptionIntakeService",
+      "method": "ListScenarios",
+      "reason": "Internal discovery helper; the promoted adoption workflow starts with preflight and link."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "EjectAdoption",
+      "reason": "Ejection is retained as an API capability but is not a promoted edit-loop verb."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ApplyAdoption",
+      "reason": "Adoption application is composed by the promoted link workflow."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "BatchApplyAdoptions",
+      "reason": "Batch mutation is intentionally not part of the focused public edit loop."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ReapplyAdoption",
+      "reason": "Historical compatibility operation; use the promoted link workflow."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "DeleteAdoption",
+      "reason": "Destructive adoption deletion remains API-only."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "RefreshAdoptions",
+      "reason": "Refresh is an internal reconciliation operation."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ForkReportAdoptions",
+      "reason": "Historical report operation is not a promoted workflow."
+    },
+    {
+      "service": "AdoptionIntakeService",
+      "method": "ReconcileAdoptions",
+      "reason": "Reconciliation is an internal maintenance operation."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ReconvergeAdoptions",
+      "reason": "Reconvergence is an internal maintenance operation."
+    },
+    {
+      "service": "AdoptionIntakeService",
+      "method": "DiscoverAdoptions",
+      "reason": "Discovery is an internal suggestion substrate."
+    },
+    {
+      "service": "AdoptionIntakeService",
+      "method": "ConfirmDiscovery",
+      "reason": "Discovery confirmation is an internal suggestion substrate."
+    },
+    {
+      "service": "AdoptionsService",
+      "method": "ResolveAdoptionPath",
+      "reason": "Path resolution is an internal adoption helper."
+    },
+    {
+      "service": "AdoptionIntakeService",
+      "method": "SuggestAdoptions",
+      "reason": "Suggestions are consumed by the workbench UI."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "IndexComponents",
+      "reason": "Indexing is performed by the scenario lifecycle and catalog build."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "GetComponentByLibraryId",
+      "reason": "The promoted component list/get workflow accepts stable identities."
+    },
+    {
+      "service": "ComponentAuthoringService",
+      "method": "InitializeComponent",
+      "reason": "Initialization is an internal setup operation."
+    },
+    {
+      "service": "ComponentAuthoringService",
+      "method": "CreateComponentVersion",
+      "reason": "Version creation is composed by draft-begin."
+    },
+    {
+      "service": "ComponentAuthoringService",
+      "method": "GetComponentContent",
+      "reason": "Content reads are an internal editor helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListComponentVersions",
+      "reason": "Version history uses the promoted versions list command."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "GetComponentVersionContent",
+      "reason": "Version content reads are an internal editor helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListComponentStories",
+      "reason": "Story discovery is an internal workbench helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListDesignStyles",
+      "reason": "Design-style discovery is an internal workbench helper."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ValidateStyleFit",
+      "reason": "Style fit is evaluated by catalog gates and asset check."
+    },
+    {
+      "service": "WorkflowsService",
+      "method": "RefreshWorkflow",
+      "reason": "Workflow refresh is an internal maintenance operation."
+    },
+    {
+      "service": "WorkflowsService",
+      "method": "StopWorkflow",
+      "reason": "Workflow stopping remains an operational API capability."
+    },
+    {
+      "service": "WorkflowsService",
+      "method": "RetryWorkflow",
+      "reason": "Workflow retry remains an operational API capability."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ResolveLibraryImport",
+      "reason": "Preview import resolution is an internal UI/API seam; the CLI draft lane and component commands do not expose a standalone resolver workflow."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "ListPreviewFrames",
+      "reason": "Preview-only UI composition discovery. The CLI exposes bundle diagnostics but does not author or persist story frame selections."
+    },
+    {
+      "service": "ComponentsService",
+      "method": "PersistPreviewFrame",
+      "reason": "Preview-only UI authoring surface. Frame persistence creates versioned story drafts from the Components UI; no standalone CLI workflow exists."
+    },
+    {
+      "service": "CatalogService",
+      "method": "CaptureEvidence",
+      "reason": "Evidence capture remains an API/UI/Test Genie workflow. The CLI's explicit asset record-check action composes it through catalog record-gate; there is no standalone raw capture verb."
+    },
+    {
+      "service": "CatalogService",
+      "method": "CheckAsset",
+      "reason": "The targeted asset check workflow is composed by the CLI asset command and is not exposed as a raw catalog RPC."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetAssetPortContract",
+      "reason": "Port contracts are an internal workbench/catalog-build seam, not a standalone public CLI workflow."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetCatalogStructure",
+      "reason": "Catalog structure is consumed by the workbench and corpus report; the public CLI exposes catalog status and build workflows."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetCoverage",
+      "reason": "Coverage is a workbench/readiness projection; the public CLI exposes readiness and corpus-report instead."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetHealthOverview",
+      "reason": "Health overview is an internal workbench projection; the public CLI uses the top-level status/readiness workflow."
+    },
+    {
+      "service": "CatalogService",
+      "method": "GetScoreHistory",
+      "reason": "Score history is an internal catalog reporting projection and is not a promoted edit-loop verb."
+    },
+    {
+      "service": "CatalogService",
+      "method": "ListNextWork",
+      "reason": "Next-work ranking is consumed by catalog readiness and the workbench; it is not a standalone edit-loop command."
+    },
+    {
+      "service": "CatalogService",
+      "method": "ReconcileGraph",
+      "reason": "Graph reconciliation is a catalog-build stage, not an independently promoted command."
+    },
+    {
+      "service": "ComponentTestsService",
+      "method": "GetComponentTestReport",
+      "reason": "Reports are durable evidence consumed by read-only asset check and the workbench; the CLI exposes governed test/record-check workflows rather than raw report reads."
+    },
+    {
+      "service": "ComponentTestsService",
+      "method": "ListComponentTestReports",
+      "reason": "Reports are durable evidence consumed by read-only asset check and the workbench; the CLI exposes governed test/record-check workflows rather than raw report listing."
+    },
+    {
+      "service": "ComponentTestsService",
+      "method": "RerunComponentTest",
+      "reason": "Reruns are composed by the governed component test/asset record-check workflow and are not a separate public edit-loop verb."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ArchiveVersion",
+      "reason": "Version archival is an internal lifecycle operation composed by versions doctor/reap."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "CleanupDraft",
+      "reason": "Draft cleanup is composed by the promoted versions reap workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "CleanupVersions",
+      "reason": "Version cleanup is composed by the promoted versions reap workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "DeprecateVersion",
+      "reason": "Deprecation is an internal version-lifecycle operation, not a promoted edit-loop verb."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ExportArchive",
+      "reason": "Archive export is an internal lifecycle operation and is intentionally not part of the focused public surface."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ImportArchive",
+      "reason": "Archive import is an internal lifecycle operation and is intentionally not part of the focused public surface."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "RecoverButton224",
+      "reason": "Button 2.2.4 recovery is a temporary one-release operation exposed through the local recover-button-224 wrapper."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ListRetireCandidates",
+      "reason": "Retirement candidates are consumed by the promoted versions reap/doctor workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "ListVersionLedger",
+      "reason": "The version ledger is an internal integrity projection consumed by versions doctor."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "MaterializeVersion",
+      "reason": "Version materialization is composed by the governed draft/publish workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "PlanCleanup",
+      "reason": "Cleanup planning is composed by the promoted versions reap workflow."
+    },
+    {
+      "service": "VersionLifecycleService",
+      "method": "RetireVersion",
+      "reason": "Version retirement is an internal lifecycle operation composed by versions reap/doctor."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Provider-owned validation surface invoked by Test Genie; CLI consumers use the scenario test protocol."
+    },
+    {
+      "service": "DepsService",
+      "method": "ListDeclarations",
+      "reason": "API surface used by dependency indexing and adoption validation; no CLI domain currently consumes it. The endpoint is intentionally omitted from CLI coverage, and exposing it would require a new deps CLI domain and handlers."
+    },
+    {
+      "service": "DepsService",
+      "method": "ValidateAdoption",
+      "reason": "API surface for dependency compatibility checks; no CLI domain currently consumes it. The endpoint is intentionally omitted from CLI coverage."
+    },
+    {
+      "service": "ThemesService",
+      "method": "ListBuiltinThemes",
+      "reason": "Internal/UI-only surface. ThemesService powers the UI theme picker; no themes CLI domain exists. The endpoint is intentionally omitted from CLI coverage; promotion would require a net-new themes CLI domain + handlers. Documented intent in this manifest's description."
+    },
+    {
+      "service": "ThemesService",
+      "method": "GetBuiltinTheme",
+      "reason": "Internal/UI-only surface. UI-only theme retrieval; no themes CLI domain exists. Promotion would require net-new handlers rather than wiring an existing command. Documented intent in this manifest's description."
+    },
+    {
+      "service": "ThemesService",
+      "method": "GetThemeFromScenario",
+      "reason": "Internal/UI-only surface. UI resolves a target scenario's DESIGN.md theme via this RPC; no themes CLI domain exists. Promotion would require net-new handlers. Documented intent in this manifest's description."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Test Genie invokes this shared provider contract to run the complete RCL component-test suite. The component CLI deliberately exposes targeted asset runs through ComponentTestsService instead."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
+    },
+    {
+      "service": "PreviewService",
+      "method": "GetCompositionBundle",
+      "reason": "Internal composition compiler surface. Use sketch render-candidate for exact saved design rendering with candidate-owned bindings and identity."
+    },
+    {
+      "service": "PreviewService",
+      "method": "RenderComposition",
+      "reason": "Internal composition compiler surface. Use sketch render-candidate for exact saved design rendering with candidate-owned bindings and identity."
+    },
+    {
+      "service": "WorkspaceCaptureService",
+      "method": "CaptureCandidate",
+      "reason": "Candidate capture is an interactive workbench flow; the CLI exposes the composed sketch import and render workflows rather than raw capture lifecycle calls."
+    },
+    {
+      "service": "WorkspaceCandidateService",
+      "method": "GetCandidate",
+      "reason": "Candidate records are an internal workbench state surface; the CLI exposes saved sketches and the composed render-candidate workflow."
+    },
+    {
+      "service": "WorkspaceCandidateService",
+      "method": "ListCandidates",
+      "reason": "Candidate records are an internal workbench state surface; the CLI exposes saved sketches and the composed render-candidate workflow."
+    },
+    {
+      "service": "WorkspaceCandidateService",
+      "method": "MapCandidateRegions",
+      "reason": "Candidate region mapping is interactive workbench authoring; no standalone CLI authoring workflow exists."
+    },
+    {
+      "service": "WorkspaceCandidateService",
+      "method": "PlaceCandidateAsset",
+      "reason": "Candidate asset placement is interactive workbench authoring; the CLI placement command targets saved sketches."
+    },
+    {
+      "service": "WorkspaceAssistService",
+      "method": "RefineCandidate",
+      "reason": "Candidate refinement is interactive workbench authoring; no standalone CLI authoring workflow exists."
+    },
+    {
+      "service": "WorkspaceCandidateService",
+      "method": "SaveCandidate",
+      "reason": "Candidate persistence is an internal workbench transition; the CLI exposes the composed sketch save workflow."
+    },
+    {
+      "service": "WorkspaceCaptureService",
+      "method": "AttachCapture",
+      "reason": "Capture attachment belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "WorkspaceCaptureService",
+      "method": "CancelCapture",
+      "reason": "Capture cancellation belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "WorkspaceCaptureService",
+      "method": "GetCapture",
+      "reason": "Capture state is an internal workbench projection; the CLI exposes the composed sketch import workflow."
+    },
+    {
+      "service": "WorkspaceCaptureService",
+      "method": "RetryCapture",
+      "reason": "Capture retry belongs to the interactive workbench capture flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "WorkspaceCaptureService",
+      "method": "GetCaptureScreenshot",
+      "reason": "Capture screenshots are presented by the workbench and are not a standalone CLI output."
+    },
+    {
+      "service": "ReviewService",
+      "method": "GetCritique",
+      "reason": "Critique records are workbench evidence; the CLI does not expose a standalone critique inspection workflow."
+    },
+    {
+      "service": "ReviewService",
+      "method": "ListCritiques",
+      "reason": "Critique records are workbench evidence; the CLI does not expose a standalone critique listing workflow."
+    },
+    {
+      "service": "ReviewService",
+      "method": "RecordCritique",
+      "reason": "Critique recording is composed by the workbench/Test Genie validation flow and is not a standalone CLI mutation."
+    },
+    {
+      "service": "ReviewService",
+      "method": "GetCritiqueRubric",
+      "reason": "Critique rubric retrieval is an internal workbench/critic dependency, not a standalone CLI workflow."
+    },
+    {
+      "service": "ExperienceService",
+      "method": "ListDesignPages",
+      "reason": "Design-page discovery is consumed by the workbench; the CLI's sketch commands operate on explicit sketches."
+    },
+    {
+      "service": "WorkspaceCandidateService",
+      "method": "RenderSketch",
+      "reason": "The legacy raw render procedure is retained for API compatibility; the CLI exposes render-candidate, which binds rendering to a saved candidate and its identity."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "ListWorkspaceAssets",
+      "reason": "Workspace asset metadata is a workbench-only projection; binary asset access remains available through library workflows."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "ListAllWorkspaceAssets",
+      "reason": "Cross-workspace asset reuse is a workbench-only operation."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "CreateWorkspaceAsset",
+      "reason": "Asset uploads are managed in the visual workspace studio."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "DeleteWorkspaceAsset",
+      "reason": "Asset deletion is managed in the visual workspace studio."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "CaptureWorkspaceState",
+      "reason": "State capture is an interactive workbench evidence workflow."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "GetWorkspaceStateCapture",
+      "reason": "Capture evidence is consumed by the visual workbench."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "ListWorkspaceCaptureReceipts",
+      "reason": "Capture history is consumed by the visual workbench."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "ListWorkspaceSourceBaselines",
+      "reason": "Source baseline candidates and reviewer acceptance state are presented in the visual workbench so evidence status is visible beside each screen."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "CreateWorkspaceSourceBaseline",
+      "reason": "Candidate source screenshots are registered from the visual workbench, where their association with a specific screen is reviewed."
+    },
+    {
+      "service": "WorkspaceService",
+      "method": "AcceptWorkspaceSourceBaseline",
+      "reason": "Source acceptance is an explicit human review action in the visual workbench; a CLI workflow could obscure the image and acceptance context."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "CompareWorkspaceCaptureReceipts",
+      "reason": "Visual comparisons are an interactive workbench review workflow."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "ListWorkspaceVisualComparisons",
+      "reason": "Comparison history is consumed by the visual workbench."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "CompareWorkspaceSourceBaseline",
+      "reason": "Source drift review is consumed by the visual workbench, where the accepted image and selected capture are shown with their heatmap."
+    },
+    {
+      "service": "WorkspaceVisualComparisonService",
+      "method": "ListWorkspaceSourceBaselineComparisons",
+      "reason": "Source drift history is consumed by the visual workbench with its source image, selected capture and heatmap."
+    },
+    {
+      "service": "ExperienceService",
+      "method": "AdoptExperiencePage",
+      "reason": "Page adoption is an interactive workbench flow that creates a workspace with reviewed source context; no standalone CLI workflow currently exists."
+    }
+  ]
+}

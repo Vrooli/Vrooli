@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Launch-video B-roll catalog v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "title", "assets"],
+  "properties": {
+    "schema": { "const": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "assets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/asset" }
+    }
+  },
+  "$defs": {
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "sha256", "dimensions", "origin", "rights_status", "proof_scope", "product", "states", "roles", "claims", "selection_eligible", "parameters"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "dimensions": { "type": "array", "prefixItems": [{ "type": "integer", "minimum": 1 }, { "type": "integer", "minimum": 1 }], "minItems": 2, "maxItems": 2 },
+        "origin": { "type": "string", "minLength": 1 },
+        "rights_status": { "enum": ["internal-generated-terms-unverified", "owned-capture", "licensed-with-receipt"] },
+        "rights_receipt": { "$ref": "#/$defs/receipt" },
+        "capture_receipt": { "$ref": "#/$defs/receipt" },
+        "source_receipts": { "type": "array", "items": { "$ref": "#/$defs/receipt" } },
+        "proof_scope": { "type": "string", "minLength": 1 },
+        "product": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "states": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "roles": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "claims": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "selection_eligible": { "type": "boolean" },
+        "parameters": { "type": "object" },
+        "motion": { "type": "object" }
+      },
+      "allOf": [
+        { "if": { "properties": { "rights_status": { "const": "owned-capture" } }, "required": ["rights_status"] }, "then": { "required": ["capture_receipt"] } },
+        { "if": { "properties": { "rights_status": { "const": "licensed-with-receipt" } }, "required": ["rights_status"] }, "then": { "required": ["rights_receipt"] } },
+        { "if": { "properties": { "rights_status": { "const": "internal-generated-terms-unverified" } }, "required": ["rights_status"] }, "then": { "properties": { "selection_eligible": { "const": false } } } }
+      ]
+    }
+  }
+}

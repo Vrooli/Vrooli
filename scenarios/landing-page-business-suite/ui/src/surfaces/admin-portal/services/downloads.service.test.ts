@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
+import { computeDownloadsHealth } from './adminHome.service';
 import {
   buildPlatformForm,
   deserializeApp,
@@ -8,11 +9,13 @@ import {
   normalizePayload,
   isFormDirty,
   computeDownloadHealthFromForms,
+  isOfficialStorefrontLink,
   buildDefaultStorageForm,
   buildDefaultCredentialsForm,
   buildStorageUpdatePayload,
   PLATFORM_KEYS,
   type AppFormValues,
+  type PlatformFormValues,
   type StorageFormValues,
   type CredentialsFormValues,
 } from './downloads.service';
@@ -26,7 +29,13 @@ const createAsset = (overrides: Partial<DownloadAsset>): DownloadAsset => ({
   release_version: '',
   requires_entitlement: false,
   ...overrides,
-} as DownloadAsset);
+});
+
+// Helper to build a complete windows platform form for serialization tests.
+const windowsPlatform = (overrides: Partial<PlatformFormValues> = {}): PlatformFormValues => ({
+  ...buildPlatformForm('windows'),
+  ...overrides,
+});
 
 // Helper to create partial test apps
 const createApp = (overrides: Partial<DownloadApp>): DownloadApp => ({
@@ -35,7 +44,7 @@ const createApp = (overrides: Partial<DownloadApp>): DownloadApp => ({
   name: 'Test App',
   platforms: [],
   ...overrides,
-} as DownloadApp);
+});
 
 describe('downloads.service', () => {
   describe('PLATFORM_KEYS', () => {
@@ -54,9 +63,16 @@ describe('downloads.service', () => {
         artifactSource: 'direct',
         artifactUrl: '',
         artifactId: '',
+        checksum: '',
         releaseVersion: '',
         releaseNotes: '',
         requiresEntitlement: false,
+        signingNoticeMode: 'inherit',
+        signingNoticeTitle: '',
+        signingNoticeBody: '',
+        signingNoticeLinkLabel: '',
+        signingNoticeLinkUrl: '',
+        signingNoticeSeverity: 'info',
         artifactFilename: undefined,
         artifactSizeBytes: undefined,
         artifactCount: undefined,
@@ -186,6 +202,51 @@ describe('downloads.service', () => {
       expect(result.installSteps).toBe('Step 1\nStep 2\nStep 3');
     });
 
+    it('round-trips catalog metadata used by the public storefront', () => {
+      const result = deserializeApp(createApp({
+        metadata: {
+          enabled: false,
+          web_url: '/app/web-console',
+          feature_gates: ['subscription', 'ai_credits'],
+          catalog_status: 'live',
+          agent_plugin: true,
+          release_channel: 'stable',
+        },
+      }));
+
+      const serialized = serializeApp(result);
+
+      expect(result.enabled).toBe(false);
+      expect(result.webUrl).toBe('/app/web-console');
+      expect(result.featureGates).toBe('subscription, ai_credits');
+      expect(result.catalogStatus).toBe('live');
+      expect(result.agentPlugin).toBe(true);
+      expect(serialized.metadata).toEqual({
+        enabled: false,
+        web_url: '/app/web-console',
+        feature_gates: ['subscription', 'ai_credits'],
+        catalog_status: 'live',
+        agent_plugin: true,
+        release_channel: 'stable',
+      });
+    });
+
+    it('normalizes protobuf Struct metadata before applying catalog controls', () => {
+      const result = deserializeApp(createApp({
+        metadata: {
+          fields: {
+            enabled: { boolValue: false },
+            web_url: { stringValue: '/app/web-console' },
+            feature_gates: { listValue: { values: [{ stringValue: 'subscription' }] } },
+          },
+        } as unknown as Record<string, unknown>,
+      }));
+
+      expect(result.enabled).toBe(false);
+      expect(result.webUrl).toBe('/app/web-console');
+      expect(result.featureGates).toBe('subscription');
+    });
+
     it('deserializes Apple App Store storefront', () => {
       const app = createApp({
         app_key: 'test',
@@ -193,7 +254,7 @@ describe('downloads.service', () => {
           {
             store: 'app_store',
             label: 'Download on App Store',
-            url: 'https://apps.apple.com/app/123',
+            url: 'https://apps.apple.com/us/app/aquila/id123',
             badge: 'Featured',
           },
         ],
@@ -203,7 +264,7 @@ describe('downloads.service', () => {
 
       expect(result.appleEnabled).toBe(true);
       expect(result.appleLabel).toBe('Download on App Store');
-      expect(result.appleUrl).toBe('https://apps.apple.com/app/123');
+      expect(result.appleUrl).toBe('https://apps.apple.com/us/app/aquila/id123');
       expect(result.appleBadge).toBe('Featured');
     });
 
@@ -214,7 +275,7 @@ describe('downloads.service', () => {
           {
             store: 'play_store',
             label: 'Get it on Google Play',
-            url: 'https://play.google.com/store/apps/123',
+            url: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila',
           },
         ],
       });
@@ -223,7 +284,22 @@ describe('downloads.service', () => {
 
       expect(result.googleEnabled).toBe(true);
       expect(result.googleLabel).toBe('Get it on Google Play');
-      expect(result.googleUrl).toBe('https://play.google.com/store/apps/123');
+      expect(result.googleUrl).toBe('https://play.google.com/store/apps/details?id=org.vrooli.aquila');
+    });
+
+    it('keeps invalid legacy store links editable without marking them configured', () => {
+      const app = createApp({
+        app_key: 'test',
+        storefronts: [
+          { store: 'app_store', label: 'App Store', url: 'https://apps.apple.com.evil.test/app/id123' },
+          { store: 'play_store', label: 'Google Play', url: 'http://play.google.com/store/apps/details?id=org.vrooli.aquila' },
+        ],
+      });
+      const result = deserializeApp(app);
+      expect(result.appleEnabled).toBe(false);
+      expect(result.googleEnabled).toBe(false);
+      expect(result.appleUrl).toBe('https://apps.apple.com.evil.test/app/id123');
+      expect(result.googleUrl).toContain('http://play.google.com/');
     });
 
     it('deserializes platforms', () => {
@@ -251,7 +327,7 @@ describe('downloads.service', () => {
         app_key: 'test',
         name: null as unknown as string,
         storefronts: undefined,
-        platforms: undefined as unknown as DownloadAsset[],
+        platforms: undefined,
       });
 
       const result = deserializeApp(app);
@@ -354,7 +430,7 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         appleEnabled: true,
-        appleUrl: 'https://apps.apple.com/123',
+        appleUrl: 'https://apps.apple.com/us/app/aquila/id123',
         appleLabel: 'Get on App Store',
         appleBadge: 'New',
       };
@@ -365,7 +441,7 @@ describe('downloads.service', () => {
       expect(result.storefronts![0]).toEqual({
         store: 'app_store',
         label: 'Get on App Store',
-        url: 'https://apps.apple.com/123',
+        url: 'https://apps.apple.com/us/app/aquila/id123',
         badge: 'New',
       });
     });
@@ -386,7 +462,7 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         googleEnabled: true,
-        googleUrl: 'https://play.google.com/123',
+        googleUrl: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila',
         googleBadge: '  ',
       };
 
@@ -399,16 +475,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: 'Initial release',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -432,16 +505,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: false,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -456,16 +526,13 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -480,16 +547,15 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '42',
+            checksum: 'a'.repeat(64),
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -502,20 +568,34 @@ describe('downloads.service', () => {
       expect(result.platforms[0]?.artifact_url).toBe('');
     });
 
+    it('preserves managed artifact checksum and omits incomplete managed identities', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues(),
+        platforms: {
+          windows: windowsPlatform({ enabled: true, artifactSource: 'managed', artifactId: '42', releaseVersion: '1.0.0', checksum: 'a'.repeat(64) }),
+          mac: windowsPlatform({ platform: 'mac', enabled: true, artifactSource: 'managed', artifactId: '43', releaseVersion: '1.0.0', checksum: '' }),
+          linux: buildPlatformForm('linux'),
+        },
+      };
+
+      const result = serializeApp(values);
+      expect(result.platforms).toHaveLength(1);
+      expect(result.platforms[0]?.checksum).toBe('a'.repeat(64));
+      expect(result.platforms[0]?.artifact_id).toBe(42);
+    });
+
     it('excludes managed platforms without artifact_id', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -614,32 +694,28 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues('test'),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'direct',
             artifactUrl: 'https://example.com/app.exe',
-            artifactId: '',
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
       };
 
       const result = computeDownloadHealthFromForms([{ values }]);
-
       expect(result.platformsConfigured).toBe(1);
       expect(result.platformsMissing).toBe(2);
     });
 
-    it('counts storefronts from URL presence', () => {
+    it('counts only official HTTPS app listing URLs as storefronts', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues('test'),
-        appleUrl: 'https://apps.apple.com/123',
-        googleUrl: 'https://play.google.com/123',
+        appleUrl: 'https://apps.apple.com/us/app/aquila/id123',
+        googleUrl: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila',
       };
 
       const result = computeDownloadHealthFromForms([{ values }]);
@@ -647,20 +723,42 @@ describe('downloads.service', () => {
       expect(result.storefrontsConfigured).toBe(2);
     });
 
+    it('requires Apple links to end with a numeric App Store listing ID', () => {
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/id123456')).toBe(true);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/app/id123456')).toBe(true);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila')).toBe(false);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/id-app')).toBe(false);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/id%31%32%33')).toBe(false);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/extra/id123456')).toBe(false);
+    });
+
+    it('does not count malformed or host-confused store links', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('test'),
+        appleUrl: 'https://apps.apple.com.evil.test/us/app/aquila/id123',
+        googleUrl: 'https://play.google.com.evil.test/store/apps/details?id=org.vrooli.aquila',
+      };
+      expect(computeDownloadHealthFromForms([{ values }]).storefrontsConfigured).toBe(0);
+    });
+
+    it('rejects empty userinfo the backend also rejects', () => {
+      expect(isOfficialStorefrontLink('play_store', 'https://@play.google.com/store/apps/details?id=org.vrooli.aquila')).toBe(false);
+      expect(isOfficialStorefrontLink('play_store', 'https://play.google.com/store/apps/details?id=org.vrooli.aquila#')).toBe(false);
+    });
+
     it('counts managed platforms as configured', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues('test'),
         platforms: {
-          windows: {
-            platform: 'windows',
+          windows: windowsPlatform({
             enabled: true,
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '42',
+            checksum: 'a'.repeat(64),
             releaseVersion: '1.0.0',
             releaseNotes: '',
-            requiresEntitlement: false,
-          },
+          }),
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
         },
@@ -669,6 +767,49 @@ describe('downloads.service', () => {
       const result = computeDownloadHealthFromForms([{ values }]);
 
       expect(result.platformsConfigured).toBe(1);
+    });
+
+    it('uses the same managed readiness contract as the admin health snapshot', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('test'),
+        platforms: {
+          windows: windowsPlatform({
+            enabled: true,
+            artifactSource: 'managed',
+            artifactId: '42',
+            checksum: '',
+            releaseVersion: '1.0.0',
+          }),
+          mac: windowsPlatform({
+            platform: 'mac',
+            enabled: true,
+            artifactSource: 'managed',
+            artifactId: '43',
+            checksum: 'a'.repeat(64),
+            releaseVersion: '1.0.0',
+          }),
+          linux: buildPlatformForm('linux'),
+        },
+      };
+
+      const result = computeDownloadHealthFromForms([{ values }]);
+      const serialized = serializeApp(values);
+      const adminHealth = computeDownloadsHealth([{
+        bundle_key: 'test-bundle',
+        app_key: values.appKey,
+        name: values.name,
+        storefronts: serialized.storefronts,
+        platforms: serialized.platforms.map((asset) => ({
+          ...asset,
+          bundle_key: 'test-bundle',
+          app_key: values.appKey,
+          requires_entitlement: asset.requires_entitlement ?? false,
+        })),
+      }]);
+
+      expect(result.platformsConfigured).toBe(1);
+      expect(result.platformsMissing).toBe(2);
+      expect(adminHealth.platformsConfigured).toBe(result.platformsConfigured);
     });
   });
 
@@ -800,6 +941,69 @@ describe('downloads.service', () => {
       expect(result.access_key_id).toBeUndefined();
       expect(result.secret_access_key).toBeUndefined();
       expect(result.session_token).toBeUndefined();
+    });
+  });
+
+  describe('signing notice configuration', () => {
+    const shippedPlatform = (platform: PlatformFormValues['platform'], overrides: Partial<PlatformFormValues> = {}): PlatformFormValues =>
+      windowsPlatform({ platform, enabled: true, artifactSource: 'direct', artifactUrl: `https://example.com/app-${platform}`, releaseVersion: '1.0.0', ...overrides });
+
+    it('serializes a trimmed app-level default notice', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('web-console'),
+        signingNoticeEnabled: true,
+        signingNoticeTitle: '  Preview release  ',
+        signingNoticeBody: '  Signing is in progress.  ',
+        signingNoticeLinkLabel: '  Review the source  ',
+        signingNoticeLinkUrl: '  https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console  ',
+        signingNoticeSeverity: 'warning',
+      };
+
+      expect(serializeApp(values).metadata?.signing_notice).toEqual({
+        enabled: true,
+        title: 'Preview release',
+        body: 'Signing is in progress.',
+        severity: 'warning',
+        link_label: 'Review the source',
+        link_url: 'https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console',
+      });
+    });
+
+    it('omits the app notice when disabled or incomplete', () => {
+      expect(serializeApp(buildDefaultAppValues('web-console')).metadata?.signing_notice).toBeUndefined();
+      const incomplete: AppFormValues = { ...buildDefaultAppValues('web-console'), signingNoticeEnabled: true, signingNoticeTitle: 'Only a title' };
+      expect(serializeApp(incomplete).metadata?.signing_notice).toBeUndefined();
+    });
+
+    it('writes per-platform override and hide metadata, leaving inherit empty', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('web-console'),
+        platforms: {
+          windows: shippedPlatform('windows', { signingNoticeMode: 'override', signingNoticeTitle: 'Windows build', signingNoticeBody: 'Unsigned.' }),
+          mac: shippedPlatform('mac', { signingNoticeMode: 'hide' }),
+          linux: shippedPlatform('linux'),
+        },
+      };
+
+      const platforms = serializeApp(values).platforms;
+      expect(platforms.find((entry) => entry.platform === 'windows')?.metadata).toMatchObject({ signing_notice: { enabled: true, title: 'Windows build' } });
+      expect(platforms.find((entry) => entry.platform === 'mac')?.metadata).toMatchObject({ signing_notice: { enabled: false } });
+      expect(platforms.find((entry) => entry.platform === 'linux')?.metadata?.signing_notice).toBeUndefined();
+    });
+
+    it('deserializes app-level defaults and per-platform suppression', () => {
+      const app = createApp({
+        app_key: 'web-console',
+        metadata: { signing_notice: { enabled: true, title: 'Preview release', body: 'Signing.', severity: 'info', link_label: 'Source', link_url: 'https://example.com/src' } },
+        platforms: [createAsset({ platform: 'linux', release_version: '1.0.0', metadata: { signing_notice: { enabled: false } } })],
+      });
+
+      const values = deserializeApp(app);
+      expect(values.signingNoticeEnabled).toBe(true);
+      expect(values.signingNoticeTitle).toBe('Preview release');
+      expect(values.signingNoticeSeverity).toBe('info');
+      expect(values.platforms.linux.signingNoticeMode).toBe('hide');
+      expect(values.platforms.windows.signingNoticeMode).toBe('inherit');
     });
   });
 });

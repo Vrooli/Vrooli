@@ -1,0 +1,21 @@
+{
+ "question": "May I back up all 45 secret-holding places now and include future ones automatically, adding 3.1 GiB to each backup?",
+ "big_picture": "These 45 places hold private histories, sign-ins, keys and host settings that mostly exist nowhere else. The encrypted backups add 3.1 GiB; after a restore, a sign-in or token may need refreshing once. I recommend registering all 45 and automatically adding future secret-holding places, with a weekly note listing additions you can exclude. You can instead choose groups for today, or add nothing. If you do not answer within 7 days, nothing is added.",
+ "recommend": "standing",
+ "reason": "The risk of losing irreplaceable histories, secrets and keys outweighs the 3.1 GiB cost, and a standing rule stops this same question returning.",
+ "options": [
+  {
+   "key": "standing",
+   "label": "Back up all 45 now and automatically add future secret-holding places; list additions weekly"
+  },
+  {
+   "key": "groups",
+   "label": "Back up only the groups I select today; ask me again about new secret-holding places"
+  },
+  {
+   "key": "defer",
+   "label": "Add nothing; leave all 45 outside the backup"
+  }
+ ],
+ "technical_details": "Scanned inventory and execution instructions are in work/BACKUP-SECRETS/BRIEF.md. The source scan reports 45 places and 3.1 GiB per backup. Apply only the selected answer; group keys are ai-services, vrooli-apps and host-settings."
+}

@@ -93,20 +93,12 @@ func (l *Logger) Error(message string, fields ...map[string]interface{}) {
 	l.log(LogLevelError, message, f)
 }
 
-// Global logger instances for different components
+// Component loggers are ready at package initialization so every code path,
+// including ones exercised before main runs, can log safely.
 var (
-	mainLogger  *Logger
-	cacheLogger *Logger
-	dbLogger    *Logger
-	nlpLogger   *Logger
-	recLogger   *Logger
-)
-
-// initLoggers initializes all component loggers
-func initLoggers() {
-	mainLogger = NewLogger("main")
+	mainLogger  = NewLogger("main")
 	cacheLogger = NewLogger("cache")
-	dbLogger = NewLogger("database")
-	nlpLogger = NewLogger("nlp")
-	recLogger = NewLogger("recommendations")
-}
+	dbLogger    = NewLogger("database")
+	nlpLogger   = NewLogger("nlp")
+	recLogger   = NewLogger("recommendations")
+)

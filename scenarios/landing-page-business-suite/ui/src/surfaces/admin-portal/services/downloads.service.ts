@@ -6,11 +6,21 @@ import type {
   DownloadStorageSettingsUpdate,
 } from '../../../shared/api';
 import { isFormDirtyNormalized } from '../../../shared/lib/formUtils';
+import { isOfficialStorefrontLink } from '../../../shared/api/storefronts';
+import { isDownloadAssetConfigured } from '../../../shared/api/downloadReadiness';
+
+export { isOfficialStorefrontLink } from '../../../shared/api/storefronts';
 
 /**
  * Platform keys supported for desktop installers
  */
 export type PlatformKey = 'windows' | 'mac' | 'linux';
+
+/** Severity of an operator-authored signing notice. */
+export type SigningNoticeSeverity = 'info' | 'warning';
+
+/** Whether a platform inherits, overrides, or hides the app-level signing notice. */
+export type SigningNoticeMode = 'inherit' | 'override' | 'hide';
 
 /**
  * Platform form values for a single platform (Windows/Mac/Linux)
@@ -21,9 +31,17 @@ export interface PlatformFormValues {
   artifactSource: 'direct' | 'managed';
   artifactUrl: string;
   artifactId: string;
+  checksum?: string;
   releaseVersion: string;
   releaseNotes: string;
   requiresEntitlement: boolean;
+  /** Inherit the app-level signing notice, override it, or hide it for this platform. */
+  signingNoticeMode: SigningNoticeMode;
+  signingNoticeTitle: string;
+  signingNoticeBody: string;
+  signingNoticeLinkLabel: string;
+  signingNoticeLinkUrl: string;
+  signingNoticeSeverity: SigningNoticeSeverity;
   // Read-only artifact metadata (populated from API when source is 'managed')
   artifactFilename?: string;
   artifactSizeBytes?: number;
@@ -43,6 +61,25 @@ export interface AppFormValues {
   installOverview: string;
   installSteps: string;
   displayOrder: number;
+  /** Controls public visibility without deleting the app's catalog record. */
+  enabled?: boolean;
+  /** Preserve catalog metadata such as plugin publication and capability links. */
+  metadata?: Record<string, unknown>;
+  /** Optional same-origin or hosted URL for a live web app. */
+  webUrl: string;
+  /** Comma-separated monetization capabilities shown to operators. */
+  featureGates: string;
+  /** Operator-controlled readiness label, e.g. live, enabling, planned. */
+  catalogStatus: string;
+  /** Marks a catalog entry as an agent-facing plugin capability. */
+  agentPlugin: boolean;
+  /** App-level signing-pending notice shown as the default for every platform. */
+  signingNoticeEnabled: boolean;
+  signingNoticeTitle: string;
+  signingNoticeBody: string;
+  signingNoticeLinkLabel: string;
+  signingNoticeLinkUrl: string;
+  signingNoticeSeverity: SigningNoticeSeverity;
   appleEnabled: boolean;
   appleLabel: string;
   appleUrl: string;
@@ -54,10 +91,131 @@ export interface AppFormValues {
   platforms: Record<PlatformKey, PlatformFormValues>;
 }
 
+/** Return an actionable admin error before invalid store links reach the API. */
+export function validateStorefrontLinks(values: AppFormValues): string | null {
+  if (values.appleEnabled && values.appleUrl.trim() && !isOfficialStorefrontLink('app_store', values.appleUrl)) {
+    return 'App Store URL must be an HTTPS listing on apps.apple.com or itunes.apple.com.';
+  }
+  if (values.googleEnabled && values.googleUrl.trim() && !isOfficialStorefrontLink('play_store', values.googleUrl)) {
+    return 'Google Play URL must be an HTTPS listing on play.google.com with an app ID.';
+  }
+  return null;
+}
+
+/** Prevent whole-app saves from silently dropping an enabled incomplete asset. */
+export function validateDownloadAssets(values: AppFormValues): string | null {
+  for (const key of PLATFORM_KEYS) {
+    const platform = values.platforms[key];
+    if (!platform.enabled) continue;
+    if (!platform.releaseVersion.trim()) return `${key} download needs a release version or must be disabled.`;
+    if (platform.artifactSource === 'managed') {
+      if (!Number.isSafeInteger(Number(platform.artifactId)) || Number(platform.artifactId) <= 0) {
+        return `${key} managed download needs a valid artifact ID or must be disabled.`;
+      }
+      if (!platform.checksum?.trim()) return `${key} managed download needs its checksum or must be disabled.`;
+    } else if (!platform.artifactUrl.trim()) {
+      return `${key} direct download needs a URL or must be disabled.`;
+    }
+  }
+  return null;
+}
+
 /**
  * All platform keys in order
  */
 export const PLATFORM_KEYS: PlatformKey[] = ['windows', 'mac', 'linux'];
+
+function isDownloadAsset(value: unknown): value is DownloadAsset {
+  return typeof value === 'object' && value !== null && 'platform' in value;
+}
+
+function normalizeDownloadAssets(value: unknown): DownloadAsset[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isDownloadAsset);
+}
+
+function normalizeMetadataValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeMetadataValue);
+  if (!value || typeof value !== 'object') return value;
+
+  const record = value as Record<string, unknown>;
+  if ('stringValue' in record || 'string_value' in record) return record.stringValue ?? record.string_value;
+  if ('boolValue' in record || 'bool_value' in record) return record.boolValue ?? record.bool_value;
+  if ('numberValue' in record || 'number_value' in record) return record.numberValue ?? record.number_value;
+  if ('intValue' in record || 'int_value' in record) return record.intValue ?? record.int_value;
+  if ('listValue' in record || 'list_value' in record) {
+    const list = (record.listValue ?? record.list_value) as Record<string, unknown> | undefined;
+    return Array.isArray(list?.values) ? list.values.map(normalizeMetadataValue) : [];
+  }
+  if ('structValue' in record || 'struct_value' in record) return normalizeMetadata(record.structValue ?? record.struct_value);
+  if ('fields' in record) return normalizeMetadata(record);
+  return value;
+}
+
+function normalizeMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const fields = record.fields;
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return record;
+  return Object.fromEntries(
+    Object.entries(fields as Record<string, unknown>).map(([key, field]) => [key, normalizeMetadataValue(field)]),
+  );
+}
+
+interface SigningNoticeFields {
+  title: string;
+  body: string;
+  linkLabel: string;
+  linkUrl: string;
+  severity: SigningNoticeSeverity;
+}
+
+const EMPTY_SIGNING_NOTICE: SigningNoticeFields = { title: '', body: '', linkLabel: '', linkUrl: '', severity: 'info' };
+
+function readString(record: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string') return value;
+  }
+  return '';
+}
+
+/**
+ * Reads the operator-authored signing notice from normalized catalog metadata.
+ * Absent copy means "inherit"; `enabled: false` means "hide".
+ */
+function readSigningNotice(metadata: Record<string, unknown>): { mode: SigningNoticeMode; values: SigningNoticeFields } {
+  const raw = metadata.signing_notice;
+  if (raw === undefined || raw === null) return { mode: 'inherit', values: { ...EMPTY_SIGNING_NOTICE } };
+  const notice = normalizeMetadata(raw);
+  if (Object.keys(notice).length === 0) return { mode: 'inherit', values: { ...EMPTY_SIGNING_NOTICE } };
+  if (notice.enabled === false) return { mode: 'hide', values: { ...EMPTY_SIGNING_NOTICE } };
+  return {
+    mode: 'override',
+    values: {
+      title: readString(notice, 'title'),
+      body: readString(notice, 'body'),
+      linkLabel: readString(notice, 'link_label', 'linkLabel'),
+      linkUrl: readString(notice, 'link_url', 'linkUrl'),
+      severity: notice.severity === 'warning' ? 'warning' : 'info',
+    },
+  };
+}
+
+/** Serializes notice copy, returning undefined when required copy is missing. */
+function serializeSigningNotice(values: SigningNoticeFields): Record<string, unknown> | undefined {
+  const title = values.title.trim();
+  const body = values.body.trim();
+  if (!title || !body) return undefined;
+  const notice: Record<string, unknown> = { enabled: true, title, body, severity: values.severity };
+  const label = values.linkLabel.trim();
+  if (label) notice.link_label = label;
+  const url = values.linkUrl.trim();
+  if (url) notice.link_url = url;
+  return notice;
+}
 
 /**
  * Build platform form values from a download asset
@@ -69,10 +227,12 @@ export const PLATFORM_KEYS: PlatformKey[] = ['windows', 'mac', 'linux'];
  * @returns Platform form values for the form
  */
 export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset): PlatformFormValues {
+  const metadata = normalizeMetadata(asset?.metadata);
   const hasContent = Boolean(asset?.artifact_url || asset?.artifact_id || asset?.release_version);
-  const explicitEnabled = asset?.metadata?.enabled;
+  const explicitEnabled = metadata.enabled;
   const enabled = explicitEnabled !== undefined ? Boolean(explicitEnabled) : hasContent;
   const artifactSource = asset?.artifact_source ?? (asset?.artifact_id ? 'managed' : 'direct');
+  const notice = readSigningNotice(metadata);
 
   return {
     platform,
@@ -80,9 +240,16 @@ export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset):
     artifactSource,
     artifactUrl: asset?.artifact_url ?? '',
     artifactId: asset?.artifact_id ? String(asset.artifact_id) : '',
+    checksum: asset?.checksum ?? '',
     releaseVersion: asset?.release_version ?? '',
     releaseNotes: asset?.release_notes ?? '',
     requiresEntitlement: asset?.requires_entitlement ?? false,
+    signingNoticeMode: notice.mode,
+    signingNoticeTitle: notice.values.title,
+    signingNoticeBody: notice.values.body,
+    signingNoticeLinkLabel: notice.values.linkLabel,
+    signingNoticeLinkUrl: notice.values.linkUrl,
+    signingNoticeSeverity: notice.values.severity,
     // Read-only artifact metadata from API
     artifactFilename: asset?.artifact_filename,
     artifactSizeBytes: asset?.artifact_size_bytes,
@@ -99,20 +266,28 @@ export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset):
 export function deserializeApp(app: DownloadApp): AppFormValues {
   const appleStore = app.storefronts?.find((store) => store.store === 'app_store');
   const googleStore = app.storefronts?.find((store) => store.store === 'play_store');
+  // The generated contract marks these required, but persisted legacy records may
+  // still omit them. Normalize the untrusted response at this boundary.
+  const rawPlatforms: unknown = app.platforms;
+  const platforms = normalizeDownloadAssets(rawPlatforms);
+  const rawName: unknown = app.name;
+  const metadata = normalizeMetadata(app.metadata);
+  const signingNotice = readSigningNotice(metadata);
 
   const platformMap: Record<PlatformKey, PlatformFormValues> = PLATFORM_KEYS.reduce((acc, key) => {
-    const asset = app.platforms?.find((platform) => platform.platform === key);
+    const asset = platforms.find((platform) => platform.platform === key);
     acc[key] = buildPlatformForm(key, asset);
     return acc;
   }, {} as Record<PlatformKey, PlatformFormValues>);
 
-  // Storefront enabled status: true if URL exists
-  const appleEnabled = appleStore ? Boolean(appleStore.url) : false;
-  const googleEnabled = googleStore ? Boolean(googleStore.url) : false;
+  // A malformed legacy URL stays visible in the field for correction, but is
+  // not presented as a configured storefront.
+  const appleEnabled = appleStore ? isOfficialStorefrontLink('app_store', appleStore.url) : false;
+  const googleEnabled = googleStore ? isOfficialStorefrontLink('play_store', googleStore.url) : false;
 
   return {
     appKey: app.app_key,
-    name: app.name ?? '',
+    name: typeof rawName === 'string' ? rawName : '',
     tagline: app.tagline ?? '',
     description: app.description ?? '',
     iconUrl: app.icon_url ?? '',
@@ -120,6 +295,20 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
     installOverview: app.install_overview ?? '',
     installSteps: (app.install_steps ?? []).join('\n'),
     displayOrder: app.display_order ?? 0,
+    enabled: metadata.enabled !== false,
+    metadata,
+    webUrl: typeof metadata.web_url === 'string' ? metadata.web_url : '',
+    featureGates: Array.isArray(metadata.feature_gates)
+      ? metadata.feature_gates.filter((value): value is string => typeof value === 'string').join(', ')
+      : '',
+    catalogStatus: typeof metadata.catalog_status === 'string' ? metadata.catalog_status : '',
+    agentPlugin: metadata.agent_plugin === true,
+    signingNoticeEnabled: signingNotice.mode === 'override',
+    signingNoticeTitle: signingNotice.values.title,
+    signingNoticeBody: signingNotice.values.body,
+    signingNoticeLinkLabel: signingNotice.values.linkLabel,
+    signingNoticeLinkUrl: signingNotice.values.linkUrl,
+    signingNoticeSeverity: signingNotice.values.severity,
     appleEnabled,
     appleLabel: appleStore?.label ?? 'App Store',
     appleUrl: appleStore?.url ?? '',
@@ -157,6 +346,18 @@ export function buildDefaultAppValues(appKey = ''): AppFormValues {
     installOverview: '',
     installSteps: '',
     displayOrder: 0,
+    enabled: true,
+    metadata: {},
+    webUrl: '',
+    featureGates: '',
+    catalogStatus: 'planned',
+    agentPlugin: false,
+    signingNoticeEnabled: false,
+    signingNoticeTitle: '',
+    signingNoticeBody: '',
+    signingNoticeLinkLabel: '',
+    signingNoticeLinkUrl: '',
+    signingNoticeSeverity: 'info',
     appleEnabled: false,
     appleLabel: 'App Store',
     appleUrl: '',
@@ -205,24 +406,56 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
   const platforms = PLATFORM_KEYS.map((key) => {
     const entry = values.platforms[key];
     const artifactSource = entry.artifactSource;
+    const platformMetadata: Record<string, unknown> = { enabled: entry.enabled };
+    if (entry.signingNoticeMode === 'hide') {
+      platformMetadata.signing_notice = { enabled: false };
+    } else if (entry.signingNoticeMode === 'override') {
+      const notice = serializeSigningNotice({ title: entry.signingNoticeTitle, body: entry.signingNoticeBody, linkLabel: entry.signingNoticeLinkLabel, linkUrl: entry.signingNoticeLinkUrl, severity: entry.signingNoticeSeverity });
+      if (notice) platformMetadata.signing_notice = notice;
+    }
     return {
       platform: entry.platform,
       artifact_source: artifactSource,
       artifact_id: artifactSource === 'managed' ? Number(entry.artifactId) || undefined : undefined,
+      checksum: entry.checksum?.trim() ?? '',
       artifact_url: artifactSource === 'direct' ? entry.artifactUrl.trim() : '',
       release_version: entry.releaseVersion.trim(),
       release_notes: entry.releaseNotes.trim(),
       requires_entitlement: entry.requiresEntitlement,
-      metadata: {
-        enabled: entry.enabled,
-      },
+      metadata: platformMetadata,
     };
   }).filter((platform) => {
     if (!platform.metadata.enabled) return false;
-    if (!platform.release_version?.length) return false;
-    if (platform.artifact_source === 'managed') return Boolean(platform.artifact_id);
-    return platform.artifact_url.length > 0;
+    if (!platform.release_version.length) return false;
+    return isDownloadAssetConfigured({
+      artifact_source: platform.artifact_source,
+      artifact_id: platform.artifact_id,
+      artifact_url: platform.artifact_url,
+      release_version: platform.release_version,
+      checksum: platform.checksum,
+    });
   });
+
+  const metadata: Record<string, unknown> = { ...(values.metadata ?? {}) };
+  metadata.enabled = values.enabled !== false;
+  const webUrl = values.webUrl.trim();
+  if (webUrl) metadata.web_url = webUrl;
+  else delete metadata.web_url;
+  const featureGates = values.featureGates.split(',').map((gate) => gate.trim()).filter(Boolean);
+  if (featureGates.length > 0) metadata.feature_gates = featureGates;
+  else delete metadata.feature_gates;
+  const catalogStatus = values.catalogStatus.trim();
+  if (catalogStatus) metadata.catalog_status = catalogStatus;
+  else delete metadata.catalog_status;
+  if (values.agentPlugin) metadata.agent_plugin = true;
+  else delete metadata.agent_plugin;
+  if (values.signingNoticeEnabled) {
+    const notice = serializeSigningNotice({ title: values.signingNoticeTitle, body: values.signingNoticeBody, linkLabel: values.signingNoticeLinkLabel, linkUrl: values.signingNoticeLinkUrl, severity: values.signingNoticeSeverity });
+    if (notice) metadata.signing_notice = notice;
+    else delete metadata.signing_notice;
+  } else {
+    delete metadata.signing_notice;
+  }
 
   return {
     app_key: values.appKey.trim(),
@@ -236,6 +469,7 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
     display_order: values.displayOrder,
     storefronts,
     platforms,
+    metadata,
   };
 }
 
@@ -285,17 +519,21 @@ export function computeDownloadHealthFromForms(
   forms.forEach((form) => {
     PLATFORM_KEYS.forEach((platform) => {
       const p = form.values.platforms[platform];
-      const configured =
-        Boolean(p.releaseVersion) &&
-        (p.artifactSource === 'managed' ? Boolean(p.artifactId) : Boolean(p.artifactUrl));
+      const configured = isDownloadAssetConfigured({
+        artifact_source: p.artifactSource,
+        artifact_id: Number(p.artifactId) || undefined,
+        artifact_url: p.artifactUrl,
+        checksum: p.checksum,
+        release_version: p.releaseVersion,
+      });
       if (configured) {
         platformsConfigured++;
       } else {
         platformsMissing++;
       }
     });
-    if (form.values.appleUrl) storefrontsConfigured++;
-    if (form.values.googleUrl) storefrontsConfigured++;
+    if (isOfficialStorefrontLink('app_store', form.values.appleUrl)) storefrontsConfigured++;
+    if (isOfficialStorefrontLink('play_store', form.values.googleUrl)) storefrontsConfigured++;
   });
 
   return {

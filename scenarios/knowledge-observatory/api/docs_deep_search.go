@@ -39,6 +39,12 @@ func (s *Server) handleDocsSearchDeep(w http.ResponseWriter, r *http.Request) {
 		s.respondError(w, http.StatusServiceUnavailable, "Deep search service unavailable")
 		return
 	}
+	ctx, authErr := s.authorizeCreateRunCaller(r)
+	if authErr != nil {
+		s.respondError(w, http.StatusUnauthorized, "verified agent-manager caller required")
+		return
+	}
+	r = r.WithContext(ctx)
 	var req DeepSearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.respondError(w, http.StatusBadRequest, "Invalid request body")

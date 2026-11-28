@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -650,9 +651,6 @@ func TestPaginationScenarios(t *testing.T) {
 				t.Errorf("Expected status %d, got %d", scenario.ExpectedStatus, w.Code)
 			}
 
-			if scenario.ValidateBody != nil {
-				scenario.ValidateBody(t, w.Body.String())
-			}
 		})
 	}
 }

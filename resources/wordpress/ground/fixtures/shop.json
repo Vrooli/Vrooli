@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "syntheticOnly": true,
+  "paymentsEnabled": false,
+  "products": [
+    {"id": 11, "sku":"K3-BOOK-001", "name":"Field Notes Book", "price":"18.00", "stock":30},
+    {"id": 12, "sku":"K3-MUG-002", "name":"Workshop Mug", "price":"12.50", "stock":24},
+    {"id": 13, "sku":"K3-SET-003", "name":"Starter Bundle", "price":"27.00", "stock":8}
+  ],
+  "cases": {
+    "catalog": {"operation":"catalog","expectedSkuCount":3},
+    "order-1001": {"operation":"upsert_order","payload":{"id":1001,"number":"K3-ORDER-1001","status":"processing","date_modified_gmt":"2026-11-14T11:00:00","billing":{"email":"buyer-1@example.invalid"},"line_items":[{"product_id":11,"sku":"K3-BOOK-001","quantity":1,"total":"18.00"},{"product_id":12,"sku":"K3-MUG-002","quantity":1,"total":"12.50"}]},"expected":{"accepted":true,"orderId":"1001","status":"processing","revision":"2026-11-14T11:00:00"}},
+    "order-1001-replay": {"operation":"upsert_order","payload":{"id":1001,"number":"K3-ORDER-1001","status":"processing","date_modified_gmt":"2026-11-14T11:00:00","billing":{"email":"buyer-1@example.invalid"},"line_items":[{"product_id":11,"sku":"K3-BOOK-001","quantity":1,"total":"18.00"},{"product_id":12,"sku":"K3-MUG-002","quantity":1,"total":"12.50"}]},"expected":{"accepted":false,"reason":"duplicate"}},
+    "order-lost-response-replay": {"operation":"upsert_order","payload":{"id":1001,"number":"K3-ORDER-1001","status":"processing","date_modified_gmt":"2026-11-14T11:00:00","billing":{"email":"buyer-1@example.invalid"},"line_items":[{"product_id":11,"sku":"K3-BOOK-001","quantity":1,"total":"18.00"},{"product_id":12,"sku":"K3-MUG-002","quantity":1,"total":"12.50"}]},"fault":{"firstDestinationWrite":"succeeded","firstResponse":"lost","replay":"same_order_same_revision"},"expected":{"accepted":false,"reason":"duplicate"}},
+    "order-status-change": {"operation":"upsert_order","payload":{"id":1001,"number":"K3-ORDER-1001","status":"completed","date_modified_gmt":"2026-11-14T12:00:00","billing":{"email":"buyer-1@example.invalid"},"line_items":[{"product_id":11,"sku":"K3-BOOK-001","quantity":1,"total":"18.00"},{"product_id":12,"sku":"K3-MUG-002","quantity":1,"total":"12.50"}]},"expected":{"accepted":true,"orderId":"1001","status":"completed","revision":"2026-11-14T12:00:00"}},
+    "unknown-sku": {"operation":"upsert_order","payload":{"id":1002,"number":"K3-ORDER-1002","status":"processing","date_modified_gmt":"2026-11-14T11:30:00","billing":{"email":"buyer-2@example.invalid"},"line_items":[{"product_id":999,"sku":"K3-UNKNOWN-999","quantity":1,"total":"3.00"}]},"expected":{"accepted":false,"reason":"unknown_sku"}},
+    "missing-revision": {"operation":"upsert_order","payload":{"id":1003,"number":"K3-ORDER-1003","status":"on-hold","billing":{"email":"buyer-3@example.invalid"},"line_items":[{"product_id":11,"sku":"K3-BOOK-001","quantity":1,"total":"18.00"}]},"expected":{"accepted":false,"reason":"missing_revision"}}
+  }
+}

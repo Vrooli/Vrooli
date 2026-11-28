@@ -6,7 +6,6 @@
 
 // Re-export API types from schemas (these include runtime validation)
 export type {
-  DecisionMode,
   RuntimeMode,
   CoordinationPattern,
   ReportingMode,
@@ -32,7 +31,4 @@ export type {
   TeamSharedFileWriteRequest,
   TeamSharedFileCreateRequest,
   TeamSharedFileRenameRequest,
-  AvailableCCTeam,
-  ImportCCRequest,
-  ExportCCResponse,
 } from '@/lib/schemas'

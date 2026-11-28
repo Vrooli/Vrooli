@@ -1,0 +1,42 @@
+{
+  "id": "github",
+  "manual_handoff_only": true,
+  "daily_ceiling": 1,
+  "caption_limit": 0,
+  "action_kinds": [
+    "publish"
+  ],
+  "post_types": [
+    {
+      "id": "text_post",
+      "format_kind": "text",
+      "caption_required": true
+    }
+  ],
+  "disclosure_required": false,
+  "first_comment_supported": false,
+  "provenance": {
+    "source_kind": "commission_manual_handoff",
+    "confidence": "medium",
+    "captured_at": "2026-11-20",
+    "revisit_trigger": "before enabling automated publishing or asserting platform-specific limits",
+    "sources": [
+      "marketing-and-presence MISSION.md cadence and operator boundary",
+      "MP1 manual-handoff configuration brief"
+    ]
+  },
+  "retry": {
+    "retryable_codes": [],
+    "max_attempts": 0,
+    "backoff_minutes": 0
+  },
+  "formats": [
+    {
+      "kind": "text",
+      "text_only": true,
+      "mime_types": [
+        "text/plain"
+      ]
+    }
+  ]
+}

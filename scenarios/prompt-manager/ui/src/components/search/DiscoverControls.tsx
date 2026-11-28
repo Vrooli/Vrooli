@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Dialog } from '@/components/shared/Dialog'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import type { BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
 
 const DEFAULT_TIERS = [
@@ -40,6 +41,8 @@ interface DiscoverControlsProps {
   onToggleDiscover: (enabled: boolean) => void
   complexity: string | undefined
   onComplexityChange: (complexity: string | undefined) => void
+  discoverType?: 'skill' | 'action' | 'all'
+  onDiscoverTypeChange?: (type: 'skill' | 'action' | 'all') => void
   budgetChars?: number
   totalContentChars?: number
   selectedContentChars?: number
@@ -56,6 +59,8 @@ export function DiscoverControls({
   onToggleDiscover,
   complexity,
   onComplexityChange,
+  discoverType = 'skill',
+  onDiscoverTypeChange,
   budgetChars,
   totalContentChars,
   selectedContentChars,
@@ -128,38 +133,60 @@ export function DiscoverControls({
 
       {/* Complexity selector */}
       {useDiscover && (
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">Budget:</span>
-          <div className="flex items-center gap-1">
-            {DEFAULT_TIERS.map((tier) => {
-              const tierBudget = getBudgetForTier(tier.value, budgetConfig)
-              return (
+        <>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Type:</span>
+            <div className="flex items-center gap-1">
+              {(['skill', 'action', 'all'] as const).map((type) => (
                 <button
-                  key={tier.value}
+                  key={type}
                   type="button"
-                  onClick={() => onComplexityChange(complexity === tier.value ? undefined : tier.value)}
+                  onClick={() => onDiscoverTypeChange?.(type)}
                   className={cn(
-                    'px-2 py-0.5 text-[10px] rounded transition-colors',
-                    complexity === tier.value
+                    'px-2 py-0.5 text-[10px] rounded transition-colors capitalize',
+                    discoverType === type
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                   )}
-                  title={tierBudget > 0 ? `${tier.label} (${formatChars(tierBudget)} chars)` : tier.label}
                 >
-                  {tier.label}
+                  {type}
                 </button>
-              )
-            })}
+              ))}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenSettings}
-            className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-            title="Configure discovery settings"
-          >
-            <Settings className="h-3 w-3" />
-          </button>
-        </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Budget:</span>
+            <div className="flex items-center gap-1">
+              {DEFAULT_TIERS.map((tier) => {
+                const tierBudget = getBudgetForTier(tier.value, budgetConfig)
+                return (
+                  <button
+                    key={tier.value}
+                    type="button"
+                    onClick={() => onComplexityChange(complexity === tier.value ? undefined : tier.value)}
+                    className={cn(
+                      'px-2 py-0.5 text-[10px] rounded transition-colors',
+                      complexity === tier.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                    )}
+                    title={tierBudget > 0 ? `${tier.label} (${formatChars(tierBudget)} chars)` : tier.label}
+                  >
+                    {tier.label}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenSettings}
+              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              title="Configure discovery settings"
+            >
+              <Settings className="h-3 w-3" />
+            </button>
+          </div>
+        </>
       )}
 
       {/* Discovery settings dialog */}
@@ -210,6 +237,11 @@ function DiscoverSettingsDialog({
   availableTags: string[]
   onSave: () => void
 }) {
+  const actions = [
+    { id: 'save-settings', label: 'Save', onSelect: onSave, primary: true },
+    { id: 'cancel', label: 'Cancel', onSelect: onClose },
+  ] satisfies OverlayActionList
+
   const isBudgetValid =
     budgetDraft.minor > 0 &&
     budgetDraft.moderate > budgetDraft.minor &&
@@ -357,21 +389,8 @@ function DiscoverSettingsDialog({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-          <button
-            type="button"
-            onClick={onSave}
-            className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="border-t border-white/10 pt-2">
+          <OverlayActionBar actions={actions} />
         </div>
       </div>
     </Dialog>

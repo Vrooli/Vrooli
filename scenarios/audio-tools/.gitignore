@@ -1,0 +1,22 @@
+/api/audio-tools-api
+# Locally built lab service binaries.
+/api/audio-tools-lab-api-lab
+/api/audio-tools-lab-api-live
+/data/*.db
+/data/*.db-shm
+/data/*.db-wal
+/data/*.sqlite*
+/ui/dist/
+# Lab build is a separate generated bundle, like the standard UI build.
+/ui/dist-lab/
+/ui/node_modules/
+/embed/dist/
+/embed/node_modules/
+/.build-fingerprint.json
+# Oversized dictation soak fixture (~112 MiB) — exceeds the 100 MiB push limit
+# and is unreferenced by any test. Keep large/generated audio fixtures local;
+# the small curated fixtures beside it stay tracked.
+/bas/fixtures/dictation-reference-long.wav
+
+# Exploratory realtime soak receipts belong in the external research archive.
+/coverage/browser-soak-*.json

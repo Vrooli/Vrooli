@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "doc": "Every cache, home and offline variable a model-loading library consults, and the managed directory it is pinned to. Adding a library that stores weights is one row in `dirs` (plus its pypi package in `packages` so the contract test sees it). `subdir` is relative to <managed root>/cache. `defaults` are the library's own default locations, used only by the stray scan (they are never written by image-tools). `flags` apply to inference processes only; the governed acquisition step is the one place allowed to fetch.",
+  "dirs": [
+    {"var": "HF_HOME", "subdir": "huggingface", "library": "huggingface_hub", "packages": ["huggingface-hub", "huggingface_hub", "diffusers", "transformers", "timm", "open-clip-torch", "open_clip_torch", "controlnet-aux", "controlnet_aux", "peft", "accelerate", "sentence-transformers", "datasets"], "defaults": ["~/.cache/huggingface"]},
+    {"var": "HF_HUB_CACHE", "subdir": "huggingface/hub", "library": "huggingface_hub"},
+    {"var": "HUGGINGFACE_HUB_CACHE", "subdir": "huggingface/hub", "library": "huggingface_hub (legacy name)"},
+    {"var": "HF_ASSETS_CACHE", "subdir": "huggingface/assets", "library": "huggingface_hub"},
+    {"var": "HF_XET_CACHE", "subdir": "huggingface/xet", "library": "huggingface_hub (xet transfer)"},
+    {"var": "HF_DATASETS_CACHE", "subdir": "huggingface/datasets", "library": "datasets"},
+    {"var": "HF_MODULES_CACHE", "subdir": "huggingface/modules", "library": "transformers dynamic modules"},
+    {"var": "TORCH_HOME", "subdir": "torch", "library": "torch.hub, torchvision, lpips, kornia, iopaint", "packages": ["torch", "torchvision", "lpips", "kornia", "iopaint", "lama-cleaner"], "defaults": ["~/.cache/torch"]},
+    {"var": "TORCH_EXTENSIONS_DIR", "subdir": "torch/extensions", "library": "torch.utils.cpp_extension"},
+    {"var": "TORCHINDUCTOR_CACHE_DIR", "subdir": "compile/inductor", "library": "torch.compile"},
+    {"var": "TRITON_CACHE_DIR", "subdir": "compile/triton", "library": "triton", "defaults": ["~/.triton"]},
+    {"var": "XDG_CACHE_HOME", "subdir": "xdg/cache", "library": "any XDG-aware library (catch-all for libraries not listed here)"},
+    {"var": "XDG_DATA_HOME", "subdir": "xdg/data", "library": "any XDG-aware library (rembg when U2NET_HOME is unset)"},
+    {"var": "INSIGHTFACE_HOME", "subdir": "insightface", "library": "insightface (pass this as FaceAnalysis(root=...); the library ignores the variable)", "packages": ["insightface"], "defaults": ["~/.insightface"]},
+    {"var": "U2NET_HOME", "subdir": "u2net", "library": "rembg / u2net", "packages": ["rembg"], "defaults": ["~/.u2net", "~/.cache/rembg"]},
+    {"var": "ONNX_HOME", "subdir": "onnx", "library": "onnx.hub model zoo", "packages": ["onnx"], "defaults": ["~/.cache/onnx"]},
+    {"var": "KERAS_HOME", "subdir": "keras", "library": "keras applications", "packages": ["keras", "tensorflow"], "defaults": ["~/.keras"]},
+    {"var": "TFHUB_CACHE_DIR", "subdir": "tfhub", "library": "tensorflow_hub", "packages": ["tensorflow-hub", "tensorflow_hub"]},
+    {"var": "YOLO_CONFIG_DIR", "subdir": "ultralytics", "library": "ultralytics", "packages": ["ultralytics"], "defaults": ["~/.config/Ultralytics"]},
+    {"var": "MODELSCOPE_CACHE", "subdir": "modelscope", "library": "modelscope", "packages": ["modelscope"], "defaults": ["~/.cache/modelscope"]},
+    {"var": "SENTENCE_TRANSFORMERS_HOME", "subdir": "sentence-transformers", "library": "sentence-transformers"},
+    {"var": "EASYOCR_MODULE_PATH", "subdir": "easyocr", "library": "easyocr", "packages": ["easyocr"], "defaults": ["~/.EasyOCR"]},
+    {"var": "NLTK_DATA", "subdir": "nltk", "library": "nltk", "packages": ["nltk"]},
+    {"var": "MEDIAPIPE_MODEL_CACHE", "subdir": "mediapipe", "library": "mediapipe tasks", "packages": ["mediapipe"]},
+    {"var": "CLIP_CACHE", "subdir": "clip", "library": "openai clip", "packages": ["clip"], "defaults": ["~/.cache/clip"]}
+  ],
+  "scrub": [
+    {"var": "TRANSFORMERS_CACHE", "reason": "legacy cache name: transformers 4.x lets it override HF_HOME and warns that it is deprecated; HF_HOME/HF_HUB_CACHE already place its cache"},
+    {"var": "PYTORCH_TRANSFORMERS_CACHE", "reason": "legacy cache name (see TRANSFORMERS_CACHE)"},
+    {"var": "PYTORCH_PRETRAINED_BERT_CACHE", "reason": "legacy cache name (see TRANSFORMERS_CACHE)"},
+    {"var": "DIFFUSERS_CACHE", "reason": "legacy cache name: diffusers reads HF_HOME/HF_HUB_CACHE now"}
+  ],
+  "scan_only": [
+    {"library": "iopaint / lama-cleaner (legacy location)", "defaults": ["~/.cache/lama_cleaner", "~/.cache/iopaint"]},
+    {"library": "realesrgan / basicsr / facexlib / gfpgan (weights beside the package)", "defaults": ["~/.cache/realesrgan", "~/.cache/gfpgan", "~/.cache/facexlib"]},
+    {"library": "ComfyUI user models (owned by another application: report only)", "defaults": ["~/ComfyUI/models"], "owner": "other"},
+    {"library": "Ollama models (owned by another application: report only)", "defaults": ["~/.ollama/models"], "owner": "other"}
+  ],
+  "watchlist": ["insightface", "rembg", "timm", "open-clip-torch", "open_clip_torch", "controlnet-aux", "controlnet_aux", "ultralytics", "easyocr", "gfpgan", "basicsr", "facexlib", "realesrgan", "mediapipe", "segment-anything", "sentence-transformers", "modelscope", "clip", "tensorflow-hub", "keras", "iopaint", "lama-cleaner"],
+  "flags": [
+    {"var": "HF_HUB_OFFLINE", "value": "1", "library": "huggingface_hub, diffusers, transformers, timm, open_clip"},
+    {"var": "TRANSFORMERS_OFFLINE", "value": "1", "library": "transformers"},
+    {"var": "HF_DATASETS_OFFLINE", "value": "1", "library": "datasets"},
+    {"var": "HF_HUB_DISABLE_TELEMETRY", "value": "1", "library": "huggingface_hub"},
+    {"var": "DISABLE_TELEMETRY", "value": "YES", "library": "diffusers"},
+    {"var": "IMAGE_TOOLS_SIDECAR_NETWORK", "value": "blocked", "library": "image_tools_sidecar._containment (blocks every non-loopback connection)"}
+  ],
+  "acquisition_flags": [
+    {"var": "HF_HUB_OFFLINE", "value": "0"},
+    {"var": "TRANSFORMERS_OFFLINE", "value": "0"},
+    {"var": "HF_DATASETS_OFFLINE", "value": "0"},
+    {"var": "IMAGE_TOOLS_SIDECAR_NETWORK", "value": "governed-acquisition"}
+  ]
+}

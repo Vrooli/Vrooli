@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "primitive",
+  "catalogId": "primitives.surface",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:Surface"
+}

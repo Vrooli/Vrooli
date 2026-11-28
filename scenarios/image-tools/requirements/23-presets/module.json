@@ -1,0 +1,41 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-010",
+      "title": "Meme & Preset Templates",
+      "status": "complete",
+      "prd_ref": "OT-P1-010",
+      "category": "feature",
+      "description": "Small set of compositing presets and meme-style text-overlay templates from UI and CLI.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/looks/store_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Planned (not yet implemented; automated test pending): Preset renders deterministic composite output"
+        }
+      ]
+    },
+    {
+      "id": "IMG-P1-040",
+      "title": "Book Art Presets and Print Preparation",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-010",
+      "category": "feature",
+      "description": "Five deterministic book-art presets declare prompt and negative blocks, canvas size, steps, seed defaults, and ordered post-steps; the deterministic print_prep op resamples a trim box, tags DPI and reports binary ink coverage. A saved multi-op recipe remains pending.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/guides/book-art.md",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Contract implemented in the capability manifest and print_prep compute operation; automatic preset→upscale→print_prep replay remains unimplemented."
+        }
+      ]
+    }
+  ]
+}

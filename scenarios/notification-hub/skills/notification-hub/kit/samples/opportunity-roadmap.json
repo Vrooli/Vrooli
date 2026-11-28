@@ -1,0 +1,979 @@
+{
+ "template": "opportunity-roadmap",
+ "meta": {
+  "title": "Fourteen opportunities and three money dates",
+  "lede": "Tap an opportunity to see its saved plan and review history. Change its weight to set the next steward planning order, then send your choices from the bar at the bottom.",
+  "producer": "Portfolio steward",
+  "sentAt": "2026-11-16T08:00:00Z",
+  "timezone": "UTC",
+  "notice": "Sample data for previewing the template. Every stage, date, hour and forecast here is illustrative."
+ },
+ "horizon": {
+  "start": "2026-11-01T00:00:00Z",
+  "end": "2027-01-31T00:00:00Z",
+  "today": "2026-11-16T08:00:00Z"
+ },
+ "refs": [
+  {
+   "t": "2026-11-30T00:00:00Z",
+   "label": "$1,000",
+   "tone": "crit",
+   "kind": "target"
+  },
+  {
+   "t": "2026-12-31T00:00:00Z",
+   "label": "$1,000/mo",
+   "tone": "warn",
+   "kind": "target"
+  }
+ ],
+ "stages": [
+  "Idea",
+  "Prepared",
+  "Offered",
+  "Yes",
+  "Paid"
+ ],
+ "weights": [
+  {
+   "key": "paused",
+   "label": "Paused",
+   "factor": 0
+  },
+  {
+   "key": "normal",
+   "label": "Normal",
+   "factor": 1
+  },
+  {
+   "key": "more",
+   "label": "More",
+   "factor": 2
+  },
+  {
+   "key": "most",
+   "label": "Most",
+   "factor": 3
+  }
+ ],
+ "hours": {
+  "source": {
+   "status": "unavailable",
+   "label": "linked delegation elapsed time",
+   "note": "No measured linked history is included in this illustrative sample."
+  }
+ },
+ "lines": [
+  {
+   "id": "O5",
+   "name": "Vrooli release subscription",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Release candidate",
+     "state": "done"
+    },
+    {
+     "label": "Eligibility",
+     "state": "active"
+    },
+    {
+     "label": "Test run"
+    },
+    {
+     "label": "Pricing page"
+    },
+    {
+     "label": "Paid release"
+    },
+    {
+     "label": "First subscriber"
+    }
+   ],
+   "blockers": [
+    "Tax handling depends on the eligibility answer"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-16T00:00:00Z",
+     "label": "Release candidate",
+     "state": "done"
+    },
+    {
+     "from": "2026-11-16T00:00:00Z",
+     "to": "2026-11-23T00:00:00Z",
+     "label": "Eligibility and test run",
+     "state": "active"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-23T00:00:00Z",
+      "to": "2026-12-07T00:00:00Z",
+      "label": "Pricing page"
+     },
+     {
+      "from": "2026-12-07T00:00:00Z",
+      "to": "2026-12-21T00:00:00Z",
+      "label": "First paid release"
+     }
+    ],
+    "gate": {
+     "label": "First subscriber",
+     "from": "2026-12-15T00:00:00Z",
+     "to": "2027-01-10T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-22T12:00:00Z",
+      "to": "2026-12-31T12:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-12-03T18:00:00Z",
+      "to": "2027-01-05T06:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-15T00:00:00Z",
+      "to": "2027-01-10T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O9",
+   "name": "Paid research studies",
+   "stage": 3,
+   "plan": true,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Sign-ups",
+     "state": "done"
+    },
+    {
+     "label": "Accepted to 2 studies",
+     "state": "done"
+    },
+    {
+     "label": "Sessions",
+     "state": "active"
+    },
+    {
+     "label": "Payout"
+    }
+   ],
+   "blockers": [],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-11T00:00:00Z",
+     "label": "Sign-ups",
+     "state": "done"
+    },
+    {
+     "from": "2026-11-11T00:00:00Z",
+     "to": "2026-11-25T00:00:00Z",
+     "label": "Study sessions",
+     "state": "active"
+    }
+   ],
+   "gate": {
+    "label": "First payout",
+    "from": "2026-11-21T00:00:00Z",
+    "to": "2026-12-02T00:00:00Z"
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-18T06:00:00Z",
+      "to": "2026-12-04T18:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-11-19T15:00:00Z",
+      "to": "2026-12-03T09:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-11-21T00:00:00Z",
+      "to": "2026-12-02T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O3",
+   "name": "Books sold on Amazon",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Title research",
+     "state": "done"
+    },
+    {
+     "label": "Plan",
+     "state": "active"
+    },
+    {
+     "label": "First listing"
+    },
+    {
+     "label": "First sale"
+    }
+   ],
+   "blockers": [
+    "No dated plan yet; plan job is in today's schedule"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-04T00:00:00Z",
+     "to": "2026-11-16T00:00:00Z",
+     "label": "Title research",
+     "state": "done"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-16T00:00:00Z",
+      "to": "2026-11-27T00:00:00Z",
+      "label": "First listing"
+     },
+     {
+      "from": "2026-11-27T00:00:00Z",
+      "to": "2026-12-13T00:00:00Z",
+      "label": "Two more titles"
+     }
+    ],
+    "gate": {
+     "label": "First sale",
+     "from": "2026-12-03T00:00:00Z",
+     "to": "2026-12-27T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-17T00:00:00Z",
+      "to": "2026-12-23T00:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-11-25T00:00:00Z",
+      "to": "2026-12-25T00:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-03T00:00:00Z",
+      "to": "2026-12-27T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O1",
+   "name": "Freelance work",
+   "stage": 2,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Profile",
+     "state": "done"
+    },
+    {
+     "label": "Samples",
+     "state": "done"
+    },
+    {
+     "label": "Proposals"
+    },
+    {
+     "label": "First job"
+    }
+   ],
+   "blockers": [
+    "Needs 20 minutes of your time to approve the profile"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-15T00:00:00Z",
+     "label": "Profile and samples",
+     "state": "done"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-15T00:00:00Z",
+      "to": "2026-12-03T00:00:00Z",
+      "label": "Proposals"
+     }
+    ],
+    "gate": {
+     "label": "First paid job",
+     "from": "2026-11-27T00:00:00Z",
+     "to": "2026-12-21T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-09T00:00:00Z",
+      "to": "2026-12-15T00:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-11-18T00:00:00Z",
+      "to": "2026-12-18T00:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-11-27T00:00:00Z",
+      "to": "2026-12-21T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O11",
+   "name": "Evaluation tasks",
+   "stage": 2,
+   "plan": true,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Applications",
+     "state": "done"
+    },
+    {
+     "label": "Qualification tests",
+     "state": "active"
+    },
+    {
+     "label": "First tasks"
+    },
+    {
+     "label": "Payout"
+    }
+   ],
+   "blockers": [
+    "Two platforms have not replied"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-13T00:00:00Z",
+     "label": "Applications",
+     "state": "done"
+    },
+    {
+     "from": "2026-11-13T00:00:00Z",
+     "to": "2026-12-01T00:00:00Z",
+     "label": "Qualification tests",
+     "state": "active"
+    }
+   ],
+   "gate": {
+    "label": "First payout",
+    "from": "2026-11-27T00:00:00Z",
+    "to": "2026-12-16T00:00:00Z"
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-18T06:00:00Z",
+      "to": "2026-12-16T18:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-11-22T15:00:00Z",
+      "to": "2026-12-16T09:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-11-27T00:00:00Z",
+      "to": "2026-12-16T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O14",
+   "name": "Small paid services",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Catalog",
+     "state": "active"
+    },
+    {
+     "label": "Listing"
+    },
+    {
+     "label": "Found by assistants"
+    },
+    {
+     "label": "First purchase"
+    }
+   ],
+   "blockers": [],
+   "phases": [
+    {
+     "from": "2026-11-09T00:00:00Z",
+     "to": "2026-11-21T00:00:00Z",
+     "label": "Service catalog",
+     "state": "active"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-21T00:00:00Z",
+      "to": "2026-12-06T00:00:00Z",
+      "label": "First listing live"
+     }
+    ],
+    "gate": {
+     "label": "First purchase",
+     "from": "2026-12-03T00:00:00Z",
+     "to": "2026-12-27T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-19T00:00:00Z",
+      "to": "2026-12-25T00:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-11-26T00:00:00Z",
+      "to": "2026-12-26T00:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-03T00:00:00Z",
+      "to": "2026-12-27T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O13",
+   "name": "Fraud rewards",
+   "stage": 2,
+   "plan": true,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Reports filed",
+     "state": "done"
+    },
+    {
+     "label": "Reviews",
+     "state": "active"
+    },
+    {
+     "label": "Reward"
+    }
+   ],
+   "blockers": [
+    "Review times are set by the programmes, not by us"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-21T00:00:00Z",
+     "label": "Reports filed",
+     "state": "done"
+    },
+    {
+     "from": "2026-11-21T00:00:00Z",
+     "to": "2026-12-13T00:00:00Z",
+     "label": "Awaiting reviews",
+     "state": "active"
+    }
+   ],
+   "gate": {
+    "label": "First reward",
+    "from": "2026-12-01T00:00:00Z",
+    "to": "2027-01-16T00:00:00Z"
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-01T12:00:00Z",
+      "to": "2027-01-09T12:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-11-16T06:00:00Z",
+      "to": "2027-01-12T18:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-01T00:00:00Z",
+      "to": "2027-01-16T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O8",
+   "name": "Job fallback",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Résumé",
+     "state": "active"
+    },
+    {
+     "label": "Letters"
+    },
+    {
+     "label": "Target list"
+    },
+    {
+     "label": "Ready"
+    }
+   ],
+   "blockers": [
+    "Only starts if earnings are under $1,000 on 31 Jan"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-11T00:00:00Z",
+     "to": "2026-11-22T00:00:00Z",
+     "label": "Application materials",
+     "state": "active"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-22T00:00:00Z",
+      "to": "2027-01-31T00:00:00Z",
+      "label": "Ready on standby"
+     }
+    ]
+   },
+   "noMoneyDate": "No money date by design"
+  },
+  {
+   "id": "O4",
+   "name": "Workbook and Magazine Studio",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Studio build",
+     "state": "active"
+    },
+    {
+     "label": "First issue"
+    },
+    {
+     "label": "Listing"
+    },
+    {
+     "label": "First sale"
+    }
+   ],
+   "blockers": [],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-21T00:00:00Z",
+     "label": "Studio build",
+     "state": "active"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-21T00:00:00Z",
+      "to": "2026-12-17T00:00:00Z",
+      "label": "First issue"
+     }
+    ],
+    "gate": {
+     "label": "First sale",
+     "from": "2026-12-17T00:00:00Z",
+     "to": "2027-01-16T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-25T12:00:00Z",
+      "to": "2027-01-09T12:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-12-06T06:00:00Z",
+      "to": "2027-01-12T18:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-17T00:00:00Z",
+      "to": "2027-01-16T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O6",
+   "name": "SCRYR campaigns",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Campaign engine",
+     "state": "active"
+    },
+    {
+     "label": "Code working",
+     "state": "blocked"
+    },
+    {
+     "label": "Outreach"
+    },
+    {
+     "label": "First client"
+    }
+   ],
+   "blockers": [
+    "You're not comfortable sending outreach until the code works (15 Nov)"
+   ],
+   "phases": [
+    {
+     "from": "2026-11-01T00:00:00Z",
+     "to": "2026-11-19T00:00:00Z",
+     "label": "Campaign engine",
+     "state": "active"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-19T00:00:00Z",
+      "to": "2026-12-13T00:00:00Z",
+      "label": "First campaign"
+     }
+    ],
+    "gate": {
+     "label": "First client",
+     "from": "2026-12-21T00:00:00Z",
+     "to": "2027-01-26T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-11-22T00:00:00Z",
+      "to": "2027-01-15T00:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-12-06T12:00:00Z",
+      "to": "2027-01-20T12:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-21T00:00:00Z",
+      "to": "2027-01-26T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O10",
+   "name": "Planner and Nooch",
+   "stage": 1,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "App polish",
+     "state": "active"
+    },
+    {
+     "label": "Store listing"
+    },
+    {
+     "label": "First subscriber"
+    }
+   ],
+   "blockers": [],
+   "phases": [
+    {
+     "from": "2026-11-06T00:00:00Z",
+     "to": "2026-12-01T00:00:00Z",
+     "label": "App polish",
+     "state": "active"
+    }
+   ],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-12-01T00:00:00Z",
+      "to": "2026-12-23T00:00:00Z",
+      "label": "Store listing"
+     }
+    ],
+    "gate": {
+     "label": "First subscriber",
+     "from": "2026-12-27T00:00:00Z",
+     "to": "2027-01-31T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-12-06T06:00:00Z",
+      "to": "2027-01-27T18:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-12-16T15:00:00Z",
+      "to": "2027-01-29T09:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-27T00:00:00Z",
+      "to": "2027-01-31T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O2",
+   "name": "Medical office IT",
+   "stage": 0,
+   "plan": false,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Strategy"
+    },
+    {
+     "label": "Offer"
+    },
+    {
+     "label": "Outreach"
+    },
+    {
+     "label": "Contract"
+    }
+   ],
+   "blockers": [
+    "Strategy review hit the weekly cap"
+   ],
+   "phases": [],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-11-21T00:00:00Z",
+      "to": "2026-12-11T00:00:00Z",
+      "label": "Strategy and offer"
+     },
+     {
+      "from": "2026-12-11T00:00:00Z",
+      "to": "2027-01-10T00:00:00Z",
+      "label": "Outreach"
+     }
+    ],
+    "gate": {
+     "label": "First contract",
+     "from": "2026-12-29T00:00:00Z",
+     "to": "2027-01-31T00:00:00Z"
+    }
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2026-12-20T18:00:00Z",
+      "to": "2027-02-08T06:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2026-12-24T21:00:00Z",
+      "to": "2027-02-04T03:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2026-12-29T00:00:00Z",
+      "to": "2027-01-31T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O12",
+   "name": "Physical products",
+   "stage": 0,
+   "plan": true,
+   "weight": "normal",
+   "steps": [
+    {
+     "label": "Product research"
+    },
+    {
+     "label": "Prototype"
+    },
+    {
+     "label": "Listing"
+    }
+   ],
+   "blockers": [],
+   "phases": [
+    {
+     "from": "2026-11-23T00:00:00Z",
+     "to": "2026-12-23T00:00:00Z",
+     "label": "Product research",
+     "state": "planned"
+    }
+   ],
+   "gate": {
+    "label": "First sale",
+    "from": "2027-01-16T00:00:00Z",
+    "to": "2027-01-31T00:00:00Z"
+   },
+   "slip": {
+    "source": {
+     "status": "real",
+     "label": "steward reviews"
+    },
+    "reviews": [
+     {
+      "label": "3 Nov",
+      "from": "2027-01-12T06:00:00Z",
+      "to": "2027-02-03T18:00:00Z"
+     },
+     {
+      "label": "10 Nov",
+      "from": "2027-01-14T03:00:00Z",
+      "to": "2027-02-01T21:00:00Z"
+     },
+     {
+      "label": "16 Nov",
+      "from": "2027-01-16T00:00:00Z",
+      "to": "2027-01-31T00:00:00Z"
+     }
+    ]
+   }
+  },
+  {
+   "id": "O7",
+   "name": "Video channels",
+   "stage": 0,
+   "plan": false,
+   "weight": "paused",
+   "steps": [
+    {
+     "label": "Workflow research"
+    },
+    {
+     "label": "First video"
+    }
+   ],
+   "blockers": [
+    "Paused; restarts with workflow research first (your note, 15 Nov)"
+   ],
+   "phases": [],
+   "draft": {
+    "phases": [
+     {
+      "from": "2026-12-03T00:00:00Z",
+      "to": "2026-12-29T00:00:00Z",
+      "label": "Video workflow research"
+     }
+    ]
+   },
+   "noMoneyDate": "No money date by design"
+  }
+ ],
+ "technical": [
+  {
+   "label": "Steward review",
+   "value": "weekly roadmap 2026-11-16"
+  },
+  {
+   "label": "Weights",
+   "value": "answer keys weight.<ID> (paused|normal|more|most); ask.<ID> = true asks the steward for a decision on that line"
+  }
+ ]
+}

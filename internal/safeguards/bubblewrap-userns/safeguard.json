@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "bubblewrap_userns",
+  "description": "Allow distribution bubblewrap to create native sandbox namespaces under restricted AppArmor without disabling host protections",
+  "platforms": ["linux"],
+  "handler": "bubblewrap_userns",
+  "risk": "medium",
+  "risk_class": "restore_absent",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "storage": {
+    "rationale": "The control plane owns the executable-scoped Linux AppArmor policy.",
+    "entries": {
+      "apparmor_profile": {
+        "rung": "pinned",
+        "path": {"linux": "/etc/apparmor.d/vrooli-bubblewrap", "macos": null, "windows": null},
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "Executable-scoped namespace permission; load and validate through the safeguard."
+      }
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {"support": "unsupported", "mode": "manual", "reason": "Host AppArmor policy cannot ship in a desktop bundle."},
+        "macos": {"support": "unsupported", "mode": "manual", "reason": "Linux AppArmor does not apply to macOS."},
+        "windows": {"support": "unsupported", "mode": "manual", "reason": "Linux AppArmor does not apply to native Windows."}
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {"status": "unqualified", "evidence": null},
+    "macos": {"status": "not_applicable", "evidence": "Native macOS uses a different sandbox mechanism, not Linux AppArmor.", "review_by": "2027-09-27"},
+    "windows": {"status": "not_applicable", "evidence": "Native Windows uses a different sandbox mechanism, not Linux AppArmor.", "review_by": "2027-09-27"}
+  }
+}

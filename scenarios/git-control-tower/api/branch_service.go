@@ -15,7 +15,7 @@ type BranchDeps struct {
 // ListBranches returns local and remote branches for the repository.
 // [REQ:GCT-OT-P1-001] Branch operations
 func ListBranches(ctx context.Context, deps BranchDeps) (*RepoBranchesResponse, error) {
-	repoDir, err := validateBranchDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,11 @@ func refToBranchInfo(ref ParsedBranchRef, status *RepoStatus) BranchInfo {
 
 // CreateBranch creates a new branch and optionally checks it out.
 func CreateBranch(ctx context.Context, deps BranchDeps, req CreateBranchRequest) (*BranchCreateResponse, error) {
+	if err := requireHumanMutation(ctx, "create branch"); err != nil {
+		return nil, err
+	}
 	resp := &BranchCreateResponse{Timestamp: time.Now().UTC()}
-	repoDir, err := validateBranchDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -174,8 +177,11 @@ func finalizeCreateBranch(ctx context.Context, deps BranchDeps, resp *BranchCrea
 
 // SwitchBranch changes the current branch.
 func SwitchBranch(ctx context.Context, deps BranchDeps, req SwitchBranchRequest) (*BranchSwitchResponse, error) {
+	if err := requireHumanMutation(ctx, "switch branch"); err != nil {
+		return nil, err
+	}
 	resp := &BranchSwitchResponse{Timestamp: time.Now().UTC()}
-	repoDir, err := validateBranchDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}

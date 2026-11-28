@@ -1,11 +1,13 @@
 // REQ-UI-010: Subscription health detail
+// DOC: docs/reference/api-endpoints.md#subscriptions
+// DOC: docs/guides/creating-subscriptions.md
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { HeartPulse, ArrowLeft, Send, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { StatCard } from "../components/StatCard";
 import { fetchSubscription, fetchSubscriptionHealth, type SubscriptionData } from "../lib/api";
@@ -42,7 +44,7 @@ export function SubscriptionHealthPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        icon={HeartPulse}
+        leading={<HeartPulse className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title={sub ? `Health: ${sub.name}` : `Subscription #${id} Health`}
         actions={
           <Button size="sm" variant="outline" onClick={() => navigate("/subscriptions")}>

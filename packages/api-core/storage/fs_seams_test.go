@@ -46,6 +46,42 @@ func TestWriteFileAtomic_WriteError(t *testing.T) {
 	}
 }
 
+func TestWriteFileAtomic_WriteFailurePreservesPreviousFile(t *testing.T) {
+	resetFSSeams()
+	defer resetFSSeams()
+
+	path := filepath.Join(t.TempDir(), "file.txt")
+	if err := os.WriteFile(path, []byte("previous evidence"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeFn = func(f *os.File, b []byte) (int, error) {
+		partial := b[:len(b)/2]
+		n, err := f.Write(partial)
+		if err != nil {
+			return n, err
+		}
+		return n, errors.New("injected interrupted write")
+	}
+
+	if err := WriteFileAtomic(path, []byte("replacement evidence"), 0o644); err == nil {
+		t.Fatal("expected injected write failure")
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "previous evidence" {
+		t.Fatalf("failed replacement changed prior evidence: %q", got)
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != filepath.Base(path) {
+		t.Fatalf("failed replacement left temporary files: %v", entries)
+	}
+}
+
 func TestWriteFileAtomic_SyncError(t *testing.T) {
 	resetFSSeams()
 	defer resetFSSeams()

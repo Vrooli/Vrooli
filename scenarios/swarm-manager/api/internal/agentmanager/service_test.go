@@ -4,68 +4,131 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-func TestDefaultProfileConfig(t *testing.T) {
-	cfg := DefaultProfileConfig()
-
-	if cfg.RunnerType != domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE {
-		t.Fatalf("expected default runner type CLAUDE_CODE, got %v", cfg.RunnerType)
-	}
-	if cfg.ModelPreset != domainpb.ModelPreset_MODEL_PRESET_SMART {
-		t.Fatalf("expected default model preset SMART, got %v", cfg.ModelPreset)
-	}
-	if cfg.MaxTurns != 60 {
-		t.Fatalf("expected default max turns 60, got %d", cfg.MaxTurns)
-	}
-	if cfg.TimeoutSeconds != 3600 {
-		t.Fatalf("expected default timeout 3600, got %d", cfg.TimeoutSeconds)
-	}
-	if len(cfg.AllowedTools) == 0 {
-		t.Fatalf("expected default allowed tools to be populated")
-	}
-	if cfg.SkipPermissions || cfg.RequiresSandbox || !cfg.RequiresApproval {
-		t.Fatalf("expected default permissions to require approval without sandbox or skip prompts")
-	}
-}
-
-func TestBuildProfile(t *testing.T) {
+func TestDefaultProfileRef_UsesManifestProfileOnly(t *testing.T) {
 	svc := NewAgentService(AgentServiceConfig{
 		ProfileName: "Swarm Manager",
-		ProfileKey:  "swarm-manager",
+		ProfileKey:  "swarm-manager/default",
 		Timeout:     5 * time.Second,
 		Enabled:     true,
 	})
+	ref, err := svc.profileRefFor("")
+	if err != nil {
+		t.Fatalf("profileRefFor returned error: %v", err)
+	}
+	if ref == nil {
+		t.Fatal("profileRefFor returned nil for configured service")
+	}
+	if ref.ProfileKey != "swarm-manager/default" {
+		t.Fatalf("expected manifest profile key, got %q", ref.ProfileKey)
+	}
+	if ref.UpdateExisting || ref.Defaults != nil {
+		t.Fatalf("expected run creation to reference the reconciled manifest profile without inline defaults")
+	}
+}
 
-	cfg := &ProfileConfig{
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:            "model-x",
-		ModelPreset:      domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:         10,
-		TimeoutSeconds:   30,
-		AllowedTools:     []string{"Read"},
-		SkipPermissions:  false,
-		RequiresSandbox:  false,
-		RequiresApproval: true,
+func TestProfileRefFor_UsesExplicitProfileKey(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName: "Swarm Manager",
+		ProfileKey:  "swarm-manager/default",
+		Timeout:     5 * time.Second,
+		Enabled:     true,
+	})
+	ref, err := svc.profileRefFor("swarm-manager/deep-work")
+	if err != nil {
+		t.Fatalf("profileRefFor returned error: %v", err)
 	}
+	if ref == nil || ref.ProfileKey != "swarm-manager/deep-work" {
+		t.Fatalf("profileRefFor explicit key = %+v", ref)
+	}
+}
 
-	profile := svc.buildProfile(cfg)
-	if profile.Name != "Swarm Manager" {
-		t.Fatalf("expected profile name to match, got %q", profile.Name)
+func TestProfileRefFor_FailsWhenReconciledProfilesMissingExplicitKey(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName: "Swarm Manager",
+		ProfileKey:  "swarm-manager/default",
+		Timeout:     5 * time.Second,
+		Enabled:     true,
+	})
+	svc.profileIDs = map[string]string{"swarm-manager/default": "profile-default"}
+
+	_, err := svc.profileRefFor("swarm-manager/deep-work")
+	if err == nil {
+		t.Fatal("expected missing reconciled profile error")
 	}
-	if profile.ProfileKey != "swarm-manager" {
-		t.Fatalf("expected profile key to match, got %q", profile.ProfileKey)
+}
+
+func TestValidateRequiredProfilesAcceptsAllRequiredProfiles(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"swarm-manager/deep-work", "swarm-manager/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":   "profile-default",
+		"swarm-manager/deep-work": "profile-deep-work",
+		"swarm-manager/analysis":  "profile-analysis",
+	})
+	if err != nil {
+		t.Fatalf("validateRequiredProfiles returned error: %v", err)
 	}
-	if profile.Timeout.AsDuration() != 30*time.Second {
-		t.Fatalf("expected timeout to be 30s, got %s", profile.Timeout.AsDuration())
+}
+
+func TestValidateRequiredProfilesRejectsMissingDeepWork(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"swarm-manager/deep-work", "swarm-manager/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":  "profile-default",
+		"swarm-manager/analysis": "profile-analysis",
+	})
+	if err == nil || !strings.Contains(err.Error(), "swarm-manager/deep-work") {
+		t.Fatalf("expected missing deep-work profile error, got %v", err)
 	}
-	if len(profile.AllowedTools) != 1 || profile.AllowedTools[0] != "Read" {
-		t.Fatalf("expected allowed tools to be preserved, got %+v", profile.AllowedTools)
+}
+
+func TestValidateRequiredProfilesRejectsMissingAnalysis(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"swarm-manager/deep-work", "swarm-manager/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":   "profile-default",
+		"swarm-manager/deep-work": "profile-deep-work",
+	})
+	if err == nil || !strings.Contains(err.Error(), "swarm-manager/analysis") {
+		t.Fatalf("expected missing analysis profile error, got %v", err)
 	}
-	if profile.SkipPermissionPrompt || profile.RequiresSandbox || !profile.RequiresApproval {
-		t.Fatalf("expected permission flags to be preserved")
+}
+
+func TestValidateRequiredProfilesRejectsNonOwnedProfileKey(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName:  "Swarm Manager",
+		ProfileKey:   "swarm-manager/default",
+		RequiredKeys: []string{"other-scenario/analysis"},
+		Timeout:      5 * time.Second,
+		Enabled:      true,
+	})
+
+	err := svc.validateRequiredProfiles(map[string]string{
+		"swarm-manager/default":   "profile-default",
+		"other-scenario/analysis": "profile-analysis",
+	})
+	if err == nil || !strings.Contains(err.Error(), "not owned") {
+		t.Fatalf("expected non-owned profile error, got %v", err)
 	}
 }
 

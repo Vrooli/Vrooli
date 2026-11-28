@@ -1,0 +1,113 @@
+{
+  "list": {
+    "loadError": "Couldn’t load your decisions.",
+    "loadErrorBoth": "Couldn’t check decisions or permission requests.",
+    "notCleared": "Nothing was dismissed.",
+    "stale": "Showing previously loaded results; refresh failed.",
+    "title": "Needs you",
+    "waiting": "{{count}} waiting",
+    "waiting_one": "1 waiting",
+    "allClear": "All caught up",
+    "searchOpen": "Search decisions",
+    "searchClose": "Close search",
+    "matching": "{{count}} of {{total}} waiting"
+  },
+  "row": {
+    "dueIn": "Due {{when}}",
+    "escalated": "Escalated",
+    "closesIn": "Closes {{when}}",
+    "readiness": {
+      "ready": "Ready",
+      "needsWork": "Needs work",
+      "returned": "Returned"
+    }
+  },
+  "kind": {
+    "judge": "Judge",
+    "approve": "Approve",
+    "review": "Review",
+    "do": "Do"
+  },
+  "urgency": {
+    "low": "Low",
+    "normal": "Normal",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "sort": {
+    "label": "Sort",
+    "attention": "Needs attention first",
+    "due": "Due soonest",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "how": {
+      "attention": "Needs attention: escalated, closing within {{count}} hours, then urgency, then close time",
+      "attention_one": "Needs attention: escalated, closing within 1 hour, then urgency, then close time",
+      "due": "Due soonest: earliest close time first, then urgency",
+      "newest": "Newest first: the most recently sent on top",
+      "oldest": "Oldest first: the longest waiting on top"
+    }
+  },
+  "filters": {
+    "open": "Filters",
+    "title": "Filter decisions",
+    "urgency": "Urgency",
+    "sender": "From",
+    "show": "Show {{count}} decisions",
+    "show_one": "Show 1 decision",
+    "remove": "Remove filter: {{name}}",
+    "active": "Active filters",
+    "openActive": "Filters ({{count}})"
+  },
+  "group": {
+    "closing": "Closing within {{count}} hours",
+    "closing_one": "Closing within 1 hour"
+  },
+  "focus": {
+    "progress": "{{current}} of {{total}}",
+    "accept": "Accept recommendation",
+    "send": "Send answer",
+    "later": "Answer later",
+    "openPacket": "Open the full decision",
+    "next": "Next decision",
+    "doneTitle": "Nothing is waiting.",
+    "doneDetail": "Every decision has an answer or a default.",
+    "start": "Start review",
+    "title": "Focus review",
+    "pageAttached": "Decision page attached",
+    "context": "This decision",
+    "source": "Source",
+    "age": "Age",
+    "closes": "Closes",
+    "ifIgnored": "If ignored",
+    "unknown": "Not stated",
+    "contextFailed": "The full context could not be read."
+  },
+  "desk": {
+    "listLabel": "Decision queue",
+    "detailLabel": "Selected decision",
+    "choose": "Choose a decision",
+    "chooseDetail": "Pick one in the queue to read it here.",
+    "dueToday": "{{count}} due today",
+    "dueToday_one": "1 due today",
+    "permissions": "{{count}} permissions",
+    "permissions_one": "1 permission",
+    "family": "One cause, {{count}} checks",
+    "family_one": "One cause, 1 check",
+    "familyHint": "Answer both",
+    "questions": "This decision asks {{count}} questions.",
+    "questions_one": "This decision asks 1 question.",
+    "answerQuestions": "Answer {{count}} questions",
+    "answerQuestions_one": "Answer 1 question",
+    "openFull": "Open the full decision",
+    "files": "Decision page · {{count}} files",
+    "files_one": "Decision page · 1 file",
+    "more": "Load more decisions",
+    "loadingMore": "Loading more decisions…",
+    "detailError": "This decision could not be read.",
+    "detailGone": "That decision is no longer available.",
+    "needYou": "{{count}} need you",
+    "needYou_one": "1 needs you",
+    "ifIgnored": "If you do nothing:"
+  }
+}

@@ -22,6 +22,26 @@ func (m *Matcher) FindBestMatch(val *types.Validation, reqID string, evidence *t
 	if val == nil || evidence == nil {
 		return nil
 	}
+	if val.Type == types.ValTypeManual {
+		// Manual checks require a corresponding explicit manual attestation.
+		// A test run, source path, phase result, or requirement-level evidence
+		// cannot stand in for an operator's review.
+		if evidence.ManualValidations == nil {
+			return nil
+		}
+		manual, ok := evidence.ManualValidations.Get(reqID)
+		if !ok || !manual.IsValid() {
+			return nil
+		}
+		return &types.EvidenceRecord{
+			RequirementID: reqID,
+			Status:        manual.ToLiveStatus(),
+			Phase:         "manual",
+			Evidence:      manual.Notes,
+			UpdatedAt:     manual.ValidatedAt,
+			SourcePath:    manual.ArtifactPath,
+		}
+	}
 
 	var candidates []types.EvidenceRecord
 
@@ -40,21 +60,11 @@ func (m *Matcher) FindBestMatch(val *types.Validation, reqID string, evidence *t
 		candidates = append(candidates, m.matchByPhase(val.Phase, reqID, evidence)...)
 	}
 
-	// Strategy 4: Match by requirement ID directly
-	candidates = append(candidates, m.matchByRequirementID(reqID, evidence)...)
-
-	// Strategy 5: Check manual validations
-	if val.Type == types.ValTypeManual && evidence.ManualValidations != nil {
-		if manual, ok := evidence.ManualValidations.Get(reqID); ok && manual.IsValid() {
-			candidates = append(candidates, types.EvidenceRecord{
-				RequirementID: reqID,
-				Status:        manual.ToLiveStatus(),
-				Phase:         "manual",
-				Evidence:      manual.Notes,
-				UpdatedAt:     manual.ValidatedAt,
-				SourcePath:    manual.ArtifactPath,
-			})
-		}
+	// Strategy 4: Match by requirement ID directly. A test validation with no
+	// declared locator cannot claim requirement-level evidence: it does not
+	// identify which test execution supports that validation.
+	if !val.IsTest() {
+		candidates = append(candidates, m.matchByRequirementID(reqID, evidence)...)
 	}
 
 	if len(candidates) == 0 {
@@ -280,14 +290,20 @@ func normalizeRef(ref string) string {
 func pathContains(fullPath, pattern string) bool {
 	normalizedPath := normalizeRef(fullPath)
 	normalizedPattern := normalizeRef(pattern)
+	if normalizedPattern == "" {
+		return false
+	}
 
-	// Direct contains check
-	if strings.Contains(normalizedPath, normalizedPattern) {
+	// References with directories must identify that path suffix. Falling back
+	// to basename equality would attach evidence from a different test file.
+	if normalizedPath == normalizedPattern || strings.HasSuffix(normalizedPath, "/"+normalizedPattern) {
 		return true
 	}
 
-	// Check just the filename
-	pathBase := filepath.Base(normalizedPath)
-	patternBase := filepath.Base(normalizedPattern)
-	return pathBase == patternBase
+	// Preserve filename-only references while keeping directory-qualified
+	// references unambiguous.
+	if strings.Contains(normalizedPattern, "/") {
+		return false
+	}
+	return filepath.Base(normalizedPath) == normalizedPattern
 }

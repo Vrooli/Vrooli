@@ -11,11 +11,6 @@ import {
   fetchCaptureStorageStats,
   deleteVisualCapture,
   clearAllCaptureStorage,
-  fetchWorkflowCaptures,
-  triggerWorkflowCapture,
-  fetchTestExecutions,
-  fetchTestExecution,
-  triggerTestExecution,
   fetchTidinessScore,
   fetchTidinessIssues,
   fetchTidinessStaleness,
@@ -28,12 +23,6 @@ import type {
   SnapshotSetMeta,
   SnapshotSetDetail,
   CaptureStorageStats,
-  WorkflowCaptureResult,
-  WorkflowCaptureListResponse,
-  ExecutionMode,
-  TestExecutionRequest,
-  TestExecutionResult,
-  TestExecutionListResponse,
   TidinessScoreResponse,
   TidinessIssue,
   TidinessStalenessInfo,
@@ -46,7 +35,7 @@ import type {
 export function useVisualCaptures(slug: string, enabled = true, repoId?: string | null) {
   return useQuery<VisualCaptureListResponse, Error>({
     queryKey: queryKeys.visualCaptures(slug, repoId),
-    queryFn: () => fetchVisualCaptures(slug, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchVisualCaptures(slug, repoId ?? undefined, signal),
     enabled: enabled && Boolean(slug),
     refetchInterval: 10_000,
   });
@@ -55,7 +44,7 @@ export function useVisualCaptures(slug: string, enabled = true, repoId?: string 
 export function useVisualCaptureDetail(id: string, slug: string, enabled = true, repoId?: string | null) {
   return useQuery<SnapshotSetDetail, Error>({
     queryKey: queryKeys.visualCaptureDetail(id, slug, repoId),
-    queryFn: () => fetchVisualCaptureDetail(id, slug, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchVisualCaptureDetail(id, slug, repoId ?? undefined, signal),
     enabled: enabled && Boolean(id) && Boolean(slug),
     staleTime: 60_000,
   });
@@ -63,9 +52,9 @@ export function useVisualCaptureDetail(id: string, slug: string, enabled = true,
 
 export function useTriggerVisualCapture(repoId?: string | null) {
   const queryClient = useQueryClient();
-  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; mode: "baseline" | "capture"; presets: CapturePreset[] }>({
-    mutationFn: async ({ scenarioSlug, mode, presets }) => {
-      const meta = await triggerVisualCapture(scenarioSlug, mode, repoId ?? undefined, presets);
+  return useMutation<SnapshotSetMeta, Error, { scenarioSlug: string; presets: CapturePreset[] }>({
+    mutationFn: async ({ scenarioSlug, presets }) => {
+      const meta = await triggerVisualCapture(scenarioSlug, repoId ?? undefined, presets);
       if (meta.status === "failed") {
         throw new Error(meta.error || "Capture failed — no screenshots were captured");
       }
@@ -80,7 +69,7 @@ export function useTriggerVisualCapture(repoId?: string | null) {
 export function useCaptureStorageStats(repoId?: string | null) {
   return useQuery<CaptureStorageStats, Error>({
     queryKey: queryKeys.captureStorage(repoId),
-    queryFn: () => fetchCaptureStorageStats(repoId ?? undefined),
+    queryFn: ({ signal }) => fetchCaptureStorageStats(repoId ?? undefined, signal),
     staleTime: 30_000,
   });
 }
@@ -106,72 +95,12 @@ export function useClearAllCaptureStorage(repoId?: string | null) {
   });
 }
 
-// ── Workflow Capture ───────────────────────────────────────────────────
-
-export function useWorkflowCaptures(slug: string, enabled = true, repoId?: string | null) {
-  return useQuery<WorkflowCaptureListResponse, Error>({
-    queryKey: queryKeys.workflowCaptures(slug, repoId),
-    queryFn: () => fetchWorkflowCaptures(slug, repoId ?? undefined),
-    enabled: enabled && Boolean(slug),
-    refetchInterval: 10_000,
-  });
-}
-
-export function useTriggerWorkflowCapture(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<WorkflowCaptureResult, Error, { scenarioSlug: string; mode: "baseline" | "capture"; executionModes: ExecutionMode[] }>({
-    mutationFn: async ({ scenarioSlug, mode, executionModes }) => {
-      const result = await triggerWorkflowCapture(scenarioSlug, mode, executionModes, repoId ?? undefined);
-      if (result.status === "failed") {
-        throw new Error(result.error || "Workflow capture failed");
-      }
-      return result;
-    },
-    onSuccess: (_data, { scenarioSlug }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.workflowCaptures(scenarioSlug, repoId) });
-    },
-  });
-}
-
-// ── Test Execution ─────────────────────────────────────────────────────
-
-export function useTestExecutions(scenarioName: string, enabled = true, repoId?: string | null) {
-  return useQuery<TestExecutionListResponse, Error>({
-    queryKey: queryKeys.testExecutions(scenarioName, repoId),
-    queryFn: () => fetchTestExecutions(scenarioName, 10, repoId ?? undefined),
-    enabled: enabled && Boolean(scenarioName),
-    refetchInterval: 15_000,
-  });
-}
-
-export function useTestExecution(id: string, enabled = true, repoId?: string | null) {
-  return useQuery<TestExecutionResult, Error>({
-    queryKey: queryKeys.testExecution(id, repoId),
-    queryFn: () => fetchTestExecution(id, repoId ?? undefined),
-    enabled: enabled && Boolean(id),
-    staleTime: 30_000,
-  });
-}
-
-export function useTriggerTestExecution(repoId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation<TestExecutionResult, Error, TestExecutionRequest>({
-    mutationFn: (request: TestExecutionRequest) =>
-      triggerTestExecution(request, repoId ?? undefined),
-    onSuccess: (_data, request) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.testExecutions(request.scenarioName, repoId),
-      });
-    },
-  });
-}
-
 // ── Tidiness Manager ───────────────────────────────────────────────────
 
 export function useTidinessScore(scenarioName: string, enabled = true, repoId?: string | null) {
   return useQuery<TidinessScoreResponse, Error>({
     queryKey: queryKeys.tidinessScore(scenarioName, repoId),
-    queryFn: () => fetchTidinessScore(scenarioName, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchTidinessScore(scenarioName, repoId ?? undefined, signal),
     enabled: enabled && Boolean(scenarioName),
     refetchInterval: 30_000,
   });
@@ -193,7 +122,7 @@ export function useTidinessIssues(
   const { file, category, severity, limit, enabled = true, repoId } = options;
   return useQuery<TidinessIssue[], Error>({
     queryKey: queryKeys.tidinessIssues(scenarioName, file, repoId, category, severity, limit),
-    queryFn: () => fetchTidinessIssues(scenarioName, file, category, severity, limit, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchTidinessIssues(scenarioName, file, category, severity, limit, repoId ?? undefined, signal),
     enabled: enabled && Boolean(scenarioName),
     staleTime: 30_000,
   });
@@ -202,7 +131,7 @@ export function useTidinessIssues(
 export function useTidinessStaleness(scenarioName: string, enabled = true, repoId?: string | null) {
   return useQuery<TidinessStalenessInfo, Error>({
     queryKey: queryKeys.tidinessStaleness(scenarioName, repoId),
-    queryFn: () => fetchTidinessStaleness(scenarioName, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchTidinessStaleness(scenarioName, repoId ?? undefined, signal),
     enabled: enabled && Boolean(scenarioName),
     staleTime: 60_000,
   });
@@ -225,7 +154,7 @@ export function useTriggerTidinessScan(repoId?: string | null) {
 export function useTidinessScenarioDetail(scenarioName: string, enabled = true, repoId?: string | null) {
   return useQuery<TidinessScenarioDetail, Error>({
     queryKey: queryKeys.tidinessScenarioDetail(scenarioName, repoId),
-    queryFn: () => fetchTidinessScenarioDetail(scenarioName, repoId ?? undefined),
+    queryFn: ({ signal }) => fetchTidinessScenarioDetail(scenarioName, repoId ?? undefined, signal),
     enabled: enabled && Boolean(scenarioName),
     refetchInterval: 30_000,
   });

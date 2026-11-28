@@ -5,7 +5,7 @@ import { cn } from "../../lib/utils";
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   backTo?: string;
   actions?: React.ReactNode;
   className?: string;
@@ -33,7 +33,7 @@ export function PageHeader({ title, description, backTo, actions, className }: P
         <div className="flex-1 min-w-0">
           <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           {description && (
-            <p className="text-slate-400 mt-2 max-w-2xl">{description}</p>
+            <div className="text-slate-400 mt-2 max-w-2xl">{description}</div>
           )}
         </div>
 

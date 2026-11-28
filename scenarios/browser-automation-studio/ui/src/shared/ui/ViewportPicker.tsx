@@ -14,6 +14,7 @@
 import { useMemo, useCallback } from 'react';
 import { Settings2 } from 'lucide-react';
 import { VIEWPORT_PRESETS } from './viewportPresets';
+import type { ViewportPresetOption } from './viewportPresetTypes';
 
 // ============================================================================
 // Types
@@ -24,15 +25,7 @@ export interface ViewportDimensions {
   height: number;
 }
 
-export interface ViewportPresetOption {
-  id: string;
-  label: string;
-  description: string;
-  width: number;
-  height: number;
-  icon: React.ReactNode;
-  ratioLabel: string;
-}
+export type { ViewportPresetOption } from './viewportPresetTypes';
 
 export interface ViewportPickerProps {
   /** Current viewport dimensions */

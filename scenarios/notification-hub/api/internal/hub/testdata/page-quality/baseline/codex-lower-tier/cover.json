@@ -1,0 +1,21 @@
+{
+ "question": "Should new Codex work keep using the cheaper model, and should the daily check stop?",
+ "big_picture": "This setting sends new Codex work to GPT-6 Luna so your weekly usage quota lasts longer; four kinds of work keep their usual models. You have kept it on every time you answered the repeated daily question, so I recommend making it standing and asking again only if usage or quality changes. Keeping the daily check means the question returns tomorrow; turning the setting off sends new work to stronger models that use quota faster. With no answer, the setting stays on and the daily question returns tomorrow.",
+ "recommend": "standing",
+ "reason": "You have chosen to keep it on every time you answered, so a standing setting saves daily attention while preserving your quota benefit.",
+ "options": [
+  {
+   "key": "standing",
+   "label": "Keep Luna on and stop the daily check; review only if usage or quality changes"
+  },
+  {
+   "key": "daily",
+   "label": "Keep Luna on and continue the daily check"
+  },
+  {
+   "key": "off",
+   "label": "Turn Luna off; new Codex work returns to the usual stronger models"
+  }
+ ],
+ "technical_details": "Evidence: 14 asks since 4 Nov 2026; every answered ask chose keep-on, two expired unanswered and two were dismissed. Luna was enabled 9 Nov 2026 without an end time. Fallback, review, supervision, and judgment retain their usual models. The setting can be ended with agent-manager usage mode end <id>. Packet: work/EVAL-LOWER-TIER/BRIEF.md."
+}

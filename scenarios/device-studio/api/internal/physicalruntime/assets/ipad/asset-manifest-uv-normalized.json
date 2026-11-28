@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-datsketch-ipad-mini-6-neutral-uv-normalized-v1",
+  "status": "candidate_only_unqualified",
+  "asset": {
+    "path": "ipad-mini-screen-uv-normalized.glb",
+    "media_type": "model/gltf-binary",
+    "size_bytes": 1938936,
+    "sha256": "16d88943240dffae0e14e4743beefa1ed61e7efb4b5aa6cb00ecf2ac4b63749c",
+    "source_sha256": "a462088b7bd84b7752802c109beee04110047c3b1a4f355624c863f790e93d5e",
+    "neutral_derivative_sha256": "8cd65349dcd38cb4f47fd897779db97dbbbf0fc7f6c81cd6c2ab05eaa6b47b5e",
+    "source_model": "IPad Mini 6 2021",
+    "creator": "DatSketch",
+    "source_url": "https://sketchfab.com/3d-models/ipad-mini-6-2021-f363c2b1c74a462588db184bd4fb024e",
+    "license": "CC BY 4.0",
+    "attribution": "iPad mini 6 2021 by DatSketch, adapted under CC BY 4.0.",
+    "modification": "Starting from the neutral-screen derivative, a new private aligned TEXCOORD_0 buffer view normalizes the existing screen UV envelope to [0,1]. Existing BIN payload bytes, position/normal data, original interleaved buffer view, other images, materials, hierarchy and transforms are preserved.",
+    "display": {
+      "node_index": 14,
+      "mesh_index": 10,
+      "primitive_index": 0,
+      "material_index": 10,
+      "texture_index": 1,
+      "image_index": 1,
+      "uv_accessor_index": 36,
+      "uv_buffer_view_index": 17,
+      "uv_min": [
+        0,
+        0
+      ],
+      "uv_max": [
+        1,
+        1
+      ],
+      "screen_plane_mm": [
+        117.281,
+        177.229
+      ]
+    },
+    "source_geometry_bounds_mm": [
+      134.423,
+      195.0,
+      8.775
+    ],
+    "claims": "Source GLB measurements under the glTF metre assumption only. Not manufacturer CAD, independently measured device geometry, physical qualification, or Apple-endorsed. Whole-model depth includes protruding features; body-only depth is unknown.",
+    "derivation": {
+      "script_sha256": "79d1c9413527b7158e14fc7b2efd91ae17d096299475360a5181d67141e091b7",
+      "manifest_sha256": "1ebffe3fbd6c529dccd84936e86a852abddaf044c4b20d0f93951ceddffb537b",
+      "receipt_sha256": "67b5c0fcc06c5ab895eefd6c5d8a7a91adc2d80cd0e5be55d698efec16cd97b5",
+      "neutral_source_sha256": "8cd65349dcd38cb4f47fd897779db97dbbbf0fc7f6c81cd6c2ab05eaa6b47b5e"
+    }
+  }
+}

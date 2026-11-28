@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "services.layer-manager",
+    "name": "Layer Manager",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The global coordinator for portals, stacking order, modal isolation, nested overlays, inert background content, focus restoration, and reference-counted scroll locking.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Stacking order is assigned from the declared layer ramp rather than ad hoc z-index values."
+      }
+    ]
+  },
+  "satisfies": [
+    "layer-manager"
+  ],
+  "requiredCapabilities": [
+    "layered-dismissal",
+    "focus-containment",
+    "focus-restoration"
+  ],
+  "rationale": "Two independent layer managers in one application is the defect that produces dialogs behind their own backdrops, and it is detectable by the adoption scanner."
+}

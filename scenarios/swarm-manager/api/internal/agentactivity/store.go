@@ -1,10 +1,10 @@
 package agentactivity
 
 import (
-	"path/filepath"
+	"fmt"
 	"strings"
 
-	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/storage"
 )
 
@@ -19,7 +19,9 @@ type FileStore struct {
 
 func NewStore(path string) *FileStore {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "agent-activities.json")
+		if resolved, err := runtimepaths.StatePath("agent-activities.json"); err == nil {
+			path = resolved
+		}
 	}
 	return &FileStore{path: path}
 }
@@ -37,10 +39,18 @@ func (s *FileStore) Load() ([]Record, error) {
 		if records[i].Metadata == nil {
 			records[i].Metadata = map[string]string{}
 		}
+		if !records[i].Status.Valid() {
+			return nil, fmt.Errorf("agent activity %q has unknown persisted status %q", records[i].ActivityID, records[i].Status)
+		}
 	}
 	return records, nil
 }
 
 func (s *FileStore) Save(records []Record) error {
+	for _, record := range records {
+		if !record.Status.Valid() {
+			return fmt.Errorf("agent activity %q has invalid status %q", record.ActivityID, record.Status)
+		}
+	}
 	return storage.WriteJSONAtomic(s.path, records)
 }

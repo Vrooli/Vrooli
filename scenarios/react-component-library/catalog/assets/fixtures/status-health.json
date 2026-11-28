@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.status-health",
+    "name": "StatusHealthFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Deterministic health summaries with healthy, degraded, unknown, and recovering signals.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "typical",
+      "partial",
+      "failure",
+      "recovery"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "HealthSignal"
+      ]
+    },
+    "recordCount": {
+      "typical": 6
+    }
+  },
+  "rationale": "Operational components must show degraded and recovering states, not only green status, to make hierarchy and action priority reviewable."
+}

@@ -2,16 +2,25 @@ package export
 
 import (
 	"strings"
+
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
+	"google.golang.org/protobuf/proto"
 )
 
 // BuildThemeFromPreset constructs an ExportTheme by applying preset configurations
 // to the baseline theme from the movie spec.
-func BuildThemeFromPreset(baseline *ReplayMovieSpec, preset *ThemePreset) *ExportTheme {
+func BuildThemeFromPreset(baseline *exportsv1.ReplaySpec, preset *ThemePreset) *exportsv1.ReplayTheme {
 	if baseline == nil || preset == nil {
 		return nil
 	}
 
-	theme := baseline.Theme
+	theme := &exportsv1.ReplayTheme{}
+	if baseline.GetTheme() != nil {
+		theme = proto.Clone(baseline.Theme).(*exportsv1.ReplayTheme)
+	}
+	if theme.BrowserChrome == nil {
+		theme.BrowserChrome = &exportsv1.ReplayBrowserChrome{}
+	}
 
 	// Apply chrome theme preset
 	if chromeID := strings.TrimSpace(preset.ChromeTheme); chromeID != "" {
@@ -51,7 +60,7 @@ func BuildThemeFromPreset(baseline *ReplayMovieSpec, preset *ThemePreset) *Expor
 
 	// Set sensible defaults for missing fields
 	if theme.BrowserChrome.Title == "" {
-		if name := strings.TrimSpace(baseline.Execution.WorkflowName); name != "" {
+		if name := strings.TrimSpace(baseline.GetExecution().GetWorkflowName()); name != "" {
 			theme.BrowserChrome.Title = name
 		} else {
 			theme.BrowserChrome.Title = "Vrooli Ascension"
@@ -76,23 +85,32 @@ func BuildThemeFromPreset(baseline *ReplayMovieSpec, preset *ThemePreset) *Expor
 		theme.BrowserChrome.Variant = strings.TrimSpace(preset.ChromeTheme)
 	}
 
-	return &theme
+	return theme
 }
 
 // BuildCursorSpec constructs an ExportCursorSpec by applying preset configurations
 // and defaults to the existing cursor spec.
-func BuildCursorSpec(existing ExportCursorSpec, preset *CursorPreset) ExportCursorSpec {
-	cursor := existing
+func BuildCursorSpec(existing *exportsv1.ReplayCursor, preset *CursorPreset) *exportsv1.ReplayCursor {
+	cursor := &exportsv1.ReplayCursor{}
+	if existing != nil {
+		cursor = proto.Clone(existing).(*exportsv1.ReplayCursor)
+	}
+	if cursor.Trail == nil {
+		cursor.Trail = &exportsv1.ReplayCursorTrail{}
+	}
+	if cursor.ClickPulse == nil {
+		cursor.ClickPulse = &exportsv1.ReplayClickPulse{}
+	}
 
 	// Apply defaults to existing spec
 	if cursor.Scale <= 0 {
 		cursor.Scale = 1.0
 	}
-	if cursor.InitialPos == "" {
-		cursor.InitialPos = "center"
+	if cursor.InitialPosition == "" {
+		cursor.InitialPosition = "center"
 	}
-	if cursor.ClickAnim == "" {
-		cursor.ClickAnim = "pulse"
+	if cursor.ClickAnimation == "" {
+		cursor.ClickAnimation = "pulse"
 	}
 
 	// Apply preset if provided
@@ -110,7 +128,7 @@ func BuildCursorSpec(existing ExportCursorSpec, preset *CursorPreset) ExportCurs
 					cursor.Trail.Opacity = cfg.TrailOpacity
 				}
 				if cfg.TrailFadeMs > 0 {
-					cursor.Trail.FadeMs = cfg.TrailFadeMs
+					cursor.Trail.FadeMs = int32(cfg.TrailFadeMs)
 				}
 				if cfg.TrailWeight > 0 {
 					cursor.Trail.Weight = cfg.TrailWeight
@@ -127,10 +145,10 @@ func BuildCursorSpec(existing ExportCursorSpec, preset *CursorPreset) ExportCurs
 			cursor.Scale = ClampCursorScale(preset.Scale)
 		}
 		if pos := strings.TrimSpace(preset.InitialPosition); pos != "" {
-			cursor.InitialPos = pos
+			cursor.InitialPosition = pos
 		}
 		if anim := strings.TrimSpace(preset.ClickAnimation); anim != "" {
-			cursor.ClickAnim = anim
+			cursor.ClickAnimation = anim
 			if strings.EqualFold(anim, "none") {
 				cursor.ClickPulse.Enabled = false
 			} else if !cursor.ClickPulse.Enabled {

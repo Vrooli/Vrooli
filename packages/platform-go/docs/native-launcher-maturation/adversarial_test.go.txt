@@ -1,0 +1,86 @@
+package platform
+
+import (
+ "bytes"
+ "context"
+ "encoding/binary"
+ "errors"
+ "os"
+ "path/filepath"
+ "strings"
+ "testing"
+)
+
+// These builders deliberately do not call the producer's fixture builders.
+func maturationMachO(cpu uint32, command uint32, path string) []byte {
+ size := (24+len(path)+1+7)&^7
+ b := make([]byte,32+size)
+ put := binary.LittleEndian.PutUint32
+ put(b,0xfeedfacf); put(b[4:],cpu); put(b[12:],2)
+ put(b[16:],1); put(b[20:],uint32(size))
+ put(b[32:],command); put(b[36:],uint32(size)); put(b[40:],24)
+ copy(b[56:],path)
+ return b
+}
+
+func TestMaturationAllUniversalSlicesMustHaveClosedDependencies(t *testing.T) {
+ for _, command := range []uint32{0xc,0x80000018,0x8000001f,0x80000023,0x20} {
+  a:=maturationMachO(0x1000007,command,"/usr/lib/libSystem.B.dylib")
+  b:=maturationMachO(0x100000c,command,"/private/vendor/foreign.dylib")
+  fat:=make([]byte,4096+len(b)); put:=binary.BigEndian.PutUint32
+  put(fat,0xcafebabe); put(fat[4:],2)
+  put(fat[8:],0x1000007); put(fat[16:],512); put(fat[20:],uint32(len(a))); put(fat[24:],9)
+  put(fat[28:],0x100000c); put(fat[36:],4096); put(fat[40:],uint32(len(b))); put(fat[44:],12)
+  copy(fat[512:],a); copy(fat[4096:],b)
+  for _, arch := range []string{"amd64","arm64"} {
+   if err:=validateDarwinBrokerMachO(bytes.NewReader(fat),arch); err==nil { t.Fatalf("foreign second slice accepted: command=%x arch=%s",command,arch) }
+  }
+  // Preserve both slices and replace only the foreign dependency.
+  b=maturationMachO(0x100000c,command,"/usr/lib/libSystem.B.dylib")
+  fat=fat[:4096+len(b)]; put(fat[40:],uint32(len(b))); copy(fat[4096:],b)
+  for _, arch := range []string{"amd64","arm64"} {
+   if err:=validateDarwinBrokerMachO(bytes.NewReader(fat),arch); err!=nil { t.Fatalf("closed second slice rejected: %v",err) }
+  }
+ }
+}
+
+func TestMaturationSystemPrefixCannotHideForeignMachOLoader(t *testing.T) {
+ for _, path := range []string{"/usr/library/foreign.dylib","/usr/lib/../../private/foreign.dylib","/System/Library/../private/foreign.dylib","/System/LibraryFake/foreign.dylib","@rpath/libSystem.B.dylib","/usr/lib//libSystem.B.dylib"} {
+  for _, command := range []uint32{0xc,0x80000018,0x8000001f,0x80000023,0x20} {
+   if err:=validateDarwinBrokerMachO(bytes.NewReader(maturationMachO(0x100000c,command,path)),"arm64");err==nil {t.Fatalf("noncanonical dependency accepted: %q command=%x",path,command)}
+  }
+ }
+}
+
+func maturationPE(libraries ...string) []byte {
+ b:=make([]byte,2048); u16:=binary.LittleEndian.PutUint16; u32:=binary.LittleEndian.PutUint32
+ copy(b,"MZ"); u32(b[60:],128); copy(b[128:],"PE\x00\x00")
+ u16(b[132:],0x8664);u16(b[134:],1);u16(b[148:],240);u16(b[150:],0x22)
+ u16(b[152:],0x20b);u32(b[184:],4096);u32(b[188:],512);u32(b[208:],8192);u32(b[212:],512);u32(b[260:],16)
+ u32(b[272:],4096);u32(b[276:],uint32((len(libraries)+1)*20))
+ copy(b[392:],".idata");u32(b[400:],1536);u32(b[404:],4096);u32(b[408:],1536);u32(b[412:],512)
+ for n,name:=range libraries {
+  d:=512+n*20; offset:=1024+n*256
+  u32(b[d:],4400);u32(b[d+12:],uint32(offset-512+4096));u32(b[d+16:],4416)
+  copy(b[offset:],name)
+ }
+ return b
+}
+
+func TestMaturationEveryPEImportMustBeQualified(t *testing.T) {
+ for _, foreign:=range []string{"foreign.dll","..\\kernel32.dll","kernel32.dll:foreign","kernel32.dll ","C:\\Windows\\System32\\kernel32.dll"} {
+  for _, names:=range [][]string{{"kernel32.dll",foreign},{foreign,"kernel32.dll"}} {
+   if err:=verifyWindowsMaintainedLauncherPE(bytes.NewReader(maturationPE(names...)),"amd64");err==nil {t.Fatalf("foreign import hidden among qualified dependencies: %q",names)}
+  }
+ }
+ if err:=verifyWindowsMaintainedLauncherPE(bytes.NewReader(maturationPE("KERNEL32.DLL","advapi32.dll")),"amd64");err!=nil {t.Fatal(err)}
+}
+
+func TestMaturationPartialNativeOpenFailureClosesDescriptor(t *testing.T) {
+ root:=t.TempDir(); proof:=NativeLauncherProof{SchemaVersion:1,Profile:NativeLauncherProfileOpenRGB,SHA256:strings.Repeat("a",64)}
+ sentinel:=errors.New("admission rejected after opening")
+ var fd *os.File
+ got,err:=openPublishedNativeLauncherWith(context.Background(),filepath.Join(root,proof.SHA256,"vrooli"),proof,"vrooli",func()(string,error){return root,nil},func(context.Context,string,string)(*os.File,error){var e error;fd,e=os.CreateTemp(t.TempDir(),"verified");if e!=nil{return nil,e};return fd,sentinel})
+ if got!=nil||!errors.Is(err,sentinel)||fd==nil {t.Fatal(got,err)}
+ if _,err=fd.Stat();err==nil {t.Fatal("partial failed admission leaked descriptor")}
+}

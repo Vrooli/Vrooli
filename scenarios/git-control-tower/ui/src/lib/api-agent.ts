@@ -3,6 +3,9 @@
 // ============================================================================
 
 import { API_BASE, REPO_HEADER, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { create } from "@bufbuild/protobuf";
+import { GetRunDiffRequestSchema, GetRunEventsRequestSchema, GetRunRequestSchema, ListProfilesRequestSchema, ListRunsRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/agent_reads/agent_reads_pb";
+import { agentReadClient } from "./connect";
 
 // ── Agent Manager Types ────────────────────────────────────────────────
 
@@ -164,7 +167,7 @@ export interface AgentStopResponse {
   status: string;
 }
 
-export type AgentContextKind = "test-failure" | "code-quality-issue" | "screenshot" | "change-summary" | "scenario-quality" | "rule-violation" | "rules-summary";
+export type AgentContextKind = "test-failure" | "screenshot" | "change-summary" | "scenario-quality";
 
 export interface AgentContextItem {
   kind: AgentContextKind;
@@ -194,13 +197,15 @@ export async function uploadAgentAttachment(
   return handleResponse<AttachmentUploadResponse>(res);
 }
 
-export async function fetchAgentProfiles(repoId?: string): Promise<AgentProfileListResponse> {
-  const url = buildApiUrl("/agent/profiles", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<AgentProfileListResponse>(res);
+export async function fetchAgentProfiles(repoId?: string, signal?: AbortSignal): Promise<AgentProfileListResponse> {
+  const response = await agentReadClient.listProfiles(create(ListProfilesRequestSchema, { repositoryId: repoId ?? "" }), { signal });
+  return {
+    profiles: response.profiles.map((profile) => ({
+      id: profile.id, key: profile.key || undefined, name: profile.name,
+      description: profile.description || undefined, roleRef: profile.roleRef || undefined,
+    })),
+    total: response.total,
+  };
 }
 
 export async function createAgentRun(
@@ -219,50 +224,64 @@ export async function createAgentRun(
 export async function fetchAgentRuns(
   scenarioSlug: string,
   limit?: number,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<AgentRunListResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  if (limit) params.set("limit", String(limit));
-  const url = buildApiUrl(`/agent/runs?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<AgentRunListResponse>(res);
+  const response = await agentReadClient.listRuns(create(ListRunsRequestSchema, {
+    scenarioSlug, limit: limit ?? 0, repositoryId: repoId ?? "",
+  }), { signal });
+  return { runs: response.runs.map(runFromProto), total: response.total };
 }
 
-export async function fetchAgentRun(runId: string, repoId?: string): Promise<AgentRun> {
-  const url = buildApiUrl(`/agent/runs/${runId}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<AgentRun>(res);
+export async function fetchAgentRun(runId: string, scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<AgentRun> {
+  return runFromProto(await agentReadClient.getRun(create(GetRunRequestSchema, { runId, scenarioSlug, repositoryId: repoId ?? "" }), { signal }));
 }
 
 export async function fetchAgentRunEvents(
   runId: string,
+  scenarioSlug: string,
   afterSequence?: number,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<AgentRunEventsResponse> {
-  const params = new URLSearchParams();
-  if (afterSequence != null) params.set("afterSequence", String(afterSequence));
-  const qs = params.toString();
-  const url = buildApiUrl(`/agent/runs/${runId}/events${qs ? `?${qs}` : ""}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<AgentRunEventsResponse>(res);
+  const response = await agentReadClient.getRunEvents(create(GetRunEventsRequestSchema, {
+    runId, scenarioSlug, afterSequence: BigInt(afterSequence ?? -1), limit: 100, repositoryId: repoId ?? "",
+  }), { signal });
+  return { events: response.events.map((event) => ({
+    id: event.id, runId: event.runId, sequence: Number(event.sequence),
+    eventType: event.eventType as AgentEventType, timestamp: event.timestamp,
+    data: event.data as Record<string, unknown> | undefined,
+  })) };
 }
 
-export async function fetchAgentRunDiff(runId: string, repoId?: string): Promise<AgentRunDiffResponse> {
-  const url = buildApiUrl(`/agent/runs/${runId}/diff`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<AgentRunDiffResponse>(res);
+export async function fetchAgentRunDiff(runId: string, scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<AgentRunDiffResponse> {
+  const response = await agentReadClient.getRunDiff(create(GetRunDiffRequestSchema, { runId, scenarioSlug, repositoryId: repoId ?? "" }), { signal });
+  return {
+    runId: response.runId, content: response.content || undefined,
+    files: response.files.map((file) => ({ path: file.path, changeType: file.changeType,
+      additions: file.additions, deletions: file.deletions, isBinary: file.isBinary, patch: file.patch || undefined })),
+  };
+}
+
+function runFromProto(run: {
+  id: string; taskId: string; sessionId: string; status: string; phase: string; progressPercent: number;
+  errorMsg: string; approvalState: string; promptPreview: string; sandboxId: string; commitHash: string;
+  createdAt: string; startedAt: string; endedAt: string;
+  summary?: { filesModified: string[]; filesCreated: string[]; filesDeleted: string[]; tokensUsed: bigint; turnsUsed: number; costEstimate: number };
+  actions?: { canInvestigate: boolean; canApplyInvestigation: boolean; canDelete: boolean; canStop: boolean; canRetry: boolean; canContinue: boolean; canApprove: boolean; canReject: boolean; canReview: boolean; canExtractRecommendations: boolean; canRegenerateRecommendations: boolean };
+}): AgentRun {
+  return {
+    id: run.id, taskId: run.taskId || undefined, sessionId: run.sessionId || undefined,
+    status: run.status as AgentRunStatus, phase: run.phase || undefined,
+    progressPercent: run.progressPercent || undefined, errorMsg: run.errorMsg || undefined,
+    approvalState: run.approvalState || undefined, promptPreview: run.promptPreview || undefined,
+    sandboxId: run.sandboxId || undefined, summary: run.summary ? {
+      filesModified: run.summary.filesModified, filesCreated: run.summary.filesCreated, filesDeleted: run.summary.filesDeleted,
+      tokensUsed: Number(run.summary.tokensUsed), turnsUsed: run.summary.turnsUsed, costEstimate: run.summary.costEstimate,
+    } : undefined,
+    actions: run.actions ? { ...run.actions } : undefined,
+    createdAt: run.createdAt, startedAt: run.startedAt || undefined, endedAt: run.endedAt || undefined,
+  };
 }
 
 export async function continueAgentRun(

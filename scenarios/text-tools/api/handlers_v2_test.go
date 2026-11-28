@@ -620,3 +620,75 @@ func TestValidationMethods(t *testing.T) {
 		}
 	})
 }
+
+func TestV2HandlersMalformedJSONResponseContract(t *testing.T) {
+	env := setupTestServer(t)
+	defer env.Cleanup()
+	tests := []struct {
+		name    string
+		path    string
+		handler http.HandlerFunc
+	}{
+		{"diff", "/api/v2/diff", env.Server.DiffHandlerV2},
+		{"search", "/api/v2/search", env.Server.SearchHandlerV2},
+		{"transform", "/api/v2/transform", env.Server.TransformHandlerV2},
+		{"extract", "/api/v2/extract", env.Server.ExtractHandlerV2},
+		{"analyze", "/api/v2/analyze", env.Server.AnalyzeHandlerV2},
+		{"pipeline", "/api/v2/pipeline", env.Server.PipelineHandler},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w, err := makeHTTPRequest(HTTPTestRequest{Method: http.MethodPost, Path: test.path, Body: "{"}, test.handler)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			if w.Header().Get("X-API-Version") != "2.0" {
+				t.Errorf("X-API-Version = %q, want 2.0", w.Header().Get("X-API-Version"))
+			}
+			body := assertJSONResponse(t, w, http.StatusBadRequest, nil)
+			if body == nil {
+				return
+			}
+			if body["error"] != "Invalid request body" || body["version"] != "2.0" || body["request_id"] == "" {
+				t.Errorf("error response = %#v, want versioned invalid-body response with request ID", body)
+			}
+		})
+	}
+}
+
+func TestV2HandlersSuccessResponseContract(t *testing.T) {
+	env := setupTestServer(t)
+	defer env.Cleanup()
+	tests := []struct {
+		name    string
+		path    string
+		handler http.HandlerFunc
+		body    interface{}
+	}{
+		{"diff", "/api/v2/diff", env.Server.DiffHandlerV2, DiffRequestV2{DiffRequest: DiffRequest{Text1: "before", Text2: "after"}}},
+		{"search", "/api/v2/search", env.Server.SearchHandlerV2, SearchRequestV2{SearchRequest: SearchRequest{Text: "hello world", Pattern: "hello"}}},
+		{"transform", "/api/v2/transform", env.Server.TransformHandlerV2, TransformRequestV2{TransformRequest: TransformRequest{Text: "hello", Transformations: []Transformation{{Type: "upper"}}}}},
+		{"extract", "/api/v2/extract", env.Server.ExtractHandlerV2, ExtractRequestV2{ExtractRequest: ExtractRequest{Source: map[string]interface{}{"text": "sample"}}}},
+		{"analyze", "/api/v2/analyze", env.Server.AnalyzeHandlerV2, AnalyzeRequestV2{AnalyzeRequest: AnalyzeRequest{Text: "sample", Analyses: []string{"statistics"}}}},
+		{"pipeline", "/api/v2/pipeline", env.Server.PipelineHandler, PipelineRequest{Input: "hello", Steps: []PipelineStep{{Name: "uppercase", Operation: "transform", Parameters: map[string]interface{}{"type": "upper"}}}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w, err := makeHTTPRequest(HTTPTestRequest{Method: http.MethodPost, Path: test.path, Body: test.body}, test.handler)
+			if err != nil {
+				t.Fatalf("request: %v", err)
+			}
+			response := assertJSONResponse(t, w, http.StatusOK, nil)
+			if w.Header().Get("X-API-Version") != "2.0" {
+				t.Errorf("X-API-Version = %q, want 2.0", w.Header().Get("X-API-Version"))
+			}
+			if response == nil {
+				return
+			}
+			requestID, ok := response["request_id"].(string)
+			if !ok || requestID == "" {
+				t.Errorf("request_id = %v, want non-empty string", response["request_id"])
+			}
+		})
+	}
+}

@@ -1,0 +1,120 @@
+{
+  "description": "Produce a deterministic, reproducible graph of files, packages, symbols, and import edges per target scenario by delegating to go-code-graph and typescript-code-graph; cartographer never parses source code itself.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-010"
+      ],
+      "description": "Cartographer must produce a deterministic, reproducible graph of files, packages, symbols, and import edges for any target scenario by delegating all source-code parsing to go-code-graph and typescript-code-graph via Connect-RPC. Cartographer must never parse source code itself. The graph is normalized into an immutable snapshot model upon receipt. Adapters for both go-code-graph (AC-GRAPH-GO-EXTRACT) and typescript-code-graph (AC-GRAPH-TS-EXTRACT) must be implemented. The normalized graph model (AC-GRAPH-MODEL) must be immutable after construction. Golden determinism tests (AC-GRAPH-DETERMINISM) must compare cartographer output to hand-curated expected-graph JSON fixtures under bas/fixtures/ for known cycle, mislocated-file, and orphan-file scenarios.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Ground-Truth Code Graph Extraction via Delegated Adapters",
+      "validation": [
+        {
+          "notes": "AC-GRAPH-MODEL: Graph snapshot struct is immutable after construction — any mutation attempt returns an error or is rejected at compile time",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-MODEL: Normalization correctly deduplicates nodes and edges from raw adapter output",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-GO-EXTRACT: Adapter correctly maps go-code-graph proto response fields to internal graph model nodes and edges",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-TS-EXTRACT: Adapter correctly maps typescript-code-graph proto response fields to internal graph model nodes and edges",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-DETERMINISM: Two successive calls with the same inputs produce byte-identical serialized graph snapshots",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-GO-EXTRACT: End-to-end extraction against a fixture Go module (bas/fixtures/go-cycles/) produces a graph matching hand-curated expected-graph.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-TS-EXTRACT: End-to-end extraction against a fixture TS package (bas/fixtures/ts-junk-drawer/) produces a graph matching hand-curated expected-graph.json",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-GRAPH-DETERMINISM: Graph extracted from bas/fixtures/medium-realistic/ is byte-identical across three independent runs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cross-scenario Connect-RPC calls into go-code-graph and typescript-code-graph fixture servers succeed and return valid graphs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cartographer never invokes any direct file-read or AST-parse code path during graph extraction",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Graph extraction for scenarios with ≤200 files completes in \u003c5 seconds end-to-end",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Graph extraction for scenarios with ≤2000 files completes in \u003c30 seconds end-to-end",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A scenario owner can run arch-cart extract and receive a fully populated graph without manually invoking go-code-graph or typescript-code-graph",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Graph output is stable enough to be checked into version control as a baseline artifact",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Ground-Truth Code Graph"
+}

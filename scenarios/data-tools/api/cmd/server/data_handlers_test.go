@@ -9,11 +9,7 @@ import (
 )
 
 func TestDataParse(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ParseCSVData", func(t *testing.T) {
 		parseBody := map[string]interface{}{
@@ -114,11 +110,7 @@ func TestDataParse(t *testing.T) {
 }
 
 func TestDataTransform(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("FilterTransformation", func(t *testing.T) {
 		transformBody := map[string]interface{}{
@@ -230,14 +222,26 @@ func TestDataTransform(t *testing.T) {
 			t.Errorf("Server error on empty transformations: %d", w.Code)
 		}
 	})
+
+}
+
+func TestDataTransformRejectsInvalidFilterAsClientError(t *testing.T) {
+	server := &Server{config: &Config{APIToken: "test-token"}}
+	body := map[string]interface{}{
+		"data": []map[string]interface{}{{"age": 30}},
+		"transformations": []map[string]interface{}{{
+			"type":       "filter",
+			"parameters": map[string]interface{}{"condition": "age = not-a-number"},
+		}},
+	}
+	req := makeHTTPRequest("POST", "/api/v1/data/transform", body, "test-token")
+	w := httptest.NewRecorder()
+	server.handleDataTransform(w, req)
+	assertErrorResponse(t, w, http.StatusBadRequest, `transformation failed: invalid filter condition "age = not-a-number": value "not-a-number" is not a number`)
 }
 
 func TestDataValidate(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ValidateCompleteData", func(t *testing.T) {
 		validateBody := map[string]interface{}{
@@ -415,11 +419,7 @@ func TestDataValidate(t *testing.T) {
 }
 
 func TestDataQuery(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("SimpleQuery", func(t *testing.T) {
 		queryBody := map[string]interface{}{
@@ -520,11 +520,7 @@ func TestDataQuery(t *testing.T) {
 }
 
 func TestStreamCreate(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("CreateWebhookStream", func(t *testing.T) {
 		streamBody := map[string]interface{}{

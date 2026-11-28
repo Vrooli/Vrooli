@@ -1,0 +1,837 @@
+{
+  "schemaVersion": 6,
+  "flowId": "commerce.fundinglot.api",
+  "source": {
+    "contractPath": "api/internal/commerce/fundinglot/flow/flow.json",
+    "contractSha256": "5281e8e0e55c6ab2c79f3063d14312eba2a1cbf647ee90eb9ea38c511ce7ab20",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/commerce/fundinglot/flow/generated/model.qnt",
+    "modelSha256": "d8ac8f91fab673366532f6f8b2515c8ce9f43ff4316e63ae888396f3910dd5c6",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/commerce/fundinglot/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026110101",
+      "--max-samples",
+      "12",
+      "--n-traces",
+      "12",
+      "--max-steps",
+      "6",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/commerce/fundinglot/flow/generated/model.qnt",
+      "--seed",
+      "2026110101"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/commerce/fundinglot/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/commerce/fundinglot/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "NoUnavailableDebit",
+      "--max-steps",
+      "6"
+    ]
+  },
+  "states": [
+    "open",
+    "frozen",
+    "exhausted",
+    "expired",
+    "reversed"
+  ],
+  "events": [
+    "debit",
+    "exhaust",
+    "freeze",
+    "unfreeze",
+    "expire",
+    "reverse"
+  ],
+  "transitions": [
+    {
+      "from": "open",
+      "event": "debit",
+      "to": "open",
+      "wantError": false
+    },
+    {
+      "from": "open",
+      "event": "exhaust",
+      "to": "exhausted",
+      "wantError": false
+    },
+    {
+      "from": "open",
+      "event": "freeze",
+      "to": "frozen",
+      "wantError": false
+    },
+    {
+      "from": "open",
+      "event": "unfreeze",
+      "to": "open",
+      "wantError": true
+    },
+    {
+      "from": "open",
+      "event": "expire",
+      "to": "expired",
+      "wantError": false
+    },
+    {
+      "from": "open",
+      "event": "reverse",
+      "to": "reversed",
+      "wantError": false
+    },
+    {
+      "from": "frozen",
+      "event": "debit",
+      "to": "frozen",
+      "wantError": true
+    },
+    {
+      "from": "frozen",
+      "event": "exhaust",
+      "to": "frozen",
+      "wantError": true
+    },
+    {
+      "from": "frozen",
+      "event": "freeze",
+      "to": "frozen",
+      "wantError": true
+    },
+    {
+      "from": "frozen",
+      "event": "unfreeze",
+      "to": "open",
+      "wantError": false
+    },
+    {
+      "from": "frozen",
+      "event": "expire",
+      "to": "expired",
+      "wantError": false
+    },
+    {
+      "from": "frozen",
+      "event": "reverse",
+      "to": "reversed",
+      "wantError": false
+    },
+    {
+      "from": "exhausted",
+      "event": "debit",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "exhaust",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "freeze",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "unfreeze",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "expire",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "exhausted",
+      "event": "reverse",
+      "to": "exhausted",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "debit",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "exhaust",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "freeze",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "unfreeze",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "expire",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "reverse",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "reversed",
+      "event": "debit",
+      "to": "reversed",
+      "wantError": true
+    },
+    {
+      "from": "reversed",
+      "event": "exhaust",
+      "to": "reversed",
+      "wantError": true
+    },
+    {
+      "from": "reversed",
+      "event": "freeze",
+      "to": "reversed",
+      "wantError": true
+    },
+    {
+      "from": "reversed",
+      "event": "unfreeze",
+      "to": "reversed",
+      "wantError": true
+    },
+    {
+      "from": "reversed",
+      "event": "expire",
+      "to": "reversed",
+      "wantError": true
+    },
+    {
+      "from": "reversed",
+      "event": "reverse",
+      "to": "reversed",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "debit_then_exhaust",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "debit",
+          "want": "open",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "exhausted",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "freeze_and_resume",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "exhausted",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "frozen_expiry",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "reversal",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "reverse",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "unfreeze",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "debit",
+          "want": "open",
+          "wantError": false
+        },
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": false
+        },
+        {
+          "event": "freeze",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "reversed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "unfreeze",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "unfreeze",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "debit",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "unfreeze",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "reverse",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "open",
+          "wantError": false
+        },
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "debit",
+          "want": "frozen",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "frozen",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": true
+        },
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "reversed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "frozen",
+          "wantError": true
+        },
+        {
+          "event": "exhaust",
+          "want": "frozen",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_009",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": true
+        },
+        {
+          "event": "unfreeze",
+          "want": "open",
+          "wantError": false
+        },
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_010",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "freeze",
+          "want": "frozen",
+          "wantError": false
+        },
+        {
+          "event": "exhaust",
+          "want": "frozen",
+          "wantError": true
+        },
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": false
+        },
+        {
+          "event": "debit",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_011",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "reverse",
+          "want": "reversed",
+          "wantError": false
+        },
+        {
+          "event": "unfreeze",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "unfreeze",
+          "want": "reversed",
+          "wantError": true
+        },
+        {
+          "event": "unfreeze",
+          "want": "reversed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_012",
+      "initial": "open",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "unfreeze",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "freeze",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "reverse",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "debit",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState",
+    "NoUnavailableDebit"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "open",
+        "frozen",
+        "exhausted",
+        "expired",
+        "reversed"
+      ],
+      "coveredEvents": [
+        "debit",
+        "exhaust",
+        "freeze",
+        "unfreeze",
+        "expire",
+        "reverse"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "open",
+        "frozen",
+        "expired",
+        "reversed"
+      ],
+      "coveredEvents": [
+        "debit",
+        "exhaust",
+        "freeze",
+        "unfreeze",
+        "expire",
+        "reverse"
+      ],
+      "coveredPairs": [
+        "open/debit",
+        "open/freeze",
+        "open/unfreeze",
+        "open/expire",
+        "open/reverse",
+        "frozen/debit",
+        "frozen/exhaust",
+        "frozen/freeze",
+        "frozen/unfreeze",
+        "frozen/expire",
+        "frozen/reverse",
+        "expired/debit",
+        "expired/exhaust",
+        "expired/freeze",
+        "expired/unfreeze",
+        "expired/expire",
+        "expired/reverse",
+        "reversed/debit",
+        "reversed/exhaust",
+        "reversed/freeze",
+        "reversed/unfreeze",
+        "reversed/expire",
+        "reversed/reverse"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

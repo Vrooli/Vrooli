@@ -11,6 +11,22 @@ import (
 // ValidateBrowserProfile Tests
 // =============================================================================
 
+func assertProfileValidation(t *testing.T, err error, wantError bool, wantSubstring string) {
+	t.Helper()
+	if !wantError {
+		if err != nil {
+			t.Errorf("unexpected validation error: %v", err)
+		}
+		return
+	}
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if wantSubstring != "" && !strings.Contains(err.Error(), wantSubstring) {
+		t.Errorf("error %q does not contain %q", err, wantSubstring)
+	}
+}
+
 func TestValidateBrowserProfile_NilProfile(t *testing.T) {
 	t.Parallel()
 
@@ -56,19 +72,7 @@ func TestValidateBrowserProfile_Preset(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bp := &persistence.BrowserProfile{Preset: tc.preset}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Errorf("expected error for preset %q", tc.preset)
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error for preset %q: %v", tc.preset, err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }
@@ -104,19 +108,7 @@ func TestValidateBrowserProfile_Fingerprint_ViewportWidth(t *testing.T) {
 					ViewportWidth: tc.width,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Errorf("expected error for width %d", tc.width)
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error for width %d: %v", tc.width, err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }
@@ -145,19 +137,7 @@ func TestValidateBrowserProfile_Fingerprint_ViewportHeight(t *testing.T) {
 					ViewportHeight: tc.height,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Error("expected error")
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }
@@ -186,13 +166,7 @@ func TestValidateBrowserProfile_Fingerprint_DeviceScaleFactor(t *testing.T) {
 					DeviceScaleFactor: tc.factor,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -234,19 +208,7 @@ func TestValidateBrowserProfile_Fingerprint_Geolocation(t *testing.T) {
 					Longitude: tc.lon,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Error("expected error")
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }
@@ -275,13 +237,7 @@ func TestValidateBrowserProfile_Fingerprint_ColorScheme(t *testing.T) {
 					ColorScheme: tc.scheme,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -320,19 +276,7 @@ func TestValidateBrowserProfile_Behavior_TypingDelay(t *testing.T) {
 					TypingDelayMax: tc.max,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Error("expected error")
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }
@@ -345,8 +289,8 @@ func TestValidateBrowserProfile_Behavior_TypingPasteThreshold(t *testing.T) {
 		threshold int
 		wantErr   bool
 	}{
-		{"always_paste", -1, false},  // -1 = always paste
-		{"always_type", 0, false},    // 0 = always type
+		{"always_paste", -1, false}, // -1 = always paste
+		{"always_type", 0, false},   // 0 = always type
 		{"threshold_100", 100, false},
 		{"at_max", 10000, false},
 		{"below_min", -2, true},
@@ -361,13 +305,7 @@ func TestValidateBrowserProfile_Behavior_TypingPasteThreshold(t *testing.T) {
 					TypingPasteThreshold: tc.threshold,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -395,13 +333,7 @@ func TestValidateBrowserProfile_Behavior_MouseMovementStyle(t *testing.T) {
 					MouseMovementStyle: tc.style,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -428,13 +360,7 @@ func TestValidateBrowserProfile_Behavior_ScrollStyle(t *testing.T) {
 					ScrollStyle: tc.style,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -462,13 +388,7 @@ func TestValidateBrowserProfile_Behavior_MicroPauseFrequency(t *testing.T) {
 					MicroPauseFrequency: tc.freq,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -496,13 +416,7 @@ func TestValidateBrowserProfile_AntiDetection_AdBlockingMode(t *testing.T) {
 					AdBlockingMode: tc.mode,
 				},
 			}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr && err == nil {
-				t.Error("expected error")
-			} else if !tc.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, "")
 		})
 	}
 }
@@ -582,19 +496,7 @@ func TestValidateBrowserProfile_Proxy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bp := &persistence.BrowserProfile{Proxy: tc.proxy}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Error("expected error")
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }
@@ -662,19 +564,7 @@ func TestValidateBrowserProfile_ExtraHeaders(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			bp := &persistence.BrowserProfile{ExtraHeaders: tc.headers}
-			err := ValidateBrowserProfile(bp)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Error("expected error")
-					return
-				}
-				if !strings.Contains(err.Error(), tc.errSubstr) {
-					t.Errorf("expected error containing %q, got: %v", tc.errSubstr, err)
-				}
-			} else if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			assertProfileValidation(t, ValidateBrowserProfile(bp), tc.wantErr, tc.errSubstr)
 		})
 	}
 }

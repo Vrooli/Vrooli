@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.deployment_manager.v1.evidence;
+
+import "buf/validate/validate.proto";
+import "common/v1/evidence.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence;evidencev1";
+
+message ReportTargetVerdictRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string git_commit_hash = 2 [(buf.validate.field).string.min_len = 1];
+  common.v1.TargetVerdict verdict = 3 [(buf.validate.field).required = true];
+}
+
+message ReportTargetVerdictResponse {
+  common.v1.TargetVerdict verdict = 1;
+}
+
+message ListTargetVerdictsRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string git_commit_hash = 2 [(buf.validate.field).string.min_len = 1];
+  int32 page_size = 3 [(buf.validate.field).int32.lte = 1000];
+  string page_token = 4;
+}
+
+message ListTargetVerdictsResponse {
+  repeated common.v1.TargetVerdict verdicts = 1;
+  string next_page_token = 2;
+  // Count is the number of verdicts in this page. It gives evidence consumers
+  // a stable scalar for measures without treating a repeated field as one.
+  int32 count = 3;
+}
+
+message GetEvidenceReviewRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string git_commit_hash = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message EvidenceReview {
+  string profile_id = 1;
+  string git_commit_hash = 2;
+  repeated common.v1.TargetVerdict verdicts = 3;
+  bool ready = 4;
+  string reason = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+service EvidenceService {
+  rpc ReportTargetVerdict(ReportTargetVerdictRequest) returns (ReportTargetVerdictResponse);
+  rpc ListTargetVerdicts(ListTargetVerdictsRequest) returns (ListTargetVerdictsResponse);
+  rpc GetEvidenceReview(GetEvidenceReviewRequest) returns (EvidenceReview);
+}

@@ -4,16 +4,20 @@
   "description": "Product Manager Agent UI",
   "main": "server.js",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
-    "build": "bash -c 'rm -rf dist && mkdir -p dist && cp -R index.html styles.css app.js dist/'",
-    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- node server.js",
+    "build": "node scripts/build.mjs"
   },
-  "keywords": ["product-management", "dashboard", "prioritization"],
+  "keywords": [
+    "product-management",
+    "dashboard",
+    "prioritization"
+  ],
   "author": "Vrooli",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
-  }
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.22.3"
+  },
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-07-21T00:00:00Z",
+  "description": "Merged into architecture-lenses (\u00a75 Domain clarity); read that.",
+  "entry": "SKILL.md",
+  "icon": "minimize2",
+  "id": "domain-clarity",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "steer",
+    "abstraction",
+    "naming",
+    "documentation"
+  ],
+  "name": "Domain Clarity",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 2,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
+}

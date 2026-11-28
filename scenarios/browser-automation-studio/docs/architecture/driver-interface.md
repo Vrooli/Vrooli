@@ -1,10 +1,18 @@
 # Driver Interface Architecture
 
-_Last reviewed: 2026-01-30_
+_Execution ownership reviewed: 2026-09-22_
 
 ## Overview
 
 The browser-automation-studio implements a **pluggable driver architecture** that separates browser drivers (HTTP-based communication layer) from navigators (AI-powered vision navigation). The system uses a layered design with clear separation of concerns.
+
+Workflow execution is owned by `automation/session.GoSession`, which allocates
+lease operation identity and calls `driver.Client.RunInstruction` with one typed
+instruction. Recording and vision navigation use the maintained client interfaces
+below. The unused `automation/driver/playwright` adapter, `claudecode` driver
+stub, and parallel `driver.Driver`/`Session` types are retired; they were absent
+from application wiring and sent an obsolete untyped plural instruction payload.
+Production wiring registers one Playwright navigator; the registry retains discovery and request validation.
 
 ## Architecture Layers
 
@@ -15,7 +23,8 @@ The browser-automation-studio implements a **pluggable driver architecture** tha
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │              VisionNavigationHandler                                 │   │
 │  │  - Extracts X-Client-Source header (ui/cli/api)                     │   │
-│  │  - Validates entitlements via CreditPolicy                          │   │
+│  │  - Checks shared signed-session feature lease                       │   │
+│  │  - AI Gateway owns privacy, source consent, and usage per inference │   │
 │  │  - Delegates to NavigatorRegistry                                   │   │
 │  └───────────────────────────────┬─────────────────────────────────────┘   │
 └──────────────────────────────────┼──────────────────────────────────────────┘
@@ -29,23 +38,23 @@ The browser-automation-studio implements a **pluggable driver architecture** tha
 │  │  - ListNavigators(ctx, source) -> []NavigatorInfo                   │   │
 │  └───────────────────────────────┬─────────────────────────────────────┘   │
 │                                  │                                          │
-│     Selection Priority Order: [Playwright, ClaudeCode, ...]                │
+│     Production Navigator: Playwright                │
 └──────────────────────────────────┼──────────────────────────────────────────┘
                                    │
               ┌────────────────────┴────────────────────┐
               │                                         │
               ▼                                         ▼
 ┌─────────────────────────────────┐   ┌─────────────────────────────────┐
-│  PlaywrightVisionNavigator      │   │  ClaudeCodeVisionNavigator      │
-│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │   │  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│  Status: Available              │   │  Status: Stub (future)          │
-│                                 │   │                                 │
-│  CreditPolicy:                  │   │  CreditPolicy:                  │
-│  - 2 credits/step               │   │  - 0 credits (local)            │
-│  - Bypass: BYOK, Openrouter     │   │  - No bypass needed             │
-│                                 │   │                                 │
-│  ClientSourcePolicy:            │   │  ClientSourcePolicy:            │
-│  - All sources (ui/cli/api)     │   │  - CLI only                     │
+│  PlaywrightVisionNavigator      │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│  Status: Available              │
+│                                 │
+│  CreditPolicy:                  │
+│  - Meter display only           │
+│  - No fixed local charge        │
+│                                 │
+│  ClientSourcePolicy:            │
+│  - All sources (ui/cli/api)     │
 │                                 │   │                                 │
 │  Transport: HTTP                │   │  Transport: CLI subprocess      │
 └────────────────┬────────────────┘   └─────────────────────────────────┘
@@ -86,6 +95,16 @@ The browser-automation-studio implements a **pluggable driver architecture** tha
 ```
 
 ## Interface Definitions
+
+### Target-owned application attachment
+
+Cross-platform validation uses one `AppTarget` descriptor. Its `target_kind`
+selects an admitted-URL policy (`electron` or `android-webview`); BAS attaches
+to the target-owned renderer and never launches the application or opens a
+debugging port. The executor calls the resolver seam for every scenario
+navigation, so adding a WebView kind does not create a parallel target field.
+The attach also requires the matching immutable `ValidationContext` and
+isolation lease.
 
 ### VisionNavigator Interface
 
@@ -158,17 +177,9 @@ type ClientInterface interface {
 │                        CreditPolicy                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  RequiresCredits:  bool                                         │
-│  OperationType:    credits.OperationType                        │
 │  PerStepCharging:  bool                                         │
 │  CreditsPerStep:   int                                          │
-│  BypassConditions: []BypassCondition                            │
-│                                                                  │
-│  Bypass Types:                                                   │
-│  ┌──────────────────────┐                                       │
-│  │ - BypassBYOK         │ <- User brings their own API key      │
-│  │ - BypassOpenrouter   │ <- Using openrouter resource          │
-│  │ - BypassLocalExec    │ <- Local-only execution               │
-│  └──────────────────────┘                                       │
+│  Gateway owns authorization, source policy, and usage accounting │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -223,7 +234,7 @@ The system provides two distinct approaches to browser automation that share the
 │  │  Uses:                       │    │  NavigatorRegistry          │    │
 │  │  - Record Mode Handler       │    │         |                    │    │
 │  │  - Live Capture Service      │    │  PlaywrightVisionNavigator  │    │
-│  │  - WebSocket Hub             │    │  or ClaudeCodeNavigator     │    │
+│  │  - WebSocket Hub             │    │  PlaywrightVisionNavigator  │    │
 │  │  - driver.Client             │    │         |                    │    │
 │  │                              │    │  driver.Client               │    │
 │  │                              │    │                              │    │
@@ -299,11 +310,10 @@ NavigatorRegistry.SelectNavigator()
 │ Available Navigators            │
 ├─────────────────────────────────┤
 │ PlaywrightVisionNavigator       │ (http -> playwright-driver)
-│ ClaudeCodeVisionNavigator       │ (cli -> claude --chrome)
 └─────────────────────────────────┘
     |
     v
-CreditPolicy validation
+Shared feature gate; Gateway validates source/privacy and reserves usage
     |
     v
 Navigator.Navigate(request)
@@ -331,7 +341,6 @@ Response -> SessionID, NavigationHandle
 | **Interface** | [CODE: api/services/vision/navigator.go] | VisionNavigator interface |
 | **Registry** | [CODE: api/services/vision/registry.go] | Navigator selection logic |
 | **Impl** | [CODE: api/services/vision/playwright_navigator.go] | Playwright implementation |
-| **Impl** | [CODE: api/services/vision/claudecode_navigator.go] | Claude Code stub |
 | **Policy** | [CODE: api/services/vision/policy.go] | Credit & source policies |
 | **Driver** | [CODE: api/automation/driver/client.go] | HTTP client to playwright-driver |
 | **Handler** | [CODE: api/handlers/ai/vision_navigation.go] | HTTP handler integration |
@@ -342,4 +351,5 @@ Response -> SessionID, NavigationHandle
 - [DOC: docs/architecture/recording.md] - Manual recording architecture
 - [DOC: docs/architecture/ai-navigation.md] - AI navigation architecture
 - [DOC: docs/architecture/execution.md] - Workflow execution architecture
-- [DOC: docs/SYSTEM_ARCHITECTURE.md] - Complete system overview
+- [DOC: docs/concepts/ARCHITECTURE.md] - Authoritative architecture map
+- [DOC: docs/SYSTEM_ARCHITECTURE.md] - Architecture navigation index

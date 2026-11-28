@@ -76,6 +76,7 @@ export const useResourcesCatalog = ({ sort = 'status' }: { sort?: ResourceSortOp
   const resources = useResourcesStore(state => state.resources);
   const loading = useResourcesStore(state => state.loading);
   const error = useResourcesStore(state => state.error);
+  const loadError = useResourcesStore(state => state.loadError);
   const loadResources = useResourcesStore(state => state.loadResources);
   const startResource = useResourcesStore(state => state.startResource);
   const stopResource = useResourcesStore(state => state.stopResource);
@@ -87,6 +88,7 @@ export const useResourcesCatalog = ({ sort = 'status' }: { sort?: ResourceSortOp
     sortedResources,
     loading,
     error,
+    loadError,
     loadResources,
     startResource,
     stopResource,

@@ -1,0 +1,14 @@
+.cc-setpoint-target {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.25rem;
+  color: var(--color-foreground);
+  font: 500 var(--text-micro) var(--font-mono);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.cc-hero .cc-setpoint-target {
+  margin-top: 0.45rem;
+  font-size: var(--text-label-size);
+}

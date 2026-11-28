@@ -1,0 +1,23 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "local-inference-maturity-supervisor",
+  "displayName": "local-inference-maturity-supervisor",
+  "description": "Independent scoped supervision of effort:local-inference-maturity only; daily trends and event audits, no product implementation or epoch acceptance.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "supervision",
+    "local-inference"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-11-11T06:41:17Z",
+  "updatedAt": "2026-11-11T06:41:17Z"
+}

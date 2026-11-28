@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "converge-a-single-passage",
+    "title": "Converge one passage without ranking by taste",
+    "purpose": "The core interaction in isolation: read a candidate set on its measurements, pin what works, reject what does not, reroll conditioned against both, and commit. Rejection is the more informative signal because it narrows away from what was wrong rather than toward what was familiar.",
+    "prd_refs": [
+      "OT-P0-012",
+      "OT-P0-013",
+      "OT-P0-018"
+    ]
+  },
+  "steps": [
+    {
+      "page": "variation-board",
+      "state": "default",
+      "intent": "Read the set on measurement chips, with no score and no quality ordering to anchor on",
+      "via": "measurement-chips"
+    },
+    {
+      "page": "variation-board",
+      "state": "partial-ineligible",
+      "intent": "See ineligible candidates retained with their named reason rather than hidden",
+      "via": "ineligibility-reason"
+    },
+    {
+      "page": "variation-board",
+      "state": "default",
+      "intent": "Pin, reject, or take none-of-these to reroll the whole set against what was rejected",
+      "via": "none-of-these-action"
+    }
+  ]
+}

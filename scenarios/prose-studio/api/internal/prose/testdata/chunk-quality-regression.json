@@ -1,0 +1,496 @@
+{
+  "source_document_id": "7625de94-f3dc-447f-8bd4-a4285380d8d8",
+  "source_kind": "failed-synthetic-book-quality-regression",
+  "brief": {
+    "schema_version": "book-brief/v1",
+    "title": "The Corner Sound Fieldnote",
+    "creative_direction": "Contemporary editorial field guide, warm paper, ink-blue type, one restrained copper accent, generous quiet space, clear typographic hierarchy, and a single precise diagram concept showing near/mid/far listening bands around an ordinary corner. Specific and award-worthy without copying any previously shown book.",
+    "audience": "Adult city walkers who want a precise, humane way to notice one familiar street corner.",
+    "reader_promise": "Teach one repeatable practice for listening to a city corner, recording audible layers, and distinguishing direct observation from guesses about sources.",
+    "structure": "A single 550-word chapter with a vivid but modest opening moment, a practical listening sequence, one field-card exercise, and a compact ending. It should read as an authored miniature field guide, not generic filler or a list padded to a word target.",
+    "chapter_intent": [
+      "One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound."
+    ],
+    "additional_direction": "Precise, vivid, humane, quietly distinctive prose. No species identification or sourced facts, wellness promises, invented personal stories, external assets, or decorative padding. Preserve uncertainty.",
+    "production_metadata": {
+      "subtitle": "A One-Chapter Practice for Noticing City Sound",
+      "language": "en",
+      "trim_width_in": 6,
+      "trim_height_in": 9,
+      "margin_in": 0.625,
+      "content_origin": "Synthetic technical input authored for CBT4; no user source material.",
+      "generated_with_ai": true
+    }
+  },
+  "section": {
+    "id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+    "position": 0,
+    "kind": "chapter",
+    "intent": "One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound.",
+    "summary": "Write this chapter in the requested book structure and advance the reader promise.",
+    "target_words": 550
+  },
+  "parts": [
+    {
+      "id": "ff3800da-c840-46cf-b567-1bee26e95ecf",
+      "prompt_sha256": "ea6f038f5c8a57868af74da1195cb0fd22039e4b56d177a20c2f359dd26824e5",
+      "provider": "ollama",
+      "model": "gemma4:12b",
+      "locality": "local_only",
+      "input_tokens": 912,
+      "output_tokens": 103,
+      "text": "Stop at the corner of Fourth and Main. Stand still until your feet stop shifting against the pavement. Close your eyes to mute the visual noise of traffic lights and storefront signs. Listen to the city as a builder constructs a wall, layer by layer. The first sound is not a single car or a distant siren; it is the broad, textured bed of the street. It is the low hum of ventilationed buildings and the constant friction of tires against asphalt that forms the foundation of your immediate acoustic space."
+    },
+    {
+      "id": "e94d1125-d64e-40de-bf94-f39f2d1160fe",
+      "prompt_sha256": "f5240ab556c6080599a10237d6f5121f862cb87cc301784be8a3765ddbadc8ad",
+      "provider": "ollama",
+      "model": "gemma4:12b",
+      "locality": "local_only",
+      "input_tokens": 941,
+      "output_tokens": 113,
+      "text": "Stand still at the intersection where the brickwork meets the pavement. Close your eyes to isolate what reaches you. First, capture the broad sound bed—the steady hum of the city that forms a continuous floor of noise. Next, shift focus to define the layers: identify sounds in the near field, such as footsteps on grit, and those in the far field, like a distant siren. Finally, wait sixty seconds and note one single change. Record these shifts without naming their sources. Document only what you hear: its pitch, rhythm, and proximity."
+    },
+    {
+      "id": "cdf558fe-e35e-4cad-ab40-aecbea2f7587",
+      "prompt_sha256": "b76f1d9ef5c8bf3c86b7568cf5426f05928c37d4b9bf2c5c3fa56668e901b991",
+      "provider": "ollama",
+      "model": "gemma4:12b",
+      "locality": "local_only",
+      "input_tokens": 956,
+      "output_tokens": 122,
+      "text": "Stand still at the corner. Close your eyes and listen for three distinct passes. First, capture the broad sound bed—the low hum of tires on pavement or the distant drone of a cooling fan. Next, narrow your focus to mid-range layers: a heavy door closing nearby or footsteps striking concrete. Finally, isolate the furthest echoes that drift from blocks away. Record these sounds as they occur without guessing their source. Document only what you hear; do not label a chirp as a bird or a thrum as an engine. Note the qualities of the sound and the degree of your own uncertainty."
+    },
+    {
+      "id": "4131bace-5e2f-4866-b378-0ba0d52718da",
+      "prompt_sha256": "ed5d03fd3bdb02caa9adbea3f83a7a169dc4df4fbd7adfa7a69f5d1befdef02d",
+      "provider": "ollama",
+      "model": "gemma4:12b",
+      "locality": "local_only",
+      "input_tokens": 971,
+      "output_tokens": 106,
+      "text": "Carry a small card to document your findings. Record the time and your precise position on the sidewalk. Note the audible qualities of each layer—the texture of the hum, the rhythm of the distant pulse, or the sharp crack of a nearby strike. Most importantly, mark the level of uncertainty for every entry. Do not guess at the source; if you cannot identify the origin, note it as an unknown presence. This practice builds a map of what is actually present in the air rather than what you assume is there."
+    },
+    {
+      "id": "01d7b895-b6b1-4b26-97a5-dd467a13fca9",
+      "prompt_sha256": "3ba5b909ffe3063f965ed1859ace77efd6576fd229867f28ee3f8ef400edc99d",
+      "provider": "ollama",
+      "model": "gemma4:12b",
+      "locality": "local_only",
+      "input_tokens": 987,
+      "output_tokens": 105,
+      "text": "Record the qualities of each sound without guessing its origin. A thrum may come from a distant HVAC unit, or it might be the vibration of a nearby cooling fan; do not decide. Note only the pitch, rhythm, and distance. If a siren wails, record its movement through the space rather than identifying the vehicle type. Honor the gap between what you hear and what you assume. Your notes should reflect the evidence of your ears alone. Trust the data of your proximity over the narrative of your imagination."
+    },
+    {
+      "id": "54877dd8-68d9-47ff-8d84-d6eea630af80",
+      "prompt_sha256": "76fcbdffdc894a0485886ef5a8dbce9aba8def749717e7c88b090bad4b9e04dd",
+      "provider": "ollama",
+      "model": "gemma4:12b",
+      "locality": "local_only",
+      "input_tokens": 1005,
+      "output_tokens": 103,
+      "text": "By documenting the layers of a single street corner, you move beyond hearing as a passive state. This practice builds a foundation for intentional observation. You no longer simply encounter noise; you map an acoustic environment with precision. Your notes become evidence of a specific moment in time, capturing both the clarity of the nearby and the ghosts of the distant. This discipline transforms the city into a textured landscape. Carry this habit into your next walk to refine your focus on what remains hidden beneath the surface of every familiar intersection."
+    }
+  ],
+  "document": {
+    "id": "7625de94-f3dc-447f-8bd4-a4285380d8d8",
+    "book_brief": {
+      "schema_version": "book-brief/v1",
+      "title": "The Corner Sound Fieldnote",
+      "creative_direction": "Contemporary editorial field guide, warm paper, ink-blue type, one restrained copper accent, generous quiet space, clear typographic hierarchy, and a single precise diagram concept showing near/mid/far listening bands around an ordinary corner. Specific and award-worthy without copying any previously shown book.",
+      "audience": "Adult city walkers who want a precise, humane way to notice one familiar street corner.",
+      "reader_promise": "Teach one repeatable practice for listening to a city corner, recording audible layers, and distinguishing direct observation from guesses about sources.",
+      "structure": "A single 550-word chapter with a vivid but modest opening moment, a practical listening sequence, one field-card exercise, and a compact ending. It should read as an authored miniature field guide, not generic filler or a list padded to a word target.",
+      "chapter_intent": [
+        "One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound."
+      ],
+      "additional_direction": "Precise, vivid, humane, quietly distinctive prose. No species identification or sourced facts, wellness promises, invented personal stories, external assets, or decorative padding. Preserve uncertainty.",
+      "production_metadata": {
+        "subtitle": "A One-Chapter Practice for Noticing City Sound",
+        "language": "en",
+        "trim_width_in": 6,
+        "trim_height_in": 9,
+        "margin_in": 0.625,
+        "content_origin": "Synthetic technical input authored for CBT4; no user source material.",
+        "generated_with_ai": true
+      }
+    },
+    "title": "The Corner Sound Fieldnote",
+    "profile_key": "prose-studio/book-manuscript-local",
+    "outline_profile_key": "prose-studio/book-manuscript-local",
+    "style_key": "prose-studio/blog",
+    "outline_text": "[{\"intent\":\"One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound.\",\"summary\":\"Write this chapter in the requested book structure and advance the reader promise.\",\"target_words\":550,\"kind\":\"chapter\"}]",
+    "outline": [
+      {
+        "intent": "One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound.",
+        "summary": "Write this chapter in the requested book structure and advance the reader promise.",
+        "target_words": 550,
+        "kind": "chapter"
+      }
+    ],
+    "outline_profile_version": "prose-studio/book-manuscript-local@10",
+    "section_count": 1,
+    "section_profile_version": "prose-studio/book-manuscript-local@10",
+    "section_ids": [
+      "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f"
+    ],
+    "status": "assembled",
+    "assembled_text": "Stop at the corner of Fourth and Main. Stand still until your feet stop shifting against the pavement. Close your eyes to mute the visual noise of traffic lights and storefront signs. Listen to the city as a builder constructs a wall, layer by layer. The first sound is not a single car or a distant siren; it is the broad, textured bed of the street. It is the low hum of ventilationed buildings and the constant friction of tires against asphalt that forms the foundation of your immediate acoustic space.\n\nStand still at the intersection where the brickwork meets the pavement. Close your eyes to isolate what reaches you. First, capture the broad sound bed—the steady hum of the city that forms a continuous floor of noise. Next, shift focus to define the layers: identify sounds in the near field, such as footsteps on grit, and those in the far field, like a distant siren. Finally, wait sixty seconds and note one single change. Record these shifts without naming their sources. Document only what you hear: its pitch, rhythm, and proximity.\n\nStand still at the corner. Close your eyes and listen for three distinct passes. First, capture the broad sound bed—the low hum of tires on pavement or the distant drone of a cooling fan. Next, narrow your focus to mid-range layers: a heavy door closing nearby or footsteps striking concrete. Finally, isolate the furthest echoes that drift from blocks away. Record these sounds as they occur without guessing their source. Document only what you hear; do not label a chirp as a bird or a thrum as an engine. Note the qualities of the sound and the degree of your own uncertainty.\n\nCarry a small card to document your findings. Record the time and your precise position on the sidewalk. Note the audible qualities of each layer—the texture of the hum, the rhythm of the distant pulse, or the sharp crack of a nearby strike. Most importantly, mark the level of uncertainty for every entry. Do not guess at the source; if you cannot identify the origin, note it as an unknown presence. This practice builds a map of what is actually present in the air rather than what you assume is there.\n\nRecord the qualities of each sound without guessing its origin. A thrum may come from a distant HVAC unit, or it might be the vibration of a nearby cooling fan; do not decide. Note only the pitch, rhythm, and distance. If a siren wails, record its movement through the space rather than identifying the vehicle type. Honor the gap between what you hear and what you assume. Your notes should reflect the evidence of your ears alone. Trust the data of your proximity over the narrative of your imagination.\n\nBy documenting the layers of a single street corner, you move beyond hearing as a passive state. This practice builds a foundation for intentional observation. You no longer simply encounter noise; you map an acoustic environment with precision. Your notes become evidence of a specific moment in time, capturing both the clarity of the nearby and the ghosts of the distant. This discipline transforms the city into a textured landscape. Carry this habit into your next walk to refine your focus on what remains hidden beneath the surface of every familiar intersection.",
+    "coherence": {
+      "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text",
+      "cross_section_repetition": 0,
+      "semantic_measured": false,
+      "semantic_unavailable": "semantic_section_repetition_requires_two_sections",
+      "style_drift": 0,
+      "thresholds": {},
+      "verdict": {
+        "coherent": true,
+        "cross_section_repetition": true,
+        "semantic_section_repetition": true,
+        "style_drift": true
+      }
+    },
+    "sections": [
+      {
+        "id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+        "document_id": "7625de94-f3dc-447f-8bd4-a4285380d8d8",
+        "position": 0,
+        "intent": "One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound.",
+        "summary": "Write this chapter in the requested book structure and advance the reader promise.",
+        "target_words": 550,
+        "profile_key": "prose-studio/book-manuscript-local",
+        "session_id": "2e06627a-1d75-4ff0-9831-9ee223715046",
+        "committed_candidate_id": "ed2754fe-bbf4-49ec-9c3e-9904e05e1ab6",
+        "context_snapshot": {
+          "outline_text": "[{\"intent\":\"One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound.\",\"summary\":\"Write this chapter in the requested book structure and advance the reader promise.\",\"target_words\":550,\"kind\":\"chapter\"}]",
+          "estimated_tokens": 0
+        },
+        "generation_run": {
+          "date": "2026-11-24T22:36:44Z",
+          "model": "gemma4:12b",
+          "prompt_sha256": "19969c7c5bb4a4946c82335813f0339d22842e0ff423a095e8b629de9565f0f6",
+          "output_sha256": "eb090db0a287c8dca1f2d3cef746e36f55b8e5b419a4ba83bcf2fbe0bb8d1dc8",
+          "provider": "ollama",
+          "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+          "candidate_id": "ed2754fe-bbf4-49ec-9c3e-9904e05e1ab6",
+          "purpose": "canonical assembled manuscript section",
+          "word_count": 560,
+          "input_tokens": 5772,
+          "output_tokens": 652
+        },
+        "part_generation_runs": [
+          {
+            "date": "2026-11-24T22:36:44Z",
+            "model": "gemma4:12b",
+            "prompt_sha256": "ea6f038f5c8a57868af74da1195cb0fd22039e4b56d177a20c2f359dd26824e5",
+            "output_sha256": "213aa406573d332caf07ec8d60261774654631007b6f33c0d09b29e2109c529e",
+            "provider": "ollama",
+            "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+            "candidate_id": "ff3800da-c840-46cf-b567-1bee26e95ecf",
+            "part_index": 1,
+            "purpose": "Open with a specific, modest observation that makes this chapter's exact intent tangible.",
+            "word_count": 91,
+            "input_tokens": 912,
+            "output_tokens": 103
+          },
+          {
+            "date": "2026-11-24T22:36:44Z",
+            "model": "gemma4:12b",
+            "prompt_sha256": "f5240ab556c6080599a10237d6f5121f862cb87cc301784be8a3765ddbadc8ad",
+            "output_sha256": "07fd309512ea224ffc7b259b432ec6820fe78e4900c243f9b6e727837327475c",
+            "provider": "ollama",
+            "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+            "candidate_id": "e94d1125-d64e-40de-bf94-f39f2d1160fe",
+            "part_index": 2,
+            "purpose": "Explain the listening practice or idea named by this chapter for the stated audience.",
+            "word_count": 92,
+            "input_tokens": 941,
+            "output_tokens": 113
+          },
+          {
+            "date": "2026-11-24T22:36:44Z",
+            "model": "gemma4:12b",
+            "prompt_sha256": "b76f1d9ef5c8bf3c86b7568cf5426f05928c37d4b9bf2c5c3fa56668e901b991",
+            "output_sha256": "12fc203430cb261381aead96ebd143b2be9d33411462ac58a2a65e025c0700a6",
+            "provider": "ollama",
+            "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+            "candidate_id": "cdf558fe-e35e-4cad-ab40-aecbea2f7587",
+            "part_index": 3,
+            "purpose": "Develop a distinct sequence of attention or action that advances the reader promise.",
+            "word_count": 104,
+            "input_tokens": 956,
+            "output_tokens": 122
+          },
+          {
+            "date": "2026-11-24T22:36:44Z",
+            "model": "gemma4:12b",
+            "prompt_sha256": "ed5d03fd3bdb02caa9adbea3f83a7a169dc4df4fbd7adfa7a69f5d1befdef02d",
+            "output_sha256": "767d128c15949d354e10c72d3bfd2efb1e0dbb6815ff4ac9b9b2d462805d1081",
+            "provider": "ollama",
+            "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+            "candidate_id": "4131bace-5e2f-4866-b378-0ba0d52718da",
+            "part_index": 4,
+            "purpose": "Give a concrete field prompt or example that belongs to this chapter alone.",
+            "word_count": 92,
+            "input_tokens": 971,
+            "output_tokens": 106
+          },
+          {
+            "date": "2026-11-24T22:36:44Z",
+            "model": "gemma4:12b",
+            "prompt_sha256": "3ba5b909ffe3063f965ed1859ace77efd6576fd229867f28ee3f8ef400edc99d",
+            "output_sha256": "6691bea6699649fa7ab19406254ab3776cdd131345b642bbb1a161f6646919cc",
+            "provider": "ollama",
+            "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+            "candidate_id": "01d7b895-b6b1-4b26-97a5-dd467a13fca9",
+            "part_index": 5,
+            "purpose": "State the observation's limits and uncertainty without unsupported source or species claims.",
+            "word_count": 89,
+            "input_tokens": 987,
+            "output_tokens": 105
+          },
+          {
+            "date": "2026-11-24T22:36:44Z",
+            "model": "gemma4:12b",
+            "prompt_sha256": "76fcbdffdc894a0485886ef5a8dbce9aba8def749717e7c88b090bad4b9e04dd",
+            "output_sha256": "dd09bf6642d5e86d30906b2adadf4d3f7801581c08e2ddba54af2ce7ed453238",
+            "provider": "ollama",
+            "section_id": "3946940b-b7bc-496d-8d8d-ae5e1e0c0b1f",
+            "candidate_id": "54877dd8-68d9-47ff-8d84-d6eea630af80",
+            "part_index": 6,
+            "purpose": "Synthesize this chapter's unique contribution and connect forward without recapping prior parts.",
+            "word_count": 92,
+            "input_tokens": 1005,
+            "output_tokens": 103
+          }
+        ],
+        "kind": "chapter"
+      }
+    ],
+    "created_at": "2026-11-24T22:36:26.730095653Z",
+    "document_provenance": {
+      "section_count": 1,
+      "word_count": 560,
+      "total_cost_micros": 0,
+      "input_tokens": 5772,
+      "output_tokens": 652,
+      "providers": [
+        "ollama"
+      ],
+      "models": [
+        "gemma4:12b"
+      ]
+    }
+  },
+  "canonical_candidate": {
+    "id": "ed2754fe-bbf4-49ec-9c3e-9904e05e1ab6",
+    "round_id": "512fea8d-6b27-41f6-b398-0d28cb87ab8d",
+    "derived_from": [
+      "ff3800da-c840-46cf-b567-1bee26e95ecf",
+      "e94d1125-d64e-40de-bf94-f39f2d1160fe",
+      "cdf558fe-e35e-4cad-ab40-aecbea2f7587",
+      "4131bace-5e2f-4866-b378-0ba0d52718da",
+      "01d7b895-b6b1-4b26-97a5-dd467a13fca9",
+      "54877dd8-68d9-47ff-8d84-d6eea630af80"
+    ],
+    "text": "Stop at the corner of Fourth and Main. Stand still until your feet stop shifting against the pavement. Close your eyes to mute the visual noise of traffic lights and storefront signs. Listen to the city as a builder constructs a wall, layer by layer. The first sound is not a single car or a distant siren; it is the broad, textured bed of the street. It is the low hum of ventilationed buildings and the constant friction of tires against asphalt that forms the foundation of your immediate acoustic space.\n\nStand still at the intersection where the brickwork meets the pavement. Close your eyes to isolate what reaches you. First, capture the broad sound bed—the steady hum of the city that forms a continuous floor of noise. Next, shift focus to define the layers: identify sounds in the near field, such as footsteps on grit, and those in the far field, like a distant siren. Finally, wait sixty seconds and note one single change. Record these shifts without naming their sources. Document only what you hear: its pitch, rhythm, and proximity.\n\nStand still at the corner. Close your eyes and listen for three distinct passes. First, capture the broad sound bed—the low hum of tires on pavement or the distant drone of a cooling fan. Next, narrow your focus to mid-range layers: a heavy door closing nearby or footsteps striking concrete. Finally, isolate the furthest echoes that drift from blocks away. Record these sounds as they occur without guessing their source. Document only what you hear; do not label a chirp as a bird or a thrum as an engine. Note the qualities of the sound and the degree of your own uncertainty.\n\nCarry a small card to document your findings. Record the time and your precise position on the sidewalk. Note the audible qualities of each layer—the texture of the hum, the rhythm of the distant pulse, or the sharp crack of a nearby strike. Most importantly, mark the level of uncertainty for every entry. Do not guess at the source; if you cannot identify the origin, note it as an unknown presence. This practice builds a map of what is actually present in the air rather than what you assume is there.\n\nRecord the qualities of each sound without guessing its origin. A thrum may come from a distant HVAC unit, or it might be the vibration of a nearby cooling fan; do not decide. Note only the pitch, rhythm, and distance. If a siren wails, record its movement through the space rather than identifying the vehicle type. Honor the gap between what you hear and what you assume. Your notes should reflect the evidence of your ears alone. Trust the data of your proximity over the narrative of your imagination.\n\nBy documenting the layers of a single street corner, you move beyond hearing as a passive state. This practice builds a foundation for intentional observation. You no longer simply encounter noise; you map an acoustic environment with precision. Your notes become evidence of a specific moment in time, capturing both the clarity of the nearby and the ghosts of the distant. This discipline transforms the city into a textured landscape. Carry this habit into your next walk to refine your focus on what remains hidden beneath the surface of every familiar intersection.",
+    "set_index": 0,
+    "measurements": {
+      "byte_length": 3222,
+      "word_count": 560,
+      "sentence_count": 40,
+      "sentence_lengths": [
+        30,
+        53,
+        66,
+        52,
+        77,
+        130,
+        60,
+        36,
+        81,
+        118,
+        45,
+        42,
+        49,
+        21,
+        44,
+        84,
+        85,
+        54,
+        54,
+        64,
+        58,
+        37,
+        48,
+        108,
+        53,
+        74,
+        83,
+        53,
+        86,
+        33,
+        80,
+        45,
+        48,
+        60,
+        78,
+        54,
+        71,
+        104,
+        53,
+        110
+      ],
+      "compression_ratio": 0.44227188081936686,
+      "self_repetition": 0.16815742397137745,
+      "rouge_l_homogenize": 0,
+      "distinct_n": {
+        "n1": 0.44821428571428573,
+        "n2": 0.8318425760286225,
+        "n3": 0.9480286738351255
+      },
+      "burstiness": 611.999375,
+      "readability": {
+        "flesch_kincaid": 7.064285714285717,
+        "dale_chall": 7.743507142857144,
+        "gunning_fog": 9.671428571428573
+      },
+      "type_token_ratio": 0.44821428571428573,
+      "mattr": 0.8135812133072388,
+      "lexicon_flags": null
+    },
+    "set_measurements": {
+      "candidate_count": 1,
+      "pairwise_similarity": null,
+      "mean_similarity": 0,
+      "diversity": 0,
+      "coverage": 0,
+      "basis": "composed from persisted local section parts"
+    },
+    "provenance": {
+      "profile_version": "prose-studio/book-manuscript-local@10",
+      "locality": "local_only",
+      "privacy_class": "CONFIDENTIAL",
+      "privacy_source": "prose_studio.private_editorial_content",
+      "style_versions": [
+        "prose-studio/blog@85"
+      ],
+      "strategy": "book_section_chunked",
+      "strategy_parameters": {
+        "kind": "direct",
+        "k": 1,
+        "tau": 0,
+        "temperature_stance": "ignored",
+        "max_output_tokens": 2048
+      },
+      "provider": "ollama",
+      "resolved_model_ref": "gemma4:12b",
+      "prompt_sha256": "19969c7c5bb4a4946c82335813f0339d22842e0ff423a095e8b629de9565f0f6",
+      "gateway_role": "write.default",
+      "temperature_sent": 0.9,
+      "temperature_support": "SAMPLING_SUPPORT_HONORED",
+      "max_output_tokens_effective": 2048,
+      "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST",
+      "input_tokens": 5772,
+      "output_tokens": 652,
+      "cost_micros": 0,
+      "machine_generated": true,
+      "disclosure": "machine_generated",
+      "context_snapshot": {
+        "estimated_tokens": 804
+      }
+    },
+    "eligibility": {
+      "eligible": true
+    },
+    "section_assembly": {
+      "schema_version": "book-section-chunks/v1",
+      "kind": "chapter",
+      "intent": "One Corner, Three Listening Passes — guide the reader to listen first for the broad sound bed, then for nearer and farther layers, then for one change across a short interval; offer a field card with time, position, audible qualities, and uncertainty. Do not claim what species or source produced a sound.",
+      "min_words": 440,
+      "max_words": 660,
+      "word_count": 560,
+      "parts": [
+        {
+          "index": 1,
+          "purpose": "Open with a specific, modest observation that makes this chapter's exact intent tangible.",
+          "candidate_id": "ff3800da-c840-46cf-b567-1bee26e95ecf",
+          "provider": "ollama",
+          "model": "gemma4:12b",
+          "locality": "local_only",
+          "word_count": 91,
+          "input_tokens": 912,
+          "output_tokens": 103,
+          "prompt_sha256": "ea6f038f5c8a57868af74da1195cb0fd22039e4b56d177a20c2f359dd26824e5",
+          "output_sha256": "213aa406573d332caf07ec8d60261774654631007b6f33c0d09b29e2109c529e"
+        },
+        {
+          "index": 2,
+          "purpose": "Explain the listening practice or idea named by this chapter for the stated audience.",
+          "candidate_id": "e94d1125-d64e-40de-bf94-f39f2d1160fe",
+          "provider": "ollama",
+          "model": "gemma4:12b",
+          "locality": "local_only",
+          "word_count": 92,
+          "input_tokens": 941,
+          "output_tokens": 113,
+          "prompt_sha256": "f5240ab556c6080599a10237d6f5121f862cb87cc301784be8a3765ddbadc8ad",
+          "output_sha256": "07fd309512ea224ffc7b259b432ec6820fe78e4900c243f9b6e727837327475c"
+        },
+        {
+          "index": 3,
+          "purpose": "Develop a distinct sequence of attention or action that advances the reader promise.",
+          "candidate_id": "cdf558fe-e35e-4cad-ab40-aecbea2f7587",
+          "provider": "ollama",
+          "model": "gemma4:12b",
+          "locality": "local_only",
+          "word_count": 104,
+          "input_tokens": 956,
+          "output_tokens": 122,
+          "prompt_sha256": "b76f1d9ef5c8bf3c86b7568cf5426f05928c37d4b9bf2c5c3fa56668e901b991",
+          "output_sha256": "12fc203430cb261381aead96ebd143b2be9d33411462ac58a2a65e025c0700a6"
+        },
+        {
+          "index": 4,
+          "purpose": "Give a concrete field prompt or example that belongs to this chapter alone.",
+          "candidate_id": "4131bace-5e2f-4866-b378-0ba0d52718da",
+          "provider": "ollama",
+          "model": "gemma4:12b",
+          "locality": "local_only",
+          "word_count": 92,
+          "input_tokens": 971,
+          "output_tokens": 106,
+          "prompt_sha256": "ed5d03fd3bdb02caa9adbea3f83a7a169dc4df4fbd7adfa7a69f5d1befdef02d",
+          "output_sha256": "767d128c15949d354e10c72d3bfd2efb1e0dbb6815ff4ac9b9b2d462805d1081"
+        },
+        {
+          "index": 5,
+          "purpose": "State the observation's limits and uncertainty without unsupported source or species claims.",
+          "candidate_id": "01d7b895-b6b1-4b26-97a5-dd467a13fca9",
+          "provider": "ollama",
+          "model": "gemma4:12b",
+          "locality": "local_only",
+          "word_count": 89,
+          "input_tokens": 987,
+          "output_tokens": 105,
+          "prompt_sha256": "3ba5b909ffe3063f965ed1859ace77efd6576fd229867f28ee3f8ef400edc99d",
+          "output_sha256": "6691bea6699649fa7ab19406254ab3776cdd131345b642bbb1a161f6646919cc"
+        },
+        {
+          "index": 6,
+          "purpose": "Synthesize this chapter's unique contribution and connect forward without recapping prior parts.",
+          "candidate_id": "54877dd8-68d9-47ff-8d84-d6eea630af80",
+          "provider": "ollama",
+          "model": "gemma4:12b",
+          "locality": "local_only",
+          "word_count": 92,
+          "input_tokens": 1005,
+          "output_tokens": 103,
+          "prompt_sha256": "76fcbdffdc894a0485886ef5a8dbce9aba8def749717e7c88b090bad4b9e04dd",
+          "output_sha256": "dd09bf6642d5e86d30906b2adadf4d3f7801581c08e2ddba54af2ce7ed453238"
+        }
+      ]
+    },
+    "committed": true
+  }
+}

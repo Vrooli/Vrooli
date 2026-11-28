@@ -78,6 +78,48 @@ func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.Requi
 	}
 }
 
+func TestSyncerHonorsIndexAndModuleAutoSyncOptOut(t *testing.T) {
+	falseValue := false
+	for _, tc := range []struct {
+		name         string
+		indexOptOut  bool
+		moduleOptOut bool
+		wantChanged  int
+	}{
+		{name: "index opt-out", indexOptOut: true, wantChanged: 0},
+		{name: "module opt-out", moduleOptOut: true, wantChanged: 0},
+		{name: "enabled by default", wantChanged: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			index := parsing.NewModuleIndex()
+			if tc.indexOptOut {
+				mustAddModule(t, index, &types.RequirementModule{FilePath: "/req/index.json", RelativePath: "index.json", IsIndex: true, Metadata: types.ModuleMetadata{AutoSyncEnabled: &falseValue}})
+			}
+			autoSync := (*bool)(nil)
+			if tc.moduleOptOut {
+				autoSync = &falseValue
+			}
+			module := &types.RequirementModule{FilePath: "/req/module.json", Metadata: types.ModuleMetadata{AutoSyncEnabled: autoSync}, Requirements: []types.Requirement{{
+				ID: "REQ-001", Status: types.StatusInProgress, Validations: []types.Validation{{Type: types.ValTypeTest, Ref: "test.go", Status: types.ValStatusPlanned, LiveStatus: types.LivePassed}},
+			}}}
+			mustAddModule(t, index, module)
+			writer := newMemWriter()
+			syncer := New(newMemReader(), writer)
+			result, err := syncer.Sync(context.Background(), index, types.NewEvidenceBundle(), DefaultOptions())
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantStatuses := tc.wantChanged
+			if wantStatuses > 0 {
+				wantStatuses++
+			} // validation and requirement rollup
+			if result.StatusesChanged != wantStatuses || result.FilesUpdated != tc.wantChanged {
+				t.Fatalf("sync result changed=%d files=%d, want statuses=%d files=%d", result.StatusesChanged, result.FilesUpdated, wantStatuses, tc.wantChanged)
+			}
+		})
+	}
+}
+
 func TestSyncer_Sync_NilInputs(t *testing.T) {
 	reader := newMemReader()
 	writer := newMemWriter()
@@ -1104,6 +1146,7 @@ func TestSyncer_Integration(t *testing.T) {
 
 	opts := DefaultOptions()
 	opts.ScenarioRoot = scenarioDir
+	opts.ArtifactRoot = filepath.Join(tmpDir, "artifacts", "scenario")
 	opts.TestCommands = []string{"go test ./..."}
 
 	result, err := syncer.Sync(context.Background(), index, evidence, opts)
@@ -1112,7 +1155,7 @@ func TestSyncer_Integration(t *testing.T) {
 	}
 
 	// Verify metadata was written (this always happens when ScenarioRoot is set)
-	metadataPath := filepath.Join(scenarioDir, "coverage", "sync", "latest.json")
+	metadataPath := filepath.Join(opts.ArtifactRoot, "coverage", "sync", "latest.json")
 	metadataData, err := os.ReadFile(metadataPath)
 	if err != nil {
 		t.Fatalf("read metadata: %v", err)

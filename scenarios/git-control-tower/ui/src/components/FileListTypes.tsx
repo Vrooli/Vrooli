@@ -1,6 +1,7 @@
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 import { Plus, Minus } from "lucide-react";
-import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
+import { compactCount } from "../lib/utils";
+import type { ChangeGroupAPI, DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
 
 export const MobileContext = createContext(false);
 
@@ -17,19 +18,17 @@ export type GroupingRule = {
 };
 
 export interface FileListProps {
+  loading?: boolean;
+  loadError?: string | null;
+  onRetryLoad?: () => void;
   files?: RepoFilesStatus;
   fileStats?: RepoFileStats;
+  previewFileStats?: RepoFileStats;
+  fileStatsState?: "loading" | "refreshing" | "ready" | "unavailable";
+  onRetryFileStats?: () => void;
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
-  approvedChanges?: {
-    available: boolean;
-    committableFiles: number;
-    warning?: string;
-  };
-  approvedPaths?: Set<string>;
-  onStageApproved?: () => void;
-  isStagingApproved?: boolean;
   onSelectFile: (
     path: string,
     staged: boolean,
@@ -42,6 +41,8 @@ export interface FileListProps {
   onStageAll: () => void;
   onUnstageAll: () => void;
   isStaging: boolean;
+  /** Paths with an in-flight stage/unstage/discard op, for per-row spinners. */
+  pendingPaths?: ReadonlySet<string>;
   isDiscarding: boolean;
   isIgnoring: boolean;
   confirmingDiscard: string | null;
@@ -53,15 +54,27 @@ export interface FileListProps {
   fillHeight?: boolean;
   fileViewMode?: FileViewMode;
   groupingRules?: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
   groupingAvailable?: boolean;
   onCycleViewMode?: () => void;
   onStagePaths?: (paths: string[]) => void;
+  onUnstagePaths?: (paths: string[]) => void;
   onDiscardPaths?: (paths: string[], untracked: boolean) => void;
+  /** Clear the desktop multi-file selection (no-op when the host owns selection). */
+  onClearSelection?: () => void;
   onSelectAnyFile?: (path: string) => void;
   scrollToFile?: string;
   onScrollComplete?: () => void;
+  /**
+   * Persisted scroll position store (mobile only). When supplied, FileList saves
+   * the Changes list scrollTop on scroll and restores it on mount, surviving the
+   * panel unmount that happens when switching mobile tabs. Desktop keeps all
+   * panels mounted and does not pass this.
+   */
+  scrollTopStore?: React.MutableRefObject<number>;
   onDeletePath?: (path: string, isDir: boolean) => void;
   onBlameFile?: (path: string) => void;
+  onStageFilesWithSameName?: (path: string) => void;
   repoId?: string | null;
   mobileSelectionMode?: boolean;
   onOpenReview?: (scenarioSlug: string) => void;
@@ -69,47 +82,9 @@ export interface FileListProps {
   onExitSelectionMode?: () => void;
   onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
   fileHotspots?: Record<string, number>;
-}
-
-export interface FileSectionProps {
-  title: string;
-  category: FileCategory;
-  files: string[];
-  fileStatuses?: Record<string, string>;
-  binaryFiles?: Set<string>;
-  maxPathChars: number;
-  icon: React.ReactNode;
-  approvedFiles?: Set<string>;
-  selectedFiles?: SelectedFileEntry[];
-  selectedKeySet?: Set<string>;
-  selectionKey: (entry: SelectedFileEntry) => string;
-  onSelectFile: (
-    path: string,
-    staged: boolean,
-    event: React.MouseEvent<HTMLLIElement>,
-  ) => void;
-  onAction: (path: string) => void;
-  actionIcon: React.ReactNode;
-  actionLabel: string;
-  isLoading: boolean;
-  changeStats?: DiffStats;
-  defaultExpanded?: boolean;
-  onDiscard?: (path: string) => void;
-  isDiscarding?: boolean;
-  confirmingDiscard?: string | null;
-  onConfirmDiscard?: (path: string | null) => void;
-  onIgnore?: (path: string, level?: "project" | "group", groupDir?: string) => void;
-  isIgnoring?: boolean;
-  confirmingIgnore?: string | null;
-  onConfirmIgnore?: (path: string | null) => void;
-  groupingRules?: GroupingRule[];
-  onOpenMobileActions?: (file: string) => void;
-  onContextMenu?: (file: string, event: React.MouseEvent) => void;
-  mobileSelectionMode?: boolean;
-  onLongPress?: (file: string, staged: boolean) => void;
-  onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
-  onStatsClick?: () => void;
-  onViewMetrics?: (file: string, category: FileCategory) => void;
+  runIndex?: Map<string, import("../lib/runAttribution").RunAttribution>;
+  onRevealInTree?: (file: string) => void;
+  onOpenRun?: (runId: string) => void;
 }
 
 export interface FileRowProps {
@@ -123,7 +98,12 @@ export interface FileRowProps {
   isDiscarding?: boolean;
   isIgnoring?: boolean;
   isBinary?: boolean;
-  isApproved?: boolean;
+  /** Per-file additions/deletions, shown as a compact badge on desktop. */
+  lineStats?: DiffStats;
+  /** Hide secondary row actions when the panel is narrow; the context menu still carries them. */
+  compactActions?: boolean;
+  runAttribution?: import("../lib/runAttribution").RunAttribution;
+  onOpenRun?: (runId: string) => void;
   itemTestId?: string;
   actionTestId?: string;
   discardTestId?: string;
@@ -138,7 +118,7 @@ export interface FileRowProps {
   onConfirmIgnore?: (path: string | null) => void;
   confirmingDiscard?: string | null;
   confirmingIgnore?: string | null;
-  groupingRules?: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
   mobileSelectionMode?: boolean;
@@ -175,6 +155,28 @@ export function summarizeFileStats(
   return hasStats ? summary : undefined;
 }
 
+/** Summarize the line stats that belong to a grouped change header. */
+export function summarizeGroupFileStats(
+  files: Partial<Record<FileCategory, string[]>>,
+  fileStats?: RepoFileStats,
+) {
+  const summary = { additions: 0, deletions: 0, files: 0 };
+  let hasStats = false;
+  for (const category of ["staged", "unstaged", "untracked"] as const) {
+    const categoryStats = fileStats?.[category];
+    if (!categoryStats) continue;
+    for (const path of files[category] ?? []) {
+      const stats = categoryStats[path];
+      if (!stats) continue;
+      hasStats = true;
+      summary.additions += stats.additions ?? 0;
+      summary.deletions += stats.deletions ?? 0;
+      summary.files += stats.files || 1;
+    }
+  }
+  return hasStats ? summary : undefined;
+}
+
 function hasLineStats(stats?: DiffStats) {
   return Boolean(stats && (stats.additions > 0 || stats.deletions > 0));
 }
@@ -188,18 +190,20 @@ export function LineStats({
   compact?: boolean;
   onClick?: (e: React.MouseEvent) => void;
 }) {
+  const isMobile = useContext(MobileContext);
   if (!hasLineStats(stats)) return null;
   const textSize = compact ? "text-[11px]" : "text-xs";
   const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
+  const formatValue = (value: number) => compact ? compactCount(value) : String(value);
   const inner = (
     <>
-      <span className="flex items-center gap-1 text-emerald-500">
+      <span className="flex items-center gap-1 font-mono tabular-nums text-emerald-400">
         <Plus className={iconSize} />
-        {stats?.additions ?? 0}
+        {formatValue(stats?.additions ?? 0)}
       </span>
-      <span className="flex items-center gap-1 text-red-500">
+      <span className="flex items-center gap-1 font-mono tabular-nums text-rose-400">
         <Minus className={iconSize} />
-        {stats?.deletions ?? 0}
+        {formatValue(stats?.deletions ?? 0)}
       </span>
     </>
   );
@@ -207,7 +211,7 @@ export function LineStats({
     return (
       <button
         type="button"
-        className={`flex items-center gap-2 ${textSize} hover:underline decoration-slate-600 cursor-pointer`}
+        className={`flex items-center gap-2 ${textSize} hover:underline decoration-slate-600 cursor-pointer ${isMobile ? "min-h-11" : ""}`}
         onClick={(e) => {
           e.stopPropagation();
           onClick(e);
@@ -223,13 +227,6 @@ export function LineStats({
       {inner}
     </div>
   );
-}
-
-export function normalizePrefix(prefix: string) {
-  const trimmed = prefix.trim();
-  if (!trimmed) return "";
-  if (trimmed === "/") return "/";
-  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
 }
 
 export function getStatusBadge(code: string | undefined, category: FileCategory) {
@@ -252,4 +249,3 @@ export function getStatusBadge(code: string | undefined, category: FileCategory)
 
   return { label: "M", style: statusStyleMap.M };
 }
-

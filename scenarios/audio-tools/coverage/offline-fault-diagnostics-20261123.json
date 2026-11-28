@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "artifact_id": "offline-fault-diagnostics-20261123T113607Z",
+  "artifact_kind": "offline_server_fault_diagnostics",
+  "observed_at": "2026-11-23T11:36:07Z",
+  "source_revision": "62a9536228b100cb87899746145deda3e4841e50",
+  "source_tree_state": "working_tree_changes_present",
+  "scope": "server_stream_pipeline_only",
+  "promotable": false,
+  "provider_cell": null,
+  "product_path_rows": [],
+  "product_path_join": {
+    "required_for_promotion": true,
+    "joined": false,
+    "reason": "No browser or device path ran. Offline regressions are diagnostic and cannot create or satisfy browser_product_path evidence."
+  },
+  "command": "cd scenarios/audio-tools/api && GOWORK=off go test -race ./internal/stt/segmenter -run '^TestOfflineFaultMatrix$' -count=1",
+  "result": "passed",
+  "cases": [
+    {
+      "fault_profile": "provider_timeout",
+      "test": "TestOfflineFaultProviderTimeoutIsBounded",
+      "result": "passed",
+      "assertion": "HTTP provider timeout bounds the request; no partial or final transcript is emitted"
+    },
+    {
+      "fault_profile": "provider_busy",
+      "test": "TestOfflineFaultProviderBusyIsTerminal",
+      "result": "passed",
+      "assertion": "HTTP 503 terminates promptly without a partial or final transcript"
+    },
+    {
+      "fault_profile": "delayed_ready",
+      "test": "TestOfflineFaultDelayedReadyRecovers",
+      "result": "passed",
+      "assertion": "Provider returns unavailable before a bounded readiness delay; early stream claims no transcript and a later stream succeeds"
+    },
+    {
+      "fault_profile": "dropped_connection",
+      "test": "TestOfflineFaultDroppedConnectionIsBounded",
+      "result": "passed",
+      "assertion": "Provider socket close terminates promptly without a partial or final transcript"
+    },
+    {
+      "fault_profile": "backend_restart",
+      "test": "TestOfflineFaultBackendRestartRecovers",
+      "result": "passed",
+      "assertion": "A transient 503 is followed by a successful provider response and the stream completes with recovered output"
+    },
+    {
+      "fault_profile": "slow_consumer",
+      "test": "TestOfflineFaultSlowConsumerCancellationIsBounded",
+      "result": "passed",
+      "assertion": "Cancellation releases a stalled event consumer and the session returns within a bounded interval"
+    },
+    {
+      "fault_profile": "provider_cancellation",
+      "test": "TestOfflineFaultProviderCancellationDoesNotEmitLateTranscript",
+      "result": "passed",
+      "assertion": "Cancellation prevents a late provider response from publishing partial or final transcript text"
+    },
+    {
+      "fault_profile": "truncated_stream",
+      "test": "TestNormalizeChunksReportsDecoderFailure",
+      "result": "passed",
+      "assertion": "Decoder failure surfaces as ErrStreamDecode instead of clean EOF"
+    },
+    {
+      "fault_profile": "client_cancellation",
+      "test": "TestNormalizeChunksCleanupWaitsForWorkers",
+      "result": "passed",
+      "assertion": "Cancellation cleanup joins the normalizer feeder and decoder workers"
+    }
+  ],
+  "unsupported_declared_profiles": [
+    "missing_acknowledgement",
+    "close_before_done",
+    "page_interruption",
+    "retention_quota",
+    "verifier_outage",
+    "extractor_outage"
+  ]
+}

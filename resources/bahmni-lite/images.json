@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "https://github.com/Bahmni/bahmni-docker",
+  "sourceTag": "1.0.0-lite",
+  "sourceCommit": "8f900af235eaad4a0f7309f32767db8837b44265",
+  "profile": "bahmni-lite",
+  "images": [
+    {
+      "service": "proxy",
+      "reference": "bahmni/proxy:1.0.0@sha256:d67b1949d82d8b658461eaacf2bd4f39c09c02113f31ed0f716926b6ce4dbcc9",
+      "bytes": 510339312
+    },
+    {
+      "service": "bahmni-config",
+      "reference": "bahmni/clinic-config:1.0.0@sha256:510392ed6fd6900792fdb5684f95cc41763bcf64e1d560c0cb219a82c526af7b",
+      "bytes": 38046076
+    },
+    {
+      "service": "bahmni-lab",
+      "reference": "bahmni/bahmni-lab:1.0.0@sha256:779e5c1d4fbfe0bb55a5b78dfc7b9a6c26d60c5c6025b4314382e485b1751c8d",
+      "bytes": 62923314
+    },
+    {
+      "service": "openmrs",
+      "reference": "bahmni/openmrs:1.0.0@sha256:4bdb5facb3afe67392d86da924926ebc84030329c343f2a3c28a5f38e3bb40d7",
+      "bytes": 1096271934
+    },
+    {
+      "service": "openmrsdb",
+      "reference": "bahmni/openmrs-db:1.0.0-lite-mysql5.6@sha256:27d39ccecb3c73744181aaaada9494cb8f33443e1511f1514e77480753931b64",
+      "bytes": 329767259
+    },
+    {
+      "service": "crater-php",
+      "reference": "bahmni/crater-php:1.0.0@sha256:e6593b73bc9f4978982bf520f132e86b7445c5a17cd0a26ac3a1739e37350c63",
+      "bytes": 469586103
+    },
+    {
+      "service": "crater-nginx",
+      "reference": "bahmni/crater-nginx:1.0.0@sha256:8ca9197ea0a705ce2b45395c160eb6734e17ceeb6195d78c0390a458baa0765d",
+      "bytes": 75265899
+    },
+    {
+      "service": "craterdb",
+      "reference": "mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb",
+      "bytes": 501392011
+    },
+    {
+      "service": "bahmni-web",
+      "reference": "bahmni/bahmni-web:1.0.0@sha256:0e160dab795c872143e834afcb0eef5ca90461ca0906d5564886ca40bfb83065",
+      "bytes": 78752674
+    },
+    {
+      "service": "implementer-interface",
+      "reference": "bahmni/implementer-interface:1.0.0@sha256:4d81a1d033862c54343a3b132a744352f1aeabfcdbfdf822a287dd7bf57f0c10",
+      "bytes": 70164556
+    },
+    {
+      "service": "reports",
+      "reference": "bahmni/reports:1.0.0@sha256:64a537d617b0a68f09de36293d48dcd23d08e13a04751801e3245815d82d12a0",
+      "bytes": 857249775
+    },
+    {
+      "service": "patient-documents",
+      "reference": "bahmni/patient-documents:1.0.0@sha256:b762b786e79f9a0cec43f79b00064da7b82d1478e0ca3d030032cf3ee52bb2b4",
+      "bytes": 43614369
+    },
+    {
+      "service": "appointments",
+      "reference": "bahmni/appointments:1.0.0@sha256:a9c283e90049034b34a80dbd6c922cb56f103a8fe5a05e0d0bce3eb9a2da5fa4",
+      "bytes": 69063692
+    },
+    {
+      "service": "crater-atomfeed",
+      "reference": "bahmni/crater-atomfeed:1.0.0@sha256:214fbf26c7d8b32bd28859d4e7bfa1890f3d8b985c7d31ea05377bccf4a5967d",
+      "bytes": 751878218
+    },
+    {
+      "service": "crater-atomfeed-db",
+      "reference": "mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb",
+      "bytes": 501392011
+    }
+  ]
+}

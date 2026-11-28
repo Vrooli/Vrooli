@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "id": "permissioned-form-navigation",
+  "session_id": "session-1",
+  "owner_id": "agent-1",
+  "grant_id": "grant-1",
+  "steps": [
+    { "tool": "browser_snapshot", "arguments": {}, "task": { "operation": "read" }, "permission_class": "observe", "effect_class": "none" },
+    { "tool": "browser_click", "arguments": { "target": "e123" }, "task": { "operation": "click", "ref": "e123" }, "permission_class": "act", "effect_class": "ui" },
+    { "tool": "browser_type", "arguments": { "target": "e456", "text": "same task" }, "task": { "operation": "fill", "ref": "e456", "value": "same task" }, "permission_class": "act", "effect_class": "ui" },
+    { "tool": "browser_navigate", "arguments": { "url": "https://allowed.example/next" }, "task": { "operation": "navigate", "url": "https://allowed.example/next" }, "permission_class": "navigate", "effect_class": "navigation" },
+    { "tool": "browser_snapshot", "arguments": {}, "task": { "operation": "read" }, "permission_class": "observe", "effect_class": "none" }
+  ],
+  "expected_final": { "url": "https://allowed.example/next", "button": "Opened", "input": "same task" },
+  "expected_final_observation": { "url": "https://allowed.example/next", "button": "Opened", "textbox": "Search" },
+  "expected_trace": [
+    { "sequence": 1, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "read", "permission_class": "observe", "effect_class": "none", "effect_applied": false },
+    { "sequence": 2, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "click", "permission_class": "act", "effect_class": "ui", "effect_applied": true },
+    { "sequence": 3, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "fill", "permission_class": "act", "effect_class": "ui", "effect_applied": true },
+    { "sequence": 4, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "navigate", "permission_class": "navigate", "effect_class": "navigation", "effect_applied": true },
+    { "sequence": 5, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "read", "permission_class": "observe", "effect_class": "none", "effect_applied": false }
+  ],
+  "expected_revocation": {
+    "after_step": 0,
+    "denied_step_index": 1,
+    "denied_operation": "click",
+    "effects_after_revocation": 0,
+    "trace": [
+      { "sequence": 1, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "read", "permission_class": "observe", "effect_class": "none", "effect_applied": false },
+      { "sequence": 2, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "click", "permission_class": "act", "effect_class": "ui", "effect_applied": false }
+    ]
+  },
+  "expected_scope_denial": {
+    "url": "https://outside.example/not-allowed",
+    "trace": [
+      { "sequence": 1, "session_id": "session-1", "owner_id": "agent-1", "grant_id": "grant-1", "operation": "navigate", "permission_class": "navigate", "effect_class": "navigation", "effect_applied": false }
+    ]
+  },
+  "rejected_calls": [
+    {
+      "id": "malformed-opaque-ref",
+      "browser_use_tool": "browser_click",
+      "browser_use_arguments": { "ref": "#continue" },
+      "playwright_mcp_tool": "browser_click",
+      "playwright_mcp_arguments": { "target": "#continue" },
+      "reason": "Only BAS opaque accessibility refs are accepted."
+    },
+    {
+      "id": "caller-script-field",
+      "browser_use_tool": "browser_click",
+      "browser_use_arguments": { "ref": "e123", "script": "window.location='https://evil.example'" },
+      "playwright_mcp_tool": "browser_click",
+      "playwright_mcp_arguments": { "target": "e123", "script": "window.location='https://evil.example'" },
+      "reason": "The harness cannot inject caller script fields."
+    },
+    {
+      "id": "caller-authority-fields",
+      "browser_use_tool": "browser_click",
+      "browser_use_arguments": { "ref": "e123", "grant_receipt": "forged", "identity_token": "forged", "permission_ref": "other-profile", "executable_path": "/tmp/browser" },
+      "playwright_mcp_tool": "browser_click",
+      "playwright_mcp_arguments": { "target": "e123", "grant_receipt": "forged", "identity_token": "forged", "permission_ref": "other-profile", "executable_path": "/tmp/browser" },
+      "reason": "The adapter cannot accept caller-selected authority, profile, or executable fields."
+    }
+  ]
+}

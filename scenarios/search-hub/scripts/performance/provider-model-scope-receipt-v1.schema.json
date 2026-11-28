@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/search-hub/provider-model-scope-receipt-v1.schema.json",
+  "title": "Search Hub provider/model serving scope receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "receipt_id", "issuer", "key_id", "signature_algorithm",
+    "resource_source", "resource_group", "resource_group_definition_sha256",
+    "coverage_status", "components", "unmeasured_costs", "signature_base64"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "receipt_id": {"type": "string", "minLength": 1},
+    "issuer": {"type": "string", "minLength": 1},
+    "key_id": {"type": "string", "minLength": 1},
+    "signature_algorithm": {"const": "rsa-pkcs1v15-sha256"},
+    "resource_source": {"enum": ["cgroup_groups", "process_groups", "pss_groups"]},
+    "resource_group": {"type": "string", "minLength": 1},
+    "resource_group_definition_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "coverage_status": {"const": "complete"},
+    "components": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["component_id", "owner_id", "kind"],
+        "properties": {
+          "component_id": {"type": "string", "minLength": 1},
+          "owner_id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["search_hub", "provider", "model"]}
+        }
+      }
+    },
+    "unmeasured_costs": {"type": "array", "maxItems": 0},
+    "signature_base64": {"type": "string", "contentEncoding": "base64"}
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "id": "llmapi",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "llmapi",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "white_label_agreement_with_prior_written_authorization_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Terms §7(i) bars resale, redistribution, sublicensing or third-party access without prior written authorization. Obtain an executed white-label agreement naming Vrooli and its exact bundled application/customer use before any API use for downstream customers.",
+              "White-label page offers branded domain/pricing/customer onboarding; get signed scope, quote, model list, rate/fallback details, limits, service level, customer billing/key structure and DPA. White-label pricing is contract-based and distinct from PAYG examples.",
+              "For each model, maintain LLM API as gateway/contract supplier, actual serving provider(s), publisher and license as separate identities. Obtain downstream rights and account-level route availability for every model/provider combination before adding model rules.",
+              "Resolve Terms date mismatch (page header 2026-08-04 vs body 2026-06-12), upstream provider terms, data retention/training/regions, caching, service availability and customer responsibilities.",
+              "Provider agreement, supplier rule, model eligibility, trust and Vrooli price each require separate human review; keep all routes denied until then."
+            ],
+            "clause": "White-label offering; Terms §7(i), §§5–6, 12–13",
+            "reason": "Official white-label product expressly offers partner resale under own brand/domain/prices and model/customer controls, but standard Terms require prior written authorization. Candidate only for that documented custom agreement path.",
+            "source_anchors": [
+              {
+                "url": "https://llmapi.ai/white-label/",
+                "anchor": "White-label offering; Terms §7(i), §§5–6, 12–13",
+                "document_date": "updated 2026-10-19; Terms date mismatch noted",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Official white-label product expressly offers partner resale under own brand/domain/prices and model/customer controls, but standard Terms require prior written authorization. Candidate only for that documented custom agreement path.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "white_label_agreement_with_prior_written_authorization_only",
+                "supplier_id": "llmapi"
+              },
+              {
+                "url": "https://llmapi.ai/terms/",
+                "anchor": "Terms §§5–7, 12–13; page date conflict: header Aug 4 2026, body June 12 2026",
+                "document_date": "2026-08-04 vs 2026-06-12 (conflict)",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §7(i) prohibits reselling/redistributing/sublicensing service access absent prior written authorization; page date representations conflict.",
+                "does_not_establish": "This public source does not establish an executed agreement for Vrooli, account entitlement, exact model-level upstream rights, or an approved route.",
+                "claim_ref": "white_label_agreement_with_prior_written_authorization_only",
+                "supplier_id": "llmapi"
+              }
+            ]
+          }
+        ],
+        "evidence": {
+          "url": "https://llmapi.ai/white-label/",
+          "document_date": "updated 2026-10-19; Terms date mismatch noted",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_executed_white_label_authorization_route_model_provider_rights_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Live catalog and provider/publisher labels do not establish a specific route, upstream rights or account entitlement.",
+      "evidence": [
+        "https://llmapi.ai/terms/",
+        "https://llmapi.ai/white-label/",
+        "https://llmapi.ai/pricing/",
+        "https://llmapi.ai/models/"
+      ]
+    }
+  }
+}

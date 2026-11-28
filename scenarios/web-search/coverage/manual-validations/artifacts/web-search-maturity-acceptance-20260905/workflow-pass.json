@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "verdict": "PASS",
+  "status": "passed",
+  "scenario": "web-search",
+  "runId": "20260905-072048-17d13edf",
+  "executionId": "20260905-072048-17d13edf",
+  "phaseSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 27,
+    "observationCount": 0
+  },
+  "phases": [
+    {
+      "name": "workflow",
+      "status": "passed",
+      "durationSeconds": 27,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "workflow-health",
+        "phase": "workflow",
+        "current_level": "L5",
+        "current_level_label": "Operational",
+        "ceiling_level": "L5",
+        "clean": true,
+        "north_star": "Workflow Health is an operational workflow intelligence provider.",
+        "at_maximum": true,
+        "capabilities": [
+          {
+            "id": "local",
+            "label": "Local Maturity",
+            "current_level": "L5",
+            "current_level_label": "Operational",
+            "clean": true,
+            "priority_rank": 1
+          }
+        ]
+      },
+      "findingsSummary": {}
+    }
+  ],
+  "runHandle": {
+    "runId": "20260905-072048-17d13edf",
+    "scenario": "web-search",
+    "reattach": "test-genie runs wait --json web-search 20260905-072048-17d13edf",
+    "follow": "test-genie runs follow web-search 20260905-072048-17d13edf"
+  }
+}

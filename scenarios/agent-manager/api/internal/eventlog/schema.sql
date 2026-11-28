@@ -1,0 +1,81 @@
+-- ============================================================================
+-- Run Events - Append-only event stream
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS run_events (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    timestamp TEXT DEFAULT (datetime('now')),
+    -- schema_version identifies the on-wire shape of `data` so the eventlog
+    -- dispatch table can route old payloads to old payload types
+    -- indefinitely. Defaults to 1; the eventlog package is the source of
+    -- truth for which versions are registered for which event types.
+    schema_version INTEGER NOT NULL DEFAULT 1,
+    data TEXT NOT NULL,
+    UNIQUE(run_id, sequence)
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
+CREATE INDEX IF NOT EXISTS idx_run_events_run_sequence ON run_events(run_id, sequence);
+
+-- Sequence cursors survive complete recall eviction or an empty replacement.
+-- Triggers cover every event owner, including retention and legacy cleanup.
+CREATE TABLE IF NOT EXISTS run_event_highwater (
+    run_id TEXT PRIMARY KEY,
+    high_sequence INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_insert AFTER INSERT ON run_events
+BEGIN
+    INSERT INTO run_event_highwater(run_id, high_sequence) VALUES (NEW.run_id, NEW.sequence)
+    ON CONFLICT(run_id) DO UPDATE SET high_sequence = MAX(high_sequence, excluded.high_sequence);
+END;
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_delete BEFORE DELETE ON run_events
+WHEN EXISTS (SELECT 1 FROM runs WHERE id = OLD.run_id)
+BEGIN
+    INSERT INTO run_event_highwater(run_id, high_sequence) VALUES (OLD.run_id, OLD.sequence)
+    ON CONFLICT(run_id) DO UPDATE SET high_sequence = MAX(high_sequence, excluded.high_sequence);
+END;
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_run_delete AFTER DELETE ON runs
+BEGIN
+    DELETE FROM run_event_highwater WHERE run_id = OLD.id;
+END;
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_orphan_delete AFTER DELETE ON run_events
+WHEN NOT EXISTS (SELECT 1 FROM runs WHERE id = OLD.run_id)
+ AND NOT EXISTS (SELECT 1 FROM run_events WHERE run_id = OLD.run_id)
+BEGIN
+    DELETE FROM run_event_highwater WHERE run_id = OLD.run_id;
+END;
+CREATE INDEX IF NOT EXISTS idx_run_events_type ON run_events(run_id, event_type);
+-- Retention covers every event type. Its read-only candidate scan must not
+-- sort the full event payload table on each reconciler pass.
+CREATE INDEX IF NOT EXISTS idx_run_events_retention ON run_events(timestamp);
+-- Conversation projection walks use this exact stable cursor order. Keeping
+-- the partial index with the authoritative event table prevents a backfill
+-- from repeatedly sorting the full append-only stream.
+CREATE INDEX IF NOT EXISTS idx_run_events_conversation_source
+    ON run_events(timestamp, run_id, sequence)
+    WHERE event_type IN ('message', 'tool_call', 'tool_result');
+
+-- Stats query indexes for cost aggregation
+CREATE INDEX IF NOT EXISTS idx_run_events_cost ON run_events(run_id, event_type) WHERE event_type = 'metric';
+CREATE INDEX IF NOT EXISTS idx_run_events_tool_calls ON run_events(run_id, event_type) WHERE event_type = 'tool_call';
+CREATE INDEX IF NOT EXISTS idx_run_events_errors ON run_events(run_id, event_type) WHERE event_type = 'error';
+
+-- A generation changes atomically whenever raw events are pruned. Durable
+-- consumers bind their opaque cursors to it and reconcile instead of silently
+-- skipping history after retention.
+CREATE TABLE IF NOT EXISTS event_retention_state (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    generation INTEGER NOT NULL,
+    floor_rowid INTEGER NOT NULL,
+    updated_at TEXT NOT NULL
+);
+INSERT OR IGNORE INTO event_retention_state (singleton, generation, floor_rowid, updated_at)
+VALUES (1, 1, 0, datetime('now'));
+-- Fallback insights count these five types over a time window. The partial
+-- index keeps that read from walking every event of the window; the query's
+-- WHERE repeats this predicate exactly.
+CREATE INDEX IF NOT EXISTS idx_run_events_fallback
+    ON run_events(timestamp)
+    WHERE event_type IN ('runner.fallback.attempted','runner.fallback.exhausted','model.fallback.attempted','model.fallback.exhausted','policy.candidate.attempt');

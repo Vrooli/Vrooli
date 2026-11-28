@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.user-menu",
+    "name": "UserMenu",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "navigation",
+    "description": "The identity menu combining account information, presence, preferences, account switching, support entries, and sign-out with responsive presentation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.menu",
+        "reason": "Item semantics and keyboard model are shared."
+      },
+      {
+        "asset": "primitives.avatar",
+        "reason": "Identity presentation is shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

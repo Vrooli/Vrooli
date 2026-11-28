@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/preflight"
 	"log"
 	"math"
 	"net/http"
@@ -13,11 +13,13 @@ import (
 	"strings"
 	"time"
 
+	funnelsSchema "funnel-builder/internal/funnels"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 )
 
@@ -94,22 +96,11 @@ func NewServer() (*Server, error) {
 		log.Println("No .env file found")
 	}
 
-	// Database configuration - support both DATABASE_URL and individual components
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		// Try to build from individual components
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			return nil, fmt.Errorf("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
+	// Database configuration is resolved by api-core/database so URL
+	// precedence and lifecycle SSL settings are shared with every consumer.
+	dbURL, err := database.ResolvePostgresDSN(os.Getenv)
+	if err != nil {
+		return nil, fmt.Errorf("❌ Missing database configuration: %w", err)
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)
@@ -125,6 +116,10 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+	if err := database.EnsureSchemas(context.Background(), pgxSchemaExecer{db: db}, database.SchemaProviderFunc(funnelsSchema.Schema)); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
+	}
 
 	s := &Server{
 		db:     db,
@@ -137,6 +132,26 @@ func NewServer() (*Server, error) {
 	s.setupRoutes()
 	return s, nil
 }
+
+// pgxSchemaExecer adapts the pgx pool to api-core's engine-independent schema
+// application seam. The schema is still executed by the scenario's native
+// PostgreSQL pool; the adapter only supplies the small interface EnsureSchemas
+// needs.
+type pgxSchemaExecer struct {
+	db *pgxpool.Pool
+}
+
+func (e pgxSchemaExecer) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if _, err := e.db.Exec(ctx, query, args...); err != nil {
+		return nil, err
+	}
+	return schemaExecResult{}, nil
+}
+
+type schemaExecResult struct{}
+
+func (schemaExecResult) LastInsertId() (int64, error) { return 0, nil }
+func (schemaExecResult) RowsAffected() (int64, error) { return 0, nil }
 
 func connectWithBackoff(config *pgxpool.Config) (*pgxpool.Pool, error) {
 	maxRetries := 10
@@ -1354,4 +1369,5 @@ func main() {
 		log.Fatal("Failed to start server:", err)
 	}
 }
+
 // Test change

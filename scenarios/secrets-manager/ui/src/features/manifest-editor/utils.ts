@@ -1,5 +1,5 @@
 import type { DeploymentManifestResponse, DeploymentManifestSecret } from "../../lib/api";
-import type { ResourceGroup, FilterMode, ManifestSummary, SecretIdentifier } from "./types";
+import type { ResourceGroup, FilterMode, ManifestSummary } from "./types";
 import { secretIdToString } from "./types";
 
 /**
@@ -8,8 +8,7 @@ import { secretIdToString } from "./types";
 export function groupSecretsByResource(
   secrets: DeploymentManifestSecret[],
   excludedResources: Set<string>,
-  excludedSecrets: Set<string>,
-  overriddenSecrets: Set<string>
+  excludedSecrets: Set<string>
 ): ResourceGroup[] {
   const groups = new Map<string, DeploymentManifestSecret[]>();
 

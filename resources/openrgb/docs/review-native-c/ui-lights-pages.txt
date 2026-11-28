@@ -1,0 +1,19 @@
+
+ RUN  v2.1.9 /home/matthalloran8/Vrooli-native-lighting/scenarios/lighting-control/ui
+
+ ✓ src/features/lights/identity.test.ts (1 test) 2ms
+ ✓ src/features/lights/setup.test.ts (2 tests) 3ms
+ ✓ src/features/lights/api.test.ts (7 tests) 8ms
+ ✓ src/features/lights/ManualZoneEditor.test.tsx (6 tests) 117ms
+ ✓ src/pages/ControllerPage.test.tsx (10 tests) 334ms
+ ✓ src/pages/SettingsPage.test.tsx (5 tests) 484ms
+ ✓ src/pages/DashboardPage.test.tsx (16 tests) 590ms
+ ✓ src/pages/SettingsPage.setup.test.tsx (8 tests) 724ms
+ ✓ src/pages/PresetsPage.test.tsx (18 tests) 794ms
+ ✓ src/pages/SettingsPage.devices.test.tsx (9 tests) 1032ms
+
+ Test Files  10 passed (10)
+      Tests  82 passed (82)
+   Start at  10:24:57
+   Duration  2.40s (transform 1.38s, setup 2.12s, collect 4.09s, tests 4.09s, environment 3.27s, prepare 1.58s)
+

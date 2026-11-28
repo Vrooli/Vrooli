@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "system-monitor.owner-headroom-weekly",
+  "version": "2",
+  "helpers": {"program": "1"},
+  "purpose": "Generate one weekly host-headroom report with bounded per-owner CPU, RSS, swap, and VRAM evidence.",
+  "inputs": {
+    "report_type": {
+      "type": "string",
+      "default": "weekly",
+      "description": "This program only accepts weekly report generation."
+    }
+  },
+  "assumptions": [
+    "system-monitor is running and its weekly report endpoint is reachable",
+    "per-owner process samples are retained for the report window",
+    "report completeness and attribution fields describe the data returned by the bounded source query"
+  ],
+  "invariants": [
+    "the only domain write is creating one weekly report through the system-monitor owner binding",
+    "the program makes no inference calls and delegates no work",
+    "incomplete or unattributed resource accounting is reported as partial, never as zero",
+    "the envelope includes at most the ten highest core-hour owner rows"
+  ],
+  "bindings": [
+    {"id": "system-monitor/reports/generate", "effect": "write"}
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "act", "report"]},
+    "signals": {"description": "The persisted weekly report identity, bounded owner-resource summary, and up to four runnable follow-up actions from its recommendations."},
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "invalid_response",
+        "missing_owner_resources",
+        "incomplete_accounting",
+    "incomplete_swap_coverage",
+        "unknown_owner",
+        "binding_error",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "remote_error",
+        "no_grant",
+        "not_run_eligible",
+        "no_governed_binding",
+        "kernel_runtime",
+        "output_limit"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 180000,
+    "async": true,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "reject-daily",
+      "inputs": {"report_type": "daily"},
+      "expect": {"status": ["failed"], "errors": [{"class": "invalid_input"}]},
+      "requires": []
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "system-monitor"
+}

@@ -9,8 +9,11 @@ import (
 
 // PublishBranch pushes the current branch to a remote.
 func PublishBranch(ctx context.Context, deps BranchDeps, req PublishBranchRequest) (*BranchPublishResponse, error) {
+	if err := requireHumanMutation(ctx, "publish branch"); err != nil {
+		return nil, err
+	}
 	resp := &BranchPublishResponse{Timestamp: time.Now().UTC()}
-	repoDir, err := validateBranchDeps(deps)
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +35,8 @@ func PublishBranch(ctx context.Context, deps BranchDeps, req PublishBranchReques
 		remote = resolveBranchRemote(ctx, deps, branch, status.Branch.Upstream)
 	}
 
-	if warning, err := checkBehindRemote(ctx, deps, repoDir, remote, req.Fetch); err != nil {
+	warning, sync, err := checkBehindRemote(ctx, deps, repoDir, remote, req.Fetch)
+	if err != nil {
 		return nil, err
 	} else if warning != nil {
 		resp.Success = false
@@ -41,12 +45,16 @@ func PublishBranch(ctx context.Context, deps BranchDeps, req PublishBranchReques
 	}
 
 	setUpstream := req.SetUpstream
-	sync, _ := GetSyncStatus(ctx, SyncStatusDeps{Git: deps.Git, RepoDir: repoDir}, SyncStatusRequest{Remote: remote, Fetch: false})
 	if sync != nil && !sync.HasUpstream {
 		setUpstream = true
 	}
 
-	if err := deps.Git.Push(ctx, repoDir, remote, branch, setUpstream, nil); err != nil {
+	safety := deps.Git.InspectPushSafety(ctx, repoDir, remote, branch, nil)
+	if !safety.Complete || safety.State == "blocked" {
+		resp.Error = safety.Reason
+		return resp, nil
+	}
+	if err := deps.Git.Push(ctx, repoDir, remote, branch, safety.Head, setUpstream, nil); err != nil {
 		resp.Success = false
 		resp.Remote = remote
 		resp.Branch = branch
@@ -76,23 +84,23 @@ func resolvePublishBranch(reqBranch, headBranch string) (string, string) {
 }
 
 // checkBehindRemote checks if the branch is behind the remote and returns a warning if so.
-func checkBehindRemote(ctx context.Context, deps BranchDeps, repoDir, remote string, fetch bool) (*BranchWarning, error) {
+func checkBehindRemote(ctx context.Context, deps BranchDeps, repoDir, remote string, fetch bool) (*BranchWarning, *SyncStatusResponse, error) {
 	sync, err := GetSyncStatus(ctx, SyncStatusDeps{Git: deps.Git, RepoDir: repoDir}, SyncStatusRequest{
 		Remote: remote,
 		Fetch:  fetch,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if sync.Behind <= 0 {
-		return nil, nil
+		return nil, sync, nil
 	}
 	warning := &BranchWarning{Message: "Branch is behind remote. Pull before publishing."}
 	if !fetch {
 		warning.Message = "Fetch remote updates before publishing."
 		warning.RequiresFetch = true
 	}
-	return warning, nil
+	return warning, sync, nil
 }
 
 func isDirtySummary(summary RepoStatusSummary) bool {
@@ -133,18 +141,6 @@ func populateSwitchBranch(ctx context.Context, deps BranchDeps, resp *BranchSwit
 	resp.Success = true
 	resp.Branch = branchInfoFromStatus(status)
 	return resp, nil
-}
-
-// validateBranchDeps validates common branch operation dependencies.
-func validateBranchDeps(deps BranchDeps) (string, error) {
-	if deps.Git == nil {
-		return "", fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return "", fmt.Errorf("repo dir is required")
-	}
-	return repoDir, nil
 }
 
 // branchInfoFromStatus creates a BranchInfo from repo status.

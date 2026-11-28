@@ -1,0 +1,13 @@
+{
+  "id": "sess_26c298871897324b",
+  "title": "Author operating mode",
+  "kind": "operating_mode_authoring",
+  "status": "draft",
+  "skill_id": "swarm-manager-operating-mode-authoring",
+  "profile_key": "swarm-manager/default",
+  "created_at": "2026-07-09T11:35:27Z",
+  "updated_at": "2026-07-09T11:35:27Z",
+  "created_by": {
+    "type": "operator"
+  }
+}

@@ -1,0 +1,254 @@
+import { act, fireEvent, screen, waitFor } from "../../test-utils";
+import { renderWithProviders } from "@vrooli/api-base/testing";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { beforeEach, vi } from "vitest";
+import { StepCredentials } from "./StepCredentials";
+import { ReadinessSurface } from "./StepReadiness";
+import { ApplyRunState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
+import { resetCredentialTargetState } from "../../hooks/useCredentialTargetState";
+
+const readinessApi = vi.hoisted(() => ({ fetchReadiness: vi.fn() }));
+const credentialsApi = vi.hoisted(() => ({ fetchCredentials: vi.fn(), provisionCredential: vi.fn(), revealCredential: vi.fn() }));
+const capabilitiesApi = vi.hoisted(() => ({ fetchCapabilities: vi.fn() }));
+const operatorInputsApi = vi.hoisted(() => ({ fetchOperatorInputs: vi.fn() }));
+const authApi = vi.hoisted(() => ({ loginAuthenticator: vi.fn() }));
+const applyApi = vi.hoisted(() => ({ fetchApplyPlan: vi.fn(), fetchApplyRun: vi.fn(), reviewApply: vi.fn(), startApply: vi.fn(), cancelApply: vi.fn() }));
+vi.mock("../../api/readiness", () => readinessApi);
+vi.mock("../../api/credentials", () => credentialsApi);
+vi.mock("../../api/capabilities", () => capabilitiesApi);
+vi.mock("../../api/operatorinputs", () => operatorInputsApi);
+vi.mock("../../api/auth", () => authApi);
+vi.mock("../../api/apply", () => applyApi);
+
+describe("StepCredentials", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    ["local", "node-1", "node-2", "remote"].forEach(resetCredentialTargetState);
+  });
+
+  it("renders the owner purpose and declared acquisition link", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({
+      status: "ready",
+      scenarios: [],
+      resources: [],
+      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", obtain_url: "https://provider.example/keys", required: true, status: "configured", owner: "mail-service", source_ref: "scenarios/mail/.vrooli/service.json", kind: "environment", provenance: [{ owner: "mail-service", source_ref: "scenarios/mail/.vrooli/service.json", kind: "environment", env: "MAIL_API_KEY", consumers: [{ consumer: "Mail sender", source_ref: "scenarios/mail/api/send.go:42", kind: "environment", required: true }] }] }],
+      hosts: [],
+      integrations: [],
+      checked_at: "now",
+      blockers: [],
+      degraded: [],
+    });
+    capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [], count: 0 });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+    credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [{ resource: "mail", logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", obtain_url: "https://provider.example/keys", required: true, status: "pending" }], count: 1 });
+    renderWithProviders(<StepCredentials />);
+    expect(await screen.findByText("Mail API key")).toBeInTheDocument();
+    expect(screen.getByText("Sends sign-in mail")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "How to obtain this credential" })).toHaveAttribute("href", "https://provider.example/keys");
+    expect(screen.getByTestId("credential-status")).toHaveTextContent("Stored securely");
+    expect(screen.getByRole("searchbox", { name: "Search credential inputs" })).toBeInTheDocument();
+    expect(screen.getByTestId("credential-filter")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-sort")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-declarations")).toHaveTextContent("scenarios/mail/.vrooli/service.json");
+    fireEvent.click(screen.getByTestId("credential-declarations").querySelector("summary")!);
+    expect(screen.getByTestId("credential-declarations")).toHaveTextContent("scenarios/mail/api/send.go:42");
+
+  });
+
+  it("renders the credential rows from readiness while the richer inventory is still loading", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({
+      status: "degraded",
+      scenarios: [],
+      resources: [],
+      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", placeholder: "mail-api-key-example", obtain_url: "https://provider.example/keys", required: true, status: "pending", evidence_status: "pending" }],
+      hosts: [],
+      integrations: [],
+      checked_at: "now",
+      blockers: [],
+      degraded: [],
+    });
+    credentialsApi.fetchCredentials.mockReturnValue(new Promise(() => undefined));
+    capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [] });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+
+    renderWithProviders(<StepCredentials />);
+
+    expect(await screen.findByTestId("credential-card")).toHaveTextContent("Mail API key");
+    expect(screen.getByTestId("credential-entry-group")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-input")).toHaveAttribute("placeholder", "mail-api-key-example");
+    expect(screen.getByRole("button", { name: "Save securely" })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Checking credential requirements…" })).not.toBeInTheDocument();
+
+    credentialsApi.provisionCredential.mockResolvedValueOnce({ status: "provisioned" });
+    fireEvent.change(screen.getByTestId("credential-input"), { target: { value: "mailgun-api-key" } });
+    fireEvent.click(screen.getByTestId("credential-save"));
+    expect(await screen.findByTestId("credential-save-success")).toHaveTextContent("Mail API key was stored securely");
+    await waitFor(() => expect(screen.queryByTestId("credential-save")).not.toBeInTheDocument());
+    expect(screen.getByTestId("credential-reveal")).toBeInTheDocument();
+    expect(screen.queryByTestId("credential-recovery-dialog")).not.toBeInTheDocument();
+  });
+
+  it("explains operator authentication failures and offers recovery actions", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({
+      status: "degraded",
+      scenarios: [],
+      resources: [],
+      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", required: true, status: "pending" }],
+      hosts: [],
+      integrations: [],
+      checked_at: "now",
+      blockers: [],
+      degraded: [],
+    });
+    credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [{ resource: "mail", logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", required: true, status: "pending" }], count: 1 });
+    const authError = new ConnectError("verified onboarding operator required", Code.Unauthenticated);
+    authError.metadata.set("Vrooli-Auth-Recovery-Url", "https://auth.example.test/auth/login?return_to=%2Fsetup%2Fcredentials");
+    // A hybrid deployment may report Cloudflare as the first failed provider
+    // while Scenario Authenticator is also configured. The recovery surface
+    // must choose the working embedded authenticator flow in that case.
+    authError.metadata.set("Vrooli-Auth-Source", "cloudflare_access");
+    authError.metadata.set("Vrooli-Auth-Providers", "cloudflare_access,scenario_authenticator");
+    credentialsApi.provisionCredential.mockRejectedValueOnce(authError);
+    authApi.loginAuthenticator.mockResolvedValueOnce({});
+    capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [] });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+
+    renderWithProviders(<StepCredentials />);
+
+    fireEvent.change(await screen.findByTestId("credential-input"), { target: { value: "secret" } });
+    fireEvent.click(screen.getByTestId("credential-save"));
+
+    expect(await screen.findByText("Sign in to save this credential")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-recovery-dialog")).toBeInTheDocument();
+    expect(screen.getByText("Sign in through Scenario Authenticator below. Your credential stays in this form and is retried only after the sign-in succeeds.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in and retry" })).toBeInTheDocument();
+    expect(screen.getByTestId("credential-recovery-retry")).toHaveTextContent("Try again");
+    expect(screen.getByTestId("credential-save").querySelector("svg")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "operator@example.test" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in and retry" }));
+    await waitFor(() => expect(authApi.loginAuthenticator).toHaveBeenCalledWith("operator@example.test", "password"));
+    await waitFor(() => expect(credentialsApi.provisionCredential).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId("credential-recovery-dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps configuration work behind the review action", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({
+      status: "ready",
+      scenarios: [],
+      resources: [],
+      credentials: [],
+      hosts: [],
+      integrations: [],
+      checked_at: "now",
+      blockers: [],
+      degraded: [],
+    });
+    credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [], count: 0 });
+    capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [] });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+
+    renderWithProviders(<StepCredentials />);
+
+    expect(capabilitiesApi.fetchCapabilities).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole("button", { name: "Review credential setup" }));
+    expect(await screen.findByRole("dialog", { name: "Credential setup details" })).toBeInTheDocument();
+    expect(capabilitiesApi.fetchCapabilities).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("credential-config-tabs")).toBeInTheDocument();
+  });
+
+  it("keeps unsaved values with their target", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({
+      status: "degraded", scenarios: [], resources: [],
+      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", required: true, status: "pending" }],
+      hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [],
+    });
+    credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [{ resource: "mail", logical_id: "mail", field: "api_key", label: "Mail API key", required: true, status: "pending" }], count: 1 });
+    capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [] });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+    const view = renderWithProviders(<StepCredentials target="local" />);
+    const input = await screen.findByTestId("credential-input");
+    fireEvent.change(input, { target: { value: "local-secret" } });
+
+    view.rerender(<StepCredentials target="node-1" />);
+    await waitFor(() => expect(screen.getByTestId("credential-input")).toHaveValue(""));
+    fireEvent.change(screen.getByTestId("credential-input"), { target: { value: "remote-secret" } });
+    credentialsApi.provisionCredential.mockResolvedValue({ status: "provisioned" });
+    fireEvent.click(screen.getByTestId("credential-save"));
+    await waitFor(() => expect(credentialsApi.provisionCredential).toHaveBeenCalledWith({ logical_id: "mail", field: "api_key", value: "remote-secret" }, "node-1"));
+
+    view.rerender(<StepCredentials target="local" />);
+    await waitFor(() => expect(screen.getByTestId("credential-input")).toHaveValue("local-secret"));
+  });
+
+  it("does not show a reveal response that completes after the target changes", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
+    credentialsApi.fetchCredentials.mockResolvedValue({ credentials: [{ resource: "mail", logical_id: "mail", field: "api_key", label: "Mail API key", required: true, status: "configured" }], count: 1 });
+    capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [] });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [] });
+    let finishReveal!: (value: string) => void;
+    credentialsApi.revealCredential.mockReturnValue(new Promise<string>((resolve) => { finishReveal = resolve; }));
+
+    const view = renderWithProviders(<StepCredentials target="local" />);
+    fireEvent.click(await screen.findByTestId("credential-reveal"));
+    await waitFor(() => expect(credentialsApi.revealCredential).toHaveBeenCalledWith({ logical_id: "mail", field: "api_key" }, "local"));
+    view.rerender(<StepCredentials target="node-1" />);
+    finishReveal("local-secret");
+
+    await waitFor(() => expect(screen.queryByTestId("credential-revealed-value")).not.toBeInTheDocument());
+  });
+
+  it("clears one target's recovered apply run before showing another target", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
+    applyApi.fetchApplyPlan.mockResolvedValue({ target: "local", items: [], plan_id: "p1", plan_digest: "d1", revision: "r1" });
+    applyApi.fetchApplyRun.mockResolvedValue({ runId: "local-run", status: ApplyRunState.APPLIED, legacyStatus: "applied", steps: [] });
+    window.localStorage.setItem("vrooli-onboarding.apply-run.local", "local-run");
+
+    const view = renderWithProviders(<ReadinessSurface title="Apply" target="local" />);
+    expect(await screen.findByTestId("apply-state")).toHaveTextContent("local-run");
+    view.rerender(<ReadinessSurface title="Apply" target="node-1" />);
+
+    await waitFor(() => expect(screen.queryByTestId("apply-state")).not.toBeInTheDocument());
+    expect(applyApi.fetchApplyRun).toHaveBeenCalledWith("local-run", "local");
+  });
+
+  it("uses separate idempotency keys for Apply on different targets", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
+    applyApi.fetchApplyPlan.mockImplementation(async (target: string) => ({ target, items: [], plan_id: `plan-${target}`, plan_digest: `digest-${target}`, revision: `revision-${target}` }));
+    applyApi.reviewApply.mockResolvedValue({ planId: "review-plan", planDigest: "review-digest", revision: "review-revision", consentReceiptId: "consent" });
+    applyApi.startApply.mockImplementation(async ({ target }: { target: string }) => ({ run: { runId: `${target}-run`, status: ApplyRunState.APPLIED, legacyStatus: "applied", steps: [] } }));
+
+    const view = renderWithProviders(<ReadinessSurface title="Apply" target="local" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Apply selection" }));
+    await waitFor(() => expect(applyApi.startApply).toHaveBeenCalledTimes(1));
+
+    view.rerender(<ReadinessSurface title="Apply" target="node-1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Apply selection" }));
+    await waitFor(() => expect(applyApi.startApply).toHaveBeenCalledTimes(2));
+
+    const localRequest = applyApi.startApply.mock.calls[0]?.[0] as { target: string; idempotency_key: string } | undefined;
+    const remoteRequest = applyApi.startApply.mock.calls[1]?.[0] as { target: string; idempotency_key: string } | undefined;
+    expect(localRequest?.target).toBe("local");
+    expect(remoteRequest?.target).toBe("node-1");
+    expect(remoteRequest?.idempotency_key).not.toBe(localRequest?.idempotency_key);
+  });
+
+  it("stops a restored target's Apply polling after switching", async () => {
+    readinessApi.fetchReadiness.mockResolvedValue({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
+    applyApi.fetchApplyPlan.mockResolvedValue({ target: "local", items: [], plan_id: "p1", plan_digest: "d1", revision: "r1" });
+    applyApi.fetchApplyRun.mockResolvedValue({ runId: "local-run", status: ApplyRunState.APPLYING, legacyStatus: "applying", steps: [] });
+    window.localStorage.setItem("vrooli-onboarding.apply-run.local", "local-run");
+
+    const view = renderWithProviders(<ReadinessSurface title="Apply" target="local" />);
+    expect(await screen.findByTestId("apply-state")).toHaveTextContent("local-run");
+    view.rerender(<ReadinessSurface title="Apply" target="node-1" />);
+    await waitFor(() => expect(screen.queryByTestId("apply-state")).not.toBeInTheDocument());
+    await act(async () => new Promise((resolve) => window.setTimeout(resolve, 600)));
+
+    expect(applyApi.fetchApplyRun).toHaveBeenCalledTimes(1);
+  });
+});

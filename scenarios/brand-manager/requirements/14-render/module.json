@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Render: compose a mark plus container style into filter-free variant SVGs and rasterize every target through image-tools.",
+    "module": "render",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RENDER-001",
+      "title": "Deterministic variant composition",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "render",
+      "criticality": "P0",
+      "description": "Compose(mark, smallMark, style, variant, edge) returns an SVG for rounded, full_bleed, maskable and social_card variants, scaling the mark by mark_scale and drawing the accent glow as layered translucent strokes.",
+      "tags": [
+        "render",
+        "svg"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/render golden tests (filter-free, deterministic, maskable safe zone)."
+        }
+      ]
+    },
+    {
+      "id": "RENDER-002",
+      "title": "No filter, mask, pattern or CSS in rendered SVGs",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "render",
+      "criticality": "P0",
+      "description": "Rendered SVGs never contain filter, mask, pattern or style elements, so image-tools rasterizes every target with pure-Go oksvg and never needs headless Chrome.",
+      "tags": [
+        "render",
+        "determinism"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/render golden tests (filter-free, deterministic, maskable safe zone)."
+        }
+      ]
+    },
+    {
+      "id": "RENDER-003",
+      "title": "Maskable safe-zone containment",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "render",
+      "criticality": "P0",
+      "description": "The maskable variant scales the mark so its circumscribed alpha-bound circle fits within radius 0.40 \u00d7 edge, centred on the mark's visual centre.",
+      "tags": [
+        "render",
+        "maskable"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/render golden tests (filter-free, deterministic, maskable safe zone)."
+        }
+      ]
+    },
+    {
+      "id": "RENDER-004",
+      "title": "Small mark selection",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "render",
+      "criticality": "P0",
+      "description": "Targets use the brand's small mark when the target allows it, the target is at or below small_mark_threshold_px, and the brand has a small_mark_asset_id.",
+      "tags": [
+        "render",
+        "small-mark"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "api/internal/render golden tests (filter-free, deterministic, maskable safe zone)."
+        }
+      ]
+    }
+  ]
+}

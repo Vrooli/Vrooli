@@ -5,6 +5,8 @@ package pipeline
 
 import (
 	"context"
+
+	"github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // Stage represents a single phase of the pipeline.
@@ -29,12 +31,12 @@ type Stage interface {
 type Orchestrator interface {
 	// RunPipeline starts a complete pipeline execution.
 	// Returns immediately with a pipeline ID; poll GetStatus for progress.
-	RunPipeline(ctx context.Context, config *Config) (*Status, error)
+	RunPipeline(ctx context.Context, config *PipelineConfig) (*Status, error)
 
 	// CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
 	// The pipeline will remain idle until explicitly started via RunPipeline or StartPipeline.
 	// This is used for scenarios where a pipeline should be created but not run immediately.
-	CreateIdlePipeline(config *Config) (*Status, error)
+	CreateIdlePipeline(config *PipelineConfig) (*Status, error)
 
 	// StartPipeline starts execution of an existing idle pipeline.
 	// Returns an error if the pipeline is not in idle state or doesn't exist.
@@ -43,7 +45,7 @@ type Orchestrator interface {
 	// RunPipelineBlocking runs a pipeline and blocks until completion or timeout.
 	// Returns the final status when complete, failed, or cancelled.
 	// Returns an error if the timeout is exceeded or the pipeline disappears.
-	RunPipelineBlocking(ctx context.Context, config *Config, timeoutSecs int) (*Status, error)
+	RunPipelineBlocking(ctx context.Context, config *PipelineConfig, timeoutSecs int) (*Status, error)
 
 	// StartPipelineBlocking starts an existing idle pipeline and blocks until completion or timeout.
 	// Returns the final status when complete, failed, or cancelled.
@@ -53,7 +55,7 @@ type Orchestrator interface {
 	// ResumePipeline resumes a stopped pipeline from its next stage.
 	// The parent pipeline must have been stopped with StopAfterStage.
 	// Returns a new pipeline that continues from where the parent stopped.
-	ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error)
+	ResumePipeline(ctx context.Context, pipelineID string, config *PipelineConfig) (*Status, error)
 
 	// GetStatus retrieves the current status of a pipeline run.
 	GetStatus(pipelineID string) (*Status, bool)
@@ -64,6 +66,14 @@ type Orchestrator interface {
 
 	// ListPipelines returns all tracked pipeline runs.
 	ListPipelines() []*Status
+}
+
+// ConfigUpdatingOrchestrator is an optional capability for implementations
+// that can update the configuration of an idle pipeline before it starts.
+// Manager depends on this capability only when callers supply overrides;
+// it must not assume every valid Orchestrator has the concrete default type.
+type ConfigUpdatingOrchestrator interface {
+	UpdatePipelineConfig(pipelineID string, configUpdates *PipelineConfig) error
 }
 
 // Store persists pipeline run states.
@@ -141,5 +151,5 @@ type WebhookNotifier interface {
 type ManifestGenerator interface {
 	// GenerateManifest creates a bundle manifest for the given scenario.
 	// Returns the path to the generated manifest, or an error if generation failed.
-	GenerateManifest(ctx context.Context, scenarioName, outputDir string) (string, error)
+	GenerateManifest(ctx context.Context, scenarioName, outputDir string, trustMode resourcedeployment.ArtifactTrustMode) (string, error)
 }

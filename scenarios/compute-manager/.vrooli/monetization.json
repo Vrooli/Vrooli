@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "compute-manager",
+  "features": [],
+  "meters": [
+    {
+      "limit_key": "compute_minutes",
+      "class": "A",
+      "enforcement_paths": [
+        "api/internal/meter/service.go",
+        "api/internal/integration/lpbs.go",
+        "api/internal/provision/service.go",
+        "api/handlers/instance/handler.go"
+      ]
+    }
+  ]
+}

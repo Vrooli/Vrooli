@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-code-block]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty code block","args":{"code":""},"expect":[{"kind":"visible","selector":"[data-rcl-code-block]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading code","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-code-block]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Code error","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-code-block]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long code block","args":{"code":"const deliberatelyLongIdentifier = 'This line is intentionally long so the code surface demonstrates readable overflow handling';"},"expect":[{"kind":"visible","selector":"[data-rcl-code-block]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

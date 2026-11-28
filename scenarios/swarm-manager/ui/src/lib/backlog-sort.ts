@@ -4,7 +4,7 @@
  * Composes dependency-aware sorting from dependency-sort.ts with domain-specific
  * compareFn builders. Shared by BacklogTab (sidebar) and the Command Post feed.
  *
- * DOC: docs/concepts/ARCHITECTURE.md#command-post
+ * DOC: docs/concepts/ARCHITECTURE.md#graph-lenses (Plan board classification substrate)
  * DOC: docs/concepts/ARCHITECTURE.md#priority-ranking
  */
 

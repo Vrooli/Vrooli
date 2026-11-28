@@ -67,10 +67,7 @@ export function EmptyState({
       // If we have default project path, use defaults
       if (agentSettings.defaultProjectPath) {
         onStartAgentChat(payload, {
-          runner_type: agentSettings.defaultRunner,
           project_path: agentSettings.defaultProjectPath,
-          model: agentSettings.defaultModel,
-          max_turns: agentSettings.defaultMaxTurns,
         });
       } else {
         // Show config modal to get project path
@@ -98,7 +95,7 @@ export function EmptyState({
   };
 
   // Handle attaching an existing run
-  const handleAttachRun = async (run: AgentRunSummary) => {
+  const handleAttachRun = (run: AgentRunSummary) => {
     if (!onAttachRun) return;
     setIsAttaching(true);
     try {

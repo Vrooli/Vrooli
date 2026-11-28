@@ -1,0 +1,264 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "external-knowledge-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": false,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-10-14T14:31:54Z",
+  "displayName": "External Knowledge Delivery",
+  "effortRefs": [
+    "effort:external-knowledge-search"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "id": "external-knowledge-delivery",
+  "homePath": ".vrooli/work/delivery/external-knowledge-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Deliver authorized, attributable fresh external search with Drive first, the selected Mail and Planner outcomes, and reusable Integration Hub connection capability.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "external-search-direction",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/architecture/external-knowledge-search.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/architecture/external-knowledge-search.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Accepted architecture, domain ownership and desired source/search behavior.",
+          "required": true
+        },
+        {
+          "id": "external-search-goal",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/CHARTER.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/CHARTER.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Destination and preparation versus execution authority.",
+          "required": true
+        },
+        {
+          "id": "external-search-research",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Dated facts, official sources, hypotheses and maturity limits.",
+          "required": true
+        },
+        {
+          "id": "external-search-setup",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/SETUP.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/SETUP.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Operator OAuth staging, source qualification and later activation route.",
+          "required": true
+        },
+        {
+          "id": "external-email-design",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md"
+            }
+          ],
+          "writePolicy": "Preparation is authorized. Later product/design amendments follow their existing owner routes; this commission stays disabled.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Pending email product/UX design inputs; this is a prompt, not a selected product specification.",
+          "required": true
+        },
+        {
+          "id": "external-search-specialist-investigations",
+          "hub": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/INTEGRATION-HUB-GOOGLE-DESIGN.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/DOCUMENT-FIDELITY-DESIGN.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/QUESTION-AWARE-RETRIEVAL-DESIGN.md"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/external-knowledge-delivery/PRIVATE-FEDERATION-DESIGN.md"
+            }
+          ],
+          "writePolicy": "Research and handoff amendments only while disabled; product implementation uses governed domain-owner routes.",
+          "consumers": [
+            "external-knowledge-delivery",
+            "external-knowledge-orchestrator"
+          ],
+          "useFor": "Dated gap evidence, proposed owner changes and acceptance gates; not selected business/visual decisions or delivered-product certification.",
+          "required": true
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "delivery-status",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/STATUS.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-log",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/LOG.md"
+          },
+          "kind": "working-register",
+          "required": true
+        },
+        {
+          "id": "delivery-feedback",
+          "path": {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/FEEDBACK.md"
+          },
+          "kind": "operator-input",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "external-knowledge-orchestrator": {
+        "lane": "Own the whole product destination, technical strategy, evolving outcome allocation and independent acceptance. Delegate substantial independent implementation to workers; coordinate shared components, API contracts and dependencies within native limits.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/STATUS.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/LOG.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/FEEDBACK.md"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/epochs"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/evidence"
+          },
+          {
+            "base": "repo-root",
+            "path": ".vrooli/work/delivery/external-knowledge-delivery/archive"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Keep the team and leader heartbeat disabled during preparation; do not dispatch, connect accounts or acquire credentials until separately authorized.",
+          "Read the approved architecture and dated research before admitting work. Drive-selected-folder delivery is first priority.",
+          "Use large-effort-orchestration and existing delivery profiles; orchestrator owns acceptance and goal home, epoch workers own product code.",
+          "Source grants and verified caller identity precede private retrieval, ranking, snippets and context. Never substitute principals after a native refusal.",
+          "Coordinate Calendar with the existing Personal Planner delivery owner. Required shared contracts/generated outputs remain in whole-outcome scope; worker exclusions do not discard them.",
+          "Email implementation requires operator-selected UX/specification and accessible governing originals, not the design prompt alone.",
+          "Preserve unrelated authored edits and user data. Dependency additions use Scenario Dependency Analyzer; generated artifacts use governed owner generation and verification.",
+          "Native identity, permissions, budgets and safeguards govern activation and dispatch; no Swarm or Plan Manager dispatch for this delivery team.",
+          "After future activation prioritize repeatable Integration Hub API/CLI/UI capability before product-mediated human Google setup/consent. Only dependent live outcomes wait; independent fixture-backed work may continue. Preserve the original immutable leader binding; qualify a supported native accepted-revision transition before activation, never falsely complete/reopen or bypass authority.",
+          "Use bounded independent surface workers under one retained orchestrator. Respect native commission limits and file/resource conflicts.",
+          "At HARD STOP checkpoint truthful accepted, partial and unverified outcomes; the owner clock stops this commission and returns an operator decision. Never manufacture acceptance or silently lower a required gate."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

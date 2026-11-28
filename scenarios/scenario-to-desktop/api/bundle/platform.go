@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"strings"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // defaultPlatformResolver is the default implementation of PlatformResolver.
@@ -31,7 +31,7 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 	switch goos {
 	case "win":
 		goos = "windows"
-	case "mac":
+	case "mac", "macos":
 		goos = "darwin"
 	case "darwin", "linux", "windows":
 	default:
@@ -53,16 +53,19 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 
 // NormalizeRuntime normalizes a platform key for runtime staging.
 func (p *defaultPlatformResolver) NormalizeRuntime(platform string) string {
-	switch platform {
-	case "linux":
-		return "linux-x64"
-	case "mac", "darwin":
-		return "darwin-x64"
-	case "win", "windows":
-		return "win-x64"
-	default:
+	goos, goarch, err := p.ParseKey(platform)
+	if err != nil {
 		return platform
 	}
+
+	arch := goarch
+	if goarch == "amd64" {
+		arch = "x64"
+	}
+	if goos == "windows" {
+		return "win-" + arch
+	}
+	return goos + "-" + arch
 }
 
 // RuntimeBinaryName returns the runtime binary name for a GOOS.
@@ -83,21 +86,22 @@ func (p *defaultPlatformResolver) RuntimeCtlBinaryName(goos string) string {
 
 // ResolveBinaryForPlatform resolves the binary entry for a service on a platform.
 func (p *defaultPlatformResolver) ResolveBinaryForPlatform(svc bundlemanifest.Service, platform string) (bundlemanifest.Binary, bool) {
-	keys := []string{platform}
-	if alias := aliasPlatformKey(platform); alias != "" {
-		keys = append(keys, alias)
+	goos, goarch, err := p.ParseKey(platform)
+	if err != nil {
+		return bundlemanifest.Binary{}, false
 	}
-	// Try exact and aliased matches first
-	for _, key := range keys {
+	for _, key := range platformBinaryKeys(goos, goarch) {
 		if bin, ok := svc.Binaries[key]; ok {
 			return bin, true
 		}
 	}
-	// For shorthand platforms, try architecture-specific keys
-	archKeys := expandShorthandPlatform(platform)
-	for _, key := range archKeys {
-		if bin, ok := svc.Binaries[key]; ok {
-			return bin, true
+	// A shorthand manifest entry has no architecture metadata. Treat it as a
+	// build-host artifact and never reuse it for a cross-architecture target.
+	if goarch == runtime.GOARCH {
+		for _, key := range platformOSAliases(goos) {
+			if bin, ok := svc.Binaries[key]; ok {
+				return bin, true
+			}
 		}
 	}
 	return bundlemanifest.Binary{}, false
@@ -113,7 +117,7 @@ func expandShorthandToHostArch(platform string) (string, string) {
 	case "arm64":
 		goarch = "arm64"
 	default:
-		goarch = "amd64" // default fallback
+		return "", ""
 	}
 
 	switch platform {
@@ -121,45 +125,40 @@ func expandShorthandToHostArch(platform string) (string, string) {
 		return "linux", goarch
 	case "win", "windows":
 		return "windows", goarch
-	case "mac", "darwin":
+	case "mac", "macos", "darwin":
 		return "darwin", goarch
 	}
 	return "", ""
 }
 
-func expandShorthandPlatform(platform string) []string {
-	archs := []string{"x64", "arm64", "amd64", "aarch64"}
+func platformBinaryKeys(goos, goarch string) []string {
+	var architectures []string
+	switch goarch {
+	case "amd64":
+		architectures = []string{"amd64", "x64"}
+	case "arm64":
+		architectures = []string{"arm64", "aarch64"}
+	default:
+		return nil
+	}
 	var keys []string
-
-	switch platform {
-	case "win", "windows":
-		for _, arch := range archs {
-			keys = append(keys, "win-"+arch, "windows-"+arch)
-		}
-	case "mac", "darwin":
-		for _, arch := range archs {
-			keys = append(keys, "darwin-"+arch, "mac-"+arch)
-		}
-	case "linux":
-		for _, arch := range archs {
-			keys = append(keys, "linux-"+arch)
+	for _, osName := range platformOSAliases(goos) {
+		for _, architecture := range architectures {
+			keys = append(keys, osName+"-"+architecture)
 		}
 	}
 	return keys
 }
 
-func aliasPlatformKey(key string) string {
-	if strings.HasPrefix(key, "windows-") {
-		return "win-" + strings.TrimPrefix(key, "windows-")
+func platformOSAliases(goos string) []string {
+	switch goos {
+	case "darwin":
+		return []string{"darwin", "macos", "mac"}
+	case "windows":
+		return []string{"windows", "win"}
+	case "linux":
+		return []string{"linux"}
+	default:
+		return nil
 	}
-	if strings.HasPrefix(key, "win-") {
-		return "windows-" + strings.TrimPrefix(key, "win-")
-	}
-	if strings.HasPrefix(key, "darwin-") {
-		return "mac-" + strings.TrimPrefix(key, "darwin-")
-	}
-	if strings.HasPrefix(key, "mac-") {
-		return "darwin-" + strings.TrimPrefix(key, "mac-")
-	}
-	return ""
 }

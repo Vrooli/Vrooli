@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "scripts",
+    "title": "Scripts",
+    "routes": [
+      "/scripts"
+    ],
+    "purpose": "Inspect complete source, preserve qualified execution and actual authoring authority, and recover list/detail/editor context under the current Vega design target.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-008"
+    ]
+  },
+  "states": [
+    {
+      "id": "catalog",
+      "description": "Source-first builtin/custom catalog with actual availability and complete details."
+    },
+    {
+      "id": "source",
+      "description": "Genuine complete code viewer/editor with authority-appropriate controls and retained return state."
+    },
+    {
+      "id": "execution",
+      "description": "Qualified review, lifecycle and complete stdout/stderr; pending, failed and unknown outcomes remain distinct."
+    }
+  ]
+}

@@ -18,13 +18,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func parseProjectID(raw string) (uuid.UUID, error) {
+	id, err := uuid.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid project_id: %w", err)
+	}
+	return id, nil
+}
+
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	projectID, err := uuid.Parse(strings.TrimSpace(req.ProjectId))
+	projectID, err := parseProjectID(req.ProjectId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid project_id: %w", err)
+		return nil, err
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -85,8 +93,8 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 			}
 			return "Initial workflow creation"
 		}(),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 		FlowDefinition: def,
 	}
 
@@ -111,7 +119,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 	s.cacheWorkflowPath(workflowID, absPath, relPath)
 
 	return &basapi.CreateWorkflowResponse{
-		Workflow:      summary,
+		Workflow:       summary,
 		FlowDefinition: summary.FlowDefinition,
 	}, nil
 }
@@ -137,9 +145,9 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, req *basapi.ListWor
 	var workflows []*database.WorkflowIndex
 	var err error
 	if req.ProjectId != nil && strings.TrimSpace(req.GetProjectId()) != "" {
-		projectID, parseErr := uuid.Parse(strings.TrimSpace(req.GetProjectId()))
+		projectID, parseErr := parseProjectID(req.GetProjectId())
 		if parseErr != nil {
-			return nil, fmt.Errorf("invalid project_id: %w", parseErr)
+			return nil, parseErr
 		}
 		if err := s.syncProjectWorkflows(ctx, projectID); err != nil {
 			return nil, err
@@ -174,13 +182,21 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, req *basapi.ListWor
 	}, nil
 }
 
+func parseWorkflowID(raw string) (uuid.UUID, error) {
+	id, err := uuid.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid workflow_id: %w", err)
+	}
+	return id, nil
+}
+
 func (s *WorkflowService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	workflowID, err := uuid.Parse(strings.TrimSpace(req.WorkflowId))
+	workflowID, err := parseWorkflowID(req.WorkflowId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+		return nil, err
 	}
 
 	if req.Version != nil && req.GetVersion() > 0 {
@@ -191,18 +207,16 @@ func (s *WorkflowService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWor
 		return &basapi.GetWorkflowResponse{Workflow: versionWf}, nil
 	}
 
+	// GetWorkflow does NOT trigger a filesystem sync: API writes (Create/
+	// Update) keep the canonical .workflow.json file in lockstep with the
+	// DB index, so the DB row already points at fresh content. Out-of-
+	// band disk edits are reconciled by the explicit ResyncProjectFiles
+	// RPC, not by every read. The previous always-sync pattern produced
+	// disk-overwrites-DB races where in-flight updates were lost between
+	// the write and the next Get.
 	index, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		return nil, err
-	}
-	if index.ProjectID != nil {
-		if err := s.syncProjectWorkflows(ctx, *index.ProjectID); err != nil {
-			return nil, err
-		}
-		index, err = s.repo.GetWorkflow(ctx, workflowID)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	summary, err := s.hydrateWorkflowSummary(ctx, index)
@@ -217,9 +231,9 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	workflowID, err := uuid.Parse(strings.TrimSpace(req.GetWorkflowId()))
+	workflowID, err := parseWorkflowID(req.GetWorkflowId())
 	if err != nil {
-		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+		return nil, err
 	}
 
 	currentIndex, err := s.repo.GetWorkflow(ctx, workflowID)
@@ -229,15 +243,19 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	if currentIndex.ProjectID == nil {
 		return nil, fmt.Errorf("workflow %s is not associated with a project", workflowID)
 	}
+	// Serialize revision checks with API updates and filesystem reconciliation.
+	lock := s.getProjectLock(*currentIndex.ProjectID)
+	lock.Lock()
+	defer lock.Unlock()
 	project, err := s.repo.GetProject(ctx, *currentIndex.ProjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.syncProjectWorkflows(ctx, *currentIndex.ProjectID); err != nil {
-		return nil, err
-	}
-
+	// UpdateWorkflow is the source of truth: hydrate from the canonical
+	// disk file (kept in lockstep by every Create/Update), then write
+	// the new version back. No pre-flight sync — that pattern raced with
+	// in-flight writes and resurrected stale disk content.
 	currentSummary, err := s.hydrateWorkflowSummary(ctx, currentIndex)
 	if err != nil {
 		return nil, err
@@ -291,7 +309,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	}
 
 	return &basapi.UpdateWorkflowResponse{
-		Workflow:      updated,
+		Workflow:       updated,
 		FlowDefinition: updated.FlowDefinition,
 	}, nil
 }
@@ -300,9 +318,9 @@ func (s *WorkflowService) DeleteWorkflow(ctx context.Context, req *basapi.Delete
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
-	workflowID, err := uuid.Parse(strings.TrimSpace(req.WorkflowId))
+	workflowID, err := parseWorkflowID(req.WorkflowId)
 	if err != nil {
-		return nil, fmt.Errorf("invalid workflow_id: %w", err)
+		return nil, err
 	}
 	index, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
@@ -311,9 +329,11 @@ func (s *WorkflowService) DeleteWorkflow(ctx context.Context, req *basapi.Delete
 
 	if index.ProjectID != nil {
 		project, err := s.repo.GetProject(ctx, *index.ProjectID)
-		if err == nil {
-			abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(index.FilePath))
-			_ = os.Remove(abs)
+		if err != nil {
+			return nil, fmt.Errorf("get project for workflow deletion: %w", err)
+		}
+		if err := removeWorkflowFiles(project, index); err != nil {
+			return nil, err
 		}
 	}
 

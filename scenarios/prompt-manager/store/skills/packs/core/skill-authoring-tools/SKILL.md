@@ -1,9 +1,29 @@
+---
+name: "skill-authoring-tools"
+description: "Authoring guide for Tools skills covering safe usage, guardrails, and verification."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","tools"]
+  tags: ["skill","authoring"]
+  icon: "wrench"
+  status: "active"
+  revision: 45
+  createdAt: "2026-01-28T00:00:00Z"
+  updatedAt: "2026-09-02T20:00:00Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Tools Skill Authoring
 
-Guide for creating **Tools** skills (where `modes[0] = "Tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.
+Guide for creating **tools** skills (the authored skill declares `modes[0] = "tools"`). Tools skills teach how to use a resource, scenario, or tool safely and effectively.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 ---
 
@@ -31,17 +51,13 @@ Recommended shape:
 
 Important:
 - Do not force rigid section naming for core flow content.
-- Do require the exact section name `Troubleshooting & Edge Cases` when operational complexity exists.
-
-Operational complexity rule:
-- If the tool has multi-step workflows, mutable state, external dependencies, or recurring failure patterns, include `Troubleshooting & Edge Cases`.
-- If the tool is genuinely simple/stable, you may omit it and add one explicit line such as: `No known operational edge cases for standard usage.`
+- Do require the exact section name `Troubleshooting & Edge Cases` when operational complexity exists — the trigger rule and the simple-skill exemption live in `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars".
 
 ---
 
 ### **3. Convergence Patterns**
 
-Use concise decision tables to avoid inconsistent tool usage.
+Use concise work tables to avoid inconsistent tool usage.
 
 Example:
 
@@ -55,12 +71,7 @@ Example:
 
 ### **4. CLI Output Contract (Human-First)**
 
-For agent workflows, default CLI output is the canonical path.
-
-- Prefer direct commands without `--json` / `--raw`
-- Do not add `jq` pipelines in normal workflows
-- Prefer selector-based commands over ID extraction when available
-- Use machine-readable output only when default output is too long or ambiguous for reliable execution, and state that exception explicitly
+Human-first CLI consumption and selector-first workflows are universal quality bars — `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars" owns them. When a tools skill needs machine-readable output, state the exception and its justification explicitly in the skill.
 
 ---
 
@@ -87,30 +98,28 @@ Keep this section separate from the primary workflow so the core path stays conc
 
 Promotion rule:
 - If an item in this section is frequent/repetitive, prefer improving CLI output contracts or adding tool capabilities rather than expanding prose further.
+- If one Vrooli-controlled CLI command owns a deterministic operation, prefer exposing it as an Action and referencing that Action instead of documenting command prose inline.
+- Before concluding no CLI exists for an operation, apply `docs/agent-system/SKILL_AUTHORING.md#promotion-ladder` "Delete a prose section when ... Convert to an Action only when" (`cli-health search query "<operation>"` finds an existing owner). Whether a no-hit operation stays in prose or becomes a promotion candidate is decided by the three-part test in `docs/agent-system/SKILL_AUTHORING.md#promotion-ladder` §"When to attempt CLI/Action conversion", not by a default assumption.
 - If multiple entries share the same root cause, add a short promotion note (what should move to CLI/tooling, or why it should remain manual).
 - Keep this as guidance, not a rigid section template.
-- Apply the canonical lifecycle from `skill-principles` section `Promotion-Retirement Lifecycle`.
+- Apply the canonical lifecycle from `docs/agent-system/SKILL_AUTHORING.md#promotion-ladder`.
 
 ---
 
-### **7. Registration Notes**
-
-Follow **Skill Principles** and ensure:
-- `modes[0]` is **Tools**
-- The description names the tool and the primary value it provides
-
----
-
-### **8. Output Expectations**
+### **7. Output Expectations**
 
 You may update:
 - Tools skills to improve clarity, safety, or troubleshooting coverage
-- `metadata.json` entries for Tools skills
+- `skill.json` entries for Tools skills
 
 You must:
+- For a scenario usage role: a decision tree with rung-labeled leaves, the learning spine when a scope is declared, and an in-use settings table (`scenario-skill-setup` §3)
 - Provide safe defaults and guardrails
 - Include verification steps
 - Keep guidance tool-focused, not feature-focused
 - Prefer human-first CLI output patterns and avoid parser-dependent workflows by default
 - Keep long-tail failures centralized under `Troubleshooting & Edge Cases` when applicable
 - For recurring troubleshooting patterns, include at least one CLI/tool promotion consideration or a brief rationale for not promoting yet
+- For deterministic one-command operations, include an Action promotion consideration or a brief rationale for keeping the operation in prose
+
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "tools"` and a description that names the tool and the primary value it provides.

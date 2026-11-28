@@ -1,128 +1,215 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { usePendingWorkspaceChanges } from "./lib/hooks-core";
+import { useAppViewport } from "./hooks/useAppViewport";
+import { PushSafetyProvider } from "./components/PushSafetyIndicators";
+import type { PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
+import { readSkipPrecommitPreference, writeSkipPrecommitPreference } from "./lib/commitAuthorizationPreference";
+// DOC: docs/concepts/ARCHITECTURE.md
+// App orchestrates the 3-pane git-control-tower UI. See the Architecture
+// doc for component boundaries and the operational targets (OT-P1-002 etc.)
+// driving future work; performance characteristics are tracked in
+// docs/perf/.
+import { lazy, Suspense, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { create } from "@bufbuild/protobuf";
+import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import { StagedMessageMode, WorktreeSelectionSource } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
+import TopSafeArea from "./components/TopSafeArea";
+import { chromeTheme } from "@vrooli/react-component-library/ChromeTheme";
 import { MobileNav } from "./components/MobileNav";
 import { FileList } from "./components/FileList";
 import { HistoryFileList } from "./components/HistoryFileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
-import { GitHistory } from "./components/GitHistory";
+import { mergeContinuationMessage } from "./features/commit-message/message";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
-import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
-import { FileSearchModal } from "./components/FileSearchModal";
-import { MobileFileSearch } from "./components/MobileFileSearch";
+import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
+import { StageDuringSuggestionModal } from "./components/StageDuringSuggestionModal";
+import { inspectQueueCommitReadiness, queueCommitBlockMessage, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./features/commit-message/stageQueue";
+import { listWorktreeSuggestionQueue } from "./features/commit-message/api";
+import { useWorktreeSuggestionQueue, type PendingSuggestionStage } from "./features/commit-message/useWorktreeSuggestionQueue";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
-import { SettingsModal } from "./components/SettingsModal";
-import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
-import { useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
+import { DeferredSettingsModal as SettingsModal } from "./components/DeferredSettingsModal";
+
+import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
-import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
+import { fetchAuthorityStatus, fetchMutationPreview, fetchRepoStatus, issueMutationIntent, RemoteOperationError } from "./lib/api";
+import type { AuthorityStatus, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest, StageResponse } from "./lib/api";
+import { createStageBatcher, type StageBatcher } from "./lib/stage-batcher";
+import { commitPreviewMatchesCurrent } from "./lib/commit-authorization";
 import { getFileTypeInfo } from "./lib/fileTypes";
+import { GCT_CHROME_COLOR } from "./lib/chrome";
+import { experienceSignal } from "./lib/experience";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
+import { computeNextSelection, moveDesktopPane, normalizeDesktopPaneOrder, selectStackSlots, type DesktopPane, type DesktopPaneOrder, type SelectionEntry } from "./AppSelection";
+import { ProposalsSection } from "./features/proposals/ProposalsSection";
+import { startPrecommitCandidateCheck } from "./features/commit-message/precommitCandidateApi";
+import { GripVertical } from "lucide-react";
+
+import type { SyncActivity } from "./App.types";
 import {
-  useHealth,
+  useMutationErrorToasts,
+  useNotifications,
+  STICKY,
+  TRANSIENT_MS
+} from "./lib/notifications";
+import {
   useRepoStatus,
   useRepoHistory,
   useDiff,
   useSyncStatus,
-  useApprovedChanges,
-  useApprovedChangesPreview,
   useStageFiles,
   useUnstageFiles,
   useCommit,
+  usePrecommitConfig,
+  useSavePrecommitConfig,
   useDiscardFiles,
   useIgnoreFile,
   usePush,
   usePull,
   useSaveFileContent,
-  useBranches,
-  useCreateBranch,
-  useSwitchBranch,
-  usePublishBranch,
   useDeletePath,
   useRepos,
   useOpenRepo,
   useCloneRepo,
   useSetActiveRepo,
   useRemoveRepo,
+  useCreateBranch,
+  useSwitchBranch,
+  usePublishBranch,
   useRepoSelection,
   useGroupingRules,
+  useRepoGroups,
   useSaveGroupingRules,
-  queryKeys
+  queryKeys,
 } from "./lib/hooks";
+import { invalidateFileDiffVariants, invalidateManualRefresh } from "./lib/hooks-query-invalidations";
 
-const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
+const ScenarioReviewPanel = lazy(() => import("./components/ScenarioReviewPanel").then(module => ({ default: module.ScenarioReviewPanel })));
+const ProposalWorkspace = lazy(() => import("./features/proposals/ProposalWorkspace").then(module => ({ default: module.ProposalWorkspace })));
+const SourceDistributionPanel = lazy(() => import("./components/SourceDistributionPanel").then(module => ({ default: module.SourceDistributionPanel })));
+const GitHistory = lazy(() => import("./components/GitHistory").then(module => ({ default: module.GitHistory })));
+const UpstreamInfoModal = lazy(() => import("./components/UpstreamInfoModal").then(module => ({ default: module.UpstreamInfoModal })));
+const FileSearchModal = lazy(() => import("./components/FileSearchModal").then(module => ({ default: module.FileSearchModal })));
+const MobileFileSearch = lazy(() => import("./components/MobileFileSearch").then(module => ({ default: module.MobileFileSearch })));
+const PushSafetyDialog = lazy(() => import("./components/PushSafetyDialog").then(module => ({ default: module.PushSafetyDialog })));
+const CommitAuthorizationDialog = lazy(() => import("./components/CommitAuthorizationDialog").then(module => ({ default: module.CommitAuthorizationDialog })));
+const panelLoading = <div role="status" className="p-4 text-sm text-slate-400">Loading workspace…</div>;
+const historyLoading = <div role="status" className="flex h-full items-center justify-center text-sm text-slate-400">Loading history…</div>;
+const sourceDistributionLoading = <ModalLoading label="Loading source distributions…" />;
+const searchLoading = <ModalLoading label="Loading file search…" />;
+const upstreamInfoLoading = <ModalLoading label="Loading upstream details…" />;
+const pushSafetyLoading = <ModalLoading label="Loading push safety review…" />;
+const commitAuthorizationLoading = <ModalLoading label="Loading commit authorization…" />;
+const layoutRestoreState = (
+  <div className="h-full w-full p-4" role="status" aria-label="Restoring workspace layout" aria-busy="true">
+    <div className="mb-3 h-8 w-40 animate-pulse rounded-md bg-slate-800/70" />
+    <div className="grid h-[calc(100%-2.75rem)] grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(16rem,30%)]">
+      <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+      <div className="hidden grid-rows-3 gap-3 sm:grid">
+        <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+        <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+        <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40" />
+      </div>
+    </div>
+  </div>
+);
 
-type SelectionEntry = { path: string; staged: boolean };
+type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
 
-/** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */
-function computeNextSelection(
-  nextKey: string,
-  lastKey: string | null,
-  mode: "single" | "toggle" | "range",
-  currentSelection: SelectionEntry[],
-  orderedIndexMap: Map<string, number>,
-  orderedKeys: string[],
-  orderedKeyToEntry: Map<string, SelectionEntry>,
-  selectionKey: (entry: SelectionEntry) => string,
-): SelectionEntry[] {
-  const nextEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
+function ModalLoading({ label }: { label: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-label={label}>
+      <section className="w-full max-w-6xl rounded-2xl border border-slate-700 bg-slate-900 p-5 text-sm text-slate-300 shadow-2xl" role="status">
+        {label}
+      </section>
+    </div>
+  );
+}
 
-  if (mode === "range" && lastKey && orderedIndexMap.has(lastKey) && orderedIndexMap.has(nextKey)) {
-    const start = orderedIndexMap.get(lastKey) ?? 0;
-    const end = orderedIndexMap.get(nextKey) ?? 0;
-    const [from, to] = start < end ? [start, end] : [end, start];
-    return orderedKeys
-      .slice(from, to + 1)
-      .map((key) => orderedKeyToEntry.get(key))
-      .filter((entry): entry is SelectionEntry => Boolean(entry));
+function precommitResultForPanel(result: NonNullable<CommitResponse["precommit"]>): PrecommitRunResult {
+  return {
+    status: result.status,
+    command: result.command,
+    exit_code: result.exitCode,
+    summary: result.summary,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    duration_ms: Number(result.durationMs),
+    override_allowed: result.overrideAllowed,
+    timestamp: result.timestamp,
+  };
+}
+
+function isLayoutSection(value: string): value is LayoutSection {
+  return value === "changes" || value === "diff" || value === "commit" || value === "history" || value === "review";
+}
+
+function isLayoutPreset(value: string): value is LayoutPreset {
+  return value === "classic" || value === "split" || value === "bottom";
+}
+
+function isGroupingRuleLike(value: unknown): value is GroupingRuleLike {
+  return typeof value === "object" && value !== null;
+}
+
+function isPresent<T>(value: T | null): value is T {
+  return value !== null;
+}
+
+/** Elapsed time for an in-flight remote operation, e.g. "8s" or "2m 04s". */
+function formatElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+const commitConfirmationPreferenceKey = "gct.commitConfirmation.skip";
+
+function readCommitConfirmationPreference(): boolean {
+  try {
+    return window.localStorage.getItem(commitConfirmationPreferenceKey) === "true";
+  } catch {
+    return false;
   }
+}
 
-  if (mode === "toggle") {
-    const hasEntry = currentSelection.some((entry) => selectionKey(entry) === nextKey);
-    if (hasEntry) {
-      return currentSelection.filter((entry) => selectionKey(entry) !== nextKey);
+function writeCommitConfirmationPreference(skip: boolean): void {
+  try {
+    if (skip) {
+      window.localStorage.setItem(commitConfirmationPreferenceKey, "true");
+    } else {
+      window.localStorage.removeItem(commitConfirmationPreferenceKey);
     }
-    return [...currentSelection, nextEntry].sort((a, b) => {
-      const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
-      const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
-      return aIndex - bIndex;
-    });
+  } catch {
+    // A restricted browser storage context should not block a commit.
   }
-
-  // single
-  return [nextEntry];
 }
 
 export default function App() {
   const queryClient = useQueryClient();
+  useAppViewport();
   const { repoId, setRepoId } = useRepoSelection();
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
+  // Refs for inner grid containers driven by changesHeight / historyHeight.
+  // During panel drag we write style.gridTemplateRows imperatively on these
+  // refs so App's React state isn't updated on every mousemove. The state is
+  // committed once on mouseup so it still persists to localStorage.
+  const sidebarGridRef = useRef<HTMLDivElement | null>(null);
+  const topStackGridRef = useRef<HTMLDivElement | null>(null);
 
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window === "undefined") return 320;
-    const stored = Number(localStorage.getItem("gct.sidebarWidth"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 320;
-  });
-  const [changesHeight, setChangesHeight] = useState(() => {
-    if (typeof window === "undefined") return 420;
-    const stored = Number(localStorage.getItem("gct.changesHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 420;
-  });
-  const [historyHeight, setHistoryHeight] = useState(() => {
-    if (typeof window === "undefined") return 200;
-    const stored = Number(localStorage.getItem("gct.historyHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 200;
-  });
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const [changesHeight, setChangesHeight] = useState(420);
+  const [historyHeight, setHistoryHeight] = useState(200);
   const [changesCollapsed, setChangesCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [commitCollapsed, setCommitCollapsed] = useState(false);
@@ -146,18 +233,34 @@ export default function App() {
   const sidebarMinWidth = 200;
   const diffMinWidth = 320;
   const [fileViewMode, setFileViewMode] = useState<FileViewMode>("flat");
+  const viewModeTouchedRef = useRef(false);
+  const viewModeReportedRef = useRef(false);
+  const fileViewModeRef = useRef(fileViewMode);
+  fileViewModeRef.current = fileViewMode;
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
+  const [groupingRulesDirty, setGroupingRulesDirty] = useState(false);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
-  const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
   const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
+  const [desktopPaneOrder, setDesktopPaneOrder] = useState<DesktopPaneOrder>(["diff", "changes", "history", "commit"]);
+  const [draggingPane, setDraggingPane] = useState<DesktopPane | null>(null);
+  const [dropTargetPane, setDropTargetPane] = useState<DesktopPane | null>(null);
+  const layoutRatiosRef = useRef({ sidebarWidth: 0.32, stackHeight: 0.4, changesHeight: 0.52, historyHeight: 0.25 });
+  const lastLayoutViewportRef = useRef<{ width: number; height: number } | null>(null);
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
-  const [stackHeight, setStackHeight] = useState(() => {
-    if (typeof window === "undefined") return 320;
-    const stored = Number(localStorage.getItem("gct.stackHeight"));
-    return Number.isFinite(stored) && stored > 0 ? stored : 320;
-  });
+  const [stackHeight, setStackHeight] = useState(320);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [paneDragEnabled, setPaneDragEnabled] = useState(false);
+  useEffect(() => {
+    if (!paneDragEnabled) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPaneDragEnabled(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [paneDragEnabled]);
+  const [isSourceDistributionOpen, setIsSourceDistributionOpen] = useState(false);
+  const [sourceDistributionId, setSourceDistributionId] = useState<string | null>(null);
   const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
   // URL overrides are captured once on mount so the hook can prioritize URL params
   const urlInitOverridesRef = useRef<{ activeTab?: ReviewTab; agentRunId?: string | null } | undefined>(undefined);
@@ -168,23 +271,24 @@ export default function App() {
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
     const stored = localStorage.getItem("gct.mobileActivePanel");
-    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
-    if (stored && validPanels.includes(stored as LayoutSection)) {
-      return stored as LayoutSection;
+    if (stored && isLayoutSection(stored)) {
+      return stored;
     }
     return "changes";
   });
-  const [pushNotice, setPushNotice] = useState<{
-    tone: "success" | "info" | "warning";
-    message: string;
-  } | null>(null);
-  const [warningNotice, setWarningNotice] = useState<{
-    message: string;
-    details?: string;
-  } | null>(null);
+  // A remote operation in flight. Tracked separately from the mutation's isPending so the
+  // preflight fetch, which runs before the mutation starts, is also visibly in progress.
+  const [syncActivity, setSyncActivity] = useState<SyncActivity | null>(null);
+  const [syncElapsedMs, setSyncElapsedMs] = useState(0);
+  const { notify, notifySync, updateSync } = useNotifications();
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
   // File search state
   const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
+  const [hasOpenedFileSearch, setHasOpenedFileSearch] = useState(false);
+  const openFileSearch = useCallback(() => {
+    setHasOpenedFileSearch(true);
+    setIsFileSearchOpen(true);
+  }, []);
   // Track if viewing a non-changed file (any file from search)
   const [isViewingAnyFile, setIsViewingAnyFile] = useState(false);
   // Related files panel state
@@ -205,26 +309,25 @@ export default function App() {
   const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
+    chromeTheme.setBase({ statusColor: GCT_CHROME_COLOR, fillColor: GCT_CHROME_COLOR });
+  }, []);
+
+	useEffect(() => {
     if (fileViewMode !== "grouped" || groupingRules.length === 0) {
       setHistoryScopeFilter(null);
     }
   }, [fileViewMode, groupingRules.length]);
 
   useEffect(() => {
-    if (!pushNotice) return;
-    const timeout = window.setTimeout(() => {
-      setPushNotice(null);
-    }, 4000);
-    return () => window.clearTimeout(timeout);
-  }, [pushNotice]);
-
-  useEffect(() => {
-    if (!warningNotice) return;
-    const timeout = window.setTimeout(() => {
-      setWarningNotice(null);
-    }, 4000);
-    return () => window.clearTimeout(timeout);
-  }, [warningNotice]);
+    if (!syncActivity) {
+      setSyncElapsedMs(0);
+      return;
+    }
+    const tick = () => setSyncElapsedMs(Date.now() - syncActivity.startedAt);
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [syncActivity]);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -238,14 +341,37 @@ export default function App() {
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
   const [pendingDiscardFiles, setPendingDiscardFiles] = useState<DiscardFile[] | null>(null);
+  const [pendingStageSameNameFiles, setPendingStageSameNameFiles] = useState<string[] | null>(null);
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [_lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
+  const [precommitFailure, setPrecommitFailure] = useState<PrecommitRunResult | null>(null);
+  const [pendingPrecommitCommit, setPendingPrecommitCommit] = useState<CommitRequest | null>(null);
+  const pendingPrecommitCommitRef = useRef<CommitRequest | null>(null);
+  const [pendingCommitAuthorization, setPendingCommitAuthorization] = useState<PendingCommitAuthorization | null>(null);
+  const [isAuthorizingCommit, setIsAuthorizingCommit] = useState(false);
+  const commitPreviewPending = useRef(false);
+  const [dontAskAgain, setDontAskAgain] = useState(false);
+  const [skipPrecommitInDialog, setSkipPrecommitInDialogState] = useState(readSkipPrecommitPreference);
+  const setSkipPrecommitInDialog = useCallback((value: boolean) => {
+    setSkipPrecommitInDialogState(value);
+    writeSkipPrecommitPreference(value);
+  }, []);
+  const [skipCommitConfirmation, setSkipCommitConfirmation] = useState(readCommitConfirmationPreference);
+  // Survives the mobile Changes-panel unmount so its scroll position is restored
+  // when the operator switches away and back (desktop keeps panels mounted).
+  const changesScrollTopRef = useRef(0);
   const [commitMessage, setCommitMessage] = useState(
     () => localStorage.getItem("gct.commitMessage") ?? ""
   );
   // History mode: when viewing a previous commit
   const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
+  const [proposalView, setProposalView] = useState<string | null>(() => parseUrlState(window.location.search).proposal ?? null);
+  const [proposalFile, setProposalFile] = useState<string | undefined>(() => parseUrlState(window.location.search).proposalFile);
+  const [proposalRevision, setProposalRevision] = useState<number | undefined>(() => parseUrlState(window.location.search).proposalRevision);
+  const handleOpenProposal = useCallback((id: string, revision?: number) => {
+    setProposalView(id); setProposalFile(undefined); setProposalRevision(revision);
+  }, []);
   // View mode for diff viewer
   const [viewMode, setViewMode] = useState<ViewMode>("diff");
 
@@ -256,6 +382,11 @@ export default function App() {
 
   // URL state management - handle browser back/forward and initial state
   const handleUrlStateChange = useCallback((state: UrlState) => {
+    setProposalView(state.proposal ?? null);
+    setProposalFile(state.proposalFile);
+    setProposalRevision(state.proposalRevision);
+    setIsSourceDistributionOpen(Boolean(state.sourceDistributionId));
+    setSourceDistributionId(state.sourceDistributionId ?? null);
     if (state.file) {
       const isAnyFile = state.anyFile === true;
       setSelectedFile(state.file);
@@ -284,9 +415,9 @@ export default function App() {
       // For now, we just store the hash - user can click on the commit in history to fully restore
     }
     if (state.primary) {
-      const validPrimary: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
-      if (validPrimary.includes(state.primary as LayoutSection)) {
-        setPrimaryPanel(state.primary as LayoutSection);
+      if (isLayoutSection(state.primary)) {
+        setPrimaryPanel(state.primary);
+        setMobileActivePanel(state.primary);
       }
     } else {
       setPrimaryPanel("diff");
@@ -319,7 +450,7 @@ export default function App() {
         agentRunId: initialState.agentRunId ?? null,
       };
     }
-    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId) {
+    if (initialState.proposal || initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId || initialState.sourceDistributionId) {
       handleUrlStateChange(initialState);
     }
     // Mark as initialized so URL update effect can run
@@ -336,6 +467,7 @@ export default function App() {
     if (!initializedFromUrlRef.current) return;
 
     const urlState: UrlState = {};
+    if (proposalView) { urlState.proposal = proposalView; urlState.proposalFile = proposalFile; urlState.proposalRevision = proposalRevision; }
 
     if (selectedFile) {
       urlState.file = selectedFile;
@@ -368,28 +500,16 @@ export default function App() {
     if (scenarioReview.state.agentRunId) {
       urlState.agentRunId = scenarioReview.state.agentRunId;
     }
+    if (isSourceDistributionOpen && sourceDistributionId) {
+      urlState.sourceDistributionId = sourceDistributionId;
+    }
 
     updateUrlState(urlState);
-  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, updateUrlState]);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, isSourceDistributionOpen, sourceDistributionId, proposalView, proposalFile, proposalRevision, updateUrlState]);
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
-  const stackPanels = useMemo(
-    () => primaryPanel === "review" ? layoutOrder : layoutOrder.filter((section) => section !== primaryPanel),
-    [primaryPanel]
-  );
-  const stackSlots = useMemo(() => {
-    const remaining = new Set(stackPanels);
-    const fallbackPanel: LayoutSection = "diff";
-    const middle = remaining.has("history") ? "history" : stackPanels[0] ?? fallbackPanel;
-    remaining.delete(middle);
-    const bottom = remaining.has("commit")
-      ? "commit"
-      : stackPanels[1] ?? stackPanels[0] ?? fallbackPanel;
-    remaining.delete(bottom);
-    const top = Array.from(remaining)[0] ?? middle;
-    return { top, middle, bottom };
-  }, [stackPanels]);
+  const stackSlots = useMemo(() => selectStackSlots(primaryPanel, desktopPaneOrder), [primaryPanel, desktopPaneOrder]);
   const collapsedBySection = useMemo(
     () => ({
       changes: changesCollapsed,
@@ -409,15 +529,34 @@ export default function App() {
   const topStackCollapsed = topCollapsed && middleCollapsed;
 
   // Queries
-  const healthQuery = useHealth();
+  const authorityQuery = useQuery<AuthorityStatus>({
+    queryKey: ["authority-status"],
+    queryFn: fetchAuthorityStatus,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const authorityStatus: AuthorityStatus | undefined = authorityQuery.data ?? (authorityQuery.isError ? create(AuthorityStatusSchema, {
+    authenticated: false,
+    principalId: "",
+    email: "",
+    realm: "",
+    callerKind: "unknown",
+    canMutate: false,
+    reason: "Authorization status is unavailable; sign in again before mutating a repository.",
+    capabilities: [],
+  }) : undefined);
   const statusQuery = useRepoStatus(repoId);
-  // Always fetch entry details for commit viewing and blame mode filtering
-  const historyNeedsDetails = true;
+  const refreshRepoStatus = statusQuery.refetch;
+  // Detailed history includes per-commit file lists and checks. Keep that
+  // expensive read and its polling tied to a visible History surface; blame
+  // mode also consumes the detailed entries while it is active.
+  const historyNeedsDetails = isMobile
+    ? mobileActivePanel === "history" || Boolean(viewingFileBlame)
+    : !historyCollapsed || Boolean(viewingFileBlame);
   const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
   const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
-  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern);
+  const historyQuery = useRepoHistory(historyEffectiveLimit, true, repoId, historyGrepPattern, true, historyNeedsDetails || Boolean(historyGrepPattern));
   const syncStatusQuery = useSyncStatus(repoId);
-  const approvedChangesQuery = useApprovedChanges(repoId);
   const diffQuery = useDiff(
     selectedFile,
     viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
@@ -445,78 +584,152 @@ export default function App() {
   const stageMutation = useStageFiles(repoId);
   const unstageMutation = useUnstageFiles(repoId);
   const commitMutation = useCommit(repoId);
+  const precommitConfigQuery = usePrecommitConfig(repoId);
+  const savePrecommitConfigMutation = useSavePrecommitConfig(repoId);
   const discardMutation = useDiscardFiles(repoId);
   const ignoreMutation = useIgnoreFile(repoId);
   const pushMutation = usePush(repoId);
   const pullMutation = usePull(repoId);
   const saveFileContentMutation = useSaveFileContent(repoId);
-  const approvedPreviewMutation = useApprovedChangesPreview(repoId);
-  const branchesQuery = useBranches(repoId);
+  const deletePathMutation = useDeletePath(repoId);
   const createBranchMutation = useCreateBranch(repoId);
   const switchBranchMutation = useSwitchBranch(repoId);
   const publishBranchMutation = usePublishBranch(repoId);
-  const deletePathMutation = useDeletePath(repoId);
   const reposQuery = useRepos();
   const openRepoMutation = useOpenRepo();
   const cloneRepoMutation = useCloneRepo();
   const setActiveRepoMutation = useSetActiveRepo();
   const removeRepoMutation = useRemoveRepo();
   const groupingRulesQuery = useGroupingRules(repoId);
+  const repoGroupsQuery = useRepoGroups(repoId, statusQuery.data?.status_snapshot_id);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
-  const isStaging = stageMutation.isPending || unstageMutation.isPending;
+  // Branch data polling is owned by the visible header; App retains the
+  // mutation callbacks and error toasts, which change only after user actions.
+  const branchActions = useMemo(() => ({
+    createBranch: createBranchMutation.mutateAsync,
+    switchBranch: switchBranchMutation.mutateAsync,
+    publishBranch: publishBranchMutation.mutateAsync,
+    isCreating: createBranchMutation.isPending,
+    isSwitching: switchBranchMutation.isPending,
+    isPublishing: publishBranchMutation.isPending,
+    isLoading: false,
+  }), [
+    createBranchMutation.mutateAsync,
+    createBranchMutation.isPending,
+    switchBranchMutation.mutateAsync,
+    switchBranchMutation.isPending,
+    publishBranchMutation.mutateAsync,
+    publishBranchMutation.isPending,
+  ]);
+
+  // Mutation result objects change on every render; their mutate functions
+  // are stable and keep file-action callbacks from invalidating the list.
+  const unstageMutate = unstageMutation.mutate;
+  const discardMutate = discardMutation.mutate;
+  const ignoreMutate = ignoreMutation.mutate;
+
+  const workspaceChanges = usePendingWorkspaceChanges(repoId);
+  const [queuedStagePaths, setQueuedStagePaths] = useState<string[]>([]);
+  const stageMutate = stageMutation.mutate;
+  const stageBatcher = useMemo<StageBatcher<StageResponse>>(
+    () => createStageBatcher<StageResponse>(
+      (paths, { onSuccess, onError, onSettled }) => {
+        stageMutate({ paths }, { onSuccess, onError: error => onError(error), onSettled });
+      },
+      setQueuedStagePaths,
+      { scopeKey: repoId ?? "default" },
+    ),
+    [repoId, stageMutate],
+  );
+  useEffect(() => () => stageBatcher.dispose(), [stageBatcher]);
+  const [pendingSuggestionStage, setPendingSuggestionStage] = useState<PendingSuggestionStage>(null);
+  const queueController = useWorktreeSuggestionQueue({ repoId: repoId ?? undefined, notify, stageBatcher, pendingSuggestionStage, setPendingSuggestionStage, statusQuery, refreshRepoStatus });
+  const { stageQueueRepo, stageQueueReady, suggestionStageQueue, queueRecoveryPendingId, startingSuggestionIds, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, markQueuedSelectionStale, startQueuedSuggestion, requestStage, stageQueuedSelectionNow, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit } = queueController;
+  const stagedPaths = statusQuery.data?.files.staged;
+  const worktreeChangedPaths = useMemo(() => [...new Set([...(statusQuery.data?.files.unstaged ?? []), ...(statusQuery.data?.files.untracked ?? [])])], [statusQuery.data?.files.unstaged, statusQuery.data?.files.untracked]);
+  const queueCommitReadiness = useMemo(() => inspectQueueCommitReadiness(suggestionStageQueue, stagedPaths), [stagedPaths, suggestionStageQueue]);
+  const queueCommitBlockReason = !stageQueueReady
+    ? "Queue status is still loading. Wait for it to load before committing."
+    : queueCommitReadiness.ready ? undefined : queueCommitBlockMessage(queueCommitReadiness.reason);
+  const isStaging = workspaceChanges.count > 0 || queuedStagePaths.length > 0;
+  const pendingPaths = useMemo(
+    () => new Set([...workspaceChanges.paths, ...queuedStagePaths]),
+    [queuedStagePaths, workspaceChanges.paths],
+  );
+  const pushSafetyRevision = useMemo(
+    () => statusQuery.data?.status_snapshot_id ?? JSON.stringify([statusQuery.data?.branch, statusQuery.data?.files]),
+    [statusQuery.data?.status_snapshot_id, statusQuery.data?.branch, statusQuery.data?.files],
+  );
   const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
-  const repoDir = statusQuery.data?.repo_dir;
+  const isPushing = syncActivity?.kind === "push" || pushMutation.isPending;
+  const isPulling = syncActivity?.kind === "pull" || pullMutation.isPending;
+  // A push can run for minutes. Naming the phase and counting the seconds is what tells
+  // the operator the transfer is alive rather than wedged.
+  const syncProgressLabel = useMemo(() => {
+    if (!syncActivity) return undefined;
+    const verb =
+      syncActivity.phase === "preflight"
+        ? "Checking remote"
+        : syncActivity.kind === "push"
+          ? "Pushing"
+          : "Pulling";
+    return syncElapsedMs >= 2000 ? `${verb} ${formatElapsed(syncElapsedMs)}` : `${verb}…`;
+  }, [syncActivity, syncElapsedMs]);
+
+  // The sync toast carries progress too, so the transfer stays legible from anywhere in
+  // the app — not only from the button that started it. One notice per activity+phase is
+  // pushed; the per-second elapsed changes only `update` it. That way dismissing the toast
+  // sticks (update is a no-op once it's gone) instead of it reopening on every tick, while
+  // a genuine phase change or result still surfaces a fresh notice.
+  const syncToastKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!syncActivity || !syncProgressLabel) {
+      syncToastKeyRef.current = null;
+      return;
+    }
+    const key = `${syncActivity.kind}:${syncActivity.phase}:${syncActivity.startedAt}`;
+    if (syncToastKeyRef.current === key) {
+      updateSync({ message: syncProgressLabel });
+      return;
+    }
+    syncToastKeyRef.current = key;
+    notifySync({
+      tone: "info",
+      title: syncActivity.kind === "push" ? "Pushing to remote" : "Pulling from remote",
+      message: syncProgressLabel,
+      durationMs: STICKY
+    });
+  }, [notifySync, updateSync, syncActivity, syncProgressLabel]);
+
+  useMutationErrorToasts([
+    { label: "Stage files", error: stageMutation.error, reset: stageMutation.reset },
+    { label: "Unstage files", error: unstageMutation.error, reset: unstageMutation.reset },
+    { label: "Discard changes", error: discardMutation.error, reset: discardMutation.reset },
+    { label: "Ignore path", error: ignoreMutation.error, reset: ignoreMutation.reset },
+    { label: "Create branch", error: createBranchMutation.error, reset: createBranchMutation.reset },
+    { label: "Switch branch", error: switchBranchMutation.error, reset: switchBranchMutation.reset },
+    { label: "Publish branch", error: publishBranchMutation.error, reset: publishBranchMutation.reset }
+  ]);
+  // The repository registry knows this path before the full status (and its
+  // paginated file list) returns. Use it to restore the saved pane layout
+  // without making the whole workspace wait on Git status.
+  const repoDir = statusQuery.data?.repo_dir ?? reposQuery.data?.repos.find((repo) => String(repo.id) === repoId)?.path;
   const repoKey = useMemo(
     () => (repoDir ? encodeURIComponent(repoDir) : "unknown"),
     [repoDir]
   );
+  const isWorkspaceLayoutRestoring = Boolean(
+    (!repoId && (reposQuery.isLoading || reposQuery.data?.active_id)) ||
+    (repoId && !statusQuery.isError && (!repoDir || layoutLoadedKey !== repoKey))
+  );
 
   // Handlers
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.health });
-    queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails, repoId)
-    });
-    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
-    if (selectedFile) {
-      queryClient.invalidateQueries({ queryKey: ["repo", "diff", repoId ?? "default"] });
-    }
-  }, [
-    historyLimit,
-    historyNeedsDetails,
-    queryClient,
-    repoId,
-    selectedFile
-  ]);
-
-  const branchActions = useMemo(
-    () => ({
-      branches: branchesQuery.data,
-      isLoading: branchesQuery.isLoading,
-      createBranch: createBranchMutation.mutateAsync,
-      switchBranch: switchBranchMutation.mutateAsync,
-      publishBranch: publishBranchMutation.mutateAsync,
-      isCreating: createBranchMutation.isPending,
-      isSwitching: switchBranchMutation.isPending,
-      isPublishing: publishBranchMutation.isPending
-    }),
-    [
-      branchesQuery.data,
-      branchesQuery.isLoading,
-      createBranchMutation.isPending,
-      createBranchMutation.mutateAsync,
-      switchBranchMutation.isPending,
-      switchBranchMutation.mutateAsync,
-      publishBranchMutation.isPending,
-      publishBranchMutation.mutateAsync
-    ]
-  );
+    invalidateManualRefresh(queryClient, repoId, selectedFile);
+  }, [queryClient, repoId, selectedFile]);
 
   const repoActions = useMemo(
     () => ({
@@ -562,14 +775,17 @@ export default function App() {
 
   const handleRepoChange = useCallback(
     (nextRepoId: string | null) => {
+      setProposalView(null);
+      setProposalFile(undefined);
+      setProposalRevision(undefined);
       setRepoId(nextRepoId);
     },
     [setRepoId]
   );
 
-  const orderedFiles = useMemo(() => {
+  const orderedFiles = useMemo<Array<{ path: string; staged: boolean }>>(() => {
     const files = statusQuery.data?.files;
-    if (!files) return [] as Array<{ path: string; staged: boolean }>;
+    if (!files) return [];
 
     return [
       ...(files.conflicts ?? []).map((path) => ({ path, staged: false })),
@@ -583,9 +799,9 @@ export default function App() {
     [statusQuery.data?.files?.untracked]
   );
 
-  const workingSetPaths = useMemo(() => {
+  const workingSetPaths = useMemo<string[]>(() => {
     const files = statusQuery.data?.files;
-    if (!files) return [] as string[];
+    if (!files) return [];
     return [
       ...(files.staged ?? []),
       ...(files.unstaged ?? []),
@@ -594,31 +810,8 @@ export default function App() {
     ];
   }, [statusQuery.data?.files]);
 
-  const approvedPendingPaths = useMemo(() => {
-    const files = approvedChangesQuery.data?.files ?? [];
-    return files
-      .filter((file) => file.status === "pending" && file.relativePath)
-      .map((file) => file.relativePath);
-  }, [approvedChangesQuery.data?.files]);
-
-  const approvedPendingSet = useMemo(
-    () => new Set(approvedPendingPaths),
-    [approvedPendingPaths]
-  );
-
-  const createGroupingRule = useCallback(
-    (label: string, prefix: string, mode: GroupingRule["mode"] = "prefix"): GroupingRule => {
-      return {
-        id: `group-${prefix}`,
-        label,
-        prefixes: [prefix],
-        mode: mode ?? "prefix"
-      };
-    },
-    []
-  );
   const normalizeGroupingRules = useCallback(
-    (rawRules: GroupingRule[]) => {
+    (rawRules: GroupingRuleLike[]): GroupingRule[] => {
       return rawRules
         .map((rule, index) => {
           const rawPrefixes = Array.isArray(rule?.prefixes)
@@ -631,22 +824,27 @@ export default function App() {
           const label =
             typeof rule?.label === "string" && rule.label.trim()
               ? rule.label.trim()
-              : prefixes[0];
-          const mode = rule?.mode === "segment" ? "segment" : "prefix";
+              : prefixes[0] ?? `Group ${index + 1}`;
+          const mode: GroupingRule["mode"] = rule?.mode === "segment" ? "segment" : "prefix";
           const id =
             typeof rule?.id === "string" && rule.id.trim()
               ? rule.id.trim()
               : `group-${prefixes[0] ?? index}`;
-          return { id, label, prefixes, mode } as GroupingRule;
+          return { id, label, prefixes, mode };
         })
-        .filter((rule): rule is GroupingRule => Boolean(rule));
+        .filter(isPresent);
     },
     []
   );
 
-  // Check if grouping rules are available (have valid prefixes)
+  const handleGroupingRulesChange = useCallback((rules: GroupingRule[]) => {
+    setGroupingRules(rules);
+    setGroupingRulesDirty(true);
+  }, []);
+
+  // Grouped view is available for stored manual rules or server-derived groups.
   const groupingAvailable = useMemo(() => {
-    return groupingRules.some((rule) => {
+    const hasManualRules = groupingRules.some((rule) => {
       const rawPrefixes = Array.isArray(rule?.prefixes)
         ? rule.prefixes
         : typeof rule?.prefix === "string"
@@ -654,24 +852,17 @@ export default function App() {
           : [];
       return rawPrefixes.some((prefix) => prefix.trim());
     });
-  }, [groupingRules]);
+    return hasManualRules || (repoGroupsQuery.data?.groups.length ?? 0) > 0;
+  }, [groupingRules, repoGroupsQuery.data?.groups.length]);
 
   const handleCycleViewMode = useCallback(() => {
+    viewModeTouchedRef.current = true;
     setFileViewMode((prev) => {
       if (prev === "flat") return groupingAvailable ? "grouped" : "tree";
       if (prev === "grouped") return "tree";
       return "flat";
     });
   }, [groupingAvailable]);
-
-  const approvedStagedPaths = useMemo(() => {
-    const staged = statusQuery.data?.files?.staged ?? [];
-    return staged.filter((path) => approvedPendingSet.has(path));
-  }, [approvedPendingSet, statusQuery.data?.files?.staged]);
-
-  const canUseApprovedMessage =
-    approvedStagedPaths.length > 0 &&
-    approvedStagedPaths.length === (statusQuery.data?.files?.staged ?? []).length;
 
   const orderedKeys = useMemo(() => orderedFiles.map((entry) => selectionKey(entry)), [orderedFiles, selectionKey]);
   const orderedKeyToEntry = useMemo(
@@ -797,42 +988,27 @@ export default function App() {
         selectedUnstaged.some((selectedPath) => selectedPath === path);
       const pathsToStage = shouldStageSelection ? selectedUnstaged : [path];
 
-      stageMutation.mutate(
-        { paths: pathsToStage },
-        {
-          onSuccess: (data) => {
-            // If we were viewing this file's unstaged diff, switch to staged
-            if (selectedFile === path && !selectedIsStaged) {
-              setSelectedIsStaged(true);
-              setSelectedIsUntracked(false);
-            }
-            // On mobile, return to Changes tab so user isn't stranded on empty diff
-            if (isMobile) {
-              setMobileActivePanel("changes");
-            }
-            pathsToStage.forEach((stagedPath) => {
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, true, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, true, false, undefined, "diff", false, repoId)
-              });
-            });
-            // Show warning notice if there were warnings (e.g., ignored files)
-            if (data.warnings && data.warnings.length > 0) {
-              setWarningNotice({
-                message: "Some files were skipped",
-                details: data.warnings.join("\n")
-              });
-            }
-          }
+      requestStage(pathsToStage, (data) => {
+        // If we were viewing this file's unstaged diff, switch to staged
+        if (selectedFile === path && !selectedIsStaged) {
+          setSelectedIsStaged(true);
+          setSelectedIsUntracked(false);
         }
-      );
+        // Keep the selected diff visible after staging. The updated staged state
+        // switches its action to Unstage without interrupting review.
+        invalidateFileDiffVariants(queryClient, repoId, pathsToStage);
+        // Show warning notice if there were warnings (e.g., ignored files)
+        if (data.warnings && data.warnings.length > 0) {
+          notify({
+            tone: "warning",
+            title: "Some files were skipped",
+            message: data.warnings.join("\n"),
+            dedupeKey: "gct.stage.warnings"
+          });
+        }
+      });
     },
-    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
+    [notify, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, requestStage]
   );
 
   const handleUnstageFile = useCallback(
@@ -843,7 +1019,7 @@ export default function App() {
         selectedStaged.some((selectedPath) => selectedPath === path);
       const pathsToUnstage = shouldUnstageSelection ? selectedStaged : [path];
 
-      unstageMutation.mutate(
+      unstageMutate(
         { paths: pathsToUnstage },
         {
           onSuccess: () => {
@@ -852,27 +1028,39 @@ export default function App() {
               setSelectedIsStaged(false);
               setSelectedIsUntracked(false);
             }
-            // On mobile, return to Changes tab so user isn't stranded on empty diff
-            if (isMobile) {
-              setMobileActivePanel("changes");
-            }
-            pathsToUnstage.forEach((unstagedPath) => {
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, false, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, true, undefined, "diff", false, repoId)
-              });
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, true, false, undefined, "diff", false, repoId)
-              });
-            });
+            // Keep the selected diff visible after unstaging so review can continue.
+            invalidateFileDiffVariants(queryClient, repoId, pathsToUnstage);
           }
         }
       );
     },
-    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
+    [unstageMutate, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
   );
+
+  const handleUnstagePaths = useCallback(
+    (paths: string[]) => {
+      if (paths.length === 0) return;
+      unstageMutate(
+        { paths },
+        {
+          onSuccess: () => {
+            if (selectedFile && paths.includes(selectedFile) && selectedIsStaged) {
+              setSelectedIsStaged(false);
+              setSelectedIsUntracked(false);
+            }
+            invalidateFileDiffVariants(queryClient, repoId, paths);
+          },
+        },
+      );
+    },
+    [unstageMutate, queryClient, selectedFile, selectedIsStaged, repoId],
+  );
+
+  const handleClearFileSelection = useCallback(() => {
+    const primary = selectedFiles[selectedFiles.length - 1];
+    if (!primary) return;
+    applySelection([primary], selectionKey(primary));
+  }, [applySelection, selectedFiles, selectionKey]);
 
   const handleStageAll = useCallback(() => {
     const files = statusQuery.data?.files;
@@ -885,74 +1073,138 @@ export default function App() {
     ];
     if (allUnstaged.length === 0) return;
 
-    stageMutation.mutate(
-      { paths: allUnstaged },
-      {
-        onSuccess: (data) => {
-          if (data.warnings && data.warnings.length > 0) {
-            setWarningNotice({
-              message: "Some files were skipped",
-              details: data.warnings.join("\n")
-            });
-          }
-        }
+    requestStage(allUnstaged, (data) => {
+      if (data.warnings && data.warnings.length > 0) {
+        notify({
+          tone: "warning",
+          title: "Some files were skipped",
+          message: data.warnings.join("\n"),
+          dedupeKey: "gct.stage.warnings"
+        });
       }
-    );
-  }, [stageMutation, statusQuery.data]);
+    });
+  }, [notify, requestStage, statusQuery.data?.files]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
       if (paths.length === 0) return;
-      stageMutation.mutate(
-        { paths },
-        {
-          onSuccess: (data) => {
-            if (data.warnings && data.warnings.length > 0) {
-              setWarningNotice({
-                message: "Some files were skipped",
-                details: data.warnings.join("\n")
-              });
-            }
-          }
+      requestStage(paths, (data) => {
+        if (data.warnings && data.warnings.length > 0) {
+          notify({
+            tone: "warning",
+            title: "Some files were skipped",
+            message: data.warnings.join("\n"),
+            dedupeKey: "gct.stage.warnings"
+          });
         }
-      );
+      });
     },
-    [stageMutation]
+    [notify, requestStage]
   );
 
-  const handleStageApproved = useCallback(() => {
-    const suggestedMessage = approvedChangesQuery.data?.suggestedMessage ?? "";
-    if (approvedPendingPaths.length === 0) return;
+  const handleRequestStageFilesWithSameName = useCallback((path: string) => {
+    const files = statusQuery.data?.files;
+    if (!files) return;
+    const basename = path.split("/").pop() || path;
+    const matches = Array.from(new Set([
+      ...(files.staged ?? []),
+      ...(files.unstaged ?? []),
+      ...(files.untracked ?? []),
+      ...(files.conflicts ?? []),
+    ].filter((candidate) => (candidate.split("/").pop() || candidate) === basename))).sort();
+    if (matches.length > 1) setPendingStageSameNameFiles(matches);
+  }, [statusQuery.data?.files]);
 
-    stageMutation.mutate(
-      { paths: approvedPendingPaths },
-      {
-        onSuccess: (data) => {
-          if (suggestedMessage) {
-            setCommitMessage(suggestedMessage);
-          }
-          if (data.warnings && data.warnings.length > 0) {
-            setWarningNotice({
-              message: "Some files were skipped",
-              details: data.warnings.join("\n")
-            });
-          }
+  const handleConfirmStageFilesWithSameName = useCallback(() => {
+    if (!pendingStageSameNameFiles) return;
+    handleStagePaths(pendingStageSameNameFiles);
+    setPendingStageSameNameFiles(null);
+  }, [handleStagePaths, pendingStageSameNameFiles]);
+
+  const unstageMutateAsync = unstageMutation.mutateAsync;
+  const handleUnstagePathsAsync = useCallback(
+    async (paths: string[]) => {
+      if (paths.length === 0) return;
+      await unstageMutateAsync({ paths });
+    },
+    [unstageMutateAsync]
+  );
+
+  const handleQueueStagedExtras = useCallback(async (paths: string[]): Promise<boolean> => {
+    const targetRepo = repoId ?? "";
+    let savedSelection: Awaited<ReturnType<typeof queueSelection>> | undefined;
+    try {
+      if (stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Repository changed", message: "Review the staged files in the current repository before queueing them." });
+        return false;
+      }
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Repository changed", message: "The staged selection belongs to a different repository now. Review it before queueing." });
+        return false;
+      }
+      const saved = await queueSelection(paths, WorktreeSelectionSource.HEAD_TO_INDEX);
+      if (!saved || typeof saved === "string") return false;
+      savedSelection = saved;
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Selection saved; review queue", message: "The files were saved, but the active repository changed before they could be unstaged. Review the saved selection before continuing." });
+        return false;
+      }
+      await handleUnstagePathsAsync(paths);
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Repository changed", message: "The files were unstaged, but the repository changed before they could be queued. Review them in the file list." });
+        return false;
+      }
+      const finalized = await finalizeQueuedSelection(saved.selectionId, saved.snapshotDigest, targetRepo);
+      if (!finalized) notify({ tone: "warning", title: "Selection saved; finish queueing", message: "The files are saved in the queue, but their staged state changed before handoff completed. Use Finish queueing on that selection to recover." });
+      return finalized;
+    } catch (error) {
+      notify({ tone: savedSelection ? "warning" : "error", title: savedSelection ? "Selection saved; finish queueing" : "Could not queue staged files", message: savedSelection ? `The files are saved in the queue, but unstage did not finish. Use Finish queueing on that selection. ${error instanceof Error ? error.message : ""}` : error instanceof Error ? error.message : "The files could not be saved for a follow-up selection." });
+      return false;
+    }
+  }, [finalizeQueuedSelection, handleUnstagePathsAsync, notify, queueSelection, repoId, stageQueueRepo]);
+
+  const handleFinishQueuedUnstage = useCallback(async (selection: QueuedStageSelection) => {
+    const targetRepo = repoId ?? "";
+    if (stageQueueRepo !== targetRepo || !selection.selectionId || !selection.snapshotDigest) return;
+    try {
+      const latest = await fetchRepoStatus(targetRepo);
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) return;
+      const staged = new Set(latest.files.staged ?? []);
+      const stillStaged = selection.paths.filter(path => staged.has(path));
+      if (stillStaged.length) await handleUnstagePathsAsync(stillStaged);
+      const finalized = await finalizeQueuedSelection(selection.selectionId, selection.snapshotDigest, targetRepo);
+      if (!finalized) throw new Error("The saved files changed before queue handoff finished. Review them and try again.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/selected content does not match saved snapshot/i.test(message)) {
+        try {
+          await markQueuedSelectionStale(selection, "The saved staged version no longer matches the current file contents.");
+          notify({ tone: "warning", title: "Saved version changed", message: "The selection was unstaged, but its files changed since capture. Review the current files, then use “Stage current files into this commit” to stage those versions." });
+          return;
+        } catch (queueError) {
+          notify({ tone: "error", title: "Could not finish queueing", message: `${message} The queue could not save its recovery state: ${queueError instanceof Error ? queueError.message : String(queueError)}` });
+          return;
         }
       }
-    );
-  }, [approvedChangesQuery.data?.suggestedMessage, approvedPendingPaths, stageMutation]);
+      notify({ tone: "error", title: "Could not finish queueing", message });
+    }
+  }, [finalizeQueuedSelection, handleUnstagePathsAsync, markQueuedSelectionStale, notify, repoId, stageQueueRepo]);
+
+  const handleStartQueuedSuggestion = useCallback((selection: QueuedStageSelection, mode: StagedMessageMode) => {
+    void startQueuedSuggestion(selection, mode);
+  }, [startQueuedSuggestion]);
 
   const handleUnstageAll = useCallback(() => {
     const files = statusQuery.data?.files;
     if (!files || (files.staged?.length ?? 0) === 0) return;
 
-    unstageMutation.mutate({ paths: files.staged ?? [] });
-  }, [unstageMutation, statusQuery.data]);
+    unstageMutate({ paths: files.staged ?? [] });
+  }, [unstageMutate, statusQuery.data?.files]);
 
   const handleDiscardPaths = useCallback(
     (paths: string[], untracked: boolean) => {
       if (paths.length === 0) return;
-      discardMutation.mutate(
+      discardMutate(
         { paths, untracked },
         {
           onSuccess: () => {
@@ -967,12 +1219,12 @@ export default function App() {
         }
       );
     },
-    [discardMutation, queryClient, selectedFile, repoId]
+    [discardMutate, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardFile = useCallback(
     (path: string, untracked: boolean) => {
-      discardMutation.mutate(
+      discardMutate(
         { paths: [path], untracked },
         {
           onSuccess: () => {
@@ -988,7 +1240,7 @@ export default function App() {
         }
       );
     },
-    [discardMutation, queryClient, selectedFile, repoId]
+    [discardMutate, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardMultiple = useCallback(() => {
@@ -1011,11 +1263,11 @@ export default function App() {
     // Handle tracked and untracked separately since API requires specific untracked flag
     if (trackedPaths.length > 0 && untrackedPaths.length > 0) {
       // Both types - chain the mutations
-      discardMutation.mutate(
+      discardMutate(
         { paths: trackedPaths, untracked: false },
         {
           onSuccess: () => {
-            discardMutation.mutate(
+            discardMutate(
               { paths: untrackedPaths, untracked: true },
               { onSuccess: cleanup }
             );
@@ -1023,15 +1275,15 @@ export default function App() {
         }
       );
     } else if (trackedPaths.length > 0) {
-      discardMutation.mutate({ paths: trackedPaths, untracked: false }, { onSuccess: cleanup });
+      discardMutate({ paths: trackedPaths, untracked: false }, { onSuccess: cleanup });
     } else if (untrackedPaths.length > 0) {
-      discardMutation.mutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
+      discardMutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
     }
-  }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile, repoId]);
+  }, [pendingDiscardFiles, discardMutate, queryClient, selectedFile, repoId]);
 
   const handleIgnoreFile = useCallback(
     (path: string, level?: "project" | "group", groupDir?: string) => {
-      ignoreMutation.mutate(
+      ignoreMutate(
         { path, level, group_dir: groupDir },
         {
           onSuccess: () => {
@@ -1044,7 +1296,7 @@ export default function App() {
         }
       );
     },
-    [ignoreMutation, queryClient, selectedFile, repoId]
+    [ignoreMutate, queryClient, selectedFile, repoId]
   );
 
   const handleConfirmDiscard = useCallback(
@@ -1085,132 +1337,427 @@ export default function App() {
     }
   }, []);
 
-  const handleCommit = useCallback(
-    (
+  const executeCommit = useCallback(
+    async (
       message: string,
-      options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
+      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string },
+      intentID: string,
+      queuedSelection: QueuedCommitTarget | null,
+      stagedPaths: readonly string[],
     ) => {
       setCommitError(undefined);
       setLastCommitHash(undefined);
+      const request: CommitRequest = {
+        message,
+        intent_id: intentID,
+        validate_conventional: options.conventional,
+        amend: options.amend,
+        author_name: options.authorName,
+        author_email: options.authorEmail
+      };
+
+      const precommitCfg = precommitConfigQuery.data;
+      pendingCommitQueueSelectionId.current = queuedSelection;
+      if (queuedSelection) {
+        try { await markQueuedCommitPending(stageQueueRepo, queuedSelection, stagedPaths); }
+        catch (error) {
+          pendingCommitQueueSelectionId.current = null;
+          setCommitError(error instanceof Error ? error.message : "Could not reserve the queued selection for this commit.");
+          return;
+        }
+      }
+      const restoreQueueAfterFailure = () => {
+        if (queuedSelection) {
+          if (pendingCommitQueueSelectionId.current?.entryId === queuedSelection.entryId && pendingCommitQueueSelectionId.current.snapshotDigest === queuedSelection.snapshotDigest) pendingCommitQueueSelectionId.current = null;
+          void restoreQueuedCommitAfterFailure(stageQueueRepo, queuedSelection).catch(error => notify({ tone: "error", title: "Could not restore queued commit state", message: error instanceof Error ? error.message : String(error) }));
+        }
+      };
+      const skipHooks = Boolean(options.skipHooks);
+      // Start or join the durable check while the operator writes the message.
+      // Final commit admission recomputes identity and awaits the same receipt;
+      // this advisory start is never used to bypass the commit hook.
+      const eagerCheckEnabled = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit);
+      if (eagerCheckEnabled && !skipHooks) {
+        try {
+          await startPrecommitCandidateCheck(repoId ?? "");
+        } catch {
+          // The commit boundary owns the authoritative attempt and failure.
+        }
+      }
 
       commitMutation.mutate(
-        {
-          message,
-          validate_conventional: options.conventional,
-          amend: options.amend,
-          author_name: options.authorName,
-          author_email: options.authorEmail
-        },
+        { ...request, skip_precommit_once: skipHooks || undefined },
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
               setLastCommitHash(result.hash);
               setCommitMessage("");
+              stageQueueAfterCommit(queuedSelection);
+              pendingCommitQueueSelectionId.current = null;
+              setPrecommitFailure(null);
+              pendingPrecommitCommitRef.current = null;
+              setPendingPrecommitCommit(null);
               // Clear selection if viewing staged diff
               if (selectedIsStaged) {
                 setSelectedFile(undefined);
               }
+            } else if (result.precommit) {
+              restoreQueueAfterFailure();
+              setPrecommitFailure(precommitResultForPanel(result.precommit));
+              setPendingPrecommitCommit(request);
+              setCommitError(undefined);
             } else {
+              restoreQueueAfterFailure();
+              // Post-pass failure (e.g. index lock): keep the passed pre-commit reusable
+              // so the retry affordance commits without re-streaming.
               setCommitError(
                 result.error ||
-                  result.validation_errors?.join("; ") ||
+                  result.validationErrors?.join("; ") ||
                   "Commit failed"
               );
             }
           },
           onError: (error) => {
+            restoreQueueAfterFailure();
             setCommitError(error.message);
           }
         }
       );
     },
-    [commitMutation, selectedIsStaged]
+    [commitMutation, markQueuedCommitPending, notify, pendingCommitQueueSelectionId, precommitConfigQuery.data, repoId, restoreQueuedCommitAfterFailure, selectedIsStaged, stageQueueAfterCommit, stageQueueRepo]
   );
 
-  const handleUseApprovedMessage = useCallback(() => {
-    if (!canUseApprovedMessage) return;
+  const handleCommit = useCallback(
+    async (
+      message: string,
+      options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string },
+    ) => {
+      if (commitPreviewPending.current) return;
+      if (isStaging) { setCommitError("Wait for pending file changes before committing."); return; }
+      setCommitError(undefined);
+      if (authorityQuery.isError) {
+        setCommitError("Authorization status is unavailable; sign in again before committing.");
+        return;
+      }
+      if (authorityQuery.data && !authorityQuery.data.canMutate) {
+        setCommitError(authorityQuery.data.reason || "human authorization is required before committing");
+        return;
+      }
+      commitPreviewPending.current = true;
+      setIsAuthorizingCommit(true);
+      try {
+        const latestQueue = await listWorktreeSuggestionQueue(repoId ?? "");
+        const preview = await fetchMutationPreview({ repositoryId: repoId ?? "", operation: "repo.commit" }, repoId ?? undefined);
+        const queueEntries = latestQueue.entries.map(toQueuedStageSelection);
+        const queueReadiness = inspectQueueCommitReadiness(queueEntries, preview.stagedFiles);
+        if (!queueReadiness.ready) {
+          setCommitError(queueCommitBlockMessage(queueReadiness.reason));
+          return;
+        }
+        const queuedSelection = queueReadiness.target;
+        const pending = {
+          message,
+          options,
+          preview,
+        };
+        if (skipCommitConfirmation) {
+          setIsAuthorizingCommit(true);
+          try {
+            const intent = await issueMutationIntent({
+              repositoryId: preview.repositoryId,
+              operation: preview.operation,
+              expectedRevision: preview.expectedRevision,
+              subjectDigest: preview.subjectDigest,
+            }, repoId ?? undefined);
+            await executeCommit(message, { ...options, skipHooks: Boolean(options.skipHooks) }, intent.intentId, queuedSelection, preview.stagedFiles);
+          } finally {
+            setIsAuthorizingCommit(false);
+          }
+          return;
+        }
+        setSkipPrecommitInDialog(Boolean(options.skipHooks));
+        setDontAskAgain(false);
+        setPendingCommitAuthorization(pending);
+      } catch (error) {
+        setCommitError(error instanceof Error ? error.message : String(error));
+      } finally {
+        commitPreviewPending.current = false;
+        setIsAuthorizingCommit(false);
+      }
+    },
+    [isStaging, authorityQuery.data, authorityQuery.isError, executeCommit, repoId, skipCommitConfirmation]
+  );
 
-    approvedPreviewMutation.mutate(
-      { paths: approvedStagedPaths },
+  const handleConfirmCommit = useCallback(async () => {
+    const pending = pendingCommitAuthorization;
+    if (!pending) return;
+    const activeRepositoryId = repoId ?? "";
+    if (pending.preview.repositoryId !== activeRepositoryId) {
+      setPendingCommitAuthorization(null);
+      setCommitError("The selected repository changed after this preview. Review the commit again before authorizing it.");
+      return;
+    }
+    setIsAuthorizingCommit(true);
+    try {
+      const latestQueue = await listWorktreeSuggestionQueue(activeRepositoryId);
+      const currentPreview = await fetchMutationPreview({ repositoryId: activeRepositoryId, operation: "repo.commit" }, activeRepositoryId || undefined);
+      if (!commitPreviewMatchesCurrent(pending.preview, currentPreview)) {
+        setPendingCommitAuthorization(null);
+        setCommitError("The repository changed after this preview. Review the updated commit before authorizing it.");
+        return;
+      }
+      const queueReadiness = inspectQueueCommitReadiness(latestQueue.entries.map(toQueuedStageSelection), currentPreview.stagedFiles);
+      if (!queueReadiness.ready) {
+        setPendingCommitAuthorization(null);
+        setCommitError(queueCommitBlockMessage(queueReadiness.reason));
+        return;
+      }
+      const queuedSelection = queueReadiness.target;
+      if (dontAskAgain) {
+        writeCommitConfirmationPreference(true);
+        setSkipCommitConfirmation(true);
+      }
+      const intent = await issueMutationIntent({
+        repositoryId: currentPreview.repositoryId,
+        operation: currentPreview.operation,
+        expectedRevision: currentPreview.expectedRevision,
+        subjectDigest: currentPreview.subjectDigest,
+      }, activeRepositoryId || undefined);
+      setPendingCommitAuthorization(null);
+      await executeCommit(pending.message, { ...pending.options, skipHooks: skipPrecommitInDialog }, intent.intentId, queuedSelection, currentPreview.stagedFiles);
+    } catch (error) {
+      setCommitError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsAuthorizingCommit(false);
+    }
+  }, [dontAskAgain, executeCommit, pendingCommitAuthorization, repoId, skipPrecommitInDialog]);
+
+  const handleCommitSkipPrecommit = useCallback(async () => {
+    const request = pendingPrecommitCommitRef.current ?? pendingPrecommitCommit ?? { message: commitMessage.trim() };
+    let commitStagedPaths: readonly string[] = [];
+    setPrecommitFailure(null);
+    try {
+      const latestStatus = await refreshRepoStatus();
+      commitStagedPaths = latestStatus.data?.files.staged ?? [];
+      const latestQueue = await listWorktreeSuggestionQueue(stageQueueRepo);
+      const queueReadiness = inspectQueueCommitReadiness(latestQueue.entries.map(toQueuedStageSelection), commitStagedPaths);
+      if (!queueReadiness.ready) {
+        setCommitError(queueCommitBlockMessage(queueReadiness.reason));
+        return;
+      }
+      pendingCommitQueueSelectionId.current = queueReadiness.target;
+    } catch (error) {
+      setCommitError(error instanceof Error ? error.message : "Could not refresh repository status before committing.");
+      return;
+    }
+    if (pendingCommitQueueSelectionId.current) {
+      try { await markQueuedCommitPending(stageQueueRepo, pendingCommitQueueSelectionId.current, commitStagedPaths, true); }
+      catch (error) {
+        setCommitError(error instanceof Error ? error.message : "Could not reserve the queued selection for this commit.");
+        return;
+      }
+    }
+    commitMutation.mutate(
+      {
+        ...request,
+        skip_precommit_once: true,
+      },
       {
         onSuccess: (result) => {
-          if (result.available && result.suggestedMessage) {
-            setCommitMessage(result.suggestedMessage);
-          }
-        }
-      }
-    );
-  }, [approvedPreviewMutation, approvedStagedPaths, canUseApprovedMessage]);
-
-  const handlePush = useCallback(() => {
-    setPushNotice(null);
-    fetchSyncStatus(true, repoId ?? undefined)
-      .then((freshStatus) => {
-        queryClient.setQueryData(queryKeys.syncStatus(repoId), freshStatus);
-        if (freshStatus.fetch_error) {
-          setPushNotice({
-            tone: "warning",
-            message: `Push preflight could not refresh remote: ${freshStatus.fetch_error}`
-          });
-          return;
-        }
-        if (freshStatus.behind > 0) {
-          setPushNotice({
-            tone: "warning",
-            message: `Remote has ${freshStatus.behind} new commit${
-              freshStatus.behind !== 1 ? "s" : ""
-            }. Pull before pushing.`
-          });
-          return;
-        }
-        pushMutation.mutate(
-          {},
-          {
-            onSuccess: (result) => {
-              const localBranch = statusQuery.data?.branch.head;
-              const targetRef = `${result.remote}/${result.branch}`;
-              const sourceSuffix =
-                localBranch && localBranch !== result.branch ? ` (from ${localBranch})` : "";
-              if (result.verification_error) {
-                setPushNotice({
-                  tone: "warning",
-                  message: `Push to ${targetRef}${sourceSuffix} reported success, but verification failed: ${result.verification_error}`
-                });
-                return;
-              }
-              if (result.up_to_date) {
-                setPushNotice({
-                  tone: "info",
-                  message: `Already up to date with ${targetRef}${sourceSuffix}`
-                });
-                return;
-              }
-              if (result.pushed) {
-                setPushNotice({
-                  tone: "success",
-                  message: `Pushed to ${targetRef}${sourceSuffix}`
-                });
-                return;
-              }
-              setPushNotice({
-                tone: "warning",
-                message: `Push to ${targetRef}${sourceSuffix} completed but could not be verified.`
-              });
-            },
-            onError: () => {
-              setPushNotice(null);
+          if (result.success && result.hash) {
+            setLastCommitHash(result.hash);
+            setCommitMessage("");
+            stageQueueAfterCommit(pendingCommitQueueSelectionId.current);
+            pendingCommitQueueSelectionId.current = null;
+            pendingPrecommitCommitRef.current = null;
+            setPendingPrecommitCommit(null);
+            if (selectedIsStaged) {
+              setSelectedFile(undefined);
             }
+          } else {
+            const failedQueueTarget = pendingCommitQueueSelectionId.current;
+            pendingCommitQueueSelectionId.current = null;
+            if (failedQueueTarget) void restoreQueuedCommitAfterFailure(stageQueueRepo, failedQueueTarget).catch(error => notify({ tone: "error", title: "Could not restore queued commit state", message: error instanceof Error ? error.message : String(error) }));
+            setCommitError(result.error || result.validationErrors?.join("; ") || "Commit failed");
           }
-        );
-      })
-      .catch(() => {
-        pushMutation.mutate({});
-      });
-  }, [pushMutation, queryClient, statusQuery.data?.branch.head, repoId]);
+        },
+        onError: (error) => {
+          const failedQueueTarget = pendingCommitQueueSelectionId.current;
+          pendingCommitQueueSelectionId.current = null;
+          if (failedQueueTarget) void restoreQueuedCommitAfterFailure(stageQueueRepo, failedQueueTarget).catch(restoreError => notify({ tone: "error", title: "Could not restore queued commit state", message: restoreError instanceof Error ? restoreError.message : String(restoreError) }));
+          setCommitError(error.message);
+        },
+      },
+    );
+  }, [commitMessage, commitMutation, markQueuedCommitPending, notify, pendingCommitQueueSelectionId, pendingPrecommitCommit, restoreQueuedCommitAfterFailure, selectedIsStaged, stageQueueAfterCommit, stageQueueRepo, refreshRepoStatus]);
+
+  // This is the explicit one-time precommit override offered after a failed check.
+  // It cancels any manual run before sending the operator's chosen override.
+  const handleCommitAnyway = useCallback(() => {
+    handleCommitSkipPrecommit();
+  }, [handleCommitSkipPrecommit]);
+
+  const handleDisablePrecommit = useCallback(() => {
+    const config = precommitConfigQuery.data;
+    if (!config) return;
+    savePrecommitConfigMutation.mutate(
+      { ...config, enabled: false },
+      {
+        onSuccess: () => {
+          setPrecommitFailure(null);
+        },
+      },
+    );
+  }, [precommitConfigQuery.data, savePrecommitConfigMutation]);
+
+  const dismissPrecommitFailure = useCallback(() => {
+    setPrecommitFailure(null);
+    pendingPrecommitCommitRef.current = null;
+    setPendingPrecommitCommit(null);
+  }, []);
+
+  const precommitNoticeProps = useMemo(() => ({
+    failedResult: precommitFailure,
+    onDismissFailure: dismissPrecommitFailure,
+    onCommitAnyway: handleCommitAnyway,
+    onDisable: handleDisablePrecommit,
+    isCommittingAnyway: commitMutation.isPending,
+    isDisablingChecks: savePrecommitConfigMutation.isPending,
+  }), [
+    precommitFailure,
+    dismissPrecommitFailure,
+    handleCommitAnyway,
+    handleDisablePrecommit,
+    commitMutation.isPending,
+    savePrecommitConfigMutation.isPending,
+  ]);
+
+  const [pushSafetyOpen, setPushSafetyOpen] = useState(false);
+  const [pushSafetyFocus, setPushSafetyFocus] = useState<"staged" | "outgoing">("outgoing");
+  // Reason-aware entry: the staged-file review links pass "staged"; the Push
+  // button and outgoing-history links open on the default outgoing view. A DOM
+  // event (when wired directly as a button handler) is not the string "staged".
+  const handlePush = useCallback((focus?: unknown) => {
+    setPushSafetyFocus(focus === "staged" ? "staged" : "outgoing");
+    setPushSafetyOpen(true);
+  }, []);
+  const runPushAfterSafety = useCallback(() => {
+    if (syncActivity) return;
+    setSyncActivity({ kind: "push", phase: "preflight", startedAt: Date.now() });
+
+    const localBranch = statusQuery.data?.branch.head;
+    const describeTarget = (remote: string, branch: string) => {
+      const targetRef = remote && branch ? `${remote}/${branch}` : pushTargetRef ?? "the remote";
+      const sourceSuffix = localBranch && localBranch !== branch ? ` (from ${localBranch})` : "";
+      return `${targetRef}${sourceSuffix}`;
+    };
+
+    const runPush = () => {
+      setSyncActivity({ kind: "push", phase: "transfer", startedAt: Date.now() });
+      pushMutation.mutate(
+        {},
+        {
+          onSuccess: (result) => {
+            const target = describeTarget(result.remote, result.branch);
+            if (result.verification_error) {
+              notifySync({
+                tone: "warning",
+                title: `Pushed to ${target}, but unverified`,
+                message: result.verification_error,
+                durationMs: STICKY
+              });
+              return;
+            }
+            if (result.up_to_date) {
+              notifySync({
+                tone: "info",
+                title: `Already up to date with ${target}`,
+                durationMs: TRANSIENT_MS
+              });
+              return;
+            }
+            if (result.pushed) {
+              notifySync({
+                tone: "success",
+                title: `Pushed to ${target}`,
+                durationMs: TRANSIENT_MS
+              });
+              return;
+            }
+            // Verified, yet neither pushed nor already up to date: say so plainly rather
+            // than presenting an unexplained state as a completed push.
+            notifySync({
+              tone: "warning",
+              title: `Push to ${target} did not confirm the remote ref moved`,
+              durationMs: STICKY
+            });
+          },
+          onError: (error) => {
+            const target =
+              error instanceof RemoteOperationError
+                ? describeTarget(error.result.remote, error.result.branch)
+                : pushTargetRef ?? "the remote";
+            notifySync({
+              tone: "error",
+              title: `Push to ${target} failed`,
+              message: error.message,
+              durationMs: STICKY,
+              action: { label: "Try again", onSelect: () => handlePushRef.current() }
+            });
+          },
+          onSettled: () => setSyncActivity(null)
+        }
+      );
+    };
+
+    // The review and server-side push inspection already check the live
+    // destination. A full fetch here adds a redundant network round trip;
+    // the server still refuses unsafe history and Git enforces fast-forward.
+    runPush();
+  }, [notifySync, pushMutation, pushTargetRef, statusQuery.data?.branch.head, syncActivity]);
 
   const handlePull = useCallback(() => {
-    pullMutation.mutate({});
-  }, [pullMutation]);
+    if (syncActivity) return;
+    setSyncActivity({ kind: "pull", phase: "transfer", startedAt: Date.now() });
+    pullMutation.mutate(
+      {},
+      {
+        onSuccess: (result) => {
+          const target =
+            result.remote && result.branch
+              ? `${result.remote}/${result.branch}`
+              : pushTargetRef ?? "the remote";
+          notifySync({
+            tone: "success",
+            title: `Pulled from ${target}`,
+            durationMs: TRANSIENT_MS
+          });
+        },
+        onError: (error) => {
+          const conflicted =
+            error instanceof RemoteOperationError &&
+            "has_conflicts" in error.result &&
+            error.result.has_conflicts;
+          notifySync({
+            tone: "error",
+            title: conflicted
+              ? "Pull stopped on merge conflicts"
+              : `Pull from ${pushTargetRef ?? "the remote"} failed`,
+            message: error.message,
+            durationMs: STICKY
+          });
+        },
+        onSettled: () => setSyncActivity(null)
+      }
+    );
+  }, [notifySync, pullMutation, pushTargetRef, syncActivity]);
+
+  // The retry actions on a failed sync toast outlive the handler that created them, so
+  // they go through a ref rather than capturing a stale closure.
+  const handlePushRef = useRef(handlePush);
+  const handlePullRef = useRef(handlePull);
+  handlePushRef.current = handlePush;
+  handlePullRef.current = handlePull;
 
   const handleSaveFileContent = useCallback(
     async (path: string, content: string, expectedHash?: string) => {
@@ -1244,7 +1791,8 @@ export default function App() {
         subject: entry.subject,
         files: entry.files,
         author: entry.author,
-        date: entry.date
+        date: entry.date,
+        checks: entry.checks
       });
 
       // Clear current file selection - user will select from commit files
@@ -1256,9 +1804,9 @@ export default function App() {
     []
   );
 
-  // Handle "continue" action: pre-fill commit message with incremented pN
+  // Add history references while preserving a message already being composed.
   const handleContinueCommit = useCallback((message: string) => {
-    setCommitMessage(message);
+    setCommitMessage(current => mergeContinuationMessage(current, message));
     setViewingCommit(null);
     setSelectedFile(undefined);
     setSelectedFiles([]);
@@ -1399,26 +1947,21 @@ export default function App() {
   }, []);
 
   // Keyboard shortcut for file search (Cmd+K / Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        if (isFileSearchOpen) {
-          emitShortcutIntent({
-            action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
-            outcome: "noop",
-            chord: "mod+k",
-            source: "keyboard",
-          });
-          return;
-        }
-        setIsFileSearchOpen(true);
+  useGlobalKeydown((event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+      event.preventDefault();
+      if (isFileSearchOpen) {
+        emitShortcutIntent({
+          action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+          outcome: "noop",
+          chord: "mod+k",
+          source: "keyboard",
+        });
+        return;
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFileSearchOpen]);
+        openFileSearch();
+      }
+  });
 
   // View mode fallback: when selectedFile changes, ensure viewMode is valid for the new file
   useEffect(() => {
@@ -1448,21 +1991,6 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    localStorage.setItem("gct.sidebarWidth", String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("gct.changesHeight", String(changesHeight));
-  }, [changesHeight]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("gct.historyHeight", String(historyHeight));
-  }, [historyHeight]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
     localStorage.setItem("gct.mobileActivePanel", mobileActivePanel);
   }, [mobileActivePanel]);
 
@@ -1483,12 +2011,14 @@ export default function App() {
     const storedViewMode = localStorage.getItem(viewModeKey);
     const legacyEnabledKey = `gct.grouping.${repoKey}.enabled`;
     const legacyEnabled = localStorage.getItem(legacyEnabledKey);
-    if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
-      setFileViewMode(storedViewMode);
-    } else if (legacyEnabled === "true") {
-      setFileViewMode("grouped");
-    } else {
-      setFileViewMode("flat");
+    if (!viewModeTouchedRef.current) {
+      if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
+        setFileViewMode(storedViewMode);
+      } else if (legacyEnabled === "true") {
+        setFileViewMode("grouped");
+      } else {
+        setFileViewMode("flat");
+      }
     }
 
     // Load grouping rules from API
@@ -1502,7 +2032,7 @@ export default function App() {
         mode: r.mode as "prefix" | "segment",
       }));
       setGroupingRules(normalizeGroupingRules(uiRules));
-      setGroupingDefaultsPending(apiRules.length === 0);
+      setGroupingRulesDirty(false);
       setGroupingLoadedKey(repoKey);
     } else if (!groupingRulesQuery.isLoading) {
       // API returned no data and isn't loading - check localStorage for migration
@@ -1510,10 +2040,12 @@ export default function App() {
       const storedRules = localStorage.getItem(rulesKey);
       if (storedRules) {
         try {
-          const parsed = JSON.parse(storedRules) as GroupingRule[];
-          const normalized = Array.isArray(parsed) ? normalizeGroupingRules(parsed) : [];
+          const parsed: unknown = JSON.parse(storedRules);
+          const normalized = Array.isArray(parsed)
+            ? normalizeGroupingRules(parsed.filter(isGroupingRuleLike))
+            : [];
           setGroupingRules(normalized);
-          setGroupingDefaultsPending(false);
+          setGroupingRulesDirty(false);
           // Migrate to API
           if (normalized.length > 0) {
             const apiConfig: GroupingRulesConfig = {
@@ -1534,11 +2066,11 @@ export default function App() {
           }
         } catch {
           setGroupingRules([]);
-          setGroupingDefaultsPending(true);
+          setGroupingRulesDirty(false);
         }
       } else {
         setGroupingRules([]);
-        setGroupingDefaultsPending(true);
+        setGroupingRulesDirty(false);
       }
       setGroupingLoadedKey(repoKey);
     }
@@ -1549,34 +2081,71 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules, groupingRulesQuery.data, groupingRulesQuery.isLoading]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!repoDir) return;
     if (layoutLoadedKey === repoKey) return;
     const presetKey = `gct.layout.${repoKey}.preset`;
     const primaryKey = `gct.layout.${repoKey}.primary`;
     const stackKey = `gct.layout.${repoKey}.stackHeight`;
-    const storedPreset = localStorage.getItem(presetKey) as LayoutPreset | null;
-    const storedPrimary = localStorage.getItem(primaryKey) as LayoutSection | null;
-    const storedStackHeight = Number(localStorage.getItem(stackKey));
+    let storedPreset: string | null = null;
+    let storedPrimary: string | null = null;
+    let storedStackHeight = 0;
+    let storedGeometry: Partial<{ sidebarWidth: number; stackHeight: number; changesHeight: number; historyHeight: number; order: unknown; collapsed: unknown; preset: unknown; primary: unknown }> = {};
+    let legacySizes = { sidebarWidth: 320, changesHeight: 420, historyHeight: 200 };
+    try {
+      storedPreset = localStorage.getItem(presetKey);
+      storedPrimary = localStorage.getItem(primaryKey);
+      storedStackHeight = Number(localStorage.getItem(stackKey));
+      legacySizes = {
+        sidebarWidth: Number(localStorage.getItem("gct.sidebarWidth")) || 320,
+        changesHeight: Number(localStorage.getItem("gct.changesHeight")) || 420,
+        historyHeight: Number(localStorage.getItem("gct.historyHeight")) || 200,
+      };
+      const rawGeometry = localStorage.getItem(`gct.layout.${repoKey}.workspace`);
+      if (rawGeometry) storedGeometry = JSON.parse(rawGeometry) as typeof storedGeometry;
+      if (typeof storedGeometry.preset === "string") storedPreset = storedGeometry.preset;
+      if (typeof storedGeometry.primary === "string") storedPrimary = storedGeometry.primary;
+    } catch {
+      // Layout preferences are optional; malformed or blocked storage uses safe defaults.
+    }
+    const width = Math.max(1, mainRef.current?.clientWidth || window.innerWidth);
+    const height = Math.max(1, mainRef.current?.clientHeight || window.innerHeight);
+    const validRatio = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 1 ? value : fallback;
+    const ratios = {
+      sidebarWidth: validRatio(storedGeometry.sidebarWidth, legacySizes.sidebarWidth / width),
+      stackHeight: validRatio(storedGeometry.stackHeight, Number.isFinite(storedStackHeight) && storedStackHeight > 0 ? storedStackHeight / height : 320 / height),
+      changesHeight: validRatio(storedGeometry.changesHeight, legacySizes.changesHeight / height),
+      historyHeight: validRatio(storedGeometry.historyHeight, legacySizes.historyHeight / height),
+    };
+    layoutRatiosRef.current = ratios;
+    lastLayoutViewportRef.current = { width, height };
+    setSidebarWidth(Math.max(sidebarMinWidth, Math.min(width - diffMinWidth, ratios.sidebarWidth * width)));
+    setStackHeight(Math.max(220, Math.min(height - 240, ratios.stackHeight * height)));
+    setChangesHeight(Math.max(200, Math.min(height - 180, ratios.changesHeight * height)));
+    setHistoryHeight(Math.max(140, Math.min(height - 200, ratios.historyHeight * height)));
+    if (typeof storedGeometry.collapsed === "object" && storedGeometry.collapsed !== null) {
+      const collapsed = storedGeometry.collapsed as { changes?: unknown; history?: unknown; commit?: unknown };
+      setChangesCollapsed(collapsed.changes === true);
+      setHistoryCollapsed(collapsed.history === true);
+      setCommitCollapsed(collapsed.commit === true);
+    } else {
+      setChangesCollapsed(false);
+      setHistoryCollapsed(false);
+      setCommitCollapsed(false);
+    }
     setLayoutPreset(
-      storedPreset === "classic" || storedPreset === "split" || storedPreset === "bottom"
+      storedPreset && isLayoutPreset(storedPreset)
         ? storedPreset
         : "classic"
     );
+    const primary = storedPrimary === "changes" || storedPrimary === "history" || storedPrimary === "commit" || storedPrimary === "diff" || storedPrimary === "review" ? storedPrimary : "diff";
+    setDesktopPaneOrder(normalizeDesktopPaneOrder(storedGeometry.order, primary === "review" ? ["diff", "changes", "history", "commit"] : [primary, ...(["changes", "history", "diff", "commit"] as DesktopPane[]).filter((pane) => pane !== primary)] as DesktopPaneOrder));
     if (!urlSetPrimaryRef.current) {
-      setPrimaryPanel(
-        storedPrimary === "changes" ||
-          storedPrimary === "history" ||
-          storedPrimary === "commit" ||
-          storedPrimary === "diff" ||
-          storedPrimary === "review"
-          ? storedPrimary
-          : "diff"
-      );
+      setPrimaryPanel(primary);
     }
     // Clear the URL override flag — localStorage can take over for future repo switches
     urlSetPrimaryRef.current = false;
-    if (Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
+    if (!(typeof storedGeometry.stackHeight === "number" && Number.isFinite(storedGeometry.stackHeight) && storedGeometry.stackHeight > 0 && storedGeometry.stackHeight <= 1) && Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
       setStackHeight(storedStackHeight);
     }
     setLayoutLoadedKey(repoKey);
@@ -1586,6 +2155,25 @@ export default function App() {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
     const viewModeKey = `gct.viewMode.${repoKey}`;
     localStorage.setItem(viewModeKey, fileViewMode);
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode]);
+
+  // Report the settled mode after the stored value has been applied. A zero
+  // delay lets the load effect's state update commit first, so a reload of a
+  // saved "grouped" choice does not emit a transient "flat" signal.
+  useEffect(() => {
+    if (!repoDir || groupingLoadedKey !== repoKey) return;
+    const timer = window.setTimeout(() => {
+      experienceSignal("changes.view_mode", {
+        mode: fileViewModeRef.current,
+        initial: !viewModeReportedRef.current,
+      });
+      viewModeReportedRef.current = true;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode]);
+
+  useEffect(() => {
+    if (!repoDir || groupingLoadedKey !== repoKey || !groupingRulesDirty) return;
     // Save grouping rules to API (instead of localStorage)
     saveGroupingRulesMutation.mutate({
       enabled: groupingRules.length > 0,
@@ -1596,46 +2184,74 @@ export default function App() {
         mode: r.mode ?? "prefix",
       })),
     });
+    setGroupingRulesDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode, groupingRules]);
+  }, [repoDir, repoKey, groupingLoadedKey, groupingRulesDirty, groupingRules]);
 
   useEffect(() => {
     if (!repoDir || layoutLoadedKey !== repoKey) return;
-    const presetKey = `gct.layout.${repoKey}.preset`;
-    const primaryKey = `gct.layout.${repoKey}.primary`;
-    const stackKey = `gct.layout.${repoKey}.stackHeight`;
-    localStorage.setItem(presetKey, layoutPreset);
-    localStorage.setItem(primaryKey, primaryPanel);
-    localStorage.setItem(stackKey, String(stackHeight));
-  }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight]);
-
-  useEffect(() => {
-    if (!groupingDefaultsPending || !repoDir) return;
-    const files = statusQuery.data?.files;
-    if (!files) return;
-    const allFiles = [
-      ...(files.staged ?? []),
-      ...(files.unstaged ?? []),
-      ...(files.untracked ?? []),
-      ...(files.conflicts ?? [])
-    ];
-    const hasScenarios = allFiles.some((path) => path.startsWith("scenarios/"));
-    const hasResources = allFiles.some((path) => path.startsWith("resources/"));
-    if (hasScenarios || hasResources) {
-      const defaults: GroupingRule[] = [];
-      if (hasScenarios) defaults.push(createGroupingRule("Scenarios", "scenarios/", "segment"));
-      if (hasResources) defaults.push(createGroupingRule("Resources", "resources/", "segment"));
-      setGroupingRules(defaults);
+    const workspace = {
+      version: 1,
+      order: desktopPaneOrder,
+      collapsed: { changes: changesCollapsed, history: historyCollapsed, commit: commitCollapsed },
+      sidebarWidth: mainRef.current ? sidebarWidth / Math.max(1, mainRef.current.clientWidth) : layoutRatiosRef.current.sidebarWidth,
+      stackHeight: mainRef.current ? stackHeight / Math.max(1, mainRef.current.clientHeight) : layoutRatiosRef.current.stackHeight,
+      changesHeight: mainRef.current ? changesHeight / Math.max(1, mainRef.current.clientHeight) : layoutRatiosRef.current.changesHeight,
+      historyHeight: mainRef.current ? historyHeight / Math.max(1, mainRef.current.clientHeight) : layoutRatiosRef.current.historyHeight,
+      preset: layoutPreset,
+      primary: primaryPanel,
+    };
+    layoutRatiosRef.current = workspace;
+    try {
+      localStorage.setItem(`gct.layout.${repoKey}.workspace`, JSON.stringify(workspace));
+    } catch {
+      // Keep the workspace usable when browser storage is unavailable or full.
     }
-    setGroupingDefaultsPending(false);
-  }, [groupingDefaultsPending, repoDir, statusQuery.data?.files, createGroupingRule]);
+  }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight, sidebarWidth, changesHeight, historyHeight, desktopPaneOrder, changesCollapsed, historyCollapsed, commitCollapsed]);
 
   useEffect(() => {
-    // If in grouped mode but no rules available, fall back to flat
-    if (groupingRules.length === 0 && fileViewMode === "grouped") {
+    if (isMobile || !repoDir || layoutLoadedKey !== repoKey || !mainRef.current || typeof ResizeObserver === "undefined") return;
+    const applyViewport = () => {
+      const host = mainRef.current;
+      if (!host || isResizingStack || isResizingSplit || isResizingHistory) return;
+      const width = host.clientWidth;
+      const height = host.clientHeight;
+      if (width < 1 || height < 1) return;
+      const previous = lastLayoutViewportRef.current;
+      if (previous && previous.width === width && previous.height === height) return;
+      lastLayoutViewportRef.current = { width, height };
+      const ratios = layoutRatiosRef.current;
+      setSidebarWidth(Math.max(sidebarMinWidth, Math.min(width - diffMinWidth, ratios.sidebarWidth * width)));
+      setStackHeight(Math.max(220, Math.min(height - 240, ratios.stackHeight * height)));
+      setChangesHeight(Math.max(200, Math.min(height - 180, ratios.changesHeight * height)));
+      setHistoryHeight(Math.max(140, Math.min(height - 200, ratios.historyHeight * height)));
+    };
+    applyViewport();
+    const observer = new ResizeObserver(applyViewport);
+    observer.observe(mainRef.current);
+    return () => observer.disconnect();
+  }, [isMobile, repoDir, repoKey, layoutLoadedKey, isResizingStack, isResizingSplit, isResizingHistory]);
+
+  useEffect(() => {
+    if (!repoDir || layoutLoadedKey !== repoKey || primaryPanel === "review" || desktopPaneOrder[0] === primaryPanel) return;
+    setDesktopPaneOrder((current) => [primaryPanel, ...current.filter((pane) => pane !== primaryPanel)] as DesktopPaneOrder);
+  }, [repoDir, repoKey, layoutLoadedKey, primaryPanel, desktopPaneOrder]);
+
+  useEffect(() => {
+    // If grouped mode was persisted but no manual or server-derived groups are
+    // available, fall back to flat. Wait for both grouping sources to settle:
+    // resetting while they are still loading discards the persisted mode and
+    // then writes "flat" back, which is why the choice did not survive reload.
+    if (
+      !groupingAvailable
+      && fileViewMode === "grouped"
+      && groupingLoadedKey === repoKey
+      && !groupingRulesQuery.isLoading
+      && !repoGroupsQuery.isLoading
+    ) {
       setFileViewMode("flat");
     }
-  }, [groupingRules, fileViewMode]);
+  }, [fileViewMode, groupingAvailable, groupingLoadedKey, repoKey, groupingRulesQuery.isLoading, repoGroupsQuery.isLoading]);
 
   useEffect(() => {
     // Skip until URL initialization is complete (state batched together)
@@ -1760,6 +2376,12 @@ export default function App() {
   useEffect(() => {
     if (!isResizingStack) return;
 
+    // Track the latest clamped value during drag so handleUp can commit it
+    // to React state once. handleMove writes to the DOM imperatively to
+    // avoid one App re-render per mouse event.
+    let latestHeight: number | null = null;
+    let latestWidth: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!stackResize.current) return;
       if (stackResize.current.mode === "bottom") {
@@ -1769,7 +2391,8 @@ export default function App() {
           stackResize.current.height - (event.clientY - stackResize.current.top);
         const maxHeight = stackResize.current.height - minMain;
         const clampedHeight = Math.max(minStack, Math.min(maxHeight, nextHeight));
-        setStackHeight(clampedHeight);
+        latestHeight = clampedHeight;
+        if (stackRef.current) stackRef.current.style.height = `${clampedHeight}px`;
         return;
       }
 
@@ -1779,10 +2402,19 @@ export default function App() {
           ? event.clientX - stackResize.current.start
           : stackResize.current.start - event.clientX;
       const clampedWidth = Math.max(minWidth, Math.min(stackResize.current.max, nextWidth));
-      setSidebarWidth(clampedWidth);
+      latestWidth = clampedWidth;
+      if (stackRef.current) stackRef.current.style.width = `${clampedWidth}px`;
     };
 
     const handleUp = () => {
+      const host = mainRef.current;
+      if (host) {
+        const ratios = layoutRatiosRef.current;
+        if (latestHeight !== null) ratios.stackHeight = latestHeight / Math.max(1, host.clientHeight);
+        if (latestWidth !== null) ratios.sidebarWidth = latestWidth / Math.max(1, host.clientWidth);
+      }
+      if (latestHeight !== null) setStackHeight(latestHeight);
+      if (latestWidth !== null) setSidebarWidth(latestWidth);
       setIsResizingStack(false);
       stackResize.current = null;
       document.body.style.cursor = "";
@@ -1805,6 +2437,8 @@ export default function App() {
   useEffect(() => {
     if (!isResizingSplit) return;
 
+    let latestHeight: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!splitResize.current) return;
       const minTop = 200;
@@ -1812,10 +2446,19 @@ export default function App() {
       const nextHeight = event.clientY - splitResize.current.top;
       const maxHeight = splitResize.current.height - minBottom;
       const clampedHeight = Math.max(minTop, Math.min(maxHeight, nextHeight));
-      setChangesHeight(clampedHeight);
+      latestHeight = clampedHeight;
+      // Imperatively rewrite the inner grid's row template; the React render
+      // path computes the same string from sidebarRows on commit (handleUp).
+      if (sidebarGridRef.current) {
+        sidebarGridRef.current.style.gridTemplateRows = `minmax(0, ${clampedHeight}px) 6px minmax(0, 1fr)`;
+      }
     };
 
     const handleUp = () => {
+      if (latestHeight !== null && mainRef.current) {
+        layoutRatiosRef.current.changesHeight = latestHeight / Math.max(1, mainRef.current.clientHeight);
+      }
+      if (latestHeight !== null) setChangesHeight(latestHeight);
       setIsResizingSplit(false);
       splitResize.current = null;
       document.body.style.cursor = "";
@@ -1838,6 +2481,8 @@ export default function App() {
   useEffect(() => {
     if (!isResizingHistory) return;
 
+    let latestHeight: number | null = null;
+
     const handleMove = (event: MouseEvent) => {
       if (!historyResize.current) return;
       const minHistory = 140;
@@ -1845,10 +2490,17 @@ export default function App() {
       const nextHeight = historyResize.current.bottom - event.clientY;
       const maxHeight = Math.max(minHistory, changesHeight - minChanges);
       const clampedHeight = Math.max(minHistory, Math.min(maxHeight, nextHeight));
-      setHistoryHeight(clampedHeight);
+      latestHeight = clampedHeight;
+      if (topStackGridRef.current) {
+        topStackGridRef.current.style.gridTemplateRows = `minmax(0, 1fr) 6px minmax(0, ${clampedHeight}px)`;
+      }
     };
 
     const handleUp = () => {
+      if (latestHeight !== null && mainRef.current) {
+        layoutRatiosRef.current.historyHeight = latestHeight / Math.max(1, mainRef.current.clientHeight);
+      }
+      if (latestHeight !== null) setHistoryHeight(latestHeight);
       setIsResizingHistory(false);
       historyResize.current = null;
       document.body.style.cursor = "";
@@ -1901,6 +2553,74 @@ export default function App() {
     setIsResizingHistory(true);
   };
 
+  const handleDesktopPaneDrop = (from: DesktopPane, to: DesktopPane) => {
+    if (from === to) return;
+    setDesktopPaneOrder((current) => {
+      const next = moveDesktopPane(current, from, to);
+      if (primaryPanel !== "review") setPrimaryPanel(next[0]);
+      return next;
+    });
+  };
+
+  const handlePrimaryPanelChange = (panel: LayoutSection) => {
+    setPrimaryPanel(panel);
+    if (panel !== "review") {
+      setDesktopPaneOrder((current) => [panel, ...current.filter((pane) => pane !== panel)] as DesktopPaneOrder);
+    }
+  };
+
+  const sourceDistributionOverlay = isSourceDistributionOpen ? (
+    <Suspense fallback={sourceDistributionLoading}>
+      <SourceDistributionPanel
+        repoId={repoId}
+        initialDistributionId={sourceDistributionId}
+        onSelectDistribution={setSourceDistributionId}
+        onClose={() => {
+          setSourceDistributionId(null);
+          setIsSourceDistributionOpen(false);
+        }}
+      />
+    </Suspense>
+  ) : null;
+
+  const handleResetLayout = () => {
+    const width = Math.max(1, mainRef.current?.clientWidth || window.innerWidth);
+    const height = Math.max(1, mainRef.current?.clientHeight || window.innerHeight);
+    layoutRatiosRef.current = { sidebarWidth: 320 / width, stackHeight: 320 / height, changesHeight: 420 / height, historyHeight: 200 / height };
+    setLayoutPreset("classic");
+    setPrimaryPanel("diff");
+    setDesktopPaneOrder(["diff", "changes", "history", "commit"]);
+    setChangesCollapsed(false);
+    setHistoryCollapsed(false);
+    setCommitCollapsed(false);
+    setSidebarWidth(320);
+    setChangesHeight(420);
+    setHistoryHeight(200);
+    setStackHeight(320);
+  };
+
+  const handleRevealChangeInTree = useCallback((path: string) => {
+    setFileViewMode("tree");
+    setScrollToFile(path);
+  }, []);
+  const handleSelectChangeFile = useCallback((path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
+    handleSelectFile(path, staged, event);
+    if (isMobile) setMobileActivePanel("diff");
+    else if (primaryPanel === "review") setPrimaryPanel("diff");
+  }, [handleSelectFile, isMobile, primaryPanel]);
+  const toggleChangesCollapsed = useCallback(() => setChangesCollapsed(prev => !prev), []);
+  const switchReviewScenario = scenarioReview.switchScenario;
+  const handleOpenChangesReview = useCallback((slug: string) => {
+    if (isMobile) {
+      setReviewScenarioSlug(slug);
+      setMobileActivePanel("review");
+    } else {
+      if (reviewScenarioSlug && slug !== reviewScenarioSlug) switchReviewScenario(reviewScenarioSlug, slug);
+      setReviewScenarioSlug(slug);
+      setPrimaryPanel("review");
+    }
+  }, [isMobile, reviewScenarioSlug, switchReviewScenario]);
+
   const renderPanel = (panel: LayoutSection, slot: "top" | "middle" | "bottom" | "main") => {
     const isMain = slot === "main";
     const isHistoryMode = Boolean(viewingCommit);
@@ -1926,7 +2646,7 @@ export default function App() {
               selectedFile={selectedFile}
               onSelectFile={handleSelectHistoryFile}
               collapsed={changesCollapsed}
-              onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+              onToggleCollapse={toggleChangesCollapsed}
               fillHeight={isMain || !changesCollapsed}
               onDeletePath={handleRequestDeletePath}
             />
@@ -1935,26 +2655,18 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            loading={statusQuery.isLoading && !statusQuery.data}
+            loadError={statusQuery.error?.message ?? null}
+            onRetryLoad={() => { void statusQuery.refetch(); }}
+            onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
+            previewFileStats={statusQuery.data?.file_stats_preview}
+            fileStatsState={statusQuery.data?.file_stats_state}
+            onRetryFileStats={() => { void statusQuery.retryFileStats(); }}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            approvedChanges={
-              approvedChangesQuery.data
-                ? {
-                    available: approvedChangesQuery.data.available,
-                    committableFiles: approvedChangesQuery.data.committableFiles,
-                    warning: approvedChangesQuery.data.warning
-                  }
-                : undefined
-            }
-            approvedPaths={approvedPendingSet}
-            onStageApproved={handleStageApproved}
-            isStagingApproved={isStaging}
-            onSelectFile={(path, staged, event) => {
-              handleSelectFile(path, staged, event);
-              if (primaryPanel === "review") setPrimaryPanel("diff");
-            }}
+            onSelectFile={handleSelectChangeFile}
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
@@ -1962,6 +2674,7 @@ export default function App() {
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
+            pendingPaths={pendingPaths}
             isDiscarding={isDiscarding}
             isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
@@ -1969,21 +2682,25 @@ export default function App() {
             confirmingIgnore={confirmingIgnore}
             onConfirmIgnore={handleConfirmIgnore}
             collapsed={changesCollapsed}
-            onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+            onToggleCollapse={toggleChangesCollapsed}
             fillHeight={isMain || !changesCollapsed}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
+            resolvedGroups={repoGroupsQuery.data?.groups}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
 
             onStagePaths={handleStagePaths}
+            onUnstagePaths={handleUnstagePaths}
             onDiscardPaths={handleDiscardPaths}
+            onClearSelection={handleClearFileSelection}
             scrollToFile={scrollToFile}
             onScrollComplete={handleScrollComplete}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
-            onOpenReview={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
+            onOpenReview={handleOpenChangesReview}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -1993,7 +2710,8 @@ export default function App() {
         );
       case "history":
         return (
-          <GitHistory
+          <Suspense fallback={historyLoading}>
+            <GitHistory
             lines={historyQuery.data?.lines}
             entries={historyQuery.data?.entries}
             isLoading={historyQuery.isLoading}
@@ -2030,42 +2748,78 @@ export default function App() {
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}
             onContinueCommit={handleContinueCommit}
+            onOpenProposal={handleOpenProposal}
             activeGroupFilter={activeGroupFilter}
             onFilterGroup={setHistoryGrepPrefix}
             onClearGroupFilter={() => setHistoryGrepPrefix(null)}
-          />
+            />
+          </Suspense>
         );
       case "commit":
         return (
-          <CommitPanel
-            stagedCount={statusQuery.data?.summary.staged ?? 0}
-            commitMessage={commitMessage}
-            onCommitMessageChange={setCommitMessage}
-            canUseApprovedMessage={canUseApprovedMessage}
-            onUseApprovedMessage={handleUseApprovedMessage}
-            isUsingApprovedMessage={approvedPreviewMutation.isPending}
-            onCommit={handleCommit}
-            isCommitting={commitMutation.isPending}
-            commitError={commitError}
-            defaultAuthorName={statusQuery.data?.author?.name}
-            defaultAuthorEmail={statusQuery.data?.author?.email}
-            canAmend={canAmend}
-            amendDisabledReason={amendDisabledReason}
-            collapsed={commitCollapsed}
-            onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
-            fillHeight={isMain || !commitCollapsed}
-            onPush={handlePush}
-            isPushing={pushMutation.isPending}
-            canPush={syncStatusQuery.data?.can_push ?? false}
-            aheadCount={syncStatusQuery.data?.ahead ?? 0}
-            pushTarget={pushTargetRef}
-            sourceBranch={pushSourceBranch}
-            isHistoryMode={isHistoryMode}
-          />
+          <ProposalsSection
+            repoId={repoId}
+            hidden={isHistoryMode}
+            onOpen={handleOpenProposal}
+          >
+            <CommitPanel
+              repoId={repoId}
+              statusVersion={statusQuery.dataUpdatedAt}
+              stagedCount={statusQuery.data?.summary.staged ?? 0}
+              commitMessage={commitMessage}
+              onCommitMessageChange={setCommitMessage}
+              onCommit={handleCommit}
+              isCommitting={isAuthorizingCommit || commitMutation.isPending}
+              isUpdatingIndex={isStaging}
+              skipPrecommit={skipPrecommitInDialog}
+              onSkipPrecommitChange={setSkipPrecommitInDialog}
+              stagedPaths={stagedPaths}
+              worktreeChangedPaths={worktreeChangedPaths}
+              onUnstagePaths={handleUnstagePathsAsync}
+              onQueueStagedExtras={handleQueueStagedExtras}
+              commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              candidateVersion={statusQuery.data?.status_snapshot_id}
+              queueCommitBlockReason={queueCommitBlockReason}
+              queueCommitBlocker={queueCommitReadiness.ready ? undefined : queueCommitReadiness}
+              queueRecoveryPendingId={queueRecoveryPendingId}
+              precommitNotice={precommitNoticeProps}
+              commitError={commitError}
+              onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+              canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
+              defaultAuthorName={statusQuery.data?.author?.name}
+              defaultAuthorEmail={statusQuery.data?.author?.email}
+              canAmend={canAmend}
+              amendDisabledReason={amendDisabledReason}
+              collapsed={commitCollapsed}
+              onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
+              fillHeight={isMain || !commitCollapsed}
+              onPush={handlePush}
+              isPushing={isPushing}
+              pushProgressLabel={syncProgressLabel}
+              canPush={syncStatusQuery.data?.can_push ?? false}
+              aheadCount={syncStatusQuery.data?.ahead ?? 0}
+              pushTarget={pushTargetRef}
+              sourceBranch={pushSourceBranch}
+              isHistoryMode={isHistoryMode}
+              historyCommit={viewingCommit}
+              authorityStatus={authorityStatus}
+              onAuthoritySignedIn={() => void authorityQuery.refetch()}
+              queuedStageSelections={suggestionStageQueue}
+              startingQueuedSuggestionIds={startingSuggestionIds}
+              onRemoveQueuedStageSelection={completeQueuedStageSelection}
+              onResolveQueuedCommit={resolveQueuedCommit}
+              onStageQueuedSelection={stageNextQueuedSelection}
+              onRetryQueuedSuggestion={retryQueuedSuggestion}
+              onRefreshQueuedSuggestion={refreshQueuedSuggestion}
+              onStartQueuedSuggestion={handleStartQueuedSuggestion}
+              onStageQueuedSelectionNow={stageQueuedSelectionNow}
+              onFinishQueuedUnstage={selection => void handleFinishQueuedUnstage(selection)}
+            />
+          </ProposalsSection>
         );
       case "review":
         return (
-          <ScenarioReviewPanel
+          <Suspense fallback={panelLoading}><ScenarioReviewPanel
             scenarioSlug={reviewScenarioSlug}
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
@@ -2076,7 +2830,7 @@ export default function App() {
             onAgentRunIdChange={(id) => scenarioReview.update({ agentRunId: id })}
             scenarioState={scenarioReview.state}
             onScenarioStateChange={scenarioReview.update}
-          />
+          /></Suspense>
         );
       case "diff":
       default:
@@ -2095,7 +2849,7 @@ export default function App() {
               isHistoryMode={isHistoryMode}
               commitHash={viewingCommit?.hash}
               onShowRelatedFiles={handleShowRelatedFiles}
-              onOpenSearch={() => setIsFileSearchOpen(true)}
+              onOpenSearch={openFileSearch}
               onOpenReview={() => setPrimaryPanel("review")}
               isReadOnly={isViewingAnyFile}
               onSaveFileContent={handleSaveFileContent}
@@ -2106,6 +2860,45 @@ export default function App() {
           </div>
         );
     }
+  };
+
+  const renderDesktopPane = (panel: LayoutSection, slot: "top" | "middle" | "bottom" | "main") => {
+    const corePanel = panel === "review" ? null : panel as DesktopPane;
+    const canReorder = corePanel !== null;
+    return (
+      <div
+        className={`group/pane relative h-full min-h-0 min-w-0 overflow-hidden ${dropTargetPane === corePanel && draggingPane !== corePanel ? "ring-2 ring-inset ring-sky-400/80" : ""}`}
+        data-layout-pane={panel}
+        data-layout-slot={slot}
+        onDragOver={canReorder && draggingPane && draggingPane !== corePanel ? (event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropTargetPane(corePanel); } : undefined}
+        onDragLeave={canReorder ? (event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetPane(null); } : undefined}
+        onDrop={canReorder && corePanel ? (event) => { event.preventDefault(); if (draggingPane) handleDesktopPaneDrop(draggingPane, corePanel); setDraggingPane(null); setDropTargetPane(null); } : undefined}
+      >
+        {renderPanel(panel, slot)}
+        {canReorder && paneDragEnabled && (
+          // The grip only exists in the explicit rearrange mode. Its position
+          // and size match the original affordance, but it is always visible in
+          // mode and never present during normal use.
+          <button
+            type="button"
+            draggable
+            aria-label={`Drag ${panel} pane to rearrange`}
+            title="Drag to move pane"
+            data-testid={`drag-pane-${panel}`}
+            onDragStart={(event) => {
+              if (!corePanel) return;
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", corePanel);
+              setDraggingPane(corePanel);
+            }}
+            onDragEnd={() => { setDraggingPane(null); setDropTargetPane(null); }}
+            className={`absolute right-2 top-2 z-40 flex h-8 w-8 items-center justify-center rounded-md border border-slate-700/80 bg-slate-950/90 text-slate-400 shadow-sm transition-colors hover:border-sky-500 hover:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500 ${draggingPane === corePanel ? "cursor-grabbing" : "cursor-grab"}`}
+          >
+            <GripVertical size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+    );
   };
 
   const showSplitHandle = !bottomCollapsed && !topStackCollapsed;
@@ -2136,10 +2929,10 @@ export default function App() {
       }
       ref={stackRef}
     >
-      <div className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
+      <div ref={sidebarGridRef} className="h-full min-h-0 min-w-0 grid overflow-hidden" style={{ gridTemplateRows: sidebarRows }}>
         <div className="min-h-0 min-w-0 overflow-hidden">
-          <div className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
-            <div className="min-h-0 min-w-0">{renderPanel(topPanel, "top")}</div>
+          <div ref={topStackGridRef} className="h-full min-h-0 min-w-0 grid" style={{ gridTemplateRows: topStackRows }}>
+            <div className="min-h-0 min-w-0">{renderDesktopPane(topPanel, "top")}</div>
             <div
               className={`${
                 !topCollapsed && !middleCollapsed
@@ -2149,7 +2942,7 @@ export default function App() {
               onMouseDown={!topCollapsed && !middleCollapsed ? handleHistoryResizeStart : undefined}
               aria-hidden="true"
             />
-            <div className="min-h-0 min-w-0">{renderPanel(middlePanel, "middle")}</div>
+            <div className="min-h-0 min-w-0">{renderDesktopPane(middlePanel, "middle")}</div>
           </div>
         </div>
         <div
@@ -2160,7 +2953,7 @@ export default function App() {
           aria-hidden="true"
         />
         <div className="min-h-0 min-w-0 border-t border-slate-800 overflow-hidden">
-          {renderPanel(bottomPanel, "bottom")}
+          {renderDesktopPane(bottomPanel, "bottom")}
         </div>
       </div>
     </div>
@@ -2207,27 +3000,18 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            loading={statusQuery.isLoading && !statusQuery.data}
+            loadError={statusQuery.error?.message ?? null}
+            onRetryLoad={() => { void statusQuery.refetch(); }}
+            onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
+            previewFileStats={statusQuery.data?.file_stats_preview}
+            fileStatsState={statusQuery.data?.file_stats_state}
+            onRetryFileStats={() => { void statusQuery.retryFileStats(); }}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            approvedChanges={
-              approvedChangesQuery.data
-                ? {
-                    available: approvedChangesQuery.data.available,
-                    committableFiles: approvedChangesQuery.data.committableFiles,
-                    warning: approvedChangesQuery.data.warning
-                  }
-                : undefined
-            }
-            approvedPaths={approvedPendingSet}
-            onStageApproved={handleStageApproved}
-            isStagingApproved={isStaging}
-            onSelectFile={(path, staged, event) => {
-              handleSelectFile(path, staged, event);
-              // On mobile, switch to diff view after selecting a file
-              setMobileActivePanel("diff");
-            }}
+            onSelectFile={handleSelectChangeFile}
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
@@ -2235,6 +3019,7 @@ export default function App() {
             onStageAll={handleStageAll}
             onUnstageAll={handleUnstageAll}
             isStaging={isStaging}
+            pendingPaths={pendingPaths}
             isDiscarding={isDiscarding}
             isIgnoring={isIgnoring}
             confirmingDiscard={confirmingDiscard}
@@ -2245,17 +3030,22 @@ export default function App() {
             fillHeight={true}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
+            resolvedGroups={repoGroupsQuery.data?.groups}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
 
             onStagePaths={handleStagePaths}
+            onUnstagePaths={handleUnstagePaths}
             onDiscardPaths={handleDiscardPaths}
+            onClearSelection={handleClearFileSelection}
             scrollToFile={scrollToFile}
             onScrollComplete={handleScrollComplete}
+            scrollTopStore={changesScrollTopRef}
             onDeletePath={handleRequestDeletePath}
             onBlameFile={handleBlameFile}
+            onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
-            onOpenReview={(slug) => { setReviewScenarioSlug(slug); setMobileActivePanel("review"); }}
+            onOpenReview={handleOpenChangesReview}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2287,7 +3077,7 @@ export default function App() {
               // On mobile, switch to changes view to see the related files panel
               setMobileActivePanel("changes");
             }}
-            onOpenSearch={() => setIsFileSearchOpen(true)}
+            onOpenSearch={openFileSearch}
             onOpenReview={() => setMobileActivePanel("review")}
             isReadOnly={isViewingAnyFile}
             onSaveFileContent={handleSaveFileContent}
@@ -2298,34 +3088,72 @@ export default function App() {
         );
       case "commit":
         return (
-          <CommitPanel
-            stagedCount={statusQuery.data?.summary.staged ?? 0}
-            commitMessage={commitMessage}
-            onCommitMessageChange={setCommitMessage}
-            canUseApprovedMessage={canUseApprovedMessage}
-            onUseApprovedMessage={handleUseApprovedMessage}
-            isUsingApprovedMessage={approvedPreviewMutation.isPending}
-            onCommit={handleCommit}
-            isCommitting={commitMutation.isPending}
-            commitError={commitError}
-            defaultAuthorName={statusQuery.data?.author?.name}
-            defaultAuthorEmail={statusQuery.data?.author?.email}
-            canAmend={canAmend}
-            amendDisabledReason={amendDisabledReason}
-            collapsed={false}
-            fillHeight={true}
-            onPush={handlePush}
-            isPushing={pushMutation.isPending}
-            canPush={syncStatusQuery.data?.can_push ?? false}
-            aheadCount={syncStatusQuery.data?.ahead ?? 0}
-            pushTarget={pushTargetRef}
-            sourceBranch={pushSourceBranch}
-            isHistoryMode={isHistoryMode}
-          />
+          <ProposalsSection
+            repoId={repoId}
+            hidden={isHistoryMode}
+            onOpen={handleOpenProposal}
+          >
+            <CommitPanel
+              repoId={repoId}
+              statusVersion={statusQuery.dataUpdatedAt}
+              stagedCount={statusQuery.data?.summary.staged ?? 0}
+              commitMessage={commitMessage}
+              onCommitMessageChange={setCommitMessage}
+              onCommit={handleCommit}
+              isCommitting={isAuthorizingCommit || commitMutation.isPending}
+              isUpdatingIndex={isStaging}
+              skipPrecommit={skipPrecommitInDialog}
+              onSkipPrecommitChange={setSkipPrecommitInDialog}
+              stagedPaths={stagedPaths}
+              worktreeChangedPaths={worktreeChangedPaths}
+              onUnstagePaths={handleUnstagePathsAsync}
+              onQueueStagedExtras={handleQueueStagedExtras}
+              commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              candidateVersion={statusQuery.data?.status_snapshot_id}
+              queueCommitBlockReason={queueCommitBlockReason}
+              queueCommitBlocker={queueCommitReadiness.ready ? undefined : queueCommitReadiness}
+              queueRecoveryPendingId={queueRecoveryPendingId}
+              precommitNotice={precommitNoticeProps}
+              commitError={commitError}
+              onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+              canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
+              defaultAuthorName={statusQuery.data?.author?.name}
+              defaultAuthorEmail={statusQuery.data?.author?.email}
+              canAmend={canAmend}
+              amendDisabledReason={amendDisabledReason}
+              collapsed={false}
+              /* Size to content on mobile: the commit form is short, so h-full
+                 stretched the bordered card into a large empty void above the nav
+                 (the "extra padding at the bottom" seen on every device). */
+              fillHeight={false}
+              onPush={handlePush}
+              isPushing={isPushing}
+              pushProgressLabel={syncProgressLabel}
+              canPush={syncStatusQuery.data?.can_push ?? false}
+              aheadCount={syncStatusQuery.data?.ahead ?? 0}
+              pushTarget={pushTargetRef}
+              sourceBranch={pushSourceBranch}
+              isHistoryMode={isHistoryMode}
+              historyCommit={viewingCommit}
+              authorityStatus={authorityStatus}
+              onAuthoritySignedIn={() => void authorityQuery.refetch()}
+              queuedStageSelections={suggestionStageQueue}
+              startingQueuedSuggestionIds={startingSuggestionIds}
+              onRemoveQueuedStageSelection={completeQueuedStageSelection}
+              onResolveQueuedCommit={resolveQueuedCommit}
+              onStageQueuedSelection={stageNextQueuedSelection}
+              onRetryQueuedSuggestion={retryQueuedSuggestion}
+              onRefreshQueuedSuggestion={refreshQueuedSuggestion}
+              onStartQueuedSuggestion={handleStartQueuedSuggestion}
+              onStageQueuedSelectionNow={stageQueuedSelectionNow}
+              onFinishQueuedUnstage={selection => void handleFinishQueuedUnstage(selection)}
+            />
+          </ProposalsSection>
         );
       case "history":
         return (
-          <GitHistory
+          <Suspense fallback={historyLoading}>
+            <GitHistory
             lines={historyQuery.data?.lines}
             entries={historyQuery.data?.entries}
             isLoading={historyQuery.isLoading}
@@ -2363,14 +3191,16 @@ export default function App() {
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}
             onContinueCommit={handleContinueCommit}
+            onOpenProposal={handleOpenProposal}
             activeGroupFilter={activeGroupFilter}
             onFilterGroup={setHistoryGrepPrefix}
             onClearGroupFilter={() => setHistoryGrepPrefix(null)}
-          />
+            />
+          </Suspense>
         );
       case "review":
         return (
-          <ScenarioReviewPanel
+          <Suspense fallback={panelLoading}><ScenarioReviewPanel
             scenarioSlug={reviewScenarioSlug}
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
@@ -2382,19 +3212,19 @@ export default function App() {
             scenarioState={scenarioReview.state}
             onScenarioStateChange={scenarioReview.update}
             isMobile
-          />
+          /></Suspense>
         );
     }
   };
 
-  const pushNoticeTone =
-    pushNotice?.tone === "warning"
-      ? "bg-amber-950 border-amber-800 text-amber-200"
-      : pushNotice?.tone === "info"
-        ? "bg-sky-950 border-sky-800 text-sky-200"
-        : "bg-emerald-950 border-emerald-800 text-emerald-200";
-  const pushNoticeTitle =
-    pushNotice?.tone === "warning" ? "Push verification warning" : "Push status";
+  if (proposalView) {
+    return <div className="h-full" data-testid="git-control-tower" role="application">
+      <Suspense fallback={panelLoading}><ProposalWorkspace repoId={repoId} proposalId={proposalView} selectedPath={proposalFile} revision={proposalRevision}
+        canApprove={authorityStatus?.canMutate ?? false} approveDisabledReason={authorityStatus?.reason}
+        skipConfirmation={skipCommitConfirmation} operator={authorityStatus?.principalId}
+        onOpen={handleOpenProposal} onSelectPath={setProposalFile} onExit={() => { setProposalView(null); setProposalFile(undefined); setProposalRevision(undefined); }} /></Suspense>
+    </div>;
+  }
 
   // Mobile Layout
   if (isMobile) {
@@ -2405,38 +3235,44 @@ export default function App() {
       (statusQuery.data?.summary.conflicts ?? 0);
 
     return (
+      <PushSafetyProvider repoId={repoId ?? undefined} revision={pushSafetyRevision} paused={isStaging || isAuthorizingCommit || commitMutation.isPending || isPushing || isPulling} review={handlePush}>
       <div
-        className="h-screen flex flex-col bg-slate-950 text-slate-50"
+        className="gct-mobile-shell text-slate-50"
         data-testid="git-control-tower"
+        data-mobile-shell="true"
+        role="application"
       >
         {/* Mobile Header */}
+        <TopSafeArea testId="mobile-chrome">
         <MobileHeader
           status={statusQuery.data}
-          health={healthQuery.data}
           syncStatus={syncStatusQuery.data}
           branchActions={branchActions}
+          repoId={repoId}
           repoActions={repoActions}
           onRepoChange={handleRepoChange}
-          isLoading={statusQuery.isLoading || healthQuery.isLoading}
+          isLoading={statusQuery.isLoading}
           onRefresh={handleRefresh}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
 
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
-          onOpenFileSearch={() => setIsFileSearchOpen(true)}
-          onOpenReview={() => setMobileActivePanel("review")}
+          onOpenFileSearch={openFileSearch}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
           viewingFileBlame={viewingFileBlame}
           onExitBlameMode={handleExitBlameMode}
           onPush={handlePush}
           onPull={handlePull}
-          isPushing={pushMutation.isPending}
-          isPulling={pullMutation.isPending}
+          isPushing={isPushing}
+          isPulling={isPulling}
+          syncProgressLabel={syncProgressLabel}
         />
+        </TopSafeArea>
 
         {/* Main Content - Single Panel at a time */}
-        <div className="flex-1 overflow-hidden pb-16">
-          {renderMobilePanel(mobileActivePanel)}
+        <div className="gct-mobile-content" data-testid="gct-mobile-content">
+          {isWorkspaceLayoutRestoring ? layoutRestoreState : renderMobilePanel(mobileActivePanel)}
         </div>
 
         {/* Mobile Navigation */}
@@ -2447,95 +3283,23 @@ export default function App() {
           unstagedCount={unstagedCount}
         />
 
-        {/* Error Toast for Mutations - positioned above bottom nav */}
-        {(stageMutation.error ||
-          unstageMutation.error ||
-          discardMutation.error ||
-          ignoreMutation.error ||
-          pushMutation.error ||
-          pullMutation.error ||
-          createBranchMutation.error ||
-          switchBranchMutation.error ||
-          publishBranchMutation.error) && (
-          <div
-            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm shadow-lg"
-            data-testid="error-toast"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium">Operation failed</p>
-                <p className="text-xs mt-1 text-red-300">
-                  {(
-                    stageMutation.error ||
-                    unstageMutation.error ||
-                    discardMutation.error ||
-                    ignoreMutation.error ||
-                    pushMutation.error ||
-                    pullMutation.error ||
-                    createBranchMutation.error ||
-                    switchBranchMutation.error ||
-                    publishBranchMutation.error
-                  )?.message}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  stageMutation.reset();
-                  unstageMutation.reset();
-                  discardMutation.reset();
-                  ignoreMutation.reset();
-                  pushMutation.reset();
-                  pullMutation.reset();
-                  createBranchMutation.reset();
-                  switchBranchMutation.reset();
-                  publishBranchMutation.reset();
-                }}
-                className="text-red-400 hover:text-red-200 p-1"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-        {/* Warning Toast - positioned above bottom nav */}
-        {warningNotice && (
-          <div
-            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
-            data-testid="warning-toast"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-medium">{warningNotice.message}</p>
-                {warningNotice.details && (
-                  <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
-                    {warningNotice.details}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setWarningNotice(null)}
-                className="text-amber-400 hover:text-amber-200 p-1"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
-        {pushNotice && (
-          <div
-            className={`fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg border text-sm ${pushNoticeTone}`}
-            data-testid="push-toast"
-          >
-            <p className="font-medium">{pushNoticeTitle}</p>
-            <p className="text-xs mt-1">{pushNotice.message}</p>
-          </div>
-        )}
-
         {/* Modals */}
+        {pendingCommitAuthorization && (
+          <Suspense fallback={commitAuthorizationLoading}><CommitAuthorizationDialog
+            pending={pendingCommitAuthorization}
+            activeRepositoryId={repoId ?? ""}
+            isAuthorizing={isAuthorizingCommit}
+            skipPrecommit={skipPrecommitInDialog}
+            dontAskAgain={dontAskAgain}
+            showPrecommitOption={Boolean(precommitConfigQuery.data?.enabled && precommitConfigQuery.data.run_before_commit)}
+            onSkipPrecommitChange={setSkipPrecommitInDialog}
+            onDontAskAgainChange={setDontAskAgain}
+            onConfirm={() => void handleConfirmCommit()}
+            onClose={() => {
+              if (!isAuthorizingCommit) setPendingCommitAuthorization(null);
+            }}
+          /></Suspense>
+        )}
         <SettingsModal
           isOpen={isSettingsOpen}
           repoDir={repoDir}
@@ -2544,27 +3308,29 @@ export default function App() {
           preset={layoutPreset}
           primaryPanel={primaryPanel}
           onChangePreset={setLayoutPreset}
-          onChangePrimary={setPrimaryPanel}
-          onResetLayout={() => {
-            setLayoutPreset("classic");
-            setPrimaryPanel("diff");
-            setStackHeight(320);
-          }}
+          onChangePrimary={handlePrimaryPanelChange}
+          onResetLayout={handleResetLayout}
           groupingEnabled={fileViewMode === "grouped"}
           onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
           groupingRules={groupingRules}
-          onChangeGroupingRules={setGroupingRules}
+          contractGroups={repoGroupsQuery.data?.groups}
+          onChangeGroupingRules={handleGroupingRulesChange}
           onClose={() => setIsSettingsOpen(false)}
         />
-        <UpstreamInfoModal
-          isOpen={isUpstreamInfoOpen}
+        {pushSafetyOpen && (
+          <Suspense fallback={pushSafetyLoading}>
+            <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />
+          </Suspense>
+        )}
+        {isUpstreamInfoOpen && <Suspense fallback={upstreamInfoLoading}><UpstreamInfoModal
+          isOpen
           localBranch={pushSourceBranch}
           upstreamRef={pushTargetRef}
           ahead={upstreamAhead}
           behind={upstreamBehind}
           repoId={repoId}
           onClose={() => setIsUpstreamInfoOpen(false)}
-        />
+        /></Suspense>}
         <DiscardConfirmationModal
           isOpen={pendingDiscardFiles !== null}
           files={pendingDiscardFiles ?? []}
@@ -2580,35 +3346,59 @@ export default function App() {
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />
-        <MobileFileSearch
+        <StageSameNameConfirmationModal
+          isOpen={pendingStageSameNameFiles !== null}
+          files={pendingStageSameNameFiles ?? []}
+          isLoading={isStaging}
+          onConfirm={handleConfirmStageFilesWithSameName}
+          onCancel={() => setPendingStageSameNameFiles(null)}
+        />
+        <StageDuringSuggestionModal
+          hold={pendingSuggestionStage?.hold ?? null}
+          paths={pendingSuggestionStage?.paths ?? []}
+          queuedConflicts={pendingSuggestionStage?.queuedConflicts ?? []}
+          onConfirm={handleConfirmSuggestionStage}
+          isQueueRecovery={Boolean(pendingSuggestionStage?.retireSelection)}
+          onQueue={pendingSuggestionStage?.hold && pendingSuggestionStage.allowQueueInstead !== false ? handleQueueSuggestionStage : undefined}
+          queuedSelections={suggestionStageQueue.length}
+          onCancel={() => setPendingSuggestionStage(null)}
+        />
+        {hasOpenedFileSearch && <Suspense fallback={isFileSearchOpen ? searchLoading : null}><MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
           onSelectFile={handleSelectAnyFile}
           repoId={repoId}
-        />
+        /></Suspense>}
+        {sourceDistributionOverlay}
       </div>
+      </PushSafetyProvider>
     );
   }
 
   // Desktop Layout (original)
   return (
+    <PushSafetyProvider repoId={repoId ?? undefined} revision={pushSafetyRevision} paused={isStaging || isAuthorizingCommit || commitMutation.isPending || isPushing || isPulling} review={handlePush}>
     <div
-      className="h-screen flex flex-col bg-slate-950 text-slate-50"
+      className="h-full flex flex-col bg-slate-950 text-slate-50"
       data-testid="git-control-tower"
+      role="application"
     >
       {/* Status Header */}
       <StatusHeader
         status={statusQuery.data}
-        health={healthQuery.data}
         syncStatus={syncStatusQuery.data}
         branchActions={branchActions}
         repoActions={repoActions}
         onRepoChange={handleRepoChange}
-        isLoading={statusQuery.isLoading || healthQuery.isLoading}
+        repoId={repoId}
+        isLoading={statusQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        paneDragEnabled={paneDragEnabled}
+        onTogglePaneDrag={() => setPaneDragEnabled(value => !value)}
+        onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
-        onOpenFileSearch={() => setIsFileSearchOpen(true)}
+        onOpenFileSearch={openFileSearch}
         onOpenReview={() => setPrimaryPanel("review")}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
@@ -2616,15 +3406,22 @@ export default function App() {
         onExitBlameMode={handleExitBlameMode}
         onPush={handlePush}
         onPull={handlePull}
-        isPushing={pushMutation.isPending}
-        isPulling={pullMutation.isPending}
+        isPushing={isPushing}
+        isPulling={isPulling}
+        syncProgressLabel={syncProgressLabel}
       />
+      {paneDragEnabled && (
+        <div className="pointer-events-none fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-md border border-cyan-700/70 bg-slate-900/95 px-3 py-1.5 text-xs text-cyan-100 shadow-lg" role="status">
+          Drag a pane grip to move it · Esc to finish
+        </div>
+      )}
 
       {/* Main Content - Layout */}
       <div
         className={`flex-1 overflow-hidden ${isBottomLayout ? "flex flex-col" : "flex"}`}
         ref={mainRef}
       >
+        {isWorkspaceLayoutRestoring ? layoutRestoreState : <>
         {!isBottomLayout && stackPosition === "left" && (
           <>
             {stackPanel}
@@ -2637,7 +3434,7 @@ export default function App() {
         )}
 
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          {renderPanel(primaryPanel, "main")}
+          {renderDesktopPane(primaryPanel, "main")}
         </div>
 
         {!isBottomLayout && stackPosition === "right" && (
@@ -2661,94 +3458,24 @@ export default function App() {
             {stackPanel}
           </>
         )}
+        </>}
       </div>
 
-      {/* Error Toast for Mutations */}
-      {(stageMutation.error ||
-        unstageMutation.error ||
-        discardMutation.error ||
-        ignoreMutation.error ||
-        pushMutation.error ||
-        pullMutation.error ||
-        createBranchMutation.error ||
-        switchBranchMutation.error ||
-        publishBranchMutation.error) && (
-        <div
-          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md shadow-lg"
-          data-testid="error-toast"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">Operation failed</p>
-              <p className="text-xs mt-1 text-red-300">
-                {(
-                  stageMutation.error ||
-                  unstageMutation.error ||
-                  discardMutation.error ||
-                  ignoreMutation.error ||
-                  pushMutation.error ||
-                  pullMutation.error ||
-                  createBranchMutation.error ||
-                  switchBranchMutation.error ||
-                  publishBranchMutation.error
-                )?.message}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                stageMutation.reset();
-                unstageMutation.reset();
-                discardMutation.reset();
-                ignoreMutation.reset();
-                pushMutation.reset();
-                pullMutation.reset();
-                createBranchMutation.reset();
-                switchBranchMutation.reset();
-                publishBranchMutation.reset();
-              }}
-              className="text-red-400 hover:text-red-200 p-1"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Warning Toast */}
-      {warningNotice && (
-        <div
-          className="fixed bottom-4 right-4 max-w-md px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
-          data-testid="warning-toast"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-medium">{warningNotice.message}</p>
-              {warningNotice.details && (
-                <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
-                  {warningNotice.details}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setWarningNotice(null)}
-              className="text-amber-400 hover:text-amber-200 p-1"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-      {pushNotice && (
-        <div
-          className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg border text-sm max-w-md ${pushNoticeTone}`}
-          data-testid="push-toast"
-        >
-          <p className="font-medium">{pushNoticeTitle}</p>
-          <p className="text-xs mt-1">{pushNotice.message}</p>
-        </div>
+      {pendingCommitAuthorization && (
+        <Suspense fallback={commitAuthorizationLoading}><CommitAuthorizationDialog
+          pending={pendingCommitAuthorization}
+          activeRepositoryId={repoId ?? ""}
+          isAuthorizing={isAuthorizingCommit}
+          skipPrecommit={skipPrecommitInDialog}
+          dontAskAgain={dontAskAgain}
+          showPrecommitOption={Boolean(precommitConfigQuery.data?.enabled && precommitConfigQuery.data.run_before_commit)}
+          onSkipPrecommitChange={setSkipPrecommitInDialog}
+          onDontAskAgainChange={setDontAskAgain}
+          onConfirm={() => void handleConfirmCommit()}
+          onClose={() => {
+            if (!isAuthorizingCommit) setPendingCommitAuthorization(null);
+          }}
+        /></Suspense>
       )}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -2758,27 +3485,30 @@ export default function App() {
         preset={layoutPreset}
         primaryPanel={primaryPanel}
         onChangePreset={setLayoutPreset}
-        onChangePrimary={setPrimaryPanel}
-        onResetLayout={() => {
-          setLayoutPreset("classic");
-          setPrimaryPanel("diff");
-          setStackHeight(320);
-        }}
+        onChangePrimary={handlePrimaryPanelChange}
+        onResetLayout={handleResetLayout}
         groupingEnabled={fileViewMode === "grouped"}
         onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
         groupingRules={groupingRules}
-        onChangeGroupingRules={setGroupingRules}
+        contractGroups={repoGroupsQuery.data?.groups}
+        onChangeGroupingRules={handleGroupingRulesChange}
         onClose={() => setIsSettingsOpen(false)}
       />
-      <UpstreamInfoModal
-        isOpen={isUpstreamInfoOpen}
+      {sourceDistributionOverlay}
+      {pushSafetyOpen && (
+        <Suspense fallback={pushSafetyLoading}>
+          <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />
+        </Suspense>
+      )}
+      {isUpstreamInfoOpen && <Suspense fallback={upstreamInfoLoading}><UpstreamInfoModal
+        isOpen
         localBranch={pushSourceBranch}
         upstreamRef={pushTargetRef}
         ahead={upstreamAhead}
         behind={upstreamBehind}
         repoId={repoId}
         onClose={() => setIsUpstreamInfoOpen(false)}
-      />
+      /></Suspense>}
       <DiscardConfirmationModal
         isOpen={pendingDiscardFiles !== null}
         files={pendingDiscardFiles ?? []}
@@ -2794,12 +3524,30 @@ export default function App() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
-      <FileSearchModal
+      <StageSameNameConfirmationModal
+        isOpen={pendingStageSameNameFiles !== null}
+        files={pendingStageSameNameFiles ?? []}
+        isLoading={isStaging}
+        onConfirm={handleConfirmStageFilesWithSameName}
+        onCancel={() => setPendingStageSameNameFiles(null)}
+      />
+      <StageDuringSuggestionModal
+        hold={pendingSuggestionStage?.hold ?? null}
+        paths={pendingSuggestionStage?.paths ?? []}
+        queuedConflicts={pendingSuggestionStage?.queuedConflicts ?? []}
+        onConfirm={handleConfirmSuggestionStage}
+        isQueueRecovery={Boolean(pendingSuggestionStage?.retireSelection)}
+        onQueue={pendingSuggestionStage?.hold && pendingSuggestionStage.allowQueueInstead !== false ? handleQueueSuggestionStage : undefined}
+        queuedSelections={suggestionStageQueue.length}
+        onCancel={() => setPendingSuggestionStage(null)}
+      />
+      {hasOpenedFileSearch && <Suspense fallback={isFileSearchOpen ? searchLoading : null}><FileSearchModal
         isOpen={isFileSearchOpen}
         onClose={() => setIsFileSearchOpen(false)}
         onSelectFile={handleSelectAnyFile}
         repoId={repoId}
-      />
+      /></Suspense>}
     </div>
+    </PushSafetyProvider>
   );
 }

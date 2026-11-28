@@ -1,0 +1,113 @@
+{
+  "id": "login-sessions-02",
+  "family": "login-sessions",
+  "family_name": "Login and sessions",
+  "difficulty": 2,
+  "title": "Login and sessions: level 2",
+  "task": "Sign in with the public synthetic practice code range-2, then extract every record in source order with id, name, category, value and active.",
+  "mechanism": "session",
+  "tags": [
+    "difficulty-2",
+    "session"
+  ],
+  "page": {
+    "title": "Login and sessions Practice 2",
+    "records": [
+      {
+        "id": "LOG-02-001",
+        "name": "Login Item 2-1",
+        "category": "alpha",
+        "value": 521,
+        "active": true
+      },
+      {
+        "id": "LOG-02-002",
+        "name": "Login Item 2-2",
+        "category": "beta",
+        "value": 522,
+        "active": true
+      },
+      {
+        "id": "LOG-02-003",
+        "name": "Login Item 2-3",
+        "category": "gamma",
+        "value": 523,
+        "active": true
+      },
+      {
+        "id": "LOG-02-004",
+        "name": "Login Item 2-4",
+        "category": "alpha",
+        "value": 524,
+        "active": false
+      },
+      {
+        "id": "LOG-02-005",
+        "name": "Login Item 2-5",
+        "category": "beta",
+        "value": 525,
+        "active": true
+      },
+      {
+        "id": "LOG-02-006",
+        "name": "Login Item 2-6",
+        "category": "gamma",
+        "value": 526,
+        "active": true
+      }
+    ],
+    "page_size": 6,
+    "variant": 2,
+    "search_fields": [],
+    "requires_session": true,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": "",
+    "session_code": "range-2"
+  },
+  "answer": [
+    {
+      "id": "LOG-02-001",
+      "name": "Login Item 2-1",
+      "category": "alpha",
+      "value": 521,
+      "active": true
+    },
+    {
+      "id": "LOG-02-002",
+      "name": "Login Item 2-2",
+      "category": "beta",
+      "value": 522,
+      "active": true
+    },
+    {
+      "id": "LOG-02-003",
+      "name": "Login Item 2-3",
+      "category": "gamma",
+      "value": 523,
+      "active": true
+    },
+    {
+      "id": "LOG-02-004",
+      "name": "Login Item 2-4",
+      "category": "alpha",
+      "value": 524,
+      "active": false
+    },
+    {
+      "id": "LOG-02-005",
+      "name": "Login Item 2-5",
+      "category": "beta",
+      "value": 525,
+      "active": true
+    },
+    {
+      "id": "LOG-02-006",
+      "name": "Login Item 2-6",
+      "category": "gamma",
+      "value": 526,
+      "active": true
+    }
+  ]
+}

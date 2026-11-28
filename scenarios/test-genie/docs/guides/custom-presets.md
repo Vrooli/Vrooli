@@ -1,10 +1,10 @@
 # Custom Presets Guide
 
-This guide explains how to create and use custom test presets in Test Genie for tailored testing workflows.
+This guide explains how to define and preview scenario-specific Test Genie presets for tailored validation workflows.
 
 ## Overview
 
-Test Genie includes three built-in presets (Quick, Smoke, Comprehensive), but you can define custom presets for specific use cases:
+Built-in options include the adaptive `quick` and `smoke` profiles, plus the `architecture-audit` and `comprehensive` presets. A scenario can define additional named presets in `.vrooli/testing.json` for specific use cases:
 
 - **CI/CD pipelines** with different testing stages
 - **Feature development** focusing on specific phases
@@ -13,9 +13,10 @@ Test Genie includes three built-in presets (Quick, Smoke, Comprehensive), but yo
 
 ```mermaid
 graph LR
-    subgraph "Built-in Presets"
+    subgraph "Built-in Profiles and Presets"
         Q[Quick<br/>~1 min]
         S[Smoke<br/>~4 min]
+        A[Architecture Audit]
         C[Comprehensive<br/>~8 min]
     end
 
@@ -31,6 +32,7 @@ graph LR
 
     style Q fill:#e8f5e9
     style S fill:#fff3e0
+    style A fill:#e3f2fd
     style C fill:#e3f2fd
     style CI fill:#f3e5f5
     style N fill:#ffe0b2
@@ -326,9 +328,10 @@ test-genie execute my-scenario --preset ci-fast --timeout 180s
 ```bash
 API_PORT=$(vrooli scenario port test-genie API_PORT)
 
-curl -X POST "http://localhost:${API_PORT}/api/v1/test-suite/my-scenario/execute-sync" \
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{
+    "scenarioName": "my-scenario",
     "preset": "ci-fast",
     "failFast": true
   }'
@@ -362,7 +365,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: ./scripts/manage.sh setup --yes yes --resources none
+        run: vrooli setup --yes yes --resources none
       - name: Quick tests
         run: test-genie execute my-scenario --preset ci-fast
 
@@ -372,7 +375,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: ./scripts/manage.sh setup --yes yes
+        run: vrooli setup --yes yes
       - name: Start scenario
         run: vrooli scenario start my-scenario
       - name: Full tests
@@ -458,18 +461,15 @@ jq empty .vrooli/testing.json && echo "Valid JSON"
 jq . .vrooli/testing.json
 ```
 
-### List Available Presets
+### Inspect Preset Options
+
+Use the [Test Presets Reference](../reference/presets.md) for built-in profiles and presets. The CLI does not list scenario-specific preset names; inspect the target scenario's `.vrooli/testing.json` file and review its `presets` object.
+
+### Preview a Preset
 
 ```bash
-# View all presets (built-in + custom)
-test-genie presets list --scenario my-scenario
-```
-
-### Test a Preset
-
-```bash
-# Dry run to see what would execute
-test-genie execute my-scenario --preset ci-fast --dry-run
+# Preview selected and omitted phases
+test-genie phases plan "test-genie" --preset quick
 ```
 
 ## Troubleshooting

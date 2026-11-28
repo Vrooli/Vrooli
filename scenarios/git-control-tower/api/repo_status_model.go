@@ -1,33 +1,41 @@
 package main
 
-import "time"
+import (
+	"git-control-tower/internal/trailers"
+	"time"
+)
 
 type RepoStatusDeps struct {
 	Git             GitRunner
 	RepoDir         string
-	ConfigCache     *GitConfigCache // optional; falls back to direct git calls if nil
-	IncludeHotspots bool            // when false, skip the expensive LogFileFrequency call
+	ConfigCache     *GitConfigCache  // optional; falls back to direct git calls if nil
+	StatusCache     *RepoStatusCache // optional; short-lived cache for polling callers
+	IncludeHotspots bool             // when false, skip the expensive LogFileFrequency call
+	FastStatus      bool             // path-list status only; detailed file statistics load on demand
 }
 
 type RepoHistoryDeps struct {
-	Git          GitRunner
-	RepoDir      string
-	Limit        int
-	IncludeFiles bool
-	GrepPattern  string // optional --grep filter for git log
+	Git           GitRunner
+	RepoDir       string
+	Limit         int
+	IncludeFiles  bool
+	IncludeChecks bool
+	CommitChecks  CommitCheckReader
+	GrepPattern   string // optional --grep filter for git log
 }
 
 type RepoStatus struct {
-	RepoDir      string                 `json:"repo_dir"`
-	Branch       RepoBranchStatus       `json:"branch"`
-	Files        RepoFilesStatus        `json:"files"`
-	FileStats    RepoFileStats          `json:"file_stats,omitempty"`
-	FileHotspots map[string]int         `json:"file_hotspots,omitempty"`
-	Scopes       map[string][]string    `json:"scopes"`
-	Summary      RepoStatusSummary      `json:"summary"`
-	Author       RepoAuthorStatus       `json:"author"`
-	Timestamp    time.Time              `json:"timestamp"`
-	Raw          map[string]interface{} `json:"raw,omitempty"`
+	RepoDir         string                 `json:"repo_dir"`
+	Branch          RepoBranchStatus       `json:"branch"`
+	Files           RepoFilesStatus        `json:"files"`
+	FileStats       RepoFileStats          `json:"file_stats,omitempty"`
+	FileHotspots    map[string]int         `json:"file_hotspots,omitempty"`
+	Scopes          map[string][]string    `json:"scopes"`
+	Summary         RepoStatusSummary      `json:"summary"`
+	Author          RepoAuthorStatus       `json:"author"`
+	Timestamp       time.Time              `json:"timestamp"`
+	Raw             map[string]interface{} `json:"raw,omitempty"`
+	statusPorcelain []byte
 }
 
 type RepoHistory struct {
@@ -40,11 +48,15 @@ type RepoHistory struct {
 }
 
 type RepoHistoryEntry struct {
-	Hash    string   `json:"hash"`
-	Author  string   `json:"author,omitempty"`
-	Date    string   `json:"date,omitempty"`
-	Subject string   `json:"subject"`
-	Files   []string `json:"files"`
+	FullMessage string           `json:"full_message"`
+	Body        string           `json:"body,omitempty"`
+	Trailers    []trailers.Entry `json:"trailers,omitempty"`
+	Hash        string           `json:"hash"`
+	Author      string           `json:"author,omitempty"`
+	Date        string           `json:"date,omitempty"`
+	Subject     string           `json:"subject"`
+	Files       []string         `json:"files"`
+	Checks      []CommitCheckRun `json:"checks,omitempty"`
 }
 
 type RepoAuthorStatus struct {
@@ -68,6 +80,14 @@ type RepoFilesStatus struct {
 	Binary    []string          `json:"binary,omitempty"`
 	Ignored   []string          `json:"ignored,omitempty"`
 	Statuses  map[string]string `json:"statuses,omitempty"`
+
+	// Renames maps a renamed or copied file's current path to the path it came
+	// from. Porcelain v2 reports a rename as a single record carrying both
+	// paths, so the current path is the only one that appears in the lists
+	// above. The origin is still required: git can only detect a rename when
+	// both sides of the pair are visible to the diff, so it is fed back into
+	// the diff pathspec (see collectDiffStats).
+	Renames map[string]string `json:"renames,omitempty"`
 }
 
 type RepoFileStats struct {

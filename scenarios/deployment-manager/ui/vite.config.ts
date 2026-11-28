@@ -1,7 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   // ╔══════════════════════════════════════════════════════════════╗
   // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
   // ║                                                              ║
@@ -14,5 +15,40 @@ export default defineConfig({
   // ║  DO NOT change to '/' or remove this setting.                ║
   // ╚══════════════════════════════════════════════════════════════╝
   base: './',
-  plugins: [react()],
-});
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
+  resolve: {
+    alias: mode === "profile" ? [
+      {
+        find: "react-dom/client",
+        replacement: new URL("./node_modules/react-dom/profiling.js", import.meta.url).pathname,
+      },
+    ] : [],
+  },
+  esbuild: {
+    keepNames: true,
+  },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
+    minWorkers: 1,
+    maxWorkers: 1,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary", "json"],
+      reportOnFailure: true,
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/main.tsx",
+        "src/test-setup.ts",
+        "src/test-utils/**",
+        "src/consts/strings.generated.ts",
+        "src/i18n/locales/**",
+        "src/**/generated/**",
+      ],
+    },
+  },
+}));

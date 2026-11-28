@@ -1,9 +1,13 @@
 package websocket
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
+
+var ErrSessionStreamGrantUnavailable = errors.New("session stream grant unavailable")
 
 // Re-export gorilla/websocket constants for use by handlers
 const (
@@ -28,25 +32,25 @@ type HubInterface interface {
 	// ServeWS handles WebSocket requests from clients
 	// It creates a new client, registers it with the hub, and starts message pumps
 	ServeWS(conn *websocket.Conn, executionID *uuid.UUID)
+	// Recording stream grants are created from broker-owned identity, carried in
+	// an HttpOnly session cookie, and scoped to one recording session path.
+	IssueSessionStreamCookie(sessionID, executionID, leaseID string) (cookieName, cookieValue string, err error)
+	RevokeSessionStreamCookie(sessionID string)
+	ValidateSessionStreamCookie(sessionID, cookieValue string) bool
+	ServeRecordingWS(conn *websocket.Conn, sessionID, cookieValue string) bool
 
 	// BroadcastEnvelope sends a normalized automation event envelope to all connected clients.
 	BroadcastEnvelope(event any)
 
-	// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
-	// Returns BroadcastResult with metrics for observability.
-	BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult
+	// BroadcastTimelineEntry sends the canonical TimelineEntry stream payload.
+	BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) BroadcastResult
 
-	// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
-	// This eliminates the need for clients to poll for frames.
-	BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
-
-	// BroadcastBinaryFrame sends raw binary frame data (JPEG bytes) to clients subscribed to a recording session.
-	// More efficient than BroadcastRecordingFrame as it avoids base64 encoding overhead.
+	// BroadcastBinaryFrame sends the canonical source header and JPEG payload.
 	BroadcastBinaryFrame(sessionID string, jpegData []byte)
 
-	// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
-	// Used by the frame push endpoint to avoid unnecessary work.
-	HasRecordingSubscribers(sessionID string) bool
+	// HasRecordingFrameSubscribers reports binary-frame consumers for the session.
+	// Event-only recording subscribers do not require binary frame delivery.
+	HasRecordingFrameSubscribers(sessionID string) bool
 
 	// BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
 	// Used by the debug performance mode to stream aggregated timing data.

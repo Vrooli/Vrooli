@@ -533,6 +533,15 @@ func TestUpdate(t *testing.T) {
 			},
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:      "stale profile version",
+			profileID: "p1",
+			body:      map[string]interface{}{"tiers": []int{1}},
+			setup: func(m *mockRepo) {
+				m.updateErr = ErrVersionConflict
+			},
+			wantStatus: http.StatusConflict,
+		},
 	}
 
 	for _, tt := range tests {

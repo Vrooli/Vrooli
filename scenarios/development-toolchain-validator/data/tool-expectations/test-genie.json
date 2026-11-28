@@ -1,0 +1,6 @@
+{
+  "tool": "test-genie",
+  "preset": "comprehensive",
+  "template_version_pin": "react-vite@1.0.1",
+  "tool_version_pin": "0.3.0"
+}

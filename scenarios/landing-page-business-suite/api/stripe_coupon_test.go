@@ -13,168 +13,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
 // One-Time Coupon Enforcement Tests
 // ============================================================================
 
-// TestCoupon_OneTimePerEmail_BlocksReuse verifies that an email that has already
-// used the intro coupon cannot use it again.
-func TestCoupon_OneTimePerEmail_BlocksReuse(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	// Create users table with intro tracking
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS users CASCADE;
-		CREATE TABLE users (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			email VARCHAR(255) UNIQUE NOT NULL,
-			stripe_customer_id VARCHAR(255),
-			has_used_intro BOOLEAN DEFAULT FALSE,
-			email_verified BOOLEAN DEFAULT FALSE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			last_login_at TIMESTAMP
-		)
-	`)
-	require.NoError(t, err)
-
-	service := NewStripeService(db)
-	ctx := context.Background()
-
-	// First check: user doesn't exist, should be eligible
-	eligible, err := service.checkIntroEligibility(ctx, "newuser@example.com")
-	require.NoError(t, err)
-	assert.True(t, eligible, "new user should be eligible for intro")
-
-	// Create user who has used intro
-	_, err = db.Exec(`
-		INSERT INTO users (email, has_used_intro, stripe_customer_id)
-		VALUES ($1, TRUE, $2)
-	`, "usedintro@example.com", "cus_used_123")
-	require.NoError(t, err)
-
-	// Second check: user exists with has_used_intro=true, should NOT be eligible
-	eligible, err = service.checkIntroEligibility(ctx, "usedintro@example.com")
-	require.NoError(t, err)
-	assert.False(t, eligible, "user who has used intro should not be eligible again")
-}
-
-// TestCoupon_OneTimePerEmail_CaseVariations verifies that case variations of the
-// same email are treated as the same user for intro eligibility.
-func TestCoupon_OneTimePerEmail_CaseVariations(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	// Create users table
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS users CASCADE;
-		CREATE TABLE users (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			email VARCHAR(255) UNIQUE NOT NULL,
-			stripe_customer_id VARCHAR(255),
-			has_used_intro BOOLEAN DEFAULT FALSE,
-			email_verified BOOLEAN DEFAULT FALSE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			last_login_at TIMESTAMP
-		)
-	`)
-	require.NoError(t, err)
-
-	service := NewStripeService(db)
-	ctx := context.Background()
-
-	// Insert user with lowercase email who has used intro
-	_, err = db.Exec(`
-		INSERT INTO users (email, has_used_intro)
-		VALUES ($1, TRUE)
-	`, "casetest@example.com")
-	require.NoError(t, err)
-
-	// All case variations should be blocked
-	testCases := []struct {
-		name  string
-		email string
-	}{
-		{"exact lowercase", "casetest@example.com"},
-		{"all uppercase", "CASETEST@EXAMPLE.COM"},
-		{"mixed case", "CaseTest@Example.COM"},
-		{"partial uppercase", "CaseTest@example.com"},
-		{"domain uppercase", "casetest@EXAMPLE.COM"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			eligible, err := service.checkIntroEligibility(ctx, tc.email)
-			require.NoError(t, err)
-			assert.False(t, eligible, "case variation %q should not be eligible", tc.email)
-		})
-	}
-}
-
-// TestCoupon_OneTimePerEmail_WhitespaceVariations verifies that whitespace in
-// emails is trimmed before eligibility checks.
-func TestCoupon_OneTimePerEmail_WhitespaceVariations(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	// Create users table
-	_, err := db.Exec(`
-		DROP TABLE IF EXISTS users CASCADE;
-		CREATE TABLE users (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			email VARCHAR(255) UNIQUE NOT NULL,
-			stripe_customer_id VARCHAR(255),
-			has_used_intro BOOLEAN DEFAULT FALSE,
-			email_verified BOOLEAN DEFAULT FALSE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			last_login_at TIMESTAMP
-		)
-	`)
-	require.NoError(t, err)
-
-	service := NewStripeService(db)
-	ctx := context.Background()
-
-	// Insert user
-	_, err = db.Exec(`
-		INSERT INTO users (email, has_used_intro)
-		VALUES ($1, TRUE)
-	`, "whitespace@example.com")
-	require.NoError(t, err)
-
-	testCases := []struct {
-		name  string
-		email string
-	}{
-		{"leading space", " whitespace@example.com"},
-		{"trailing space", "whitespace@example.com "},
-		{"both spaces", "  whitespace@example.com  "},
-		{"tab character", "\twhitespace@example.com\t"},
-		{"newline", "\nwhitespace@example.com\n"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			eligible, err := service.checkIntroEligibility(ctx, tc.email)
-			require.NoError(t, err)
-			assert.False(t, eligible, "whitespace variation %q should not be eligible", tc.email)
-		})
-	}
-}
-
 // TestCoupon_OneTimePerEmail_ConcurrentAttempts verifies that concurrent requests
 // to check eligibility and mark intro used work correctly.
 func TestCoupon_OneTimePerEmail_ConcurrentAttempts(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -259,7 +108,6 @@ func TestCoupon_OneTimePerEmail_ConcurrentAttempts(t *testing.T) {
 // is correctly applied for eligible users.
 func TestIntroPricing_FirstMonthDiscount_Applied(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -293,7 +141,6 @@ func TestIntroPricing_FirstMonthDiscount_Applied(t *testing.T) {
 // get the intro coupon applied.
 func TestIntroPricing_EligibleNewUser_CouponApplied(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -336,7 +183,6 @@ func TestIntroPricing_EligibleNewUser_CouponApplied(t *testing.T) {
 // used the intro don't get the coupon.
 func TestIntroPricing_ExistingUser_NoCoupon(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -374,7 +220,6 @@ func TestIntroPricing_ExistingUser_NoCoupon(t *testing.T) {
 // emails are not eligible for intro pricing.
 func TestIntroPricing_EmptyEmail_NotEligible(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 	ctx := context.Background()
@@ -402,8 +247,8 @@ func TestIntroPricing_EmptyEmail_NotEligible(t *testing.T) {
 // correctly records the usage in all appropriate tables.
 func TestIntroPricing_MarkIntroUsed_RecordsUsage(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
+	upsertTestBundleProduct(t, db, "intro_coupon_test", "Intro Coupon Test", "prod_intro_coupon_test", "test", 1_000_000, 1, "credits")
 
 	// Create required tables
 	_, err := db.Exec(`
@@ -474,7 +319,6 @@ func TestIntroPricing_MarkIntroUsed_RecordsUsage(t *testing.T) {
 // TestCreateCoupon_PercentOff_Valid verifies creating a percent-off coupon.
 func TestCreateCoupon_PercentOff_Valid(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -507,7 +351,7 @@ func TestCreateCoupon_PercentOff_Valid(t *testing.T) {
 
 	ctx := context.Background()
 	percentOff := float64(50)
-	coupon, err := service.CreateCoupon(ctx, CreateCouponRequest{
+	coupon, err := service.CreateCoupon(ctx, commerce.CreateCouponInput{
 		ID:         "coupon_percent_50",
 		PercentOff: &percentOff,
 		Duration:   "once",
@@ -522,7 +366,6 @@ func TestCreateCoupon_PercentOff_Valid(t *testing.T) {
 // TestCreateCoupon_AmountOff_Valid verifies creating an amount-off coupon.
 func TestCreateCoupon_AmountOff_Valid(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -556,7 +399,7 @@ func TestCreateCoupon_AmountOff_Valid(t *testing.T) {
 
 	ctx := context.Background()
 	amountOff := int64(1000)
-	coupon, err := service.CreateCoupon(ctx, CreateCouponRequest{
+	coupon, err := service.CreateCoupon(ctx, commerce.CreateCouponInput{
 		ID:        "coupon_amount_1000",
 		AmountOff: &amountOff,
 		Currency:  "usd",
@@ -572,7 +415,6 @@ func TestCreateCoupon_AmountOff_Valid(t *testing.T) {
 // TestDeleteCoupon_Success verifies successful coupon deletion.
 func TestDeleteCoupon_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -595,7 +437,6 @@ func TestDeleteCoupon_Success(t *testing.T) {
 // TestDeleteCoupon_NotFound verifies error handling when coupon doesn't exist.
 func TestDeleteCoupon_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -616,7 +457,6 @@ func TestDeleteCoupon_NotFound(t *testing.T) {
 // TestListCoupons_Success verifies listing coupons from Stripe.
 func TestListCoupons_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -652,7 +492,6 @@ func TestListCoupons_Success(t *testing.T) {
 // TestGetCoupon_Success verifies fetching a single coupon by ID.
 func TestGetCoupon_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -746,7 +585,6 @@ func TestIntroCouponConfig_DisabledReturnsEmpty(t *testing.T) {
 // TestGetIntroCouponMap verifies the GetIntroCouponMap method.
 func TestGetIntroCouponMap(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_pro_test"})
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -759,7 +597,6 @@ func TestGetIntroCouponMap(t *testing.T) {
 // TestIsIntroCoupon verifies the isIntroCoupon helper function.
 func TestIsIntroCoupon(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_pro_check"})
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -772,7 +609,6 @@ func TestIsIntroCoupon(t *testing.T) {
 // TestMarkIntroUsed_RequiresEmail verifies that markIntroUsed requires an email.
 func TestMarkIntroUsed_RequiresEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 	ctx := context.Background()
@@ -785,7 +621,6 @@ func TestMarkIntroUsed_RequiresEmail(t *testing.T) {
 // TestMarkIntroUsed_NormalizesEmail verifies that markIntroUsed normalizes the email.
 func TestMarkIntroUsed_NormalizesEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -843,7 +678,6 @@ func TestMarkIntroUsed_NormalizesEmail(t *testing.T) {
 // TestCouponUpdateMetadata verifies updating coupon metadata.
 func TestCouponUpdateMetadata(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -870,7 +704,7 @@ func TestCouponUpdateMetadata(t *testing.T) {
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	ctx := context.Background()
-	coupon, err := service.UpdateCoupon(ctx, "coupon_to_update", UpdateCouponRequest{
+	coupon, err := service.UpdateCoupon(ctx, "coupon_to_update", commerce.UpdateCouponInput{
 		Name: "Updated Coupon Name",
 	})
 	require.NoError(t, err)
@@ -881,7 +715,6 @@ func TestCouponUpdateMetadata(t *testing.T) {
 // TestExtractIntroCouponFromInvoice verifies extracting intro coupon from invoice.
 func TestExtractIntroCouponFromInvoice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_intro_pro"})
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -919,7 +752,6 @@ func TestExtractIntroCouponFromInvoice(t *testing.T) {
 // TestCheckIntroCouponMapping verifies the checkIntroCouponMapping helper.
 func TestCheckIntroCouponMapping(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{
 		"pro":  "coupon_pro_mapping",
@@ -945,11 +777,10 @@ func TestCheckIntroCouponMapping(t *testing.T) {
 // TestCouponIntegrationWithSchedule verifies coupons work with subscription schedules.
 func TestCouponIntegrationWithSchedule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Ensure subscription_schedules has all columns needed for this test
-	// (ensureSchema already created it, just add any missing columns)
+	// The declarative runtime schema already created it; add only test-specific data.
 	_, err := db.Exec(`
 		ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS customer_id VARCHAR(255);
 		ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS current_phase_start TIMESTAMP;

@@ -1,0 +1,201 @@
+{
+  "id": "groqcloud",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "groqcloud",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "groqcloud_customer_application_with_express_written_approval",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Groq Services Agreement §3.1 describes Customer Application / End User use, but §§3.2 and 6.3(c) require express approval for resale or distribution; obtain and review that written approval and exact commercial agreement before any downstream route.",
+              "Do not treat §18's authorized third-party resold-service arrangement as permission for Vrooli to resell GroqCloud downstream.",
+              "For every candidate model, record the exact serving service and model, applicable Groq or Third-Party Offering terms, provider/publisher distinction, and permitted downstream use.",
+              "Record exact customer trust/data handling and human price decisions separately; no rate from a public catalog is a Vrooli customer price.",
+              "Record a current quote and route-availability observation separately; listed model/rate/limit is mutable catalog data and not live entitlement."
+            ],
+            "clause": "Groq Services Agreement §§3.1–3.2, 4.1, 6.3(c), 18",
+            "reason": "The public agreement permits certain customer-application integration but separately prohibits resale/distribution except as expressly approved. This conditional proposal does not establish Groq approval, a model route, trust or price.",
+            "source_anchors": [
+              {
+                "url": "https://console.groq.com/docs/legal/services-agreement",
+                "anchor": "Groq Services Agreement §§3.1–3.2, 4.1, 6.3(c), 18",
+                "document_date": "2026-06-22",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "The public agreement permits certain customer-application integration but separately prohibits resale/distribution except as expressly approved. This conditional proposal does not establish Groq approval, a model route, trust or price.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "groqcloud_customer_application_with_express_written_approval",
+                "supplier_id": "groqcloud"
+              }
+            ]
+          }
+        ],
+        "evidence": {
+          "url": "https://console.groq.com/docs/legal/services-agreement",
+          "document_date": "2026-06-22",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {
+      "openai/gpt-oss-120b": {
+        "provider": "OpenAI",
+        "display_name": "GPT OSS 120B",
+        "family": "gpt-oss",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output",
+          "streaming",
+          "tools"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 131072,
+        "default_eligible": false,
+        "use_case_notes": "GroqCloud catalog identity draft only; no serving route is approved.",
+        "caveats": [
+          "Groq's public catalog listing does not establish Vrooli account entitlement or written approval to resell/distribute the service.",
+          "The publisher label does not establish upstream model license or terms for the exact downstream use.",
+          "Verify account-scoped availability, model rights, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://console.groq.com/docs/models; model ID, display name, publisher, and 131,072-token context window listed in Production Models",
+            "observed_at": "2026-11-23"
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://console.groq.com/docs/legal/services-agreement; §§3.1–3.2 and 6.3(c) require express approval for resale or distribution",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "groqcloud",
+                "model_id": "openai/gpt-oss-120b",
+                "url": "https://console.groq.com/docs/legal/services-agreement",
+                "anchor": "§§3.1–3.2 and 6.3(c) require express approval for resale or distribution",
+                "document_date": "2026-06-22",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://console.groq.com/docs/model/openai/gpt-oss-120b; Groq model page confirms exact catalog ID `openai/gpt-oss-120b`; identity only, not serving path or upstream rights.",
+            "observed_at": "2026-11-23"
+          }
+        }
+      },
+      "openai/gpt-oss-20b": {
+        "provider": "OpenAI",
+        "display_name": "GPT OSS 20B",
+        "family": "gpt-oss",
+        "capabilities": [
+          "chat",
+          "text_input",
+          "text_output",
+          "streaming",
+          "tools"
+        ],
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "endpoints": [
+          "chat"
+        ],
+        "context_window_tokens": 131072,
+        "default_eligible": false,
+        "use_case_notes": "GroqCloud catalog identity draft only; no serving route is approved.",
+        "caveats": [
+          "Groq's public catalog listing does not establish Vrooli account entitlement or written approval to resell/distribute the service.",
+          "The publisher label does not establish upstream model license or terms for the exact downstream use.",
+          "Verify account-scoped availability, model rights, trust/data handling, quote, and human decisions before any route can be eligible."
+        ],
+        "provenance": {
+          "catalog": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://console.groq.com/docs/models; model ID, display name, publisher, and 131,072-token context window listed in Production Models",
+            "observed_at": "2026-11-23"
+          },
+          "terms": {
+            "source_kind": "manual_policy",
+            "confidence": "medium",
+            "source": "https://console.groq.com/docs/legal/services-agreement; §§3.1–3.2 and 6.3(c) require express approval for resale or distribution",
+            "observed_at": "2026-11-23",
+            "source_anchors": [
+              {
+                "supplier_id": "groqcloud",
+                "model_id": "openai/gpt-oss-20b",
+                "url": "https://console.groq.com/docs/legal/services-agreement",
+                "anchor": "§§3.1–3.2 and 6.3(c) require express approval for resale or distribution",
+                "document_date": "2026-06-22",
+                "observed_at": "2026-11-23",
+                "retrieval_status": "read_public_page",
+                "supports": "The exact model ID is joined to this dated terms/source record; the source only supports the cited supplier-policy boundary and is not itself a model-specific license grant.",
+                "does_not_establish": "This source does not establish this exact model’s serving route, upstream licensor/provider, account entitlement, license compatibility, downstream resale rights, or an approved route."
+              }
+            ]
+          },
+          "identity": {
+            "source_kind": "manual_policy",
+            "confidence": "high",
+            "source": "https://console.groq.com/docs/models; Groq Supported Models lists exact catalog ID `openai/gpt-oss-20b`; identity only, not serving path or upstream rights.",
+            "observed_at": "2026-11-23"
+          }
+        }
+      }
+    },
+    "research": {
+      "activation": "denied_until_express_groq_approval_exact_model_route_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Groq's live model list does not establish actual serving path, third-party model rights, current quote, or availability for a candidate request.",
+      "evidence": [
+        "https://console.groq.com/docs/legal/services-agreement",
+        "https://console.groq.com/docs/models"
+      ]
+    }
+  }
+}

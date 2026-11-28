@@ -133,12 +133,6 @@ describe("completeChat", () => {
     await expect(completionPromise).rejects.toThrow("Aborted");
   });
 
-  it("passes forcedTool parameter", async () => {
-    mockFetch.mockResolvedValueOnce(createStreamingResponse(["data: [DONE]\n\n"]));
-    await completeChat("chat-1", { stream: true, forcedTool: { scenario: "agent-manager", toolName: "spawn_coding_agent" } });
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("force_tool=agent-manager%3Aspawn_coding_agent"), expect.any(Object));
-  });
-
   it("includes skills in request body", async () => {
     mockFetch.mockResolvedValueOnce(createStreamingResponse(["data: [DONE]\n\n"]));
     const skills = [{ id: "skill-1", name: "Test", content: "Do X", key: "test", label: "Test" }];

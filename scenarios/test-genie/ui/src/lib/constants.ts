@@ -1,6 +1,6 @@
 // Constants for Test Genie UI
 
-import type { DashboardTab, RunsSubtab, PresetDetail, PhaseForGeneration } from "../types";
+import type { DashboardTab, RunsSubtab } from "../types";
 
 // REPO_ROOT is now fetched dynamically from the API via fetchAppConfig()
 // This placeholder is kept for backward compatibility but should not be used directly.
@@ -10,9 +10,8 @@ export const REPO_ROOT_PLACEHOLDER = "${REPO_ROOT}";
 export const DASHBOARD_TABS: DashboardTab[] = [
   { key: "dashboard", label: "Dashboard", description: "Quick actions and health overview" },
   { key: "runs", label: "Runs", description: "Scenarios and test history" },
-  { key: "generate", label: "Generate", description: "AI-powered test generation" },
   { key: "docs", label: "Docs", description: "Documentation browser" },
-  { key: "settings", label: "Settings", description: "Global phase toggles and safety rails" }
+  { key: "health", label: "Self-Health", description: "Test Genie's own reliability, conformance, and performance" }
 ];
 
 export const RUNS_SUBTABS: RunsSubtab[] = [
@@ -20,50 +19,4 @@ export const RUNS_SUBTABS: RunsSubtab[] = [
   { key: "history", label: "History" }
 ];
 
-export const REQUESTED_TYPE_OPTIONS = ["unit", "integration", "performance", "vault", "regression"] as const;
-export const PRIORITY_OPTIONS = ["low", "normal", "high", "urgent"] as const;
 export const EXECUTION_PRESETS = ["quick", "smoke", "comprehensive"] as const;
-
-export const PRESET_DETAILS: Record<string, PresetDetail> = {
-  quick: {
-    label: "Quick",
-    description: "Structure + unit phases for quick sanity checks.",
-    phases: ["structure", "unit"]
-  },
-  smoke: {
-    label: "Smoke",
-    description: "Structure + integration to verify core functionality.",
-    phases: ["structure", "integration"]
-  },
-  comprehensive: {
-    label: "Comprehensive",
-    description: "Full coverage with all test phases.",
-    phases: ["structure", "dependencies", "smoke", "unit", "integration", "business", "performance"]
-  }
-};
-
-export const PHASE_LABELS: Record<string, string> = {
-  structure: "Structure validation",
-  dependencies: "Dependency audit",
-  smoke: "UI smoke test",
-  unit: "Unit tests",
-  integration: "Integration suite",
-  playbooks: "E2E playbooks",
-  business: "Business validation",
-  performance: "Performance checks"
-};
-
-export const PHASES_FOR_GENERATION: PhaseForGeneration[] = [
-  {
-    key: "unit",
-    label: "Unit Tests",
-    description: "Unit tests for individual functions and modules",
-    docsPath: "/docs/phases/unit.md"
-  },
-  {
-    key: "playbooks",
-    label: "E2E Playbooks",
-    description: "End-to-end browser automation workflows",
-    docsPath: "/docs/phases/playbooks.md"
-  }
-];

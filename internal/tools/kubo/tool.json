@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "kubo",
+  "description": "Pinned Kubo CLI for separately authorized offline content import, pin and recovery checks",
+  "commands": [
+    "ipfs"
+  ],
+  "versionArgs": [
+    "version",
+    "--number"
+  ],
+  "version": "0.43.1",
+  "handler": "kubo",
+  "platforms": [
+    "linux"
+  ],
+  "bundling": "host-required",
+  "capability": "developer-utility",
+  "capability_role": "primary",
+  "installHint": "vrooli host install kubo delegates exact source/kubo acquisition to Scenario Dependency Analyzer; use the owner-selected executable and a task-only offline repository",
+  "storage": {
+    "entries": {
+      "installation": {
+        "rung": "owned",
+        "kind": "dir",
+        "regenerable": true,
+        "class": "cache",
+        "subpath": "opt/kubo"
+      }
+    },
+    "rationale": "Verified native release tree and receipt attributed in the install ledger. Caller-owned IPFS repositories, peer identities and content are separate and never created by this owner."
+  },
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/ipfs/kubo/releases/download/v0.43.1/kubo_v0.43.1_linux-amd64.tar.gz",
+        "sha256": "3f2bf974ab2a3ec6d997fac7d8cb46f59983a7cddd0b55ef998e6ce379155fb2",
+        "archive": "tar.gz",
+        "layout": "dir",
+        "bin_path": "kubo/ipfs"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "unsupported": "This reviewed Kubo release profile has only qualified Linux amd64; arm64 remains unsupported."
+      },
+      {
+        "when": {
+          "os": "darwin"
+        },
+        "unsupported": "This pinned owner profile has not qualified macOS."
+      },
+      {
+        "when": {
+          "os": "windows"
+        },
+        "unsupported": "This pinned owner profile has not qualified Windows."
+      }
+    ]
+  },
+  "platform_status": {
+    "linux": {
+      "status": "experimental",
+      "evidence": "internal/tools/kubo/README.md"
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": null
+    }
+  },
+  "notes": "Upstream dual MIT OR Apache-2.0 license notices are verified inside the retained release. No install script, daemon, repository, peer key, DHT announcement, wallet or public content is created. Ambient PATH tools are never selected as owned installations."
+}

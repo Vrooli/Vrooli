@@ -9,12 +9,10 @@ import {
   type ShortcutContext,
   type ShortcutDefinition,
   getModifierKey,
-  formatShortcutLegacy,
 } from '@stores/keyboardShortcutsStore';
 
-// Re-export for backward compatibility
-export { getModifierKey, formatShortcutLegacy };
-export type { ShortcutContext, ShortcutDefinition as KeyboardShortcut };
+export { getModifierKey };
+export type { ShortcutContext, ShortcutDefinition };
 
 // ============================================================================
 // Hook: useKeyboardShortcutHandler
@@ -204,11 +202,12 @@ export function useRegisterShortcut({
   const unregisterAction = useKeyboardShortcutsStore((state) => state.unregisterAction);
 
   useEffect(() => {
+    const registeredAction = () => action();
     if (enabled) {
-      registerAction(shortcutId, action);
+      registerAction(shortcutId, registeredAction);
     }
     return () => {
-      unregisterAction(shortcutId);
+      unregisterAction(shortcutId, registeredAction);
     };
   }, [shortcutId, action, enabled, registerAction, unregisterAction]);
 }
@@ -233,17 +232,18 @@ export function useRegisterShortcuts(
   useEffect(() => {
     if (!enabled) return;
 
-    const ids = Object.keys(actionMap);
-    for (const id of ids) {
-      const action = actionMap[id];
+    const registrations = new Map<string, () => void>();
+    for (const [id, action] of Object.entries(actionMap)) {
       if (action) {
-        registerAction(id, action);
+        const registeredAction = () => action();
+        registrations.set(id, registeredAction);
+        registerAction(id, registeredAction);
       }
     }
 
     return () => {
-      for (const id of ids) {
-        unregisterAction(id);
+      for (const [id, registeredAction] of registrations) {
+        unregisterAction(id, registeredAction);
       }
     };
   }, [actionMap, enabled, registerAction, unregisterAction]);
@@ -284,37 +284,3 @@ export function useActiveShortcuts() {
 export function useShortcutsByCategory() {
   return useKeyboardShortcutsStore((state) => state.getShortcutsByCategory());
 }
-
-// ============================================================================
-// Legacy Hook: useKeyboardShortcuts (Backward Compatible)
-// ============================================================================
-
-export interface LegacyKeyboardShortcut {
-  key: string;
-  modifiers?: ('ctrl' | 'meta' | 'alt' | 'shift')[];
-  description: string;
-  category: string;
-  action: () => void;
-  enabled?: boolean;
-}
-
-interface UseLegacyKeyboardShortcutsOptions {
-  enabled?: boolean;
-}
-
-/**
- * @deprecated Use useRegisterShortcuts instead.
- * Legacy hook for backward compatibility during migration.
- */
-export function useKeyboardShortcuts(
-  _shortcuts: LegacyKeyboardShortcut[],
-  _options: UseLegacyKeyboardShortcutsOptions = {}
-) {
-  // This is now a no-op - shortcuts should be registered via useRegisterShortcuts
-  // and the handler is set up at the app level via useKeyboardShortcutHandler
-  console.warn(
-    'useKeyboardShortcuts is deprecated. Migrate to useRegisterShortcuts and useKeyboardShortcutHandler.'
-  );
-}
-
-export default useKeyboardShortcuts;

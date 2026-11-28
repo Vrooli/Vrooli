@@ -1,143 +1,30 @@
-# Quick Start Guide
+# Cloud deployment quick start
 
-Get your first Vrooli scenario deployed to a VPS in minutes.
+> **Product workflow.** Operators do not prepare a VPS or deploy from a terminal. Compute Manager
+> owns provider onboarding and admitted compute; Scenario-to-Cloud connects deployment targets;
+> Deployment Manager owns the resumable deployment pipeline.
 
-## Prerequisites
+## Existing VPS
 
-Before you begin, ensure you have:
+1. Open **Compute Manager → Adopt** and submit the server address, Unix user, and declared monthly
+   cost facts.
+2. Continue to the secure Onboarding credential step when the separately approved first-touch
+   grant is available. The one-time credential belongs only in that write-only field.
+3. Wait for Compute Manager to verify Bridge enrollment and mark the instance ready.
+4. Select the ready Compute Manager instance in the Deployment Manager operation.
 
-- **A VPS** with SSH access (Ubuntu 24.04 recommended; 22.04/20.04 compatible)
-- **A domain** pointing to your VPS IP address
-- **SSH key** configured for passwordless login
-- **Vrooli running** locally with your scenario
+Compute Manager releases only its adoption record and Bridge attachment. It does not destroy an
+operator-owned VPS.
 
-## Step 1: Start the Wizard
+## Provider-managed compute
 
-From the Dashboard, click **Start New Deployment** to launch the deployment wizard.
+1. Complete provider-owned account and server actions in that provider's console. For the approved
+   staging path, that means only the previously approved Hetzner website steps.
+2. Complete provider verification, quote and admission in Compute Manager.
+3. Start or resume the deployment in Deployment Manager; Scenario-to-Cloud receives its stable
+   Compute Manager instance reference.
 
-## Step 2: Configure Your Manifest
-
-Use `manifest init` to generate a starter manifest:
-
-```bash
-scenario-to-cloud manifest init \
-  --scenario your-scenario-name \
-  --host your-server.com \
-  --domain app.your-domain.com \
-  --out cloud-manifest.json
-```
-
-Equivalent minimal contract:
-
-```json
-{
-  "version": "1.0.0",
-  "scenario": {
-    "id": "your-scenario-name"
-  },
-  "target": {
-    "type": "vps",
-    "vps": {
-      "host": "your-server.com",
-      "user": "root"
-    }
-  },
-  "dependencies": {
-    "scenarios": ["your-scenario-name"],
-    "resources": []
-  },
-  "bundle": {
-    "include_packages": true,
-    "include_autoheal": true
-  },
-  "ports": {
-    "ui": 3000,
-    "api": 3001,
-    "ws": 3002
-  },
-  "edge": {
-    "domain": "app.your-domain.com"
-  }
-}
-```
-
-### Key Fields
-
-| Field | Description |
-|-------|-------------|
-| `scenario.id` | The name of your scenario folder |
-| `target.vps.host` | Your VPS hostname or IP |
-| `target.vps.user` | SSH user (usually `root`) |
-| `edge.domain` | The domain for HTTPS access |
-
-## Step 3: Validate
-
-Click **Validate** to check your manifest for errors. Common issues:
-- Invalid JSON syntax
-- Missing required fields
-- Unreachable host
-
-Optional: show canonical runtime policy:
-
-```bash
-scenario-to-cloud preflight requirements
-```
-
-## Step 4: Generate Plan
-
-The plan shows exactly what will happen during deployment:
-1. Bundle creation
-2. File transfer to VPS
-3. Vrooli setup
-4. Resource startup
-5. Scenario deployment
-6. HTTPS configuration
-
-## Step 5: Build Bundle
-
-The bundle is a minimal Vrooli installation containing:
-- Core Vrooli scripts
-- Your scenario files
-- Required resources
-- Configuration files
-
-## Step 6: Preflight Checks
-
-Preflight verifies your VPS is ready:
-- SSH connectivity
-- Disk space
-- Required tools
-- Port availability
-
-Before deploy, validate SSH access path:
-
-```bash
-scenario-to-cloud ssh bootstrap your-server.com --user root --non-interactive
-```
-
-## Step 7: Resolve + Deploy If Needed
-
-Check current state by selector (no manifest required). If deployment is missing, create and validate a persistent manifest, then deploy:
-
-```bash
-scenario-to-cloud deployment health --host your-server.com --scenario your-scenario-name --json
-
-scenario-to-cloud manifest init \
-  --scenario your-scenario-name \
-  --host your-server.com \
-  --domain app.your-domain.com \
-  --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
-
-scenario-to-cloud manifest validate scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
-scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json --if-needed --preflight --wait
-```
-
-This typically takes 2-5 minutes when deployment is required.
-
-Once complete, your scenario will be live at `https://your-domain.com`!
-
-## Next Steps
-
-- [Manifest Reference](guides/manifest-reference.md) - Full configuration options
-- [Troubleshooting](guides/troubleshooting.md) - Common issues and fixes
-- [Deployment Lifecycle](reference/deployment-lifecycle.md) - Understanding status transitions
+No provider credential belongs in this guide. Do not paste credentials into chat or documents.
+Live provider readiness, VPS adoption and deployment are not claimed here. See the
+[superseded manual VPS guide](guides/vps-setup.md) for its replacement notice and the current
+ownership boundary.

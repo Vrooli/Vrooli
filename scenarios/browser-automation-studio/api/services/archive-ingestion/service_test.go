@@ -4,10 +4,17 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/database"
 
 	"github.com/sirupsen/logrus"
 )
@@ -93,5 +100,50 @@ func TestImportArchiveRejectsTooLargeArchive(t *testing.T) {
 	_, err := svc.ImportArchive(context.Background(), path, IngestionOptions{})
 	if err != ErrArchiveTooLarge {
 		t.Fatalf("expected ErrArchiveTooLarge, got %v", err)
+	}
+}
+
+type importLifecycleWriter struct {
+	executionwriter.ExecutionWriter
+	failure         error
+	completedWrites int
+	forgets         []uuid.UUID
+	writesAtForget  int
+}
+
+func (w *importLifecycleWriter) RecordStepOutcome(context.Context, contracts.ExecutionPlan, contracts.StepOutcome) (executionwriter.RecordResult, error) {
+	w.completedWrites++
+	return executionwriter.RecordResult{}, w.failure
+}
+
+func (w *importLifecycleWriter) ForgetExecution(id uuid.UUID) {
+	w.forgets = append(w.forgets, id)
+	w.writesAtForget = w.completedWrites
+}
+
+func TestFrameImportReleasesWriterAfterEveryExit(t *testing.T) {
+	for _, mode := range []string{"success", "write-failure", "canceled"} {
+		t.Run(mode, func(t *testing.T) {
+			writer := &importLifecycleWriter{}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if mode == "write-failure" {
+				writer.failure = errors.New("write failed")
+			}
+			if mode == "canceled" {
+				cancel()
+			}
+			service := &IngestionService{recorder: writer, log: logrus.New()}
+			execution := &database.ExecutionIndex{ID: uuid.New()}
+			_, err := service.persistFrames(ctx, &zip.Reader{}, nil, &database.WorkflowIndex{ID: uuid.New()}, execution, &recordingManifest{Frames: []recordingFrame{{StepType: "navigate"}, {StepType: "click"}}})
+			if mode == "success" {
+				require.NoError(t, err)
+				require.Equal(t, 2, writer.completedWrites)
+			} else {
+				require.Error(t, err)
+			}
+			require.Equal(t, []uuid.UUID{execution.ID}, writer.forgets)
+			require.Equal(t, writer.completedWrites, writer.writesAtForget, "release follows the last write")
+		})
 	}
 }

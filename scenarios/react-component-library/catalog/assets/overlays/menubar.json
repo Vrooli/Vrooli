@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.menubar",
+    "name": "Menubar",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The persistent desktop-style menu system with horizontal navigation, nested menus, typeahead, mnemonic support, and focus restoration to the invoking control.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.menu",
+        "reason": "Menu content and item semantics are shared."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite surfaces expose one tab stop with arrow-key movement."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-order"
+  ]
+}

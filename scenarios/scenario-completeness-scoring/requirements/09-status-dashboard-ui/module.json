@@ -1,0 +1,64 @@
+{
+  "description": "Thin read-only dashboard rendering the same GetScore payload (score, rung, breakdown, freshness, recommendations) with loading/error/empty states per template standards.",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-002"
+      ],
+      "description": "A thin read-only status dashboard UI component must render the GetScore payload returned by ScoreService. The dashboard must display: composite score, maturity rung, per-dimension breakdown, freshness block, and recommendations. The component must implement all required UI states per template standards: loading state (while GetScore is in-flight), error state (when GetScore returns an error or times out), and empty state (when no score data exists for the scenario). The dashboard must not perform any writes or mutations. Selectors must follow the established template selector patterns for testability.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Read-Only Status Dashboard UI Rendering Score Payload with Loading/Error/Empty States",
+      "validation": [
+        {
+          "notes": "ui/src/features/scenario-completeness-scoring/ScoreDashboard.test.tsx [REQ:OT-P1-003]: loading state renders skeleton/spinner when GetScore is in-flight",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui/src/features/scenario-completeness-scoring/ScoreDashboard.test.tsx: error state renders error message when GetScore returns error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui/src/features/scenario-completeness-scoring/ScoreDashboard.test.tsx: empty state renders placeholder when no scenario selected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui/src/features/scenario-completeness-scoring/ScoreDashboard.test.tsx: happy path renders composite score, rung, breakdown table, freshness verdicts, and recommendations list from mock GetScore payload",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Engineering teams can view scenario completeness status in the UI without navigating to the CLI, using the same authoritative data source as the CLI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS: thin status dashboard renders score/rung/freshness/recommendations with loading/error/empty states; selectors per template verified by feature test suite",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Status Dashboard UI"
+}

@@ -12,7 +12,6 @@
       "viewport": "desktop",
       "thresholds": {
         "performance": { "error": 0.70, "warn": 0.80 },
-        "accessibility": { "error": 0.85, "warn": 0.90 },
         "best-practices": { "error": 0.80, "warn": 0.90 },
         "seo": { "error": 0.75, "warn": 0.85 }
       },

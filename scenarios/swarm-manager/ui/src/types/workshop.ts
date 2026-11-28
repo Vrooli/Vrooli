@@ -45,41 +45,6 @@ export interface WorkshopItem {
 }
 
 /**
- * A single message within a clarification thread.
- */
-export interface ClarificationMessage {
-  role: "user" | "assistant";
-  content: string;
-  created_at: string;
-  attachment_ids?: string[];
-}
-
-/**
- * Impact assessment from a clarification response.
- */
-export interface ClarificationImpact {
-  level: "none" | "decision" | "round";
-  reasoning: string;
-  context_note: string;
-  suggested_update?: string;
-}
-
-/**
- * A multi-turn clarification thread attached to a workshop decision.
- */
-export interface ClarificationThread {
-  id: string;
-  round_number: number;
-  item_id: string;
-  run_id: string;
-  messages: ClarificationMessage[];
-  latest_impact?: ClarificationImpact;
-  status: "active" | "resolved" | "dismissed";
-  created_at: string;
-  updated_at: string;
-}
-
-/**
  * A single workshop round stored on disk.
  */
 export interface WorkshopRound {

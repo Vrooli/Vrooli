@@ -1,15 +1,30 @@
 import { useState, useMemo } from "react";
 import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronRight, Info, X } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useGitignoreHealth, useGitignoreMove, useGroupingRules } from "../lib/hooks";
 import type { GitignoreSuggestion } from "../lib/api";
+import { TrackedBinariesSection } from "./SettingsTabTrackedBinaries";
 
 interface SettingsTabHealthProps {
   isMobile: boolean;
   repoId?: string | null;
 }
 
+/**
+ * The Health tab hosts every repository-hygiene check. Sections are independent:
+ * the .gitignore analysis needs grouping rules configured, but the tracked-binary
+ * scan does not, so they must not share an early return.
+ */
 export function SettingsTabHealth({ isMobile, repoId }: SettingsTabHealthProps) {
+  return (
+    <div className="space-y-8">
+      <GitignoreHealthSection isMobile={isMobile} repoId={repoId} />
+      <TrackedBinariesSection isMobile={isMobile} repoId={repoId} />
+    </div>
+  );
+}
+
+function GitignoreHealthSection({ isMobile, repoId }: SettingsTabHealthProps) {
   const healthQuery = useGitignoreHealth(repoId);
   const moveMutation = useGitignoreMove(repoId);
   const groupingRulesQuery = useGroupingRules(repoId);
@@ -149,11 +164,12 @@ export function SettingsTabHealth({ isMobile, repoId }: SettingsTabHealthProps) 
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="h-7 px-2 text-xs"
                   onClick={() => handleMove(s)}
                   disabled={movingLine === s.line || moveMutation.isPending}
+                  style={{ background: "transparent" }}
                 >
                   {movingLine === s.line ? "Moving..." : "Move"}
                 </Button>

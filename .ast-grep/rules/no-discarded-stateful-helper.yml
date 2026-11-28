@@ -1,0 +1,23 @@
+id: no-discarded-stateful-helper
+language: Go
+severity: warning
+message: >-
+  This wrapper constructs a helper, uses it once, and discards it. Any cache,
+  connection pool, or rate limiter inside it can never be reused, so the wrapper
+  silently pays full cost on every call. Reach for a package-level shared
+  instance (see discovery.DefaultResolver) or accept the helper as a parameter.
+note: >-
+  This is the shape that produced the 2026-08-21 fork storm: discovery's
+  package-level wrappers did `NewResolver(ResolverConfig{}).Resolve...(...)`.
+  The Resolver had a correct 2s TTL cache, but because the wrapper rebuilt the
+  Resolver per call the cache started empty every time and every call forked
+  `vrooli scenario port`. The defect is invisible at the cache and invisible at
+  the fork site; only the pair is wrong.
+rule:
+  pattern: |
+    func $FN($$$ARGS) ($$$RET) {
+      return $CTOR($$$).$M($$$)
+    }
+constraints:
+  CTOR:
+    regex: '^New[A-Z]'

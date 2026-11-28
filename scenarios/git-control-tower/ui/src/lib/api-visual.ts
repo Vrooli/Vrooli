@@ -3,13 +3,26 @@
 // ============================================================================
 
 import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { create } from "@bufbuild/protobuf";
+import {
+  GetCaptureDetailRequestSchema,
+  GetScreenshotPathRequestSchema,
+  GetStorageStatsRequestSchema,
+  ListCapturesRequestSchema,
+  type SnapshotFile as SnapshotFileMessage,
+  type SnapshotMeta as SnapshotMetaMessage,
+} from "@vrooli/proto-types/git-control-tower/v1/visual_captures/visual_captures_pb";
+import { visualCaptureClient } from "./connect";
 
 // ── Visual Capture Types ───────────────────────────────────────────────
 
 export type CaptureTrigger = "periodic" | "post-commit" | "manual";
 export type CaptureStatus = "complete" | "failed";
+// A snapshot is either a loose working-tree capture ("capture") or one pinned
+// by a BaselineManifest ("baseline"). The UI only ever *creates* loose captures
+// (Plan C Decision 1); baseline-pinned snapshots are produced by the baseline
+// snapshot flow and surfaced only through a manifest's visuals pointer.
 export type SnapshotRole = "baseline" | "capture";
-export type CaptureMode = "baseline" | "capture";
 
 export type CaptureTheme = "light" | "dark";
 
@@ -46,10 +59,29 @@ export function getCapturePresets(scenarioSlug: string): CapturePreset[] {
   const stored = localStorage.getItem(`gct.capturePresets.${scenarioSlug}`);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const presets = parsed.filter(isCapturePreset);
+        if (presets.length > 0) {
+          return presets;
+        }
+      }
     } catch { /* fall through */ }
   }
   return DEFAULT_PRESETS;
+}
+
+function isCapturePreset(value: unknown): value is CapturePreset {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const preset = value as Record<string, unknown>;
+  return (
+    typeof preset.name === "string" &&
+    typeof preset.width === "number" &&
+    typeof preset.height === "number" &&
+    (preset.theme === "light" || preset.theme === "dark")
+  );
 }
 
 export function setCapturePresets(scenarioSlug: string, presets: CapturePreset[]): void {
@@ -111,43 +143,59 @@ export interface CaptureStorageStats {
 
 // ── Visual Capture API Functions ───────────────────────────────────────
 
-export async function triggerVisualCapture(scenarioSlug: string, mode: CaptureMode = "capture", repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
+// triggerVisualCapture captures the current working-tree screenshots as a loose
+// snapshot (never a baseline). Baseline-pinned visuals are produced by the
+// baseline snapshot flow, not here (Plan C Decision 1).
+export async function triggerVisualCapture(scenarioSlug: string, repoId?: string, presets?: CapturePreset[]): Promise<SnapshotSetMeta> {
   const url = buildApiUrl("/repo/visual-capture", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug, mode, presets })
+    body: JSON.stringify({ scenarioSlug, mode: "capture", presets })
   });
   return handleResponse<SnapshotSetMeta>(res);
 }
 
-export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string): Promise<VisualCaptureListResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/visual-captures?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<VisualCaptureListResponse>(res);
+export async function fetchVisualCaptures(scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<VisualCaptureListResponse> {
+  const response = await visualCaptureClient.listCaptures(create(ListCapturesRequestSchema, {
+    repositoryId: toRepositoryId(repoId), scenarioSlug,
+  }), { signal });
+  return {
+    snapshots: response.snapshots.map(snapshotMetaFromMessage),
+    total: response.total,
+    staleness: response.staleness ? {
+      isStale: response.staleness.isStale,
+      lastFileChange: response.staleness.lastFileChange || undefined,
+      captureCreatedAt: response.staleness.captureCreatedAt || undefined,
+    } : undefined,
+  };
 }
 
-export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<SnapshotSetDetail> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<SnapshotSetDetail>(res);
+export async function fetchVisualCaptureDetail(id: string, scenarioSlug: string, repoId?: string, signal?: AbortSignal): Promise<SnapshotSetDetail> {
+  const response = await visualCaptureClient.getCaptureDetail(create(GetCaptureDetailRequestSchema, {
+    repositoryId: toRepositoryId(repoId), scenarioSlug, captureId: id,
+  }), { signal });
+  if (!response.snapshot) throw new Error("Visual capture detail returned no snapshot");
+  return {
+    ...snapshotMetaFromMessage(response.snapshot),
+    screenshots: response.screenshots.map(snapshotFileFromMessage),
+    videos: response.videos.map(snapshotFileFromMessage),
+  };
 }
 
-export async function fetchCaptureStorageStats(repoId?: string): Promise<CaptureStorageStats> {
-  const url = buildApiUrl("/repo/visual-capture-storage", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<CaptureStorageStats>(res);
+export async function fetchCaptureStorageStats(repoId?: string, signal?: AbortSignal): Promise<CaptureStorageStats> {
+  const response = await visualCaptureClient.getStorageStats(create(GetStorageStatsRequestSchema, {
+    repositoryId: toRepositoryId(repoId),
+  }), { signal });
+  return {
+    totalSizeBytes: Number(response.totalSizeBytes),
+    snapshotCount: response.snapshotCount,
+    perScenario: response.perScenario.map((item) => ({
+      scenarioSlug: item.scenarioSlug,
+      snapshotCount: item.snapshotCount,
+      sizeBytes: Number(item.sizeBytes),
+    })),
+  };
 }
 
 export async function deleteVisualCapture(id: string, scenarioSlug: string, repoId?: string): Promise<void> {
@@ -175,11 +223,10 @@ export function buildCaptureScreenshotUrl(captureId: string, scenarioSlug: strin
 }
 
 export async function fetchScreenshotPath(captureId: string, scenarioSlug: string, filename: string, repoId?: string): Promise<string> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/screenshot/${encodeURIComponent(filename)}/path?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, { headers: buildRepoHeaders(repoId) });
-  const data = await handleResponse<{ path: string }>(res);
-  return data.path;
+  const response = await visualCaptureClient.getScreenshotPath(create(GetScreenshotPathRequestSchema, {
+    repositoryId: toRepositoryId(repoId), scenarioSlug, captureId, filename,
+  }));
+  return response.path;
 }
 
 export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
@@ -187,81 +234,47 @@ export function buildCaptureVideoUrl(captureId: string, scenarioSlug: string, fi
   return buildApiUrl(`/repo/visual-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
 }
 
-// ── Workflow Capture Types ─────────────────────────────────────────────
-
-export type ExecutionMode = "observer" | "mutating" | "destructive";
-
-export interface WorkflowExecutionResult {
-  workflowName: string;
-  executionMode: ExecutionMode;
-  executionId?: string;
-  status: "passed" | "failed" | "skipped" | "error";
-  error?: string;
-  durationMs: number;
-  videoCount: number;
-  videoStatus?: "captured" | "failed" | "none";
+function toRepositoryId(repoId?: string): bigint {
+  const value = (repoId ?? "").trim();
+  return value ? BigInt(value) : 0n;
 }
 
-export interface WorkflowCaptureResult {
-  id: string;
-  scenarioSlug: string;
-  role: SnapshotRole;
-  workflowResults: WorkflowExecutionResult[];
-  createdAt: string;
-  status: "complete" | "failed";
-  error?: string;
-  sizeBytes: number;
+function snapshotMetaFromMessage(value: SnapshotMetaMessage): SnapshotSetMeta {
+  return {
+    id: value.id,
+    scenarioSlug: value.scenarioSlug,
+    role: (value.role || "capture") as SnapshotRole,
+    commitHash: value.commitHash || undefined,
+    triggerType: (value.triggerType || "manual") as CaptureTrigger,
+    pages: [...value.pages],
+    screenshotCount: value.screenshotCount,
+    videoCount: value.videoCount,
+    videoStatus: value.videoStatus as SnapshotSetMeta["videoStatus"] || undefined,
+    createdAt: value.createdAt,
+    sizeBytes: Number(value.sizeBytes),
+    status: value.status as CaptureStatus,
+    error: value.error || undefined,
+    presets: value.presets.map((preset) => ({
+      name: preset.name,
+      width: preset.width,
+      height: preset.height,
+      theme: preset.theme === "dark" ? "dark" : "light",
+    })),
+    pageDiscoveryMethod: value.pageDiscoveryMethod as SnapshotSetMeta["pageDiscoveryMethod"] || undefined,
+  };
 }
 
-export interface WorkflowCaptureListResponse {
-  captures: WorkflowCaptureResult[];
-  total: number;
-  staleness?: SnapshotStalenessInfo;
+function snapshotFileFromMessage(value: SnapshotFileMessage): SnapshotFile {
+  return {
+    filename: value.filename,
+    pagePath: value.pagePath || undefined,
+    pageLabel: value.pageLabel || undefined,
+    width: value.width || undefined,
+    height: value.height || undefined,
+    viewportWidth: value.viewportWidth || undefined,
+    viewportHeight: value.viewportHeight || undefined,
+    theme: value.theme || undefined,
+    sizeBytes: Number(value.sizeBytes),
+  };
 }
 
-export interface WorkflowCaptureDetailResponse {
-  capture: WorkflowCaptureResult;
-  videos: SnapshotFile[];
-}
-
-// ── Workflow Capture API Functions ──────────────────────────────────────
-
-export async function triggerWorkflowCapture(
-  scenarioSlug: string,
-  mode: CaptureMode = "capture",
-  executionModes: ExecutionMode[] = ["observer"],
-  repoId?: string
-): Promise<WorkflowCaptureResult> {
-  const url = buildApiUrl("/repo/workflow-capture", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildRepoHeaders(repoId),
-    body: JSON.stringify({ scenarioSlug, mode, executionModes })
-  });
-  return handleResponse<WorkflowCaptureResult>(res);
-}
-
-export async function fetchWorkflowCaptures(scenarioSlug: string, repoId?: string): Promise<WorkflowCaptureListResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/workflow-captures?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<WorkflowCaptureListResponse>(res);
-}
-
-export async function fetchWorkflowCaptureDetail(id: string, scenarioSlug: string, repoId?: string): Promise<WorkflowCaptureDetailResponse> {
-  const params = new URLSearchParams({ scenarioSlug });
-  const url = buildApiUrl(`/repo/workflow-captures/${encodeURIComponent(id)}?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store"
-  });
-  return handleResponse<WorkflowCaptureDetailResponse>(res);
-}
-
-export function buildWorkflowVideoUrl(captureId: string, scenarioSlug: string, filename: string): string {
-  const params = new URLSearchParams({ scenarioSlug });
-  return buildApiUrl(`/repo/workflow-captures/${encodeURIComponent(captureId)}/video/${encodeURIComponent(filename)}?${params.toString()}`, { baseUrl: API_BASE });
-}

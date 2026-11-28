@@ -11,7 +11,7 @@ import {
   Image,
   ArrowDown,
 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import {
   useAgentProfiles,
   useAgentRuns,
@@ -49,9 +49,16 @@ import {
   type AgentRunEvent,
   type RepoFileStats,
 } from "../lib/api";
+import { fetchExternalUrl } from "../lib/api-internals";
 import { buildChatMessages } from "./AgentTabTypes";
 
 const AGENT_PROFILE_KEY = "gct.agent.defaultProfileId";
+
+interface RunEventState {
+  runId: string | null | undefined;
+  events: AgentRunEvent[];
+  lastSequence: number;
+}
 
 // ── Props ───────────────────────────────────────────────────────────
 
@@ -105,8 +112,16 @@ export function AgentTab({
       setInternalRunId(id);
     }
   }, [onActiveRunIdChange]);
-  const [events, setEvents] = useState<AgentRunEvent[]>([]);
-  const [lastEventSequence, setLastEventSequence] = useState(-1);
+  const [runEventState, setRunEventState] = useState<RunEventState>(() => ({
+    runId: activeRunId,
+    events: [],
+    lastSequence: -1,
+  }));
+  // Run identity and its transcript move as one cache value. If a parent
+  // restores a different run, the old events disappear during that render,
+  // before an effect can clear state.
+  const events = runEventState.runId === activeRunId ? runEventState.events : [];
+  const lastEventSequence = runEventState.runId === activeRunId ? runEventState.lastSequence : -1;
   const [showRunHistory, setShowRunHistory] = useState(false);
 
   // Scroll tracking
@@ -121,11 +136,10 @@ export function AgentTab({
   useEffect(() => {
     if (!agentManagerAvailable) return;
     let cancelled = false;
-    fetch(`/embedded/agent-manager/external-url`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!cancelled && data?.url) {
-          setAgentManagerBaseUrl(data.url as string);
+    fetchExternalUrl(`/embedded/agent-manager/external-url`)
+      .then((url) => {
+        if (!cancelled && url) {
+          setAgentManagerBaseUrl(url);
         }
       })
       .catch(() => { /* keep fallback */ });
@@ -137,11 +151,10 @@ export function AgentTab({
   useEffect(() => {
     if (!workspaceSandboxAvailable) return;
     let cancelled = false;
-    fetch(`/embedded/workspace-sandbox/external-url`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!cancelled && data?.url) {
-          setWorkspaceSandboxBaseUrl(data.url as string);
+    fetchExternalUrl(`/embedded/workspace-sandbox/external-url`)
+      .then((url) => {
+        if (!cancelled && url) {
+          setWorkspaceSandboxBaseUrl(url);
         }
       })
       .catch(() => { /* keep fallback */ });
@@ -164,12 +177,12 @@ export function AgentTab({
   const profiles = useAgentProfiles(agentManagerAvailable);
   const envelopeQuery = useScenarioEnvelope(scenarioSlug, agentManagerAvailable);
   const runs = useAgentRuns(scenarioSlug, agentManagerAvailable, repoId);
-  const activeRun = useAgentRun(activeRunId, agentManagerAvailable, repoId);
+  const activeRun = useAgentRun(activeRunId, scenarioSlug, agentManagerAvailable, repoId);
 
   const isActiveRun = activeRun.data && ([...ACTIVE_STATUSES, RUN_STATUS.NEEDS_REVIEW] as string[]).includes(activeRun.data.status);
   const shouldPollDiff = activeRun.data?.status === RUN_STATUS.NEEDS_REVIEW && agentManagerAvailable;
-  const runEvents = useAgentRunEvents(activeRunId, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId, activeRun.data?.status);
-  const runDiff = useAgentRunDiff(activeRunId, shouldPollDiff, repoId);
+  const runEvents = useAgentRunEvents(activeRunId, scenarioSlug, lastEventSequence, agentManagerAvailable && !!activeRunId, repoId, activeRun.data?.status);
+  const runDiff = useAgentRunDiff(activeRunId, scenarioSlug, shouldPollDiff, repoId);
 
   const createRun = useCreateAgentRun(repoId);
   const continueRun = useContinueAgentRun(repoId);
@@ -185,33 +198,25 @@ export function AgentTab({
       );
       if (active) setActiveRunId(active.id);
     }
-  }, [activeRunId, runs.data]);
-
-  // Reset events when switching runs (handles all paths: auto-detect, history, parent change)
-  const prevRunIdRef = useRef<string | null | undefined>(activeRunId);
-  useEffect(() => {
-    if (activeRunId !== prevRunIdRef.current) {
-      prevRunIdRef.current = activeRunId;
-      setEvents([]);
-      setLastEventSequence(-1);
-    }
-  }, [activeRunId]);
+  }, [activeRunId, runs.data, setActiveRunId]);
 
   // Accumulate events
   useEffect(() => {
-    if (runEvents.data?.events?.length) {
+    if (activeRunId && runEvents.data?.events?.length) {
       const incoming = runEvents.data.events;
       // Guard: ignore events from a different run
-      if (incoming[0]?.runId && incoming[0].runId !== activeRunId) return;
-      setEvents((prev) => {
-        const newEvents = incoming.filter(
-          (e) => !prev.some((p) => p.id === e.id)
-        );
-        if (newEvents.length === 0) return prev;
-        const merged = [...prev, ...newEvents].sort((a, b) => a.sequence - b.sequence);
-        const lastSeq = merged[merged.length - 1]?.sequence ?? 0;
-        setLastEventSequence(lastSeq);
-        return merged;
+      if (incoming.some((event) => event.runId && event.runId !== activeRunId)) return;
+      setRunEventState((previous) => {
+        const current = previous.runId === activeRunId ? previous.events : [];
+        const seen = new Set(current.map((event) => event.id));
+        const additions = incoming.filter((event) => !seen.has(event.id));
+        if (additions.length === 0 && previous.runId === activeRunId) return previous;
+        const merged = [...current, ...additions].sort((a, b) => a.sequence - b.sequence);
+        return {
+          runId: activeRunId,
+          events: merged,
+          lastSequence: merged[merged.length - 1]?.sequence ?? -1,
+        };
       });
     }
   }, [runEvents.data, activeRunId]);
@@ -264,7 +269,7 @@ export function AgentTab({
     const prompt = composePrompt(message, resolvedItems, envelope);
     if (!prompt.trim()) return;
 
-    const profileKey = selectedProfileId ? undefined : "git-control-tower-reviewer";
+    const profileKey = selectedProfileId ? undefined : "git-control-tower/reviewer";
     const uploadedIds = getUploadedIds();
 
     createRun.mutate(
@@ -278,8 +283,7 @@ export function AgentTab({
       {
         onSuccess: (resp) => {
           setActiveRunId(resp.runId);
-          setEvents([]);
-          setLastEventSequence(-1);
+          setRunEventState({ runId: resp.runId, events: [], lastSequence: -1 });
           setMessage("");
           onClearContext();
           clearAttachments();
@@ -399,8 +403,7 @@ export function AgentTab({
                       type="button"
                       onClick={() => {
                         setActiveRunId(run.id);
-                        setEvents([]);
-                        setLastEventSequence(-1);
+                        setRunEventState({ runId: run.id, events: [], lastSequence: -1 });
                         setShowRunHistory(false);
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-slate-800/60 ${
@@ -436,11 +439,12 @@ export function AgentTab({
           )}
           {activeRun.data?.actions?.canStop && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => activeRunId && stop.mutate(activeRunId)}
               disabled={stop.isPending}
               className="h-6 text-[11px] gap-1 text-red-400 border-red-800 hover:bg-red-950/50"
+              style={{ background: "transparent" }}
             >
               <Square className="h-3 w-3" />
               Stop
@@ -448,14 +452,14 @@ export function AgentTab({
           )}
           {!isActiveRun && activeRunId && activeRun.data?.status !== RUN_STATUS.NEEDS_REVIEW && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => {
                 setActiveRunId(null);
-                setEvents([]);
-                setLastEventSequence(-1);
+                setRunEventState({ runId: null, events: [], lastSequence: -1 });
               }}
               className="h-6 text-[11px] gap-1"
+              style={{ background: "transparent" }}
             >
               New Run
             </Button>
@@ -644,9 +648,10 @@ export function AgentTab({
               rows={1}
             />
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={handleInputSend}
+              aria-label={canContinue ? "Send follow-up" : "Send message"}
               disabled={inputDisabled || isUploading || (!message.trim() && contextItems.length === 0 && attachments.length === 0)}
               className="h-9 w-9 p-0 shrink-0"
             >
@@ -661,14 +666,14 @@ export function AgentTab({
       ) : (
         <div className="shrink-0 border-t border-slate-800 px-4 py-2 flex justify-center">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => {
               setActiveRunId(null);
-              setEvents([]);
-              setLastEventSequence(-1);
+              setRunEventState({ runId: null, events: [], lastSequence: -1 });
             }}
             className="h-8 text-xs gap-1"
+            style={{ background: "transparent" }}
           >
             Start New Run
           </Button>

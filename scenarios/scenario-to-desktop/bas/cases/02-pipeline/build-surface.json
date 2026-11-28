@@ -1,0 +1,10 @@
+{
+  "metadata": {"name":"scenario-to-desktop-build-surface","description":"Given an operator opens a selected desktop target, when they inspect its pipeline, then the installer-build stage is rendered with Electron packaging guidance.","labels":{"reset":"none","requirements_json":"[\"STD-E2E-BUILD\"]","purpose":"desktop-build-surface"},"execution_mode":"observer"},
+  "settings":{"viewport_width":1440,"viewport_height":900},
+  "nodes":[
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=generator&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open the desktop pipeline"}}},
+    {"id":"assert-build","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/generator.buildSection","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Build stage renders"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture build stage"}}}
+  ],
+  "edges":[{"id":"c7c1c1e0-77f1-4b39-9f21-3f0000000001","source":"navigate","target":"assert-build"},{"id":"c7c1c1e0-77f1-4b39-9f21-3f0000000002","source":"assert-build","target":"capture"}]
+}

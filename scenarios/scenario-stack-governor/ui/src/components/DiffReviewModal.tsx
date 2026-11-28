@@ -1,6 +1,6 @@
 import type { FixResult } from "../lib/api";
 import { DiffViewer } from "./DiffViewer";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export function DiffReviewModal({
   open,
@@ -25,6 +25,9 @@ export function DiffReviewModal({
     seen.add(r.file_path);
     return true;
   });
+  const reviewedResults = uniqueResults
+    .map((result) => (result.diff ? { ...result, diff: result.diff } : null))
+    .filter((result): result is FixResult & { diff: NonNullable<FixResult["diff"]> } => result !== null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
@@ -39,15 +42,15 @@ export function DiffReviewModal({
           </p>
         </div>
         <div className="flex-1 overflow-auto p-6 space-y-4">
-          {uniqueResults.map((r) => (
-            <DiffViewer key={r.file_path} before={r.diff!.before} after={r.diff!.after} filePath={r.file_path} />
+          {reviewedResults.map((r) => (
+            <DiffViewer key={r.file_path} before={r.diff.before} after={r.diff.after} filePath={r.file_path} />
           ))}
           {uniqueResults.length === 0 && (
             <p className="text-sm text-slate-400">No file changes to review.</p>
           )}
         </div>
         <div className="p-6 border-t border-white/10 flex justify-end gap-3">
-          <Button variant="outline" size="sm" onClick={onCancel} disabled={applying}>
+          <Button variant="ghost" size="sm" onClick={onCancel} disabled={applying}>
             Cancel
           </Button>
           <Button size="sm" onClick={onApply} disabled={applying || uniqueResults.length === 0}>

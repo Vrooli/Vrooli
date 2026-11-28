@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.audio;
+
+import "audio-tools/v1/common/common.proto";
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio;audio_v1";
+
+// =============================================================================
+// AUDIO PROCESSING DOMAIN — ffmpeg-backed transformations.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audio
+// @stability stable
+//
+// Byte payloads use a REST exception:
+//   POST /api/v1/audio/transcode (RESTReason: multipart_upload)
+// parses multipart and calls the same Transcode handler.
+//
+// Metadata-only / parameter-driven RPCs (Trim, Merge, Split, Fade, Volume,
+// Normalize, ExtractMetadata) carry their byte payloads inline via the proto;
+// the multipart exception is reserved for the high-volume Transcode path.
+//
+// Format/codec fields are typed via common.AudioFormat (no freeform strings):
+// see audio-tools/v1/common/common.proto. NormalizationMethod is owned here
+// because it is audio-domain specific.
+// =============================================================================
+
+service AudioProcessingService {
+  rpc Transcode(TranscodeRequest) returns (TranscodeResponse);
+  rpc Trim(TrimRequest) returns (TrimResponse);
+  rpc Merge(MergeRequest) returns (MergeResponse);
+  rpc Split(SplitRequest) returns (SplitResponse);
+  rpc Fade(FadeRequest) returns (FadeResponse);
+  rpc Volume(VolumeRequest) returns (VolumeResponse);
+  rpc Normalize(NormalizeRequest) returns (NormalizeResponse);
+  rpc ExtractMetadata(ExtractMetadataRequest) returns (ExtractMetadataResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Typed enums
+// -----------------------------------------------------------------------------
+
+// NormalizationMethod selects the loudness-normalization algorithm used
+// by the ffmpeg `loudnorm` / `volume` filter chain.
+//
+// EBU_R128 is the default (broadcast-loudness standard). RMS and PEAK
+// are simpler alternatives kept for clients that prefer them.
+enum NormalizationMethod {
+  NORMALIZATION_METHOD_UNSPECIFIED = 0;
+  NORMALIZATION_METHOD_EBU_R128 = 1;
+  NORMALIZATION_METHOD_RMS = 2;
+  NORMALIZATION_METHOD_PEAK = 3;
+}
+
+// -----------------------------------------------------------------------------
+
+message TranscodeRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat input_format = 2;
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 3 [(buf.validate.field).enum.not_in = 0];
+  int32 sample_rate = 4; // 0 = passthrough
+  int32 channels = 5; // 0 = passthrough
+  int32 bitrate = 6; // bps; 0 = format default
+}
+
+message TranscodeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  double duration_seconds = 3;
+}
+
+// -----------------------------------------------------------------------------
+
+message TrimRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  double start_seconds = 3;
+  double end_seconds = 4; // 0 = end-of-file
+}
+
+message TrimResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  double duration_seconds = 3;
+}
+
+// -----------------------------------------------------------------------------
+
+message MergeSource {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+}
+
+message MergeRequest {
+  repeated MergeSource sources = 1;
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 2 [(buf.validate.field).enum.not_in = 0];
+  double crossfade_seconds = 3; // 0 = hard concat
+}
+
+message MergeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  double duration_seconds = 3;
+}
+
+// -----------------------------------------------------------------------------
+
+message SplitRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  // Either equal chunks (chunk_seconds > 0) OR explicit boundaries.
+  double chunk_seconds = 3;
+  repeated double boundaries_seconds = 4;
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
+}
+
+message SplitChunk {
+  bytes audio = 1;
+  string content_type = 2;
+  double start_seconds = 3;
+  double duration_seconds = 4;
+}
+
+message SplitResponse {
+  repeated SplitChunk chunks = 1;
+}
+
+// -----------------------------------------------------------------------------
+
+message FadeRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  double fade_in_seconds = 3;
+  double fade_out_seconds = 4;
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
+}
+
+message FadeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+}
+
+// -----------------------------------------------------------------------------
+
+message VolumeRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  double gain_db = 3;
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 4;
+}
+
+message VolumeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+}
+
+// -----------------------------------------------------------------------------
+
+message NormalizeRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  // NORMALIZATION_METHOD_UNSPECIFIED is treated as EBU_R128 by the server.
+  NormalizationMethod method = 3;
+  double target_lufs = 4;
+  vrooli.audio_tools.v1.common.AudioFormat output_format = 5;
+}
+
+message NormalizeResponse {
+  bytes audio = 1;
+  string content_type = 2;
+  double measured_lufs = 3;
+}
+
+// -----------------------------------------------------------------------------
+
+message AudioMetadata {
+  double duration_seconds = 1;
+  int32 sample_rate = 2;
+  int32 channels = 3;
+  int32 bitrate = 4;
+  // ffmpeg-reported codec short-name (e.g., "pcm_s16le", "mp3", "aac",
+  // "vorbis", "opus"). Stays a free-form string because the ffmpeg codec
+  // namespace is open-ended and not 1:1 with AudioFormat (which models
+  // container shapes carried on the wire).
+  string codec = 5;
+  vrooli.audio_tools.v1.common.AudioFormat format = 6;
+  map<string, string> tags = 7;
+}
+
+message ExtractMetadataRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+}
+
+message ExtractMetadataResponse {
+  AudioMetadata metadata = 1;
+}

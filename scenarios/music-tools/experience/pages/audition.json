@@ -1,0 +1,252 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "audition",
+    "title": "Audition",
+    "routes": [
+      "/batches/:batchId",
+      "/audition"
+    ],
+    "purpose": "Compare the takes from one batch against each other and decide which to keep. This is the scenario's defining surface: composition returns a set, and selection is the quality mechanism.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-009"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Takes are peers. Nothing in the ordering, sizing, or labelling implies one is better — the interface never pre-picks, ranks, or scores on the caller's behalf. Selecting is an act the operator performs."
+    },
+    {
+      "statement": "Takes play without leaving the list, so comparison is direct rather than remembered."
+    },
+    {
+      "statement": "Every take's provenance is reachable: model, licence lane, applied rung, seed, and both the caption as authored and as sent."
+    },
+    {
+      "statement": "Rejecting a take is as cheap as accepting one. 'Give me a different one' is the most likely next action and must regenerate nothing."
+    },
+    {
+      "statement": "A degraded take is labelled, so reduced-rung output is never mistaken for full-quality output."
+    },
+    {
+      "statement": "Every state is legible without relying on audio or colour alone, and playback position is announced to assistive technology."
+    }
+  ],
+  "states": [
+    {
+      "id": "generating",
+      "example": "loading",
+      "description": "The batch is still producing takes; completed ones are already auditionable.",
+      "setup": {
+        "route": "/batches/:batchId",
+        "query": {
+          "fixture": "generating"
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "example": "success",
+      "description": "All takes are present.",
+      "setup": {
+        "route": "/batches/:batchId",
+        "query": {
+          "fixture": "ready"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "The batch ended early; the completed takes are kept and usable.",
+      "setup": {
+        "route": "/batches/:batchId",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "playing",
+      "example": "playing",
+      "description": "A take is playing.",
+      "setup": {
+        "route": "/batches/:batchId",
+        "query": {
+          "fixture": "playing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The batch produced no takes.",
+      "setup": {
+        "route": "/batches/:batchId",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "take-row",
+      "role": "listitem",
+      "description": "One take, a peer of every other take in the batch."
+    },
+    {
+      "id": "play-control",
+      "role": "button",
+      "description": "Play or pause a take in place."
+    },
+    {
+      "id": "waveform",
+      "role": "img",
+      "description": "Visual summary of the take, with a text equivalent."
+    },
+    {
+      "id": "provenance-panel",
+      "role": "region",
+      "description": "Model, licence lane, applied rung, seed, caption as authored and as sent."
+    },
+    {
+      "id": "rung-badge",
+      "role": "status",
+      "description": "The profile rung this take was generated at."
+    },
+    {
+      "id": "keep-action",
+      "role": "button",
+      "description": "Reserve or consume this take."
+    },
+    {
+      "id": "discard-action",
+      "role": "button",
+      "description": "Discard this take so it is never offered again."
+    },
+    {
+      "id": "partial-notice",
+      "role": "status",
+      "description": "Explains that the batch ended early and the completed takes are kept."
+    }
+  ],
+  "claims": [
+    {
+      "id": "takes-are-not-ranked",
+      "type": "behavior",
+      "statement": "Takes are presented in a stable, non-evaluative order with no take visually privileged, and none is pre-selected.",
+      "tier": "aspirational",
+      "elements": [
+        "take-row"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "provenance-is-reachable",
+      "type": "element-present",
+      "statement": "Every take exposes its model, licence lane, applied rung, seed, and both captions.",
+      "tier": "machine",
+      "elements": [
+        "provenance-panel"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "degraded-takes-are-labelled",
+      "type": "element-present",
+      "statement": "A take generated at a reduced rung is labelled with that rung.",
+      "tier": "machine",
+      "elements": [
+        "rung-badge"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "rejection-is-first-class",
+      "type": "element-present",
+      "statement": "Discard is available directly on every take, not hidden behind a menu or a confirmation flow.",
+      "tier": "machine",
+      "elements": [
+        "discard-action"
+      ],
+      "states": [
+        "ready"
+      ]
+    },
+    {
+      "id": "partial-batches-are-explained",
+      "type": "element-present",
+      "statement": "A batch that ended early states that the completed takes are kept and usable.",
+      "tier": "machine",
+      "elements": [
+        "partial-notice"
+      ],
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "takes-audition-without-navigation",
+      "type": "behavior",
+      "statement": "A take plays in place; comparing two takes never requires leaving the list.",
+      "tier": "aspirational",
+      "elements": [
+        "play-control"
+      ],
+      "states": [
+        "playing"
+      ]
+    },
+    {
+      "id": "audio-state-is-legible-without-sound",
+      "type": "behavior",
+      "statement": "Playback state and position are available as text and to assistive technology, not by audio alone.",
+      "tier": "aspirational",
+      "elements": [
+        "waveform",
+        "play-control"
+      ],
+      "states": [
+        "playing"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "take-row": {
+        "testid": "take-row"
+      },
+      "play-control": {
+        "testid": "take-play"
+      },
+      "waveform": {
+        "testid": "take-waveform"
+      },
+      "provenance-panel": {
+        "testid": "take-provenance"
+      },
+      "rung-badge": {
+        "testid": "take-rung-badge"
+      },
+      "keep-action": {
+        "testid": "take-keep"
+      },
+      "discard-action": {
+        "testid": "take-discard"
+      },
+      "partial-notice": {
+        "testid": "batch-partial-notice"
+      }
+    }
+  }
+}

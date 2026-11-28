@@ -11,7 +11,7 @@
  *   - Works correctly with rebrowser-playwright's isolated context patches
  *
  * COMPOSITION:
- *   - Injection strategies (init-script, cdp-injection, route-injection)
+ *   - init-script injection
  *   - event-route.ts - Sets up page-level routes for event interception
  *   - This file - Coordinates the above and handles sanity checks
  *
@@ -21,12 +21,10 @@
  *   - context.addInitScript() runs in MAIN context, so History wrapping works
  *   - Message-based activation allows dynamic start/stop without re-injection
  *
- * INJECTION STRATEGIES:
- *   - init-script: RECOMMENDED for rebrowser-playwright (uses context.addInitScript)
- *   - cdp-injection: Fallback using Chrome DevTools Protocol
- *   - route-injection: Legacy HTML modification (BROKEN with rebrowser-playwright)
+ * INJECTION:
+ *   - The recording script is installed once with context.addInitScript().
  *
- * @see injection/ - Injection strategy implementations
+ * @see injection/ - The init-script injector and diagnostics contracts
  * @see event-route.ts - Page event route setup
  * @see init-script-generator.ts - Generates the init script
  * @see pipeline-manager.ts - Uses this for recording sessions
@@ -48,14 +46,13 @@ import {
   createRouteHandlerStats,
 } from './event-route';
 
-// Import injection strategy system
+// Import the sole recording injection implementation
 import {
   type InjectionStrategy,
   type InjectionStrategyName,
   type InjectionStrategyStats,
-  createInjectionStrategy,
+  createInitScriptInjectionStrategy,
   createInitialStats as createInjectionStrategyStats,
-  getStrategyFromEnv,
   isDiagnosticsEnabled as isInjectionDiagnosticsEnabled,
 } from '../injection';
 
@@ -76,19 +73,6 @@ export interface RecordingContextOptions {
   logger?: winston.Logger;
   /** Enable verbose diagnostics (more logging) */
   diagnosticsEnabled?: boolean;
-  /**
-   * Injection strategy to use.
-   *
-   * - 'auto': Auto-detect working strategy based on provider (default)
-   * - 'init-script': RECOMMENDED for rebrowser-playwright (uses context.addInitScript)
-   * - 'cdp-injection': Fallback with full CDP control (Chromium only)
-   * - 'route-injection': Legacy HTML modification (BROKEN with rebrowser-playwright)
-   *
-   * Can be overridden by INJECTION_STRATEGY environment variable.
-   *
-   * @default 'auto'
-   */
-  injectionStrategy?: InjectionStrategyName | 'auto';
   /**
    * Run a sanity check on the first page load to verify recording is working.
    *
@@ -166,20 +150,20 @@ export interface SanityCheckResult {
  */
 export class RecordingContextInitializer {
   private initialized = false;
-  private eventHandler: ((event: RawBrowserEvent) => void) | null = null;
+  private eventHandler: ((event: RawBrowserEvent) => void | Promise<void>) | null = null;
   private readonly bindingName: string;
   private readonly logger: winston.Logger;
   private readonly diagnosticsEnabled: boolean;
   private readonly runSanityCheck: boolean;
   private readonly onSanityCheckComplete?: (result: SanityCheckResult) => void;
-  private readonly requestedStrategy: InjectionStrategyName | 'auto';
   private sanityCheckRun = false;
   private context: BrowserContext | null = null;
+  private initializationPromise: Promise<void> | null = null;
 
   // Composed modules
   private eventRouteManager: EventRouteManager | null = null;
 
-  // Injection strategy (DI system)
+  // Init-script injection implementation, retained for statistics and cleanup.
   private injectionStrategy: InjectionStrategy | null = null;
 
   constructor(options: RecordingContextOptions = {}) {
@@ -188,7 +172,6 @@ export class RecordingContextInitializer {
     this.diagnosticsEnabled = options.diagnosticsEnabled ?? isInjectionDiagnosticsEnabled();
     this.runSanityCheck = options.runSanityCheck ?? false;
     this.onSanityCheckComplete = options.onSanityCheckComplete;
-    this.requestedStrategy = options.injectionStrategy ?? 'auto';
   }
 
   /**
@@ -252,7 +235,10 @@ export class RecordingContextInitializer {
    * @param page - The page to setup event interception on
    * @param options - Options for route setup
    */
-  async setupPageEventRoute(page: Page, options: { force?: boolean } = {}): Promise<void> {
+  async setupPageEventRoute(
+    page: Page,
+    options: { force?: boolean; driverPageId?: string } = {}
+  ): Promise<void> {
     if (!this.eventRouteManager) {
       throw new Error('Context not initialized. Call initialize() first.');
     }
@@ -260,10 +246,20 @@ export class RecordingContextInitializer {
   }
 
   /**
+   * Check whether the event route is registered for a page.
+   *
+   * Registration is distinct from receiving an event: verification runs before
+   * recording starts, so an event counter cannot prove the route is active.
+   */
+  hasEventRoute(page: Page): boolean {
+    return this.eventRouteManager?.hasEventRoute(page) ?? false;
+  }
+
+  /**
    * Initialize recording capability on a browser context.
    *
    * This sets up:
-   * 1. Injection strategy (injects recording script into pages)
+   * 1. Init-script injection (installs recording script into pages)
    * 2. The event route manager (handles events from pages)
    *
    * Safe to call multiple times (idempotent).
@@ -276,16 +272,33 @@ export class RecordingContextInitializer {
       return;
     }
 
-    // Determine which injection strategy to use
-    // Priority: env var > option > auto-detect
-    const envStrategy = getStrategyFromEnv();
-    const strategyToUse = envStrategy ?? this.requestedStrategy;
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return;
+    }
+
+    const initialization = this.initializeContext(context);
+    this.initializationPromise = initialization;
+    try {
+      await initialization;
+    } catch (error) {
+      // A failed setup must remain retryable, while concurrent callers still
+      // observe the same failure from this attempt.
+      if (this.initializationPromise === initialization) {
+        this.initializationPromise = null;
+      }
+      throw error;
+    }
+  }
+
+  private async initializeContext(context: BrowserContext): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
 
     this.logger.debug(scopedLog(LogContext.RECORDING, 'initializing recording context'), {
       bindingName: this.bindingName,
       runSanityCheck: this.runSanityCheck,
-      requestedStrategy: this.requestedStrategy,
-      strategyToUse,
     });
 
     // Store context for sanity check
@@ -297,12 +310,8 @@ export class RecordingContextInitializer {
       getEventHandler: () => this.eventHandler,
     });
 
-    // Create and initialize injection strategy
-    this.injectionStrategy = createInjectionStrategy({
-      strategyName: strategyToUse,
-      providerName: playwrightProvider.name,
-      logger: this.logger,
-    });
+    // Register the recording script in the browser context.
+    this.injectionStrategy = createInitScriptInjectionStrategy();
 
     this.logger.info(scopedLog(LogContext.INJECTION, 'using injection strategy'), {
       strategy: this.injectionStrategy.name,
@@ -377,7 +386,7 @@ export class RecordingContextInitializer {
    *
    * @param handler - Function to receive recording events
    */
-  setEventHandler(handler: (event: RawBrowserEvent) => void): void {
+  setEventHandler(handler: (event: RawBrowserEvent) => void | Promise<void>): void {
     this.eventHandler = handler;
     this.logger.debug(scopedLog(LogContext.RECORDING, 'event handler set'));
   }
@@ -458,8 +467,8 @@ export class RecordingContextInitializer {
       // Check for issues
       if (!verification.loaded) {
         issues.push(
-          `Script not loaded. This likely means HTML injection failed. ` +
-            `Check route interception and that the page was navigated via HTTP(S). ` +
+          `Script not loaded. This likely means Init-script injection failed. ` +
+            `Check that the page was created in the initialized browser context. ` +
             `Error: ${verification.error || 'unknown'}`
         );
       } else if (verification.initError) {
@@ -476,7 +485,7 @@ export class RecordingContextInitializer {
         issues.push(
           `Script running in ISOLATED context instead of MAIN. ` +
             `This means History API navigation events will NOT be captured. ` +
-            `The script should be injected via HTML, not page.evaluate().`
+            `The script should be injected with context.addInitScript().`
         );
       } else if (verification.handlersCount < 7) {
         issues.push(

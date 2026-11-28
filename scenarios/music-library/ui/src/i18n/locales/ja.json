@@ -1,0 +1,214 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Music Library のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Music Library",
+    "eyebrow": "シナリオテンプレート",
+    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "notes": "ノート",
+      "review": "聴いてレビュー",
+      "releases": "リリース",
+      "settings": "設定",
+      "taste": "好み"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "notes": {
+      "title": "ノート"
+    },
+    "review": {
+      "title": "リファレンスレビュー",
+      "description": "非公開のローカルトラックを聴き、タイムスタンプ付きの分析を確認し、この分析に紐づく修正を記録します。",
+      "eyebrow": "音楽の理解",
+      "queue": "分析キュー",
+      "queueLabel": "分析済みトラック",
+      "refresh": "更新",
+      "loading": "分析を読み込み中…",
+      "empty": "分析済みトラックはまだありません。",
+      "loadError": "分析を読み込めませんでした。",
+      "saveError": "レビューを保存できませんでした。",
+      "reviewCount": "件のレビュー",
+      "nextPage": "次のページ",
+      "firstPage": "最初のページ",
+      "selectTrack": "レビューするトラックを選択してください。",
+      "noDetail": "トラックが選択されていません。",
+      "audioLabel": "非公開のソース音声",
+      "privateAudio": "音声はこのマシン内に保管されます",
+      "job": "分析ジョブ",
+      "timeline": "タイムスタンプ付きキュー",
+      "timelineHint": "時刻を選ぶと、その位置から再生します。",
+      "cues": "件",
+      "noCues": "この結果にはタイムスタンプ付きの区間や文字起こしがまだありません。",
+      "playFrom": "ここから再生",
+      "lowConfidence": "信頼度の低い音響カット",
+      "transcriptHypothesis": "文字起こし候補",
+      "sectionCandidate": "セクション候補",
+      "feedback": "聴いてレビュー",
+      "feedbackHint": "あなたの判断が品質の基準です。メモと時刻修正はこの分析と一緒に保存されます。",
+      "verdict": "この分析は聴こえた内容にどれくらい合っていますか？",
+      "confirmed": "聴こえた通り",
+      "corrected": "修正が必要",
+      "needs_work": "さらに改善が必要",
+      "note": "何が聴こえますか？",
+      "notePlaceholder": "重要なセクション、フック、展開、音を記述してください…",
+      "addCorrection": "時刻の修正を追加",
+      "start": "開始（秒）",
+      "end": "終了（秒）",
+      "label": "ここで起きること",
+      "add": "キューを追加",
+      "removeCorrection": "この修正を削除",
+      "save": "レビューを保存",
+      "saved": "レビューを保存しました。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    },
+    "taste": {
+      "eyebrow": "音楽の理解",
+      "title": "好みとおすすめ",
+      "description": "明示的な操作と学習した推定を分けて編集し、カタログの正確なトラックを比較し、スコア由来の推薦根拠を確認します。",
+      "profile": "編集可能な好みプロファイル",
+      "revision": "リビジョン {{revision}}",
+      "refresh": "更新",
+      "sparse": "判断データが少ないため、比較が記録されるまでは推定の不確実性を保ちます。",
+      "controls": "明示的な操作",
+      "attribute": "属性",
+      "mode": "モード",
+      "value": "値",
+      "boost": "強める",
+      "suppress": "抑える",
+      "pin": "固定",
+      "ban": "除外",
+      "saveControl": "操作を保存",
+      "compare": "ペア比較",
+      "compareHint": "各ペアの左右の表示順はランダムです。選択は不確実性と新しい比較を優先します。左、右、同等、どちらも違う、スキップは別々の選択として記録されます。",
+      "nextPair": "次のペアを選ぶ",
+      "information": "期待情報量: {{value}}",
+      "preferLeft": "この曲を選ぶ",
+      "preferRight": "この曲を選ぶ",
+      "tie": "同点",
+      "neither": "どちらでもない",
+      "skip": "スキップ",
+      "noPair": "新しいペアがありません。カタログに曲を追加するか、新しい判断を記録してください。",
+      "why": "好きな理由を選ぶ",
+      "whyHint": "スコアにはハッシュで結び付いたカタログタグと明示的なジャンルを使い、長さ・テンポ・キーの分析値は該当ジョブを確認した後だけ使います。アーティスト情報は候補の多様化だけに使い、未確認または古い分析値は使いません。",
+      "noCatalog": "カタログに曲がありません。",
+      "seed": "基準トラック",
+      "findRecommendations": "おすすめを探す",
+      "noRecommendations": "おすすめに使える候補がまだ足りません。",
+      "score": "予測好み {{score}} ± {{uncertainty}}",
+      "featureEvidence": "値 {{value}} · 信頼度 {{confidence}}",
+      "exploration": "探索",
+      "mq2Brief": "MQ2向けソング概要",
+      "loadError": "好みのプロファイルとカタログを読み込めませんでした。",
+      "pairError": "比較を選べませんでした。",
+      "judgmentError": "比較を保存できませんでした。",
+      "controlError": "好みの操作を保存できませんでした。",
+      "recommendError": "おすすめを作成できませんでした。",
+      "context": "コンテキスト",
+      "randomPair": "ランダム基準のペア",
+      "more": "増やす",
+      "less": "減らす",
+      "exclude": "除外",
+      "reinforceAttribute": "{{attribute}}を増やす",
+      "suppressAttribute": "{{attribute}}を減らす",
+      "banAttribute": "{{attribute}}を除外",
+      "judgmentHistory": "保存した比較",
+      "correct": "訂正",
+      "correctionPending": "修正後の好みを選び、新しい記録として保存します。",
+      "corrected": "訂正済み"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "notes": {
+    "title": "ノート",
+    "loading": "ノートを読み込み中…",
+    "empty": "まだノートはありません。",
+    "create": "ノートを作成",
+    "createdAtLabel": "作成:",
+    "attachmentsLabel": "添付ファイル {{count}} 件",
+    "table": {
+      "title": "タイトル",
+      "created": "作成日",
+      "attachments": "添付",
+      "actions": "操作",
+      "search": "ノートを検索"
+    },
+    "uploadAttachment": "添付ファイルをアップロード",
+    "attachmentFileLabel": "添付ファイル",
+    "uploadSuccess": "{{name}} をアップロードしました。",
+    "noFileSelected": "アップロードするファイルを選択してください。",
+    "measure": {
+      "title": "今週のノート",
+      "loading": "集計中…",
+      "thisWeek": "今週作成されたノート: {{count}} 件"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "ナビゲーションを閉じる",
+      "mobile-navigation": "モバイルナビゲーション",
+      "open-navigation": "ナビゲーションを開く",
+      "primary-navigation": "メインナビゲーション",
+      "skip-to-content": "コンテンツへスキップ"
+    }
+  }
+}

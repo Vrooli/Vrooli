@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogBody,
 } from "../ui/dialog";
-import { Input } from "../ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import {
   useModelOverrides,
   useSetOverride,
@@ -294,7 +294,7 @@ export function EditPricingDialog({ model, onClose, onPricingUpdated }: EditPric
           )}
           <div className="mt-4 text-xs text-muted-foreground">
             <p>
-              <strong>Manual Override</strong> takes priority over provider and historical pricing.
+              <strong>Manual Override</strong> takes priority over provider pricing.
             </p>
             <p className="mt-1">Click the pencil icon to set an override, or X to clear it.</p>
           </div>

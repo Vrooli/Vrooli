@@ -1,0 +1,26 @@
+.cc-reading-trust-line { display: flex; align-items: baseline; gap: .5em; min-width: 0; }
+.cc-reading-trust-line > .cc-qualifier { min-width: 0; }
+.cc-reading-trust-line__state { flex: none; padding: .08em .4em; border: 1px solid currentColor; border-radius: 2px; color: var(--color-warning); font: 600 var(--text-micro) var(--font-mono); letter-spacing: .06em; }
+.cc-reading-trust-line[data-reading-trust="UNTRUSTED"] .cc-reading-trust-line__state { border-style: dashed; }
+.cc-reading .cc-reading-trust-line { width: 100%; margin-top: .2rem; font-size: var(--text-micro); }
+.cc-reading .cc-reading-trust-line > .cc-qualifier { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-tile-qualifier > .cc-reading-trust-line { max-width: 100%; }
+.cc-panel-tile__row--cached { opacity: .62; }
+.cc-funnel-readout[data-trust="CACHED"] li, .cc-leaderboard-readout[data-trust="CACHED"] li { opacity: .68; }
+.cc-ladder-tile[data-trust="CACHED"] .cc-ladder-tile__next,
+.cc-ladder-tile[data-trust="CACHED"] .cc-ladder-tile__status,
+.cc-ladder-tile[data-trust="CACHED"] .cc-ladder-tile__track,
+.cc-ladder-tile[data-trust="CACHED"] .cc-ladder-tile__ideas,
+.cc-ladder-tile[data-trust="UNAVAILABLE"] .cc-ladder-tile__next,
+.cc-ladder-tile[data-trust="UNAVAILABLE"] .cc-ladder-tile__status,
+.cc-ladder-tile[data-trust="UNAVAILABLE"] .cc-ladder-tile__track,
+.cc-ladder-tile[data-trust="UNAVAILABLE"] .cc-ladder-tile__ideas { opacity: .62; }
+.cc-next-rung[data-trust="CACHED"] .cc-next-rung__head,
+.cc-next-rung[data-trust="CACHED"] .cc-next-rung__opens,
+.cc-next-rung[data-trust="CACHED"] .cc-next-rung__details,
+.cc-next-rung[data-trust="UNAVAILABLE"] .cc-next-rung__head,
+.cc-next-rung[data-trust="UNAVAILABLE"] .cc-next-rung__opens,
+.cc-next-rung[data-trust="UNAVAILABLE"] .cc-next-rung__details,
+.cc-reach[data-trust="CACHED"] .cc-reach__scroll,
+.cc-reach[data-trust="UNAVAILABLE"] .cc-reach__scroll { opacity: .62; }
+.cc-posture[data-trust="CACHED"] .cc-posture-magnitudes { opacity: .62; }

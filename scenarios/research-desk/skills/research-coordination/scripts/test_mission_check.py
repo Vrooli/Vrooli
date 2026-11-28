@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+"""Tests for mission_check.py. Run: python3 -m unittest test_mission_check (from this directory)."""
+
+from __future__ import annotations
+
+import datetime as dt
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mission_check as mc  # noqa: E402
+
+WORKSTREAM = "| {id} | Land the thing end to end | Dim A | {hours} h · owner | Demo runs live | {status} |"
+
+
+def mission(mode="build", end_state="Everything works end to end at full scale.", rows=None, intent='> "Make it big." — 2026-11-07, chat', review="2026-11-07 ACCEPT"):
+    rows = rows if rows is not None else [
+        WORKSTREAM.format(id="A1", hours="40–80", status="open"),
+        WORKSTREAM.format(id="A2", hours="30–60", status="active run-1"),
+        WORKSTREAM.format(id="A3", hours="20–40", status="landed ledger"),
+        WORKSTREAM.format(id="A4", hours="25", status="approved"),
+    ]
+    dims = "\n".join(f"| D{i} | today | target |" for i in range(5))
+    return f"""# T — mission
+
+Mode: {mode}
+Last architect pass: 2026-11-07 · Last ambition review: {review}
+
+## Operator intent (verbatim)
+
+{intent}
+
+## End state
+
+{end_state}
+
+## Scorecard
+
+| Dimension | Today | Target |
+|---|---|---|
+{dims}
+
+## Workstreams
+
+| ID | Destination | Dimensions | Magnitude | Showcase | Status |
+|---|---|---|---|---|---|
+{chr(10).join(rows)}
+
+## Approval flow
+
+Build directly.
+
+## Real boundaries
+
+- No money.
+
+## Exemplar
+
+Pinned unit.
+
+## Not this
+
+- Trap one.
+- Trap two.
+"""
+
+
+class MissionCheckTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self.tmp.name)
+        (self.home / "topics").mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def topic(self, name, mission_text=None, readme="See [mission](MISSION.md).\n"):
+        d = self.home / "topics" / name
+        d.mkdir()
+        if mission_text is not None:
+            (d / "MISSION.md").write_text(mission_text)
+        (d / "README.md").write_text(readme)
+        return d
+
+    def run_check(self, *extra):
+        return mc.main([str(self.home), *extra])
+
+    def report(self, name):
+        tdir = self.home / "topics" / name
+        rep = mc.check_mission(name, tdir / "MISSION.md")
+        mc.check_readme(rep, tdir / "README.md")
+        return rep
+
+    def test_a_mission_over_the_owner_reading_ceiling_is_a_warning_not_an_error(self):
+        self.topic("big", mission(end_state="Everything works end to end at full scale. " * 1200))
+        rep = self.report("big")
+        ceiling = mc.mission_ceiling()
+        self.assertTrue(ceiling and len((self.home / "topics/big/MISSION.md").read_bytes()) > ceiling)
+        self.assertEqual(rep.errors, [])
+        self.assertTrue(any(f"over the {ceiling:,} an owner should read at start" in w for w in rep.warnings))
+        self.topic("small", mission())
+        self.assertFalse(any("owner should read" in w for w in self.report("small").warnings))
+
+    def test_waiting_statuses_are_valid_and_do_not_count_as_staffable(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="waiting-operator 2026-11-10"),
+                WORKSTREAM.format(id="A2", hours="40", status="waiting-time 2026-11-16"),
+                WORKSTREAM.format(id="A3", hours="40", status="open")]
+        self.topic("waits", mission(rows=rows))
+        rep = self.report("waits")
+        self.assertFalse([e for e in rep.errors if "status" in e], rep.errors)
+        self.assertEqual((rep.count("waiting-operator"), rep.count("waiting-time")), (1, 1))
+        self.assertEqual(rep.open_hours(), 40)
+        self.assertTrue(any("keep at least two" in w for w in rep.warnings), rep.warnings)
+        self.assertTrue(any("A2: waiting-time has no `resume <date>`" in w for w in rep.warnings), rep.warnings)
+        # open A3, waiting A1+A2, none landed, newest status date 2026-11-16, the undated wait is expired
+        self.assertIn("| 1 | 0 | 2 | 0 | 4 | 1 |", mc.render_markdown([rep], dt.date(2026, 11, 20)))
+
+    def test_a_dated_wait_expires_on_its_resume_date(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="waiting-time resume 2026-11-25 2026-11-16"),
+                WORKSTREAM.format(id="A2", hours="40", status="waiting-time resume 2026-11-19"),
+                WORKSTREAM.format(id="A3", hours="40", status="open")]
+        self.topic("dated", mission(rows=rows))
+        rep = self.report("dated")
+        self.assertEqual([w.resume for w in rep.workstreams], ["2026-11-25", "2026-11-19", ""])
+        self.assertEqual(mc.waits_expired(rep, dt.date(2026, 11, 20)), 1)
+        self.assertEqual(mc.waits_expired(rep, dt.date(2026, 11, 26)), 2)
+        self.assertFalse(any("resume" in w for w in rep.warnings), rep.warnings)
+
+    def test_landings_in_ten_days_are_one_number_for_the_readme_and_the_json(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="landed 2026-11-18"),
+                WORKSTREAM.format(id="A2", hours="40", status="landed 2026-11-05"),
+                WORKSTREAM.format(id="A3", hours="40", status="landed 2026-11-12"),
+                WORKSTREAM.format(id="A4", hours="40", status="open")]
+        self.topic("landings", mission(rows=rows))
+        rep = self.report("landings")
+        today = dt.date(2026, 11, 20)
+        row = rep.as_dict(today)
+        self.assertEqual((row["landed_10d"], row["last_landed_at"]), (2, "2026-11-18"))
+        self.assertIn("| 2 | 2 |", mc.render_markdown([rep], today))  # the column and the days since the newest row moved
+        self.topic("none", mission(rows=[WORKSTREAM.format(id=f"A{i}", hours="40", status="open") for i in range(1, 4)]))
+        row = self.report("none").as_dict(today)
+        self.assertEqual((row["landed_10d"], row["last_landed_at"]), (0, ""))
+
+    def test_later_lines_keep_unbriefed_work_in_order_without_looking_staffed(self):
+        text = mission().replace("## Approval flow", "## Later\n\n- **A5** — Every shell ported · 80–160 h\n"
+                                 "- **A6** — Release gate on every app · 40–60 h\n\n## Approval flow", 1)
+        self.topic("later", text)
+        rep = self.report("later")
+        self.assertEqual(rep.errors, [])
+        self.assertEqual([(w.ident, w.hours_low) for w in rep.later], [("A5", 80), ("A6", 40)])
+        self.assertEqual(rep.as_dict()["workstreams"]["later"], 2)
+        self.assertEqual(rep.open_hours(), 40 + 30 + 25 + 80 + 40)  # Later work is open work
+        self.assertNotIn("A5", [w.ident for w in rep.workstreams])  # never a staffable row
+        bad = text.replace("- **A6** — Release gate on every app · 40–60 h", "- A6: release gate, someday")
+        bad = bad.replace("- **A5**", "- **A1**")
+        self.topic("bad", bad)
+        rep = self.report("bad")
+        self.assertTrue(any("Later line is not" in w for w in rep.warnings), rep.warnings)
+        self.assertTrue(any("A1: both a table row and a Later line" in w for w in rep.warnings), rep.warnings)
+        self.assertEqual(rep.errors, [])  # table-format lint warns; it never refuses a launch
+
+    def test_active_needs_a_live_commission_naming_the_topic(self):
+        self.topic("act", mission())  # A2 is `active run-1`
+        self.assertTrue(any(w.startswith("A2: `active` but no live commission") for w in self.report("act").warnings))
+        c = self.home / "cohorts" / "c1"
+        c.mkdir(parents=True)
+        (c / "PACKET.json").write_text('{"topics": ["act"]}')
+        (c / "STATE.md").write_text("live")
+        self.assertFalse(any("`active`" in w for w in self.report("act").warnings))
+        import os, time
+        old = time.time() - (mc.LIVE_WRITE_HOURS + 1) * 3600
+        os.utime(c / "STATE.md", (old, old))  # the window ended: nothing writes STATE.md any more
+        self.assertTrue(any("`active`" in w for w in self.report("act").warnings))
+
+    def test_valid_mission_passes_and_counts_portfolio(self):
+        self.topic("good", mission())
+        rep = self.report("good")
+        self.assertEqual(rep.errors, [])
+        self.assertEqual((rep.count("open"), rep.count("active"), rep.count("landed")), (1, 1, 1))
+        self.assertEqual(rep.open_hours(), 40 + 30 + 25)
+        self.assertEqual(self.run_check(), 0)
+
+    def test_missing_mission_is_an_error(self):
+        self.topic("bare")
+        self.assertEqual(self.run_check(), 1)
+
+    def test_symlinked_alias_is_skipped(self):
+        self.topic("real", mission())
+        (self.home / "topics" / "alias").symlink_to(self.home / "topics" / "real")
+        self.assertEqual([p.name for p in mc.topics(self.home, None)], ["real"])
+
+    def test_paraphrased_intent_without_quote_warns(self):
+        self.topic("para", mission(intent="The operator wants a good foundation."))
+        rep = self.report("para")
+        self.assertTrue(any("quoted operator words" in w for w in rep.warnings))
+        self.assertEqual(rep.errors, [])  # a window can run on it; only a window-failing defect refuses
+
+    def test_shrinking_end_state_warns_except_in_evidence_mode(self):
+        shrink = "A decision-ready foundation for later work."
+        self.topic("shrink", mission(end_state=shrink))
+        rep = self.report("shrink")
+        self.assertTrue(any("decision-ready" in w for w in rep.warnings))
+        self.assertEqual(rep.errors, [])
+        self.topic("evid", mission(mode="evidence", end_state=shrink))
+        self.assertFalse(any("decision-ready" in w for w in self.report("evid").warnings))
+
+    def test_two_staffable_plus_one_waiting_is_a_smaller_window_not_a_refusal(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="open"),
+                WORKSTREAM.format(id="A2", hours="40", status="active"),
+                WORKSTREAM.format(id="A3", hours="40", status="waiting-time 2026-11-16")]
+        self.topic("two-live", mission(rows=rows))
+        rep = self.report("two-live")
+        self.assertEqual(rep.errors, [])
+        self.assertTrue(any("only 2 staffable" in w for w in rep.warnings), rep.warnings)
+
+    def test_one_live_workstream_warns_and_none_is_a_window_that_cannot_run(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="open"), WORKSTREAM.format(id="A2", hours="40", status="landed")]
+        self.topic("thin", mission(rows=rows))
+        thin = self.report("thin")
+        self.assertEqual(thin.errors, [])
+        self.assertTrue(any("keep at least two" in w for w in thin.warnings), thin.warnings)
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="landed"), WORKSTREAM.format(id="A2", hours="40", status="landed")]
+        self.topic("done", mission(rows=rows))
+        self.assertTrue(any("nothing to staff" in e for e in self.report("done").errors))
+
+    def test_a_blank_line_that_splits_the_workstream_table_warns(self):
+        rows = [WORKSTREAM.format(id=f"A{i}", hours="40", status="open") for i in range(1, 5)]
+        self.topic("split", mission(rows=rows[:2] + [""] + rows[2:]))
+        warnings = self.report("split").warnings
+        self.assertTrue(any("Workstreams table is split" in w and "'A3'" in w for w in warnings), warnings)
+        self.topic("whole", mission(rows=rows))
+        self.assertEqual(self.report("whole").errors, [])
+
+    def test_retired_topic_is_reported_not_failed(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="landed")]
+        text = mission(rows=rows).replace("Mode: build", "Mode: build\nRetired: 2026-11-15 — every workstream landed", 1)
+        self.topic("done", text)
+        rep = self.report("done")
+        self.assertEqual((rep.errors, rep.retired), ([], "2026-11-15 — every workstream landed"))
+        self.assertIn("[done (retired)](topics/done/MISSION.md) | build | 0 | 0 | 0 |", mc.render_markdown([rep]))
+        self.assertEqual([(w.ident, w.status) for w in rep.workstreams], [("A1", "landed")])  # rows survive retirement
+        self.assertEqual(rep.as_dict()["retired"], "2026-11-15 — every workstream landed")
+
+    def test_task_sized_row_and_missing_hours_warn(self):
+        rows = [
+            WORKSTREAM.format(id="A1", hours="4", status="open"),
+            "| A2 | Thing | Dim | big | Demo | open |",
+            WORKSTREAM.format(id="A3", hours="40", status="open"),
+        ]
+        self.topic("sizes", mission(rows=rows))
+        rep = self.report("sizes")
+        self.assertTrue(any("A1" in w and "task" in w for w in rep.warnings))
+        self.assertTrue(any("A2" in w and "agent-hours" in w for w in rep.warnings))
+        self.assertEqual(rep.errors, [])
+
+    def test_bad_mode_fails_and_bad_status_warns(self):
+        rows = [WORKSTREAM.format(id=f"A{i}", hours="40", status="maybe") for i in range(3)]
+        self.topic("bad", mission(mode="study", rows=rows))
+        errs = self.report("bad").errors
+        self.assertTrue(any("Mode line" in e for e in errs))
+        self.assertTrue(any("status 'maybe'" in w for w in self.report("bad").warnings))
+
+    def test_pending_review_warns(self):
+        self.topic("pend", mission(review="pending (next commission)"))
+        self.assertTrue(any("ambition review pending" in w for w in self.report("pend").warnings))
+
+    def test_readme_receipts_and_missing_link(self):
+        receipts = "".join(f"## Cohort update — 2026-11-0{i}\n\nx\n" for i in range(1, 5))
+        self.topic("log", mission(), readme="# Topic\n\n" + receipts)
+        rep = self.report("log")
+        self.assertTrue(any("README does not link MISSION.md" in w for w in rep.warnings))
+        self.assertEqual(rep.errors, [])
+        self.assertTrue(any("receipt headings" in w for w in rep.warnings))
+
+    def test_topic_filter_and_markdown(self):
+        self.topic("a", mission())
+        self.topic("b")
+        self.assertEqual(self.run_check("--topic", "a"), 0)
+        table = mc.render_markdown([self.report("a")], dt.date(2026, 11, 20))
+        self.assertIn("| Landed (10 d) | Days since a row moved | Waits expired |", table)
+        self.assertNotIn("Status", table)
+        self.assertIn("[a](topics/a/MISSION.md) | build | 1 | 1 | 0 | 0 |", table)  # A3 landed has no date: not counted
+
+    def test_write_readme_replaces_only_the_marked_block(self):
+        self.topic("a", mission())
+        (self.home / "README.md").write_text(f"intro\n{mc.PORTFOLIO_START}\nstale\n{mc.PORTFOLIO_END}\noutro\n")
+        self.assertEqual(self.run_check("--write-readme", "--markdown"), 0)
+        text = (self.home / "README.md").read_text()
+        self.assertNotIn("stale", text)
+        self.assertIn("[a](topics/a/MISSION.md)", text)
+        self.assertTrue(text.startswith("intro\n") and text.endswith("outro\n"))
+
+    def test_json_lists_each_workstream_row_in_table_order(self):
+        self.topic("rows", mission())
+        rows = self.report("rows").as_dict()["workstream_rows"]
+        self.assertEqual([(r["id"], r["status"]) for r in rows],
+                         [("A1", "open"), ("A2", "active"), ("A3", "landed"), ("A4", "approved")])
+        self.assertEqual(rows[0], {"id": "A1", "destination": "Land the thing end to end",
+                                   "magnitude": "40–80 h · owner", "showcase": "Demo runs live", "status": "open"})
+
+    def test_write_readme_without_markers_refuses(self):
+        self.topic("a", mission())
+        (self.home / "README.md").write_text("no markers\n")
+        with self.assertRaises(SystemExit):
+            self.run_check("--write-readme")
+        self.assertEqual((self.home / "README.md").read_text(), "no markers\n")
+
+
+
+class VerdictProvenanceTest(unittest.TestCase):
+    def test_pasted_stance_unsourced_and_corrected_verdicts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            reviews = home / "reviews"
+            stance = "Note how the agent spent most of its time trying to progress our work directly."
+            for rid, topic in (("r1", "alpha"), ("r2", "beta")):
+                (reviews / rid).mkdir(parents=True)
+                (reviews / rid / "VERDICTS.md").write_text(
+                    f"# Verdicts\n\n### 2026-11-14T05:09:15Z · verdict {topic} · via hand\n{stance}\n")
+            (reviews / "r3").mkdir()
+            (reviews / "r3" / "VERDICTS.md").write_text(
+                "# Verdicts\n\n### 2026-11-12T16:20:00Z · verdict gamma, delta · via hand\nOne joint verdict.\n\n"
+                "### 2026-11-16T09:00:00Z · verdict gamma · via hand\nKeep going.\n")
+            reps = [mc.TopicReport(t) for t in ("alpha", "beta", "gamma", "delta")]
+            mc.check_verdicts(home, reps)
+            warn = {r.topic: r.warnings for r in reps}
+            self.assertIn("separate topic verdicts", " ".join(warn["alpha"]))  # one stance filed per topic
+            self.assertIn("separate topic verdicts", " ".join(warn["beta"]))
+            self.assertEqual(warn["delta"], [])                                # a joint verdict is the operator's choice
+            self.assertIn("no Source: line", " ".join(warn["gamma"]))         # new and unsourced
+            with (reviews / "r2" / "VERDICTS.md").open("a") as f:
+                f.write("\n### 2026-11-15T08:20:00Z · provenance correction · via audit (not an operator verdict)\nA delegate.\n")
+            reps = [mc.TopicReport(t) for t in ("alpha", "beta")]
+            mc.check_verdicts(home, reps)
+            self.assertEqual([r.warnings for r in reps], [[], []])            # the correction voids it; alpha stands alone
+
+if __name__ == "__main__":
+    unittest.main()

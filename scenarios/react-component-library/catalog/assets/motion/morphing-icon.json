@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "budgets": {
+    "mountMs": 54
+  },
+  "asset": {
+    "id": "motion.morphing-icon",
+    "name": "MorphingIcon",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "motion",
+    "description": "The icon-transition component animating between icon states with true path morphing where the geometry is compatible, and a configurable transform or crossfade fallback where it is not.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and nesting are owned once rather than per animated component."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "Both icon states resolve through the registry so geometry compatibility is knowable."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance",
+    "icon-weight-consistency"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "strategy": [
+        "morph",
+        "transform",
+        "crossfade"
+      ]
+    }
+  },
+  "beauty": {
+    "signatureMoment": {
+      "description": "A control's icon transforms into its new meaning in place, so the state change is read as the same object changing rather than two separate icons swapping."
+    }
+  }
+}

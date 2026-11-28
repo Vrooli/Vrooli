@@ -1,0 +1,299 @@
+// Package readiness turns an Experience Manager-owned readiness profile into
+// post-navigation waits that a workflow can execute.
+//
+// It exists as its own package because two callers need it and neither should
+// depend on the other: the capture handler settles a page before snapshotting
+// it, and the workflow executor settles a page before the next step runs. Both
+// want the same answer to the same question — "has this route's required
+// surfaces reached a terminal lifecycle state" — so the answer is computed once,
+// here.
+//
+// Every path degrades to the caller's existing behavior. An unavailable
+// Experience Manager, an undeclared scenario, an unmatched route, or a region
+// with no runtime binding all produce zero waits and a stated reason, never an
+// error that fails the run.
+package readiness
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/readinessprofile"
+	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
+	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
+	"google.golang.org/protobuf/proto"
+)
+
+// Strategy names the rung of the settle ladder a caller ended up on. It is
+// reported rather than inferred so a silent fallback cannot be mistaken for a
+// fast pass.
+const (
+	// StrategyExplicitWait means the caller supplied its own wait, which always
+	// wins over anything declared.
+	StrategyExplicitWait = "explicit-wait"
+	// StrategyDeclaredSurface means the route's declared required surfaces were
+	// resolved and are being waited on by terminal lifecycle state.
+	StrategyDeclaredSurface = "declared-surface"
+	// StrategyGenericNavigation is the pre-existing behavior: whatever the
+	// navigate action's own wait_until provides, and nothing more.
+	StrategyGenericNavigation = "generic-navigation"
+)
+
+// settleTimeout bounds the injected readiness wait.
+//
+// The wait is an OPTIMIZATION, never a new failure mode: a route where the
+// declared region does not render must cost a bounded settle and then proceed,
+// not a fresh timeout. The injected node also carries continue_on_error so a
+// lapse can never fail a case that would otherwise pass.
+const settleTimeout = 8 * time.Second
+
+// Resolver obtains the compiled profile for a known local scenario. It is
+// optional everywhere it is used: an unavailable profile preserves generic
+// behavior.
+type Resolver interface {
+	ResolveReadinessWaits(ctx context.Context, scenario, route string) (Resolution, error)
+}
+
+// Resolution carries the graph waits alongside the contract provenance, so a
+// caller can report which profile produced them and which surfaces it waited on.
+type Resolution struct {
+	Waits              []*actionsv1.WaitParams
+	ProfileVersion     string
+	Route              string
+	RequiredSurfaceIDs []string
+	RouteMatched       bool
+}
+
+// Profile is the compiled Experience Manager profile preserved at the shared
+// BAS ownership boundary. Consumers that need route and surface metadata use
+// the same profile read as capture/workflow readiness settling.
+type Profile struct {
+	Scenario       string
+	ProfileJSON    string
+	ProfileVersion string
+}
+
+// ProfileReader is the one interface for retrieving the compiled profile.
+type ProfileReader interface {
+	GetReadinessProfile(ctx context.Context, scenario, path string) (Profile, error)
+}
+
+// FallbackReason explains, in one phrase, why a resolution produced no waits.
+// It returns "" when the resolution did produce waits.
+func (r Resolution) FallbackReason() string {
+	if len(r.Waits) > 0 {
+		return ""
+	}
+	switch {
+	case r.ProfileVersion == "":
+		return "declared readiness profile returned no version"
+	case !r.RouteMatched:
+		return "declared readiness profile does not include the requested route"
+	default:
+		return "declared readiness route has no bound required surfaces"
+	}
+}
+
+type experienceResolver struct {
+	resolver *discovery.Resolver
+	client   *http.Client
+	resolve  func(context.Context) (string, error)
+}
+
+// NewProfileResolver constructs the production resolver for the Experience
+// Manager-owned profile RPC.
+func NewProfileResolver() Resolver {
+	return newProfileReader()
+}
+
+// NewProfileReader constructs the shared Experience Manager profile reader.
+func NewProfileReader() ProfileReader {
+	return newProfileReader()
+}
+
+func newProfileReader() *experienceResolver {
+	return &experienceResolver{
+		resolver: discovery.NewResolver(discovery.ResolverConfig{}),
+		client:   &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (r *experienceResolver) ResolveReadinessWaits(ctx context.Context, scenario, route string) (Resolution, error) {
+	profileResult, err := r.GetReadinessProfile(ctx, scenario, "")
+	if err != nil {
+		return Resolution{}, err
+	}
+	var profile readinessprofile.Profile
+	if err := json.Unmarshal([]byte(profileResult.ProfileJSON), &profile); err != nil {
+		return Resolution{}, fmt.Errorf("decode readiness profile: %w", err)
+	}
+	resolution := resolveProfile(profile, route, profileResult.ProfileVersion)
+	return resolution, nil
+}
+
+func (r *experienceResolver) GetReadinessProfile(ctx context.Context, scenario, path string) (Profile, error) {
+	var base string
+	var err error
+	if r.resolve != nil {
+		base, err = r.resolve(ctx)
+	} else if r.resolver != nil {
+		base, err = r.resolver.ResolveScenarioURLDefault(ctx, "experience-manager")
+	} else {
+		err = fmt.Errorf("experience-manager readiness endpoint resolver is unavailable")
+	}
+	if err != nil {
+		return Profile{}, err
+	}
+	if strings.TrimSpace(base) == "" {
+		return Profile{}, fmt.Errorf("experience-manager readiness endpoint resolved an empty URL")
+	}
+	client := r.client
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	resp, err := contractconnect.NewContractServiceClient(client, base).
+		GetReadinessProfile(ctx, connect.NewRequest(&contractv1.GetReadinessProfileRequest{Scenario: scenario, Path: path}))
+	if err != nil {
+		return Profile{}, err
+	}
+	return Profile{Scenario: resp.Msg.GetScenario(), ProfileJSON: resp.Msg.GetProfileJson(), ProfileVersion: resp.Msg.GetProfileVersion()}, nil
+}
+
+// resolveProfile combines every page that matches a route. A scenario can
+// intentionally compose several pages at the same URL (for example an
+// account shell followed by the workspace surface). Returning after the first
+// match would let an empty page mask a later required region and silently
+// downgrade the caller to generic navigation.
+func resolveProfile(profile profileDocument, route, profileVersion string) Resolution {
+	resolution := Resolution{ProfileVersion: profileVersion, Route: route}
+	waitSelectors := make(map[string]struct{})
+	surfaceIDs := make(map[string]struct{})
+	for _, page := range profile.Pages {
+		if !PageMatchesRoute(page.Routes, page.RuntimeRoutes, route) {
+			continue
+		}
+		resolution.RouteMatched = true
+		for _, region := range page.Regions {
+			if !region.Required {
+				continue
+			}
+			selector := strings.TrimSpace(region.Binding.Selector)
+			if selector == "" && strings.TrimSpace(region.Binding.TestID) != "" {
+				selector = `[data-testid="` + escapeCSSString(strings.TrimSpace(region.Binding.TestID)) + `"]`
+			}
+			if selector == "" {
+				continue
+			}
+			selector = TerminalSelector(selector, region.Lifecycle.Kind, region.Lifecycle.States)
+			if _, exists := waitSelectors[selector]; !exists {
+				waitSelectors[selector] = struct{}{}
+				resolution.Waits = append(resolution.Waits, &actionsv1.WaitParams{
+					WaitFor: &actionsv1.WaitParams_Selector{Selector: selector},
+					// ATTACHED, not VISIBLE. This probes a lifecycle state, and a
+					// surface reporting empty or error may legitimately render
+					// nothing visible. Requiring visibility would time out on
+					// exactly the terminal states this exists to detect fast.
+					State: actionsv1.WaitState_WAIT_STATE_ATTACHED.Enum(),
+					// Bounded well below the 30s driver default. A surface that is
+					// going to settle settles quickly; anything longer is a route
+					// where this region does not render, and paying 30s there would
+					// cost more than the timeout this replaces.
+					TimeoutMs: proto.Int32(int32(settleTimeout.Milliseconds())),
+				})
+			}
+			if id := strings.TrimSpace(region.ID); id != "" {
+				if _, exists := surfaceIDs[id]; !exists {
+					surfaceIDs[id] = struct{}{}
+					resolution.RequiredSurfaceIDs = append(resolution.RequiredSurfaceIDs, id)
+				}
+			}
+		}
+	}
+	return resolution
+}
+
+// escapeCSSString encodes a value for a double-quoted CSS attribute selector.
+// Profile bindings can contain arbitrary test IDs; escaping here keeps one
+// unusual ID from turning a valid readiness profile into an invalid selector.
+func escapeCSSString(value string) string {
+	var out strings.Builder
+	for _, r := range value {
+		switch r {
+		case '\\', '"':
+			out.WriteByte('\\')
+			out.WriteRune(r)
+		case '\n':
+			out.WriteString(`\a `)
+		case '\r':
+			out.WriteString(`\d `)
+		case '\f':
+			out.WriteString(`\c `)
+		case 0:
+			out.WriteRune('\uFFFD')
+		default:
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
+}
+
+type profileDocument = readinessprofile.Profile
+
+// TerminalSelector turns an async surface binding into a selector matching any
+// of its declared terminal states. Waiting on the bare binding would accept the
+// surface's initial mount — usually `loading` — as functional readiness, which
+// is the mistake this whole contract exists to prevent.
+//
+// Terminal deliberately includes `error`: a page that has failed has finished,
+// and reporting that in milliseconds is the point. Only `loading` and `static`
+// are excluded.
+func TerminalSelector(binding, kind string, states []string) string {
+	// Some scenarios expose a dedicated, already-terminal readiness selector
+	// rather than the generic ExperienceSurface data-experience-state contract.
+	// Treat it as authoritative instead of appending a second incompatible state
+	// predicate (for example data-preview-state="ready").
+	if strings.Contains(binding, "[data-preview-state=") || strings.Contains(binding, "[data-experience-state=") {
+		return binding
+	}
+	if kind != "async" {
+		return binding
+	}
+	var selectors []string
+	for _, state := range states {
+		state = strings.TrimSpace(state)
+		if state == "" || state == "loading" || state == "static" {
+			continue
+		}
+		selectors = append(selectors, binding+`[data-experience-state="`+state+`"]`)
+	}
+	if len(selectors) == 0 {
+		return binding
+	}
+	return strings.Join(selectors, ", ")
+}
+
+// PageMatchesRoute decides whether a page's declared regions apply to the route
+// a flow is navigating to.
+//
+// Path-only matching is not sufficient for a page whose asynchronous content is
+// tab-scoped. BAS's dashboard is the worked example: its route is "/", but the
+// projects grid only mounts under "?tab=projects", so every declared state pins
+// that query and the compiled profile carries it in runtimeRoutes. Matching on
+// the path alone made a navigation to bare "/" resolve a region that cannot be
+// in the document yet, and the injected wait then burned its full timeout on
+// every case that starts at the dashboard.
+//
+// So: when a page declares runtime routes and EVERY one of them carries a query,
+// the page's regions are scoped to those queries and a request without one does
+// not match. A page whose runtime routes are query-free keeps the original
+// path-only behavior.
+func PageMatchesRoute(routes, runtimeRoutes []string, route string) bool {
+	return readinessprofile.PageMatchesRoute(readinessprofile.Page{Routes: routes, RuntimeRoutes: runtimeRoutes}, route)
+}

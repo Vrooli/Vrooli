@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// This fixed operation exposes only the Ollama resource's read-only LM6 role
+// adapter. It is not a general resource command or process execution API.
+message InspectOllamaRoleCandidatesRequest {
+  string request_id = 1;
+  string target = 2;
+  string role = 3;
+  repeated string candidate_models = 4;
+  string fixed_suite_id = 5;
+  repeated string fixed_case_ids = 6;
+  string evaluation_receipt_id = 7;
+  string winner_model = 8;
+}
+
+message InspectOllamaRoleCandidatesResponse {
+  string receipt_json = 1;
+}
+
+service OllamaOptimizationService {
+  rpc InspectRoleCandidates(InspectOllamaRoleCandidatesRequest) returns (InspectOllamaRoleCandidatesResponse);
+}

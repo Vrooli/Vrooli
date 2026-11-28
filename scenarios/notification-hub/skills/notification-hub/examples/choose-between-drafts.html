@@ -1,0 +1,102 @@
+<!doctype html>
+<!--
+  Technique: choose between two finished options and pre-fill the answer.
+  Shows: .hub-pair, .hub-chip, .hub-callout, data-hub-open, hub.prefill.
+  Based on a real decision about which message to send a medical office.
+
+  The page names the two draft files, so the command that sends it attaches
+  them. An attachment's name is its file name, so the names match:
+
+  notification-hub conversations ask \
+    --question 'Which message should go to the medical office: a plain request for facts, or a paid second-opinion offer?' \
+    --big-picture '...' \
+    --option 'second-opinion=Send B, the paid second-opinion offer' \
+    --option 'plain=Send A, the plain request for facts' \
+    --recommend second-opinion --recommend-reason '...' \
+    --subject-key medical-office-first-message \
+    --attach ./drafts/draft-a-plain-request.md \
+    --attach ./drafts/draft-b-second-opinion.md \
+    --packet ./work/OFFICE-REQUEST \
+    --explainer ./choose-between-drafts.html
+
+  The option keys above are what hub.prefill("answer", ...) uses below.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two messages to the medical office</title>
+<style>
+  .lede { color: var(--hub-muted); margin-top: 0; }
+  .draft h2 { margin: 0.5rem 0 0.25rem; }
+  .draft ul { padding-left: 1.1rem; }
+  .draft .hub-chip { margin-right: 0.25rem; }
+  .draft footer { display: grid; gap: 0.5rem; margin-top: 1rem; }
+  .draft.is-pick { border-color: var(--hub-primary); box-shadow: 0 0 0 1px var(--hub-primary); }
+  .price { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .price small { font-size: 0.875rem; font-weight: 500; }
+</style>
+</head>
+<body>
+  <h1>Which message should we send first?</h1>
+  <p class="lede">Both drafts are written and nothing has been sent. You read the one you pick, change what does not fit, and send it yourself.</p>
+
+  <div class="hub-callout is-warning">
+    <strong>Send one by 20 November.</strong> After that, the proposal due on 1 December is at risk.
+  </div>
+
+  <div class="hub-pair">
+    <section class="draft" id="draft-a">
+      <span class="hub-chip">A</span>
+      <h2>Plain request</h2>
+      <p class="price">No fee <small>for the office</small></p>
+      <p>Asks the office for the facts as a favour.</p>
+      <ul>
+        <li>Quotes it has received</li>
+        <li>What it pays for IT now</li>
+        <li>Who looks after its computers</li>
+      </ul>
+      <p><small>Short and easy to ignore.</small></p>
+      <footer>
+        <button type="button" data-pick="plain">Choose A</button>
+        <button type="button" class="is-quiet" data-hub-open="draft-a-plain-request.md">Read draft A</button>
+      </footer>
+    </section>
+
+    <section class="draft is-pick" id="draft-b">
+      <span class="hub-chip is-primary">B</span> <span class="hub-chip is-success">Recommended</span>
+      <h2>Second-opinion offer</h2>
+      <p class="price">$500 <small>only if useful</small></p>
+      <p>Offers a written second opinion on the big quotes the office has, one week after the facts arrive.</p>
+      <ul>
+        <li>Same facts as A</li>
+        <li>Also asks about backups and the yearly security review</li>
+        <li>Quotes under review: about $70,000 to buy, or $4,500 a month hosted</li>
+      </ul>
+      <p><small>Gives a busy office a concrete reason to reply now.</small></p>
+      <footer>
+        <button type="button" data-pick="second-opinion">Choose B</button>
+        <button type="button" class="is-quiet" data-hub-open="draft-b-second-opinion.md">Read draft B</button>
+      </footer>
+    </section>
+  </div>
+
+  <h2>What happens when you choose one</h2>
+  <p>I do not send anything. I wait for you to send the message you chose, then watch for the office's reply and use its facts to write the proposal.</p>
+  <button type="button" class="is-quiet" data-hub-open="BRIEF.md">Read the prepared plan</button>
+
+  <p class="lede" id="picked" role="status"></p>
+
+  <script>
+    /* Tapping a button fills in the answer below. You still press Send there. */
+    document.querySelectorAll("[data-pick]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        if (!window.hub || !window.hub.prefill) return;
+        window.hub.prefill("answer", button.getAttribute("data-pick"));
+        document.getElementById("picked").textContent =
+          "Filled in for you. Check it in the answer below, then send.";
+      });
+    });
+  </script>
+</body>
+</html>

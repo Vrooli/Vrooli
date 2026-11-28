@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "portable-replay-and-handoff",
+    "title": "Portable replay and consumer handoff",
+    "purpose": "Reopen an inspectable portable project and hand off direct artifacts with deterministic relinking and honest reproducibility limits.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-006",
+      "OT-P0-009",
+      "OT-P0-012",
+      "OT-P0-013",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "result",
+      "state": "handoff-ready",
+      "intent": "Export direct output, safe recipe and exact source/asset manifest without secrets.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "projects",
+      "state": "importing",
+      "intent": "Inspect a portable archive version and bounded file contents on another installation.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "project",
+      "state": "missing-media",
+      "intent": "See unavailable sources without losing existing output inspection.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "shot",
+      "state": "default",
+      "intent": "Relink matching local media and inspect route/worker compatibility before replay.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "running",
+      "intent": "Render an immutable compatible snapshot with declared native/portable limits.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "handoff-ready",
+      "intent": "Provide exact direct artifacts and recipe to launch-video or API/CLI consumer without automatic publication.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "portable-replay-and-handoff-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Reopen an inspectable portable project and hand off direct artifacts with deterministic relinking and honest reproducibility limits.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

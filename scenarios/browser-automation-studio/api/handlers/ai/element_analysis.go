@@ -2,17 +2,12 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/httpjson"
-	"github.com/vrooli/browser-automation-studio/middleware"
-	"github.com/vrooli/browser-automation-studio/services/credits"
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	modelai "github.com/vrooli/browser-automation-studio/services/ai"
 )
 
 // ElementAnalysisHandler handles element analysis and coordinate-based operations.
@@ -20,8 +15,8 @@ import (
 type ElementAnalysisHandler struct {
 	log                 *logrus.Logger
 	runner              AutomationRunner
-	suggestionGenerator *ollamaSuggestionGenerator
-	creditService       credits.CreditService
+	suggestionGenerator *aiSuggestionGenerator
+	modelClient         modelai.RolePromptClient
 }
 
 // ElementAnalysisOption configures the ElementAnalysisHandler.
@@ -35,16 +30,18 @@ func WithElementRunner(runner AutomationRunner) ElementAnalysisOption {
 }
 
 // WithSuggestionGenerator sets a custom suggestion generator.
-func WithSuggestionGenerator(gen *ollamaSuggestionGenerator) ElementAnalysisOption {
+func WithSuggestionGenerator(gen *aiSuggestionGenerator) ElementAnalysisOption {
 	return func(h *ElementAnalysisHandler) {
 		h.suggestionGenerator = gen
 	}
 }
 
-// WithElementAnalysisCreditService sets the credit service for AI usage tracking.
-func WithElementAnalysisCreditService(svc credits.CreditService) ElementAnalysisOption {
+// WithAIModelClient sets the shared model service used for suggestions.
+func WithAIModelClient(client modelai.RolePromptClient) ElementAnalysisOption {
 	return func(h *ElementAnalysisHandler) {
-		h.creditService = svc
+		if client != nil {
+			h.modelClient = client
+		}
 	}
 }
 
@@ -57,161 +54,89 @@ func NewElementAnalysisHandler(log *logrus.Logger, opts ...ElementAnalysisOption
 		opt(handler)
 	}
 
-	// Create default runner if not provided
-	if handler.runner == nil {
-		runner, err := newAutomationRunner(log)
-		if err != nil && log != nil {
-			log.WithError(err).Warn("Failed to initialize automation runner for element analysis; requests will fail")
-		}
-		handler.runner = runner
-	}
-
 	// Create default suggestion generator if not provided
+	if handler.modelClient == nil {
+		handler.modelClient = newGatewayRolePromptClient()
+	}
 	if handler.suggestionGenerator == nil {
-		handler.suggestionGenerator = newOllamaSuggestionGenerator(log)
+		handler.suggestionGenerator = newAISuggestionGenerator(log, WithAISuggestionModelClient(handler.modelClient))
 	}
 
 	return handler
 }
 
-// AnalyzeElements handles POST /api/v1/analyze-elements
-func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+// AnalyzeElementsResult is the Go-typed return shape of
+// ElementAnalysisHandler.RunAnalyzeElements.
+type AnalyzeElementsResult struct {
+	Elements      []ElementInfo
+	AISuggestions []AISuggestion
+	PageContext   PageContext
+	// Screenshot is a base64 data URL (legacy UI consumes it as <img src>).
+	Screenshot string
+	CapturedAt time.Time
+}
 
-	var req ElementAnalysisRequest
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode element analysis request")
-		RespondError(w, ErrInvalidRequest)
-		return
+// RunAnalyzeElements runs the page-elements-and-context extraction script
+// (with AI suggestion overlay) and returns a Go-typed result. The Connect
+// handler is a thin adapter onto this method.
+func (h *ElementAnalysisHandler) RunAnalyzeElements(ctx context.Context, url string) (*AnalyzeElementsResult, error) {
+	if strings.TrimSpace(url) == "" {
+		return nil, ErrMissingURL
+	}
+	if h.runner == nil {
+		return nil, ErrAutomationRunnerNotReady
 	}
 
-	if req.URL == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "url"}))
-		return
-	}
-
-	// Check AI operation permission (tier + credits)
-	var userID string
-	hasBYOK := middleware.HasBYOKKey(ctx)
-	if h.creditService != nil {
-		userID = entitlement.UserIdentityFromContext(ctx)
-		if userID == "" {
-			userID = "anonymous"
-		}
-
-		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
-		if err != nil {
-			h.log.WithError(err).Warn("element_analysis: failed to check AI operation permission")
-		} else if !canProceed {
-			status := http.StatusForbidden
-			if errCode == "INSUFFICIENT_CREDITS" {
-				status = http.StatusPaymentRequired
-			}
-			RespondError(w, &APIError{
-				Status:  status,
-				Code:    errCode,
-				Message: errMsg,
-				Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
-			})
-			return
-		}
-	}
-
-	// Normalize URL - add protocol if missing
-	url := req.URL
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		url = "https://" + url
 	}
+	if h.log != nil {
+		h.log.WithField("url", url).Info("Analyzing page elements")
+	}
 
-	h.log.WithField("url", url).Info("Analyzing page elements")
-
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Extended timeout for analysis
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	// Step 1: Extract elements and take screenshot
 	elements, pageContext, screenshot, err := h.extractPageElements(ctx, url)
 	if err != nil {
-		h.log.WithError(err).Error("Failed to extract page elements")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "extract_page_elements", "error": err.Error()}))
-		return
+		return nil, fmt.Errorf("extract page elements: %w", err)
 	}
 
-	// Step 2: Generate AI suggestions using Ollama
 	aiSuggestions, err := h.suggestionGenerator.generateAISuggestions(ctx, elements, pageContext)
 	if err != nil {
-		h.log.WithError(err).Warn("Failed to generate AI suggestions, continuing without them")
-		aiSuggestions = []AISuggestion{} // Continue without AI suggestions
+		return nil, fmt.Errorf("generate AI suggestions through AI Gateway: %w", err)
 	}
 
-	// Charge credits after successful AI operation (if AI suggestions were generated)
-	// BYOK users get logged with 0 cost for analytics
-	if h.creditService != nil && userID != "" && len(aiSuggestions) > 0 {
-		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
-			UserIdentity: userID,
-			Operation:    credits.OpAIElementAnalyze,
-			IsBYOK:       hasBYOK,
-		}); err != nil {
-			h.log.WithError(err).Warn("element_analysis: failed to charge credits")
-		}
-	}
-
-	response := ElementAnalysisResponse{
-		Success:       true,
+	return &AnalyzeElementsResult{
 		Elements:      elements,
 		AISuggestions: aiSuggestions,
 		PageContext:   pageContext,
 		Screenshot:    screenshot,
-		Timestamp:     time.Now().Unix(),
-	}
-
-	respondJSON(w, response)
+		CapturedAt:    time.Now(),
+	}, nil
 }
 
-// GetElementAtCoordinate handles POST /api/v1/element-at-coordinate
-func (h *ElementAnalysisHandler) GetElementAtCoordinate(w http.ResponseWriter, r *http.Request) {
-	var req ElementAtCoordinateRequest
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode element at coordinate request")
-		RespondError(w, ErrInvalidRequest)
-		return
+// RunGetElementAtCoordinate probes the DOM at (x, y) and returns the
+// resolved selection. Public wrapper over the unexported coordinate-probe
+// helper; used by the AIService Connect handler.
+func (h *ElementAnalysisHandler) RunGetElementAtCoordinate(ctx context.Context, url string, x, y int) (*ElementSelectionResult, error) {
+	if strings.TrimSpace(url) == "" {
+		return nil, ErrMissingURL
 	}
-
-	if req.URL == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "url"}))
-		return
+	if h.runner == nil {
+		return nil, ErrAutomationRunnerNotReady
 	}
-
-	// Normalize URL - add protocol if missing
-	url := req.URL
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		url = "https://" + url
 	}
-
-	h.log.WithFields(logrus.Fields{
-		"url": url,
-		"x":   req.X,
-		"y":   req.Y,
-	}).Info("Getting element at coordinate")
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	if h.log != nil {
+		h.log.WithFields(logrus.Fields{
+			"url": url, "x": x, "y": y,
+		}).Info("Getting element at coordinate")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	selection, err := h.getElementAtCoordinate(ctx, url, req.X, req.Y)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to get element at coordinate")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "get_element_at_coordinate", "error": err.Error()}))
-		return
-	}
-
-	respondJSON(w, selection)
-}
-
-// respondJSON is a helper function to write JSON responses.
-func respondJSON(w http.ResponseWriter, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		logrus.WithError(err).Warn("Failed to encode element analysis response")
-	}
+	return h.getElementAtCoordinate(ctx, url, x, y)
 }
 
 // Test helpers - these delegate to the internal components for testing

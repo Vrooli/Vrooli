@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Copy, Check, ArrowLeft } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { selectors } from "../../consts/selectors";
 
 interface MarkdownViewerProps {
@@ -179,7 +179,7 @@ export function MarkdownViewer({
 
       {/* Content */}
       <article
-        className="prose prose-invert prose-sm max-w-none overflow-y-auto max-h-[calc(100vh-300px)]"
+        className="prose prose-invert prose-sm max-w-none overflow-y-auto max-h-[calc(100%_-_300px)]"
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     </div>

@@ -1,0 +1,10 @@
+{
+  "gate": "overlay-surface-composition",
+  "assetId": "overlays.calibration-surface",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.overlay_surface_composition",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "An overlay role bypasses the shared overlay substrate."
+}

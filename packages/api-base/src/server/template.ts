@@ -3,21 +3,41 @@
  *
  * Provides a complete Express server implementation that handles all common
  * scenario needs: static files, API proxy, config endpoint, health endpoint,
- * CORS, metadata injection, etc.
+ * browser origin policy, metadata injection, etc.
  */
 
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import * as http from 'node:http'
+import * as zlib from 'node:zlib'
 import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
-import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
+import { createProxyMiddleware, proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
+import {
+  experienceInjectionConfig,
+  resolveExperienceTelemetry,
+  shouldInstrumentRequest,
+} from '../experience/gate.js'
+import { injectExperienceTelemetry } from '../experience/inject.js'
+import { createExperienceTelemetryRouter } from '../experience/router.js'
+import type { ResolvedExperienceTelemetry } from '../experience/types.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
+import { createLocalPortProxy } from './local-port-proxy.js'
+import { createOriginPolicy } from './origin-policy.js'
+import { APP_NOTIFICATIONS_PREFIX, createAppNotificationsRouter, resolveAppNotifications } from './app-notifications.js'
+import { assertLifecycleManagedUI } from './lifecycle.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
+
+// Connect-RPC URL grammar: /<dotted.package.Service>/<UpperCamelMethod>.
+// The package must contain at least one '.' so we never match plain SPA
+// routes like /login or static assets like /index.html. Method names start
+// with an uppercase letter, distinguishing /foo.bar/Baz from /assets/img.png
+// or any other lowercase-leading second segment.
+const CONNECT_PATH_PATTERN = /^\/[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\/[A-Z][A-Za-z0-9_]*$/
 
 const IMMUTABLE_ASSET_EXTENSIONS = new Set([
   '.js',
@@ -47,6 +67,8 @@ const IMMUTABLE_ASSET_EXTENSIONS = new Set([
 
 const HASHED_FILENAME_PATTERN = /[-_][A-Za-z0-9_\-]{6,}\./
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
+const MIN_GZIP_BYTES = 1024
+const COMPRESSIBLE_CONTENT_TYPE = /^(?:text\/|application\/(?:javascript|json|manifest\+json|xml|wasm)|image\/svg\+xml)/i
 
 function isImmutableBuildAsset(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase()
@@ -79,149 +101,88 @@ function applyStaticCacheHeaders(res: Response, filePath: string): void {
   }
 }
 
-/**
- * Default allowed CORS origins
- *
- * Includes localhost and loopback addresses with any port.
- * Auto-detects tunnel environments and allows HTTPS origins.
- *
- * @internal
- */
-function buildDefaultCorsOrigins(uiPort?: string): string[] {
-  const origins = [
-    'http://localhost',
-    'http://127.0.0.1',
-    'http://[::1]',
-    'null', // For file:// protocol
-  ]
-
-  if (uiPort) {
-    origins.push(`http://localhost:${uiPort}`)
-    origins.push(`http://127.0.0.1:${uiPort}`)
+function appendVary(res: Response, value: string): void {
+  const current = res.getHeader('Vary')
+  if (!current) {
+    res.setHeader('Vary', value)
+    return
   }
 
-  // Auto-allow tunnel/proxy contexts
-  // Detect common tunnel environment variables or presence of HTTPS connections
-  const isTunnelEnv = Boolean(
-    process.env.TUNNEL_URL ||
-    process.env.CLOUDFLARE_TUNNEL ||
-    process.env.CLOUDFLARED_TUNNEL_ID ||
-    process.env.NGROK_URL ||
-    process.env.CLOUDFLARE_TUNNEL_TOKEN
-  )
-
-  if (isTunnelEnv) {
-    // When tunnel is detected, allow all HTTPS origins
-    origins.push('https://*')
+  const values = Array.isArray(current) ? current.join(',') : String(current)
+  if (values.toLowerCase().split(',').map(item => item.trim()).includes(value.toLowerCase())) {
+    return
   }
-
-  return origins
+  res.setHeader('Vary', `${values}, ${value}`)
 }
 
-/**
- * Check if origin is allowed
- *
- * @param origin - Origin to check
- * @param allowedOrigins - List of allowed origins (supports wildcards)
- * @returns Whether origin is allowed
- *
- * @internal
- */
-function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
-  // Check for exact match
-  if (allowedOrigins.includes(origin)) {
-    return true
-  }
-
-  // Check for wildcard match
-  if (allowedOrigins.includes('*')) {
-    return true
-  }
-
-  // Check for pattern match (e.g., "http://localhost:*")
-  for (const pattern of allowedOrigins) {
-    if (pattern.includes('*')) {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      if (regex.test(origin)) {
-        return true
-      }
-    }
-  }
-
-  // Check if origin starts with any allowed origin (for port wildcards)
-  const originLower = origin.toLowerCase()
-  for (const allowed of allowedOrigins) {
-    const allowedLower = allowed.toLowerCase()
-    if (allowedLower.endsWith(':*')) {
-      const baseAllowed = allowedLower.slice(0, -2)
-      if (originLower.startsWith(baseAllowed)) {
-        return true
-      }
-    }
-  }
-
-  return false
+function acceptsGzip(req: Request): boolean {
+  return String(req.headers['accept-encoding'] || '').split(',').some(part => part.trim().toLowerCase().startsWith('gzip'))
 }
 
-/**
- * Create CORS middleware
- *
- * @param corsOrigins - Allowed origins (supports wildcards, defaults to localhost)
- * @param verbose - Whether to log CORS decisions
- * @returns CORS middleware
- *
- * @internal
- */
-function createCorsMiddleware(corsOrigins: string | string[] | undefined, verbose: boolean) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const origin = req.headers.origin
+function shouldCompressResponse(res: Response, bodyLength: number): boolean {
+  if (bodyLength < MIN_GZIP_BYTES) {
+    return false
+  }
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    return false
+  }
+  if (res.getHeader('Content-Encoding')) {
+    return false
+  }
+  const contentType = String(res.getHeader('Content-Type') || '')
+  return COMPRESSIBLE_CONTENT_TYPE.test(contentType)
+}
 
-    // Normalize cors origins
-    let allowedOrigins: string[]
-    if (corsOrigins === '*') {
-      allowedOrigins = ['*']
-    } else if (Array.isArray(corsOrigins)) {
-      allowedOrigins = corsOrigins
-    } else if (typeof corsOrigins === 'string') {
-      allowedOrigins = corsOrigins.split(',').map(o => o.trim())
-    } else {
-      // Default: build from UI port
-      allowedOrigins = buildDefaultCorsOrigins()
-    }
-
-    // Handle wildcard
-    if (allowedOrigins.includes('*')) {
-      res.setHeader('Access-Control-Allow-Origin', '*')
-      res.setHeader('Access-Control-Allow-Credentials', 'false')
-    } else if (origin && isOriginAllowed(origin, allowedOrigins)) {
-      res.setHeader('Access-Control-Allow-Origin', origin)
-      res.setHeader('Access-Control-Allow-Credentials', 'true')
-      res.setHeader('Vary', 'Origin')
-    } else if (origin) {
-      if (verbose) {
-        console.log(`[cors] Blocked origin: ${origin}`)
-      }
-      res.status(403).json({ error: 'Origin not allowed' })
-      return
-    }
-
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      req.headers['access-control-request-headers'] || 'Accept,Authorization,Content-Type,X-CSRF-Token,X-Requested-With'
-    )
-    res.setHeader('Access-Control-Expose-Headers', 'Link, Server-Timing')
-    res.setHeader('Access-Control-Max-Age', '300')
-
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-      res.status(204).end()
-      return
-    }
-
+function gzipStaticResponseMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (req.method !== 'GET' || !acceptsGzip(req)) {
     next()
+    return
   }
+
+  const chunks: Buffer[] = []
+  const originalWrite = res.write.bind(res) as (...args: any[]) => boolean
+  const originalEnd = res.end.bind(res) as (...args: any[]) => Response
+
+  const bufferFrom = (chunk: any, encoding?: any): Buffer => {
+    if (Buffer.isBuffer(chunk)) {
+      return chunk
+    }
+    return Buffer.from(chunk, typeof encoding === 'string' ? encoding as BufferEncoding : undefined)
+  }
+
+  ;(res as unknown as { write: (...args: any[]) => boolean }).write = (chunk: any, encoding?: any, callback?: any): boolean => {
+    if (chunk) {
+      chunks.push(bufferFrom(chunk, encoding))
+    }
+    if (typeof encoding === 'function') {
+      encoding()
+    } else if (typeof callback === 'function') {
+      callback()
+    }
+    return true
+  }
+
+  ;(res as unknown as { end: (...args: any[]) => Response }).end = (chunk?: any, encoding?: any, callback?: any): Response => {
+    if (chunk) {
+      chunks.push(bufferFrom(chunk, encoding))
+    }
+
+    const body = Buffer.concat(chunks)
+    appendVary(res, 'Accept-Encoding')
+    if (!shouldCompressResponse(res, body.length)) {
+      for (const buffered of chunks) {
+        originalWrite(buffered)
+      }
+      return originalEnd(typeof callback === 'function' ? callback : undefined)
+    }
+
+    const compressed = zlib.gzipSync(body)
+    res.setHeader('Content-Encoding', 'gzip')
+    res.removeHeader('Content-Length')
+    return originalEnd(compressed, typeof callback === 'function' ? callback : undefined)
+  }
+
+  next()
 }
 
 /**
@@ -231,13 +192,21 @@ function createCorsMiddleware(corsOrigins: string | string[] | undefined, verbos
  *
  * @internal
  */
-function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
+function createHtmlInjectionMiddleware(
+  options: ServerTemplateOptions,
+  experience: ResolvedExperienceTelemetry | null,
+  build?: string,
+) {
   const { proxyMetadata, scenarioConfig } = options
 
   // If nothing to inject, return no-op middleware
-  if (!proxyMetadata && !scenarioConfig) {
+  if (!proxyMetadata && !scenarioConfig && !experience) {
     return (_req: Request, _res: Response, next: NextFunction) => next()
   }
+
+  const experienceConfig = experience
+    ? { ...experienceInjectionConfig(experience), ...(build ? { build } : {}) }
+    : null
 
   return (req: Request, res: Response, next: NextFunction) => {
     // Only intercept HTML responses
@@ -259,6 +228,12 @@ function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
         // Inject scenario config
         if (scenarioConfig) {
           modifiedBody = injectScenarioConfig(modifiedBody, scenarioConfig)
+        }
+
+        // Inject the local experience agent. Gating is per request because Host
+        // and Fetch Metadata decide whether this is the operator's own browser.
+        if (experienceConfig && shouldInstrumentRequest(req, experience)) {
+          modifiedBody = injectExperienceTelemetry(modifiedBody, experienceConfig)
         }
 
         return originalSend.call(this, modifiedBody)
@@ -313,7 +288,7 @@ function createIndexHtmlLoader(indexPath: string, useCache: boolean, verbose: bo
  * Create a complete scenario server
  *
  * Returns a configured Express application with all standard middleware:
- * - CORS handling
+ * - Browser origin policy (same-origin by default; see origin-policy.ts)
  * - API proxying
  * - Config endpoint
  * - Health endpoint
@@ -356,6 +331,23 @@ function applyBodyParser(app: Express, setting: ServerTemplateOptions['bodyParse
 }
 
 export function createScenarioServer(options: ServerTemplateOptions): Express {
+  assertLifecycleManagedUI({
+    serviceName: options.serviceName,
+    disableLifecycleGuard: options.disableLifecycleGuard,
+  })
+
+  if ('corsOrigins' in options) {
+    throw new Error(
+      `${options.serviceName ?? 'scenario-ui'}: the corsOrigins option was removed. ` +
+      'Scenario UI servers are same-origin by default, including through the tunnel and Web Console; ' +
+      'delete the option, or list exact cross-origin callers in allowedOrigins. See packages/api-base/SECURITY.md.',
+    )
+  }
+  const originPolicy = createOriginPolicy({
+    allowedOrigins: options.allowedOrigins,
+    publicPaths: options.publicPaths,
+  })
+
   const {
     uiPort,
     apiPort,
@@ -365,20 +357,22 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     distDir = './dist',
     serviceName = 'scenario-ui',
     version,
-    corsOrigins,
     verbose = false,
     configBuilder,
     setupRoutes,
+    setupBeforeProxy,
     proxyMetadata,
     scenarioConfig,
     wsPathPrefix,
     wsPathTransform,
+    localPortProxy: localPortProxyOption,
     proxyHeaders,
     proxyTimeoutMs,
     proxyKeepAlive,
     proxyAgent,
     bodyParser = 'json',
     cacheIndexHtml = true,
+    experienceTelemetry: experienceTelemetryOption,
   } = options
 
   // Parse ports
@@ -393,21 +387,86 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     throw new Error('Invalid API_PORT configuration')
   }
 
+  // Local experience telemetry. Resolved once so every request shares the same
+  // retention policy and session directory. Null means the feature is off.
+  const experienceTelemetry = resolveExperienceTelemetry(experienceTelemetryOption, process.env, serviceName)
+  // Evidence identity: prefer the lifecycle's exact build identity over a
+  // human version string, so a session can be tied to the build it observed.
+  const experienceBuildIdentity = process.env.VROOLI_BUILD_IDENTITY || version
+
+  const localPortProxy = localPortProxyOption
+    ? createLocalPortProxy({
+      ...(localPortProxyOption === true ? {} : localPortProxyOption),
+      excludedPorts: [parsedUiPort, parsedApiPort, parsedWsPort ?? parsedApiPort, ...(localPortProxyOption === true ? [] : localPortProxyOption.excludedPorts ?? [])],
+    })
+    : null
+  const configuredLocalPortPathPrefix = localPortProxyOption && typeof localPortProxyOption === 'object' ? localPortProxyOption.pathPrefix : undefined
+  const localPortPathPrefix = (configuredLocalPortPathPrefix || '/_local').trim().replace(/\/+$/, '') || '/_local'
+
   // Create Express app
   const app = express()
 
   // Disable X-Powered-By header for security
   app.disable('x-powered-by')
 
-  // CORS middleware
-  app.use(createCorsMiddleware(corsOrigins, verbose))
+  // The loopback proxy has its own opaque-origin capability policy: its
+  // sandboxed documents send `Origin: null` by design. Mount it before the
+  // scenario origin policy, which would refuse them, and keep the two
+  // policies independent.
+  if (localPortProxy) {
+    app.use(localPortPathPrefix, localPortProxy.router)
+    ;(app as any).__localPortProxyDestroy = localPortProxy.destroy
+  }
+
+  // Browser origin policy: refuse cross-origin browser requests before any
+  // route, proxy or static handler runs (see origin-policy.ts).
+  app.use(originPolicy.middleware({ verbose }))
+
+  // Scenario ingress policy must run before any generic proxy.
+  if (setupBeforeProxy) setupBeforeProxy(app)
+
+  // Local experience telemetry endpoints. Mounted before the API proxy and the
+  // global body parser so the ingest route owns its own size-capped parser.
+  if (experienceTelemetry) {
+    app.use(createExperienceTelemetryRouter(experienceTelemetry))
+  }
 
   // HTML injection middleware (if needed)
-  if (proxyMetadata || scenarioConfig) {
-    app.use(createHtmlInjectionMiddleware(options))
+  if (proxyMetadata || scenarioConfig || experienceTelemetry) {
+    app.use(createHtmlInjectionMiddleware(options, experienceTelemetry, experienceBuildIdentity))
   }
 
   const resolvedProxyAgent = resolveProxyAgent({ agent: proxyAgent, keepAlive: proxyKeepAlive })
+
+  // Connect-RPC proxy.
+  //
+  // Connect procedures live at /<fully.qualified.Service>/<MethodName> with
+  // no shared prefix, so the /api mount below can't reach them. The pattern
+  // requires a dotted package (at least one '.' before the first slash) and
+  // an UpperCamelCase method name, which matches Connect's URL grammar
+  // exactly and can't shadow any SPA route or static asset.
+  //
+  // proxyToApi is invoked directly here (rather than createProxyMiddleware)
+  // because the middleware coerces every path under /api; Connect paths must
+  // be forwarded unchanged.
+  app.use(CONNECT_PATH_PATTERN, async (req: Request, res: Response) => {
+    const headers = typeof proxyHeaders === 'function' ? proxyHeaders(req) : (proxyHeaders ?? {})
+    await proxyToApi(req, res, req.originalUrl, {
+      apiPort: parsedApiPort,
+      apiHost,
+      verbose,
+      headers,
+      timeout: proxyTimeoutMs,
+      agent: resolvedProxyAgent,
+    })
+  })
+
+  // Built-in app notifications (opt-in through notifications.json). Mounted
+  // before the body parser so request bodies reach the hub unchanged.
+  const appNotifications = resolveAppNotifications(options.appNotifications, serviceName)
+  if (appNotifications) {
+    app.use(APP_NOTIFICATIONS_PREFIX, createAppNotificationsRouter(appNotifications))
+  }
 
   // API proxy middleware
   app.use('/api', createProxyMiddleware({
@@ -451,6 +510,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   app.get('/health', createHealthEndpoint({
     serviceName,
     version,
+    buildIdentity: process.env.VROOLI_BUILD_IDENTITY,
     apiPort: parsedApiPort,
     apiHost,
   }))
@@ -479,8 +539,30 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     console.warn('[server] Static files will not be served. Run build first.')
   }
 
-  // Serve static files with production-friendly caching
+  app.use(gzipStaticResponseMiddleware)
+
+  // Serve the entry document explicitly so the HTML injection middleware sees
+  // it. express.static streams index.html directly, bypassing res.send, which
+  // used to restrict metadata/config/experience injection to SPA fallback
+  // routes and silently miss the root document.
+  app.get(['/', '/index.html'], (_req: Request, res: Response, next: NextFunction) => {
+    if (!fs.existsSync(indexPath)) {
+      next()
+      return
+    }
+    try {
+      const html = injectBaseTag(loadIndexHtml(), '/')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.type('html').send(html)
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  // Serve static files with production-friendly caching. `index: false` keeps
+  // the root document on the explicit route above.
   app.use(express.static(absoluteDistDir, {
+    index: false,
     setHeaders: (res, servedPath) => {
       applyStaticCacheHeaders(res as Response, servedPath)
     },
@@ -497,7 +579,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
     // CRITICAL: Skip proxy routes - they should be handled by custom route handlers
     // Proxy routes contain '/proxy' in the path (e.g., /apps/scenario/proxy/*)
-    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/')) {
+    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/') || requestPath.startsWith(`${APP_NOTIFICATIONS_PREFIX}/`) || requestPath.startsWith('/__vrooli/experience/') || (localPortProxy && requestPath.startsWith(`${localPortPathPrefix}/`))) {
       // Don't serve index.html for proxy routes - let them 404 or be handled by custom routes
       if (verbose) {
         console.log(`[server] Skipping SPA fallback for proxy route: ${requestPath}`)
@@ -557,26 +639,26 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     if (wsPathPrefix) {
       console.log(`  WebSocket Proxy: ${wsPathPrefix} -> API server`)
     }
+    if (localPortProxy) console.log(`  Local Port Proxy: ${localPortPathPrefix}/<port>/ -> loopback`)
   }
 
   // Attach WebSocket upgrade handler if configured
-  if (wsPathPrefix) {
-    // Store upgrade handler on app for later attachment to HTTP server
-    // This is a bit of a hack, but Express doesn't support upgrade events directly
+  if (wsPathPrefix || localPortProxy) {
+    // Express has no upgrade hook, so the handler is stored on the app and
+    // bound to whichever http.Server ends up serving it. Both start paths bind
+    // it: startScenarioServer binds its own server explicitly, and app.listen
+    // is wrapped below so a caller that starts the app itself is not silently
+    // left without WebSocket proxying.
     ;(app as any).__wsUpgradeHandler = (req: any, socket: any, head: any) => {
-      if (!req.url || !req.url.startsWith(wsPathPrefix)) {
-        socket.destroy()
+      if (!req.url || !wsPathPrefix || !req.url.startsWith(wsPathPrefix)) {
+        if (!localPortProxy?.handleUpgrade(req, socket, head)) socket.destroy()
         return
       }
 
-      // Transform path
-      let transformedPath: string
-      if (wsPathTransform) {
-        transformedPath = wsPathTransform(req.url)
-      } else {
-        // Default: replace prefix with /api/v1
-        transformedPath = req.url.replace(new RegExp(`^${wsPathPrefix}`), '/api/v1')
-      }
+      // wsPathPrefix selects which upgrades to proxy; it does not rewrite them.
+      // The upstream path is preserved unless a caller asks for a remap, so a
+      // prefix the API also serves needs no transform to work.
+      const transformedPath = wsPathTransform ? wsPathTransform(req.url) : req.url
 
       // Build headers
       let headers = proxyHeaders || {}
@@ -597,11 +679,48 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
         apiHost: wsHost || apiHost,
         verbose,
         headers,
+        originPolicy,
       })
     }
+
+    // A caller that starts the app itself (createScenarioServer + app.listen,
+    // rather than startScenarioServer) would otherwise receive an app whose
+    // wsPathPrefix is configured but never bound. The upgrade would fall
+    // through to the ordinary HTTP proxy, reach the API as a plain GET, and be
+    // rejected there — a 400 that names nothing about the missing binding.
+    // Wrapping listen makes the option behave the same on both start paths.
+    const originalListen = app.listen.bind(app)
+    app.listen = ((...args: unknown[]) => {
+      const server = originalListen(...(args as Parameters<typeof originalListen>))
+      attachWsUpgradeHandler(server, app)
+      return server
+    }) as typeof app.listen
   }
 
   return app
+}
+
+/**
+ * Bind an app's configured WebSocket upgrade handler to the server that serves
+ * it. Safe to call more than once for the same pair: a second call for an
+ * already-bound server is a no-op, so a caller that both wraps listen and binds
+ * explicitly does not proxy each upgrade twice.
+ */
+export function attachWsUpgradeHandler(server: http.Server, app: Express): void {
+  const handler = (app as any).__wsUpgradeHandler
+  if (!handler) return
+
+  const bound: Set<http.Server> =
+    (app as any).__wsUpgradeBoundServers ??
+    ((app as any).__wsUpgradeBoundServers = new Set<http.Server>())
+  if (bound.has(server)) return
+
+  bound.add(server)
+  server.on('upgrade', handler)
+  server.once('close', () => {
+    bound.delete(server)
+    ;(app as any).__localPortProxyDestroy?.()
+  })
 }
 
 /**
@@ -636,10 +755,7 @@ export function startScenarioServer(options: ServerTemplateOptions): Express {
   const server = http.createServer(app)
 
   // Attach WebSocket upgrade handler if it was configured
-  const wsUpgradeHandler = (app as any).__wsUpgradeHandler
-  if (wsUpgradeHandler) {
-    server.on('upgrade', wsUpgradeHandler)
-  }
+  attachWsUpgradeHandler(server, app)
 
   server.listen(Number.parseInt(port, 10), '0.0.0.0', () => {
     console.log(`${options.serviceName || 'Scenario'} UI server listening on port ${port}`)

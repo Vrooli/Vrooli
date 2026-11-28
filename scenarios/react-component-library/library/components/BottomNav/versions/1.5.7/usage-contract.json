@@ -1,0 +1,17 @@
+{
+  "componentId": "react-component-library:BottomNav",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 5,
+    "maximumLabelCharacters": 16,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "requiredFields": [
+      "id",
+      "label"
+    ],
+    "stableIdField": "id",
+    "typicalCount": 4
+  },
+  "version": "1.5.7"
+}

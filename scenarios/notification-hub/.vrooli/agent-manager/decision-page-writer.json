@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "notification-hub-decision-page-writer",
+  "profileKey": "notification-hub/decision-page-writer",
+  "description": "The shared decision-page writer (packages/api-core/decisionpage). One Codex Luna run makes one Notification Hub decision page from a sender's facts and evidence, following a brief in its job folder under ~/.vrooli/state/vrooli/decision-pages/. It reads the notification-hub skill, writes page.html, RETURN.md and shots/ in that folder, checks the page with `notification-hub pages check` and photographs it with headless Chrome. It sends nothing. No sandbox, because the job folder is outside the repository and Chrome needs the host.",
+  "roleRef": "code.cheap",
+  "effort": "medium",
+  "maxTurns": 0,
+  "timeout": "1800s",
+  "allowedTools": ["read", "glob", "grep", "shell", "edit", "write"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": true,
+  "networkAccess": "NETWORK_ACCESS_FULL",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF",
+    "networkMode": "NETWORK_ACCESS_FULL"
+  },
+  "createdBy": "notification-hub",
+  "spawnPolicy": {
+    "axisOrder": ["executionMode", "sandboxMode"],
+    "executionMode": {"prefer": ["codec_pipe"]},
+    "sandboxMode": {"prefer": ["off"]},
+    "require": []
+  }
+}

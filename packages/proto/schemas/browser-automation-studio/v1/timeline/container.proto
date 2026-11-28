@@ -12,9 +12,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // EXECUTION TIMELINE (BATCH API FORMAT)
 // =============================================================================
 //
-// @layer 4
-// @domain timeline
-// @imports base, timeline
 // @stability stable
 //
 // Defines the container for batch timeline data, returned by REST API
@@ -35,7 +32,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // ExecutionTimeline is returned by GET /api/v1/executions/{id}/timeline.
 // Contains all timeline entries from a completed or in-progress execution.
 //
-// @usage GET /api/v1/executions/{id}/timeline response body
 message ExecutionTimeline {
   // Unique identifier for this execution.
   // @format uuid

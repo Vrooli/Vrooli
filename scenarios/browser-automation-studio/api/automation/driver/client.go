@@ -18,8 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -34,8 +33,18 @@ const (
 	// DefaultExecutionTimeout is the timeout for execution operations (longer, for slow playwright ops).
 	DefaultExecutionTimeout = 5 * time.Minute
 
+	// DriverExecutionTimeoutEnv allows operators to raise the HTTP deadline when
+	// a single driver operation itself is expected to run longer than five minutes.
+	DriverExecutionTimeoutEnv = "BAS_DRIVER_EXECUTION_TIMEOUT_MS"
+
 	// PlaywrightDriverEnv is the environment variable for the driver URL.
 	PlaywrightDriverEnv = "PLAYWRIGHT_DRIVER_URL"
+	// PlaywrightDriverAdminSecretEnv authorizes only the loopback recovery
+	// endpoint. It is never sent with normal lease-protected operations.
+	PlaywrightDriverAdminSecretEnv = "PLAYWRIGHT_DRIVER_ADMIN_SECRET"
+	SessionExecutionHeader         = "X-BAS-Execution-ID"
+	SessionLeaseHeader             = "X-BAS-Session-Lease-ID"
+	maxSessionAdmissionRetryDelay  = 500 * time.Millisecond
 )
 
 // HTTPDoer is an interface for making HTTP requests.
@@ -52,32 +61,33 @@ var _ HTTPDoer = (*http.Client)(nil)
 // handlers to call driver methods directly without service-layer indirection.
 type ClientInterface interface {
 	// Recording operations
-	StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error)
-	GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error)
-	GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*GetActionsResponse, error)
+	GetRecordingStatus(ctx context.Context, sessionID, executionID, leaseID string) (*RecordingStatusResponse, error)
+	GetRecordedActions(ctx context.Context, sessionID, executionID, leaseID string) (*GetActionsResponse, error)
 
 	// Navigation operations
-	Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error)
-	Reload(ctx context.Context, sessionID string, req *ReloadRequest) (*ReloadResponse, error)
-	GoBack(ctx context.Context, sessionID string, req *GoBackRequest) (*GoBackResponse, error)
-	GoForward(ctx context.Context, sessionID string, req *GoForwardRequest) (*GoForwardResponse, error)
-	GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error)
-	GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error)
+	GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStateResponse, error)
+	GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStackResponse, error)
 
 	// Viewport and stream operations
-	UpdateViewport(ctx context.Context, sessionID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error)
-	UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error)
+	UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error)
+	UpdateStreamSettings(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error)
 
 	// Selector and replay operations
-	ValidateSelector(ctx context.Context, sessionID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error)
-	ReplayPreview(ctx context.Context, sessionID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error)
+	ValidateSelector(ctx context.Context, sessionID, executionID, leaseID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error)
+	ReplayPreview(ctx context.Context, sessionID, executionID, leaseID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error)
 
 	// Screenshot and frame operations
-	CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
-	GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error)
+	CaptureScreenshot(ctx context.Context, sessionID, executionID, leaseID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error)
+	GetFrame(ctx context.Context, sessionID, executionID, leaseID, queryParams string) (*GetFrameResponse, error)
+}
 
-	// Input forwarding
-	ForwardInput(ctx context.Context, sessionID string, body []byte) error
+// ForwardInputResponse identifies the sequence the driver actually applied.
+// CoalescedCount reports pending pointer moves replaced by this applied move.
+type ForwardInputResponse struct {
+	Status          string `json:"status"`
+	AppliedSequence uint64 `json:"applied_sequence"`
+	CoalescedCount  int    `json:"coalesced_count"`
+	InputID         string `json:"input_id,omitempty"`
 }
 
 // Compile-time interface enforcement for ClientInterface
@@ -86,10 +96,11 @@ var _ ClientInterface = (*Client)(nil)
 // Client provides unified HTTP communication with the playwright-driver.
 // It supports both recording mode and execution mode operations.
 type Client struct {
-	baseURL    string
-	httpClient HTTPDoer
-	log        *logrus.Logger
-	breaker    *resilience.Breaker
+	baseURL     string
+	httpClient  HTTPDoer
+	log         *logrus.Logger
+	breaker     *resilience.Breaker
+	adminSecret string
 }
 
 // ClientOption configures a Client.
@@ -123,6 +134,15 @@ func WithCircuitBreaker(breaker *resilience.Breaker) ClientOption {
 	}
 }
 
+// WithAdminSecret configures the loopback-only secret used exclusively by
+// terminal-session reconciliation. Normal lease-protected operations never
+// send this value.
+func WithAdminSecret(secret string) ClientOption {
+	return func(c *Client) {
+		c.adminSecret = strings.TrimSpace(secret)
+	}
+}
+
 // WithoutCircuitBreaker disables the circuit breaker.
 func WithoutCircuitBreaker() ClientOption {
 	return func(c *Client) {
@@ -146,10 +166,11 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	cfg.Logger = log
 
 	c := &Client{
-		baseURL:    strings.TrimRight(driverURL, "/"),
-		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        log,
-		breaker:    resilience.NewBreaker(cfg),
+		baseURL:     strings.TrimRight(driverURL, "/"),
+		httpClient:  &http.Client{Timeout: configuredExecutionTimeout()},
+		log:         log,
+		breaker:     resilience.NewBreaker(cfg),
+		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
 	}
 
 	for _, opt := range opts {
@@ -177,10 +198,11 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	cfg.Logger = log
 
 	c := &Client{
-		baseURL:    strings.TrimRight(driverURL, "/"),
-		httpClient: &http.Client{Timeout: DefaultExecutionTimeout},
-		log:        log,
-		breaker:    resilience.NewBreaker(cfg),
+		baseURL:     strings.TrimRight(driverURL, "/"),
+		httpClient:  &http.Client{Timeout: configuredExecutionTimeout()},
+		log:         log,
+		breaker:     resilience.NewBreaker(cfg),
+		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
 	}
 
 	for _, opt := range opts {
@@ -194,6 +216,15 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func configuredExecutionTimeout() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv(DriverExecutionTimeoutEnv)); raw != "" {
+		if milliseconds, err := strconv.ParseInt(raw, 10, 64); err == nil && milliseconds > 0 {
+			return time.Duration(milliseconds) * time.Millisecond
+		}
+	}
+	return DefaultExecutionTimeout
 }
 
 // NewRecordingClient creates a client optimized for recording operations (shorter timeout).
@@ -278,6 +309,9 @@ func (c *Client) Health(ctx context.Context) error {
 			Hint:    "check playwright-driver logs for errors",
 		}
 	}
+	if c.breaker != nil && c.breaker.IsOpen() {
+		c.breaker.Reset()
+	}
 
 	return nil
 }
@@ -288,13 +322,15 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	if c.log != nil {
 		c.log.WithFields(logrus.Fields{
 			"execution_id":    req.ExecutionID,
-			"viewport_width":  req.Viewport.Width,
-			"viewport_height": req.Viewport.Height,
+			"viewport_width":  req.Options.Viewport.Width,
+			"viewport_height": req.Options.Viewport.Height,
 		}).Debug("Creating playwright session")
 	}
 
 	var resp CreateSessionResponse
-	if err := c.post(ctx, "/session/start", req, &resp); err != nil {
+	if err := waitForSessionAdmission(ctx, 30*time.Second, 250*time.Millisecond, func() error {
+		return c.post(ctx, "/session/start", req, &resp)
+	}); err != nil {
 		return nil, err
 	}
 
@@ -310,13 +346,126 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	return &resp, nil
 }
 
-// CloseSession closes a browser session.
-func (c *Client) CloseSession(ctx context.Context, sessionID string) (*CloseSessionResponse, error) {
-	var resp CloseSessionResponse
-	if err := c.postNoBody(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &resp); err != nil {
+// waitForSessionAdmission retries only an explicit capacity rejection, which
+// guarantees that no browser was allocated. Transport errors and ambiguous
+// responses must never redispatch session creation. The caller can cancel the
+// bounded wait; existing sessions are never evicted to admit a new execution.
+func waitForSessionAdmission(ctx context.Context, budget, delay time.Duration, attempt func() error) error {
+	deadline := time.Now().Add(budget)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := attempt()
+		var driverErr *Error
+		if !errors.As(err, &driverErr) || driverErr.Status != http.StatusTooManyRequests || !driverErr.IsSessionLimitError() {
+			return err
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return err
+		}
+		timer := time.NewTimer(min(delay, remaining))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+		if !time.Now().Before(deadline) {
+			return err
+		}
+		delay = nextSessionAdmissionDelay(delay)
+	}
+}
+
+func nextSessionAdmissionDelay(delay time.Duration) time.Duration {
+	return min(delay*2, maxSessionAdmissionRetryDelay)
+}
+
+// CreateSessionForDrill executes the normal admission path with a scoped
+// test token. Only BAS's controlled drill orchestrator uses this method.
+func (c *Client) CreateSessionForDrill(ctx context.Context, req *CreateSessionRequest, token string) (*CreateSessionResponse, error) {
+	var resp CreateSessionResponse
+	if err := c.postWithHeaders(ctx, "/session/start", req, &resp, http.Header{"X-Playwright-Drill-Token": []string{token}}); err != nil {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// CloseSessionWithLease closes only the session currently leased by executionID.
+func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, executionID, leaseID string) (*CloseSessionResponse, error) {
+	var resp CloseSessionResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/close", url.PathEscape(sessionID)), &CloseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp); err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return &resp, errors.New("driver did not acknowledge session close")
+	}
+	return &resp, nil
+}
+
+// ListObservedSessions returns recovery metadata without mutating session
+// activity. The endpoint is deliberately separate from normal session use so
+// reconciliation cannot keep an idle session alive.
+func (c *Client) ListObservedSessions(ctx context.Context) ([]ObservedSession, error) {
+	secret := c.adminSecret
+	if secret == "" {
+		return nil, fmt.Errorf("%s is required for administrative session recovery", PlaywrightDriverAdminSecretEnv)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/observability/sessions", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create observed session request: %w", err)
+	}
+	request.Header.Set("X-Playwright-Admin-Secret", secret)
+	var resp ObservedSessionsResponse
+	if err := c.doRequest(request, &resp, "GET /observability/sessions"); err != nil {
+		return nil, err
+	}
+	return resp.Sessions, nil
+}
+
+// ForceCloseSession is an authenticated, loopback-only recovery operation.
+// Normal callers must use CloseSessionWithLease. A missing secret fails closed
+// rather than silently weakening the driver's lease ownership model.
+func (c *Client) ForceCloseSession(ctx context.Context, sessionID, expectedOwnerExecutionID, expectedLeaseID string) error {
+	secret := c.adminSecret
+	if secret == "" {
+		return fmt.Errorf("%s is required for administrative session recovery", PlaywrightDriverAdminSecretEnv)
+	}
+	body, err := json.Marshal(map[string]string{
+		"expected_owner_execution_id": expectedOwnerExecutionID,
+		"expected_lease_id":           expectedLeaseID,
+	})
+	if err != nil {
+		return fmt.Errorf("encode force-close ownership: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+fmt.Sprintf("/session/%s/force-close", url.PathEscape(sessionID)), bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create force-close request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Playwright-Admin-Secret", secret)
+	return c.doRequest(req, &CloseSessionResponse{}, "POST /session/:id/force-close")
+}
+
+// SetAdministrativeSecret configures recovery for a sidecar managed by this
+// API process. It is called during startup before the client serves requests.
+func (c *Client) SetAdministrativeSecret(secret string) {
+	c.adminSecret = strings.TrimSpace(secret)
+}
+
+// ReleaseSessionLease releases only the session currently leased by executionID
+// while retaining the browser resource for an explicitly later reuse.
+func (c *Client) ReleaseSessionLease(ctx context.Context, sessionID, executionID, leaseID string) error {
+	var resp ReleaseSessionResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/release", url.PathEscape(sessionID)), &ReleaseSessionRequest{ExecutionID: executionID, LeaseID: leaseID}, &resp); err != nil {
+		return err
+	}
+	if !resp.Success {
+		return errors.New("driver did not acknowledge session lease release")
+	}
+	return nil
 }
 
 // DownloadArtifact streams an artifact file from the driver.
@@ -373,323 +522,466 @@ func (c *Client) DownloadArtifact(ctx context.Context, path string) (*ArtifactDo
 }
 
 // ResetSession resets a session to clean state (for execution reuse).
-func (c *Client) ResetSession(ctx context.Context, sessionID string) error {
-	return c.postNoBody(ctx, fmt.Sprintf("/session/%s/reset", url.PathEscape(sessionID)), nil)
+func (c *Client) ResetSession(ctx context.Context, sessionID, executionID, leaseID string) error {
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/reset", url.PathEscape(sessionID)), map[string]string{
+		"execution_id": executionID, "lease_id": leaseID,
+	}, &response); err != nil {
+		return err
+	}
+	if !response.Success {
+		return errors.New("driver did not acknowledge session reset")
+	}
+	return nil
 }
 
 // StartRecording starts recording user actions in a session.
-func (c *Client) StartRecording(ctx context.Context, sessionID string, req *StartRecordingRequest) (*StartRecordingResponse, error) {
+func (c *Client) StartRecording(ctx context.Context, sessionID, executionID, leaseID string, req *StartRecordingRequest) (*StartRecordingResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("recording start requires options, execution ID and lease ID")
+	}
+	envelope := struct {
+		StartRecordingRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
 	var resp StartRecordingResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/start", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/start", url.PathEscape(sessionID)), envelope, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // StopRecording stops recording user actions.
-func (c *Client) StopRecording(ctx context.Context, sessionID string) (*StopRecordingResponse, error) {
+func (c *Client) StopRecording(ctx context.Context, sessionID, executionID, leaseID string) (*StopRecordingResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("recording stop requires execution ID and lease ID")
+	}
 	var resp StopRecordingResponse
-	if err := c.postNoBody(ctx, fmt.Sprintf("/session/%s/record/stop", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/stop", url.PathEscape(sessionID)), map[string]string{
+		"execution_id": executionID, "lease_id": leaseID,
+	}, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetRecordingStatus gets the current recording status.
-func (c *Client) GetRecordingStatus(ctx context.Context, sessionID string) (*RecordingStatusResponse, error) {
+func (c *Client) GetRecordingStatus(ctx context.Context, sessionID, executionID, leaseID string) (*RecordingStatusResponse, error) {
 	var resp RecordingStatusResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/status", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.getWithSessionOwner(ctx, fmt.Sprintf("/session/%s/record/status", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetRecordedActions retrieves all recorded actions for a session.
-func (c *Client) GetRecordedActions(ctx context.Context, sessionID string, clear bool) (*GetActionsResponse, error) {
+func (c *Client) GetRecordedActions(ctx context.Context, sessionID, executionID, leaseID string) (*GetActionsResponse, error) {
 	path := fmt.Sprintf("/session/%s/record/actions", url.PathEscape(sessionID))
-	if clear {
-		path += "?clear=true"
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, &Error{
-			Op:      "GET " + path,
-			URL:     c.baseURL,
-			Message: "driver unavailable",
-			Cause:   err,
-			Hint:    "verify playwright-driver is running and PLAYWRIGHT_DRIVER_URL is correct",
-		}
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		bodyStr := strings.TrimSpace(string(body))
-		hint := "check playwright-driver logs for details"
-		if strings.Contains(bodyStr, "Maximum concurrent sessions") {
-			hint = "too many concurrent sessions - wait for other executions to complete or increase session limit"
-		} else if strings.Contains(bodyStr, "browser") && strings.Contains(bodyStr, "launch") {
-			hint = "browser failed to launch - check chromium installation and system resources"
-		}
-		return nil, &Error{
-			Op:      "GET " + path,
-			URL:     c.baseURL,
-			Status:  resp.StatusCode,
-			Message: bodyStr,
-			Hint:    hint,
-		}
-	}
-
-	if len(body) == 0 {
-		return &GetActionsResponse{SessionID: sessionID, Actions: []RecordedAction{}}, nil
-	}
-
 	var raw struct {
 		SessionID   string            `json:"session_id"`
 		IsRecording bool              `json:"is_recording"`
 		Actions     []RecordedAction  `json:"actions"`
 		Entries     []json.RawMessage `json:"entries"`
 	}
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
+	if err := c.getWithSessionOwner(ctx, path, executionID, leaseID, &raw); err != nil {
+		return nil, err
 	}
 
 	actions := raw.Actions
 	if actions == nil {
 		actions = []RecordedAction{}
 	}
+	for i := range actions {
+		RedactSensitiveValues(&actions[i])
+	}
 
 	var entries []*bastimeline.TimelineEntry
+	sanitizedRawEntries := make([]json.RawMessage, 0, len(raw.Entries))
 	for _, entryRaw := range raw.Entries {
 		if len(entryRaw) == 0 {
+			sanitizedRawEntries = append(sanitizedRawEntries, entryRaw)
 			continue
 		}
 		var entry bastimeline.TimelineEntry
 		if err := protojson.Unmarshal(entryRaw, &entry); err != nil {
-			continue
+			return nil, fmt.Errorf("parse recorded entry: %w", err)
 		}
+		if RedactSensitiveTimelineEntry(&entry) {
+			sanitized, err := protojson.Marshal(&entry)
+			if err != nil {
+				return nil, fmt.Errorf("encode redacted recorded entry: %w", err)
+			}
+			entryRaw = sanitized
+		}
+		sanitizedRawEntries = append(sanitizedRawEntries, entryRaw)
 		entries = append(entries, &entry)
 	}
 
-	if len(actions) == 0 && len(entries) > 0 {
-		actions = make([]RecordedAction, 0, len(entries))
-		for _, entry := range entries {
-			actions = append(actions, RecordedActionFromTimelineEntry(entry))
-		}
-	}
-
 	return &GetActionsResponse{
-		SessionID:   raw.SessionID,
-		IsRecording: raw.IsRecording,
-		Actions:     actions,
-		Entries:     raw.Entries,
+		SessionID:       raw.SessionID,
+		IsRecording:     raw.IsRecording,
+		Actions:         actions,
+		Entries:         sanitizedRawEntries,
+		TimelineEntries: entries,
 	}, nil
 }
 
-// Navigate navigates the session to a URL (recording mode).
-func (c *Client) Navigate(ctx context.Context, sessionID string, req *NavigateRequest) (*NavigateResponse, error) {
+// AcknowledgeRecordedActions removes only the entries already committed by the caller.
+func (c *Client) AcknowledgeRecordedActions(ctx context.Context, sessionID, executionID, leaseID string, ids []string) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return errors.New("recording acknowledgement requires execution ID and lease ID")
+	}
+	var receipt struct {
+		EntryIDs []string `json:"entry_ids"`
+	}
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/actions/ack", url.PathEscape(sessionID)), map[string]interface{}{
+		"execution_id": executionID, "lease_id": leaseID, "entry_ids": ids,
+	}, &receipt); err != nil {
+		return err
+	}
+	if len(receipt.EntryIDs) != len(ids) {
+		return errors.New("driver did not acknowledge the committed recording entries")
+	}
+	for i, id := range ids {
+		if receipt.EntryIDs[i] != id {
+			return errors.New("driver acknowledged different recording entries")
+		}
+	}
+	return nil
+}
+
+// Navigate navigates under the caller's immutable execution lease.
+func (c *Client) Navigate(ctx context.Context, sessionID, executionID, leaseID string, req *NavigateRequest) (*NavigateResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("navigation requires options, execution ID and lease ID")
+	}
+	envelope := struct {
+		NavigateRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
 	var resp NavigateResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/navigate", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/navigate", url.PathEscape(sessionID)), envelope, &resp); err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(resp.DriverPageID) == "" {
+		return nil, errors.New("navigation completed without a browser page identity")
 	}
 	return &resp, nil
 }
 
-// Reload reloads the current page (recording mode).
-func (c *Client) Reload(ctx context.Context, sessionID string, req *ReloadRequest) (*ReloadResponse, error) {
-	var resp ReloadResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/reload", url.PathEscape(sessionID)), req, &resp); err != nil {
+// NavigateHistory applies one supported history operation under the caller's lease.
+func (c *Client) NavigateHistory(ctx context.Context, sessionID, executionID, leaseID string, operation HistoryNavigation, req *HistoryNavigationRequest) (*HistoryNavigationResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("history navigation requires options, execution ID and lease ID")
+	}
+	switch operation {
+	case HistoryReload, HistoryBack, HistoryForward:
+	default:
+		return nil, fmt.Errorf("unsupported history navigation %q", operation)
+	}
+	envelope := struct {
+		HistoryNavigationRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
+	var resp HistoryNavigationResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/%s", url.PathEscape(sessionID), operation), envelope, &resp); err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(resp.DriverPageID) == "" {
+		return nil, errors.New("navigation completed without a browser page identity")
 	}
 	return &resp, nil
 }
 
-// GoBack navigates back in browser history (recording mode).
-func (c *Client) GoBack(ctx context.Context, sessionID string, req *GoBackRequest) (*GoBackResponse, error) {
-	var resp GoBackResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/go-back", url.PathEscape(sessionID)), req, &resp); err != nil {
-		return nil, err
+// readNavigation attributes browser observations to the admitted lease and page.
+func (c *Client) readNavigation(ctx context.Context, sessionID, executionID, leaseID, expectedPageID, kind string, response any) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" || strings.TrimSpace(expectedPageID) == "" {
+		return errors.New("navigation read requires execution ID, lease ID and page ID")
 	}
-	return &resp, nil
-}
-
-// GoForward navigates forward in browser history (recording mode).
-func (c *Client) GoForward(ctx context.Context, sessionID string, req *GoForwardRequest) (*GoForwardResponse, error) {
-	var resp GoForwardResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/go-forward", url.PathEscape(sessionID)), req, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	query := url.Values{"execution_id": {executionID}, "lease_id": {leaseID}, "expected_page_id": {expectedPageID}}
+	return c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-%s?%s", url.PathEscape(sessionID), kind, query.Encode()), response)
 }
 
 // GetNavigationState retrieves the current navigation state (recording mode).
-func (c *Client) GetNavigationState(ctx context.Context, sessionID string) (*NavigationStateResponse, error) {
+func (c *Client) GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStateResponse, error) {
 	var resp NavigationStateResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-state", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.readNavigation(ctx, sessionID, executionID, leaseID, expectedPageID, "state", &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetNavigationStack retrieves the navigation history stack for back/forward popup.
-func (c *Client) GetNavigationStack(ctx context.Context, sessionID string) (*NavigationStackResponse, error) {
+func (c *Client) GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*NavigationStackResponse, error) {
 	var resp NavigationStackResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/record/navigation-stack", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.readNavigation(ctx, sessionID, executionID, leaseID, expectedPageID, "stack", &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UpdateViewport updates the viewport dimensions.
-func (c *Client) UpdateViewport(ctx context.Context, sessionID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error) {
+func (c *Client) UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateViewportRequest) (*UpdateViewportResponse, error) {
+	if req == nil || strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" || strings.TrimSpace(req.ExpectedPageID) == "" {
+		return nil, errors.New("viewport update requires options, execution ID, lease ID and page ID")
+	}
+	body := struct {
+		UpdateViewportRequest
+		ExecutionID string `json:"execution_id"`
+		LeaseID     string `json:"lease_id"`
+	}{*req, executionID, leaseID}
 	var resp UpdateViewportResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/viewport", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/viewport", url.PathEscape(sessionID)), body, &resp); err != nil {
 		return nil, err
+	}
+	if resp.DriverPageID != req.ExpectedPageID || resp.Width <= 0 || resp.Height <= 0 {
+		return nil, errors.New("viewport update returned an invalid page or dimensions")
 	}
 	return &resp, nil
 }
 
 // ValidateSelector validates a selector on the current page.
-func (c *Client) ValidateSelector(ctx context.Context, sessionID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error) {
+func (c *Client) ValidateSelector(ctx context.Context, sessionID, executionID, leaseID string, req *ValidateSelectorRequest) (*ValidateSelectorResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
+	owned := *req
+	owned.ExecutionID, owned.LeaseID = executionID, leaseID
 	var resp ValidateSelectorResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/validate-selector", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/validate-selector", url.PathEscape(sessionID)), &owned, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // ReplayPreview replays recorded actions for testing.
-func (c *Client) ReplayPreview(ctx context.Context, sessionID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error) {
+func (c *Client) ReplayPreview(ctx context.Context, sessionID, executionID, leaseID string, req *ReplayPreviewRequest) (*ReplayPreviewResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
+	owned := *req
+	owned.ExecutionID, owned.LeaseID = executionID, leaseID
 	var resp ReplayPreviewResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/replay-preview", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/replay-preview", url.PathEscape(sessionID)), &owned, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UpdateStreamSettings updates the stream settings for a session.
-func (c *Client) UpdateStreamSettings(ctx context.Context, sessionID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error) {
+func (c *Client) UpdateStreamSettings(ctx context.Context, sessionID, executionID, leaseID string, req *UpdateStreamSettingsRequest) (*UpdateStreamSettingsResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
+	owned := *req
+	owned.ExecutionID, owned.LeaseID = executionID, leaseID
 	var resp UpdateStreamSettingsResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/stream-settings", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/stream-settings", url.PathEscape(sessionID)), &owned, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // CaptureScreenshot captures a screenshot from the current page.
-func (c *Client) CaptureScreenshot(ctx context.Context, sessionID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error) {
+func (c *Client) CaptureScreenshot(ctx context.Context, sessionID, executionID, leaseID string, req *CaptureScreenshotRequest) (*CaptureScreenshotResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("screenshot capture requires execution ID and lease ID")
+	}
+	copy := *req
+	copy.ExecutionID, copy.LeaseID = executionID, leaseID
 	var resp CaptureScreenshotResponse
-	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/screenshot", url.PathEscape(sessionID)), req, &resp); err != nil {
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/screenshot", url.PathEscape(sessionID)), &copy, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // GetFrame retrieves the current frame from the session.
-func (c *Client) GetFrame(ctx context.Context, sessionID, queryParams string) (*GetFrameResponse, error) {
-	path := fmt.Sprintf("/session/%s/record/frame", url.PathEscape(sessionID))
-	if queryParams != "" {
-		path += "?" + queryParams
+func (c *Client) GetFrame(ctx context.Context, sessionID, executionID, leaseID, queryParams string) (*GetFrameResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("frame capture requires execution ID and lease ID")
 	}
+	path := fmt.Sprintf("/session/%s/record/frame", url.PathEscape(sessionID))
+	query := url.Values{"execution_id": {executionID}, "lease_id": {leaseID}}
+	if queryParams != "" {
+		requested, err := url.ParseQuery(queryParams)
+		if err != nil || requested.Has("execution_id") || requested.Has("lease_id") {
+			return nil, errors.New("frame query contains invalid or reserved owner fields")
+		}
+		for key, values := range requested {
+			for _, value := range values {
+				query.Add(key, value)
+			}
+		}
+	}
+	path += "?" + query.Encode()
 	var resp GetFrameResponse
 	if err := c.get(ctx, path, &resp); err != nil {
 		return nil, err
+	}
+	if resp.SessionID != sessionID || resp.Image == "" || resp.Mime != "image/jpeg" ||
+		resp.Width <= 0 || resp.Height <= 0 || resp.CapturedAt == "" || resp.ContentHash == "" {
+		return nil, errors.New("driver returned an invalid live frame receipt")
 	}
 	return &resp, nil
 }
 
 // ForwardInput forwards pointer/keyboard/wheel events to the driver.
-func (c *Client) ForwardInput(ctx context.Context, sessionID string, body []byte) error {
-	return c.postRaw(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), body, nil)
+func (c *Client) ForwardInput(ctx context.Context, sessionID, executionID, leaseID string, body []byte) (*ForwardInputResponse, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return nil, errors.New("live input requires execution ID and lease ID")
+	}
+	var input map[string]json.RawMessage
+	if err := json.Unmarshal(body, &input); err != nil || input == nil {
+		return nil, errors.New("live input requires a JSON object")
+	}
+	// The owned Session supplies authority; caller JSON cannot override it.
+	input["execution_id"], _ = json.Marshal(executionID)
+	input["lease_id"], _ = json.Marshal(leaseID)
+	var receipt ForwardInputResponse
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/input", url.PathEscape(sessionID)), input, &receipt); err != nil {
+		return nil, err
+	}
+	if receipt.Status != "ok" || receipt.AppliedSequence == 0 {
+		return nil, errors.New("driver returned an invalid live input receipt")
+	}
+	return &receipt, nil
 }
 
 // SetActivePage switches the active page for frame streaming and input forwarding.
 // The driverPageID is the Playwright driver's internal identifier for the page.
-func (c *Client) SetActivePage(ctx context.Context, sessionID, driverPageID string) error {
+func (c *Client) SetActivePage(ctx context.Context, sessionID, executionID, leaseID, driverPageID string) error {
 	req := map[string]string{
-		"page_id": driverPageID,
+		"page_id": driverPageID, "execution_id": executionID, "lease_id": leaseID,
 	}
 	return c.post(ctx, fmt.Sprintf("/session/%s/record/active-page", url.PathEscape(sessionID)), req, nil)
 }
 
-// CreatePageRequest is the request body for creating a new page.
-type CreatePageRequest struct {
-	URL string `json:"url"`
+// ClosePageResponse identifies the closed browser page and resulting selection.
+type ClosePageResponse struct {
+	ClosedPageID string `json:"closed_page_id"`
+	ActivePageID string `json:"active_page_id"`
+}
+
+func (c *Client) ClosePage(ctx context.Context, sessionID, executionID, leaseID, pageID string) (*ClosePageResponse, error) {
+	var response ClosePageResponse
+	req := map[string]string{"page_id": pageID, "execution_id": executionID, "lease_id": leaseID}
+	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/close-page", url.PathEscape(sessionID)), req, &response); err != nil {
+		return nil, err
+	}
+	if response.ClosedPageID != pageID || response.ActivePageID == pageID {
+		return nil, errors.New("browser close receipt does not match the requested page")
+	}
+	return &response, nil
 }
 
 // CreatePageResponse is the response from creating a new page.
 type CreatePageResponse struct {
-	DriverPageID string `json:"driver_page_id"`
-	URL          string `json:"url"`
+	DriverPageID string  `json:"driver_page_id"`
+	URL          string  `json:"url"`
+	Title        string  `json:"title"`
+	FaviconURL   *string `json:"favicon_url,omitempty"`
 }
 
 // CreatePage creates a new page (tab) in the browser session.
-func (c *Client) CreatePage(ctx context.Context, sessionID string, pageURL string) (*CreatePageResponse, error) {
-	req := CreatePageRequest{URL: pageURL}
+func (c *Client) CreatePage(ctx context.Context, sessionID, executionID, leaseID, pageURL string) (*CreatePageResponse, error) {
+	return c.createPage(ctx, sessionID, executionID, leaseID, pageURL, "")
+}
+
+// CreatePopupPage creates a page through a specific opener page in the same
+// owned session, preserving the browser's opener relationship.
+func (c *Client) CreatePopupPage(ctx context.Context, sessionID, executionID, leaseID, pageURL, openerPageID string) (*CreatePageResponse, error) {
+	if strings.TrimSpace(openerPageID) == "" {
+		return nil, errors.New("popup opener page identity is required")
+	}
+	return c.createPage(ctx, sessionID, executionID, leaseID, pageURL, openerPageID)
+}
+
+func (c *Client) createPage(ctx context.Context, sessionID, executionID, leaseID, pageURL, openerPageID string) (*CreatePageResponse, error) {
+	req := map[string]string{"url": pageURL, "execution_id": executionID, "lease_id": leaseID}
+	if openerPageID != "" {
+		req["opener_driver_page_id"] = openerPageID
+	}
 	var resp CreatePageResponse
 	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/new-page", url.PathEscape(sessionID)), req, &resp); err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(resp.DriverPageID) == "" {
+		return nil, errors.New("created browser page has no identity")
 	}
 	return &resp, nil
 }
 
 // GetStorageState retrieves the browser storage state for session persistence.
-func (c *Client) GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
+func (c *Client) GetStorageState(ctx context.Context, sessionID, executionID, leaseID string) (json.RawMessage, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp struct {
 		StorageState json.RawMessage `json:"storage_state"`
 	}
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/storage-state", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.getWithSessionOwner(ctx, fmt.Sprintf("/session/%s/storage-state", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return resp.StorageState, nil
 }
 
 // GetServiceWorkers retrieves the service workers for a session.
-func (c *Client) GetServiceWorkers(ctx context.Context, sessionID string) (*GetServiceWorkersResponse, error) {
+func (c *Client) GetServiceWorkers(ctx context.Context, sessionID, executionID, leaseID string) (*GetServiceWorkersResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp GetServiceWorkersResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.getWithSessionOwner(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UnregisterAllServiceWorkers unregisters all service workers for a session.
-func (c *Client) UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*UnregisterServiceWorkersResponse, error) {
+func (c *Client) UnregisterAllServiceWorkers(ctx context.Context, sessionID, executionID, leaseID string) (*UnregisterServiceWorkersResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp UnregisterServiceWorkersResponse
-	if err := c.delete(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.deleteWithSessionOwner(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UnregisterServiceWorker unregisters a specific service worker by scope URL.
-func (c *Client) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*UnregisterServiceWorkerResponse, error) {
+func (c *Client) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL, executionID, leaseID string) (*UnregisterServiceWorkerResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp UnregisterServiceWorkerResponse
-	if err := c.delete(ctx, fmt.Sprintf("/session/%s/service-workers/%s", url.PathEscape(sessionID), url.PathEscape(scopeURL)), &resp); err != nil {
+	if err := c.deleteWithSessionOwner(ctx, fmt.Sprintf("/session/%s/service-workers/%s", url.PathEscape(sessionID), url.PathEscape(scopeURL)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-// RunInstructions runs simple instructions in a session (e.g., initial navigation).
-// This is a convenience method for recording mode that doesn't need full step outcomes.
-func (c *Client) RunInstructions(ctx context.Context, sessionID string, instructions []map[string]interface{}) error {
-	req := RunInstructionsRequest{Instructions: instructions}
-	return c.post(ctx, fmt.Sprintf("/session/%s/run", url.PathEscape(sessionID)), req, nil)
-}
-
 // RunInstruction executes a compiled instruction and returns the step outcome.
 // This is the primary execution method used by the workflow executor.
-func (c *Client) RunInstruction(ctx context.Context, sessionID string, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+func (c *Client) RunInstruction(ctx context.Context, sessionID, executionID, leaseID string, operationSequence uint64, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return contracts.StepOutcome{}, errors.New("execution_id and lease_id are required to run an instruction")
+	}
 	requestBody, err := buildInstructionPayload(instruction)
 	if err != nil {
 		return contracts.StepOutcome{}, err
 	}
+	requestBody["execution_id"] = executionID
+	requestBody["lease_id"] = leaseID
+	requestBody["operation_sequence"] = operationSequence
+	requestBody["invocation_id"] = instruction.InvocationID
+	requestBody["attempt"] = instruction.Attempt
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(requestBody); err != nil {
 		return contracts.StepOutcome{}, fmt.Errorf("encode run request: %w", err)
@@ -701,22 +993,47 @@ func (c *Client) RunInstruction(ctx context.Context, sessionID string, instructi
 		return contracts.StepOutcome{}, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Idempotency-Key", fmt.Sprintf("%s:%d", leaseID, operationSequence))
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return contracts.StepOutcome{}, fmt.Errorf("run instruction: %w", err)
+		return uncertainInstructionOutcome(instruction, fmt.Errorf("run instruction: %w", err))
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return contracts.StepOutcome{}, fmt.Errorf("run instruction failed: %s", strings.TrimSpace(string(body)))
+		return uncertainInstructionOutcome(instruction, fmt.Errorf("run instruction failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(body))))
 	}
 
-	return decodeStepOutcome(resp.Body)
+	outcome, err := decodeStepOutcome(resp.Body)
+	if err != nil {
+		return uncertainInstructionOutcome(instruction, err)
+	}
+	return outcome, nil
+}
+
+// A lost/invalid response cannot prove whether the browser already acted. The
+// executor must not turn transport uncertainty into a fresh declared attempt.
+func uncertainInstructionOutcome(instruction contracts.CompiledInstruction, err error) (contracts.StepOutcome, error) {
+	kind := contracts.FailureKindInfra
+	if errors.Is(err, context.DeadlineExceeded) {
+		kind = contracts.FailureKindTimeout
+	}
+	if errors.Is(err, context.Canceled) {
+		kind = contracts.FailureKindCancelled
+	}
+	return contracts.StepOutcome{
+		StepIndex: instruction.Index, NodeID: instruction.NodeID, Attempt: instruction.Attempt,
+		Failure: &contracts.StepFailure{Kind: kind, Code: contracts.FailureCodeInstructionOutcomeUncertain, Message: err.Error(), Retryable: false},
+	}, err
 }
 
 func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[string]any, error) {
+	if instruction.Action == nil {
+		return nil, fmt.Errorf("instruction %s has no typed action", instruction.NodeID)
+	}
+
 	payload := make(map[string]any)
 	wire := map[string]any{
 		"index":   instruction.Index,
@@ -729,7 +1046,7 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 	if len(instruction.Context) > 0 {
 		context := make(map[string]any, len(instruction.Context))
 		for key, value := range instruction.Context {
-			context[key] = typeconv.WrapJsonValue(value)
+			context[key] = contracts.WrapJsonValue(value)
 		}
 		wire["context"] = context
 	}
@@ -737,126 +1054,34 @@ func buildInstructionPayload(instruction contracts.CompiledInstruction) (map[str
 		wire["metadata"] = instruction.Metadata
 	}
 
-	if instruction.Action != nil {
-		actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
+	actionJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Action)
+	if err != nil {
+		return nil, fmt.Errorf("encode action: %w", err)
+	}
+	var action map[string]any
+	if err := json.Unmarshal(actionJSON, &action); err != nil {
+		return nil, fmt.Errorf("decode action: %w", err)
+	}
+	wire["action"] = action
+
+	// This payload is assembled field by field, so anything added to
+	// CompiledInstruction and not copied here is silently dropped rather than
+	// failing to compile. Telemetry is opt-in: omitted when unset so the driver
+	// keeps its own defaults.
+	if instruction.Telemetry != nil {
+		telemetryJSON, err := protojson.MarshalOptions{EmitUnpopulated: false, UseEnumNumbers: true}.Marshal(instruction.Telemetry)
 		if err != nil {
-			return nil, fmt.Errorf("encode action: %w", err)
+			return nil, fmt.Errorf("encode telemetry directive: %w", err)
 		}
-		var action map[string]any
-		if err := json.Unmarshal(actionJSON, &action); err != nil {
-			return nil, fmt.Errorf("decode action: %w", err)
+		var telemetry map[string]any
+		if err := json.Unmarshal(telemetryJSON, &telemetry); err != nil {
+			return nil, fmt.Errorf("decode telemetry directive: %w", err)
 		}
-		wire["action"] = action
+		wire["telemetry"] = telemetry
 	}
-
-	stepType := actionTypeToString(instruction.Action)
-	if stepType != "" {
-		wire["type"] = stepType
-	}
-
-	params := actionToParams(instruction.Action)
-	if params == nil {
-		params = map[string]any{}
-	}
-	wire["params"] = params
 
 	payload["instruction"] = wire
 	return payload, nil
-}
-
-func actionTypeToString(action *basactions.ActionDefinition) string {
-	if action == nil {
-		return ""
-	}
-	switch action.Type {
-	case basactions.ActionType_ACTION_TYPE_NAVIGATE:
-		return "navigate"
-	case basactions.ActionType_ACTION_TYPE_CLICK:
-		return "click"
-	case basactions.ActionType_ACTION_TYPE_INPUT:
-		return "type"
-	case basactions.ActionType_ACTION_TYPE_WAIT:
-		return "wait"
-	case basactions.ActionType_ACTION_TYPE_ASSERT:
-		return "assert"
-	case basactions.ActionType_ACTION_TYPE_SCROLL:
-		return "scroll"
-	case basactions.ActionType_ACTION_TYPE_SELECT:
-		return "select"
-	case basactions.ActionType_ACTION_TYPE_EVALUATE:
-		return "evaluate"
-	case basactions.ActionType_ACTION_TYPE_KEYBOARD:
-		return "keyboard"
-	case basactions.ActionType_ACTION_TYPE_HOVER:
-		return "hover"
-	case basactions.ActionType_ACTION_TYPE_SCREENSHOT:
-		return "screenshot"
-	case basactions.ActionType_ACTION_TYPE_FOCUS:
-		return "focus"
-	case basactions.ActionType_ACTION_TYPE_BLUR:
-		return "blur"
-	case basactions.ActionType_ACTION_TYPE_SUBFLOW:
-		return "subflow"
-	case basactions.ActionType_ACTION_TYPE_EXTRACT:
-		return "extract"
-	case basactions.ActionType_ACTION_TYPE_UPLOAD_FILE:
-		return "uploadFile"
-	case basactions.ActionType_ACTION_TYPE_DOWNLOAD:
-		return "download"
-	case basactions.ActionType_ACTION_TYPE_FRAME_SWITCH:
-		return "frameSwitch"
-	case basactions.ActionType_ACTION_TYPE_TAB_SWITCH:
-		return "tabSwitch"
-	case basactions.ActionType_ACTION_TYPE_COOKIE_STORAGE:
-		return "setCookie"
-	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
-		return "shortcut"
-	case basactions.ActionType_ACTION_TYPE_DRAG_DROP:
-		return "dragDrop"
-	case basactions.ActionType_ACTION_TYPE_GESTURE:
-		return "gesture"
-	case basactions.ActionType_ACTION_TYPE_NETWORK_MOCK:
-		return "networkMock"
-	case basactions.ActionType_ACTION_TYPE_ROTATE:
-		return "rotate"
-	case basactions.ActionType_ACTION_TYPE_SET_VARIABLE:
-		return "setVariable"
-	case basactions.ActionType_ACTION_TYPE_LOOP:
-		return "loop"
-	case basactions.ActionType_ACTION_TYPE_CONDITIONAL:
-		return "conditional"
-	default:
-		return ""
-	}
-}
-
-func actionToParams(action *basactions.ActionDefinition) map[string]any {
-	if action == nil {
-		return nil
-	}
-
-	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(action)
-	if err != nil {
-		return nil
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return nil
-	}
-
-	delete(decoded, "type")
-	delete(decoded, "metadata")
-
-	for _, value := range decoded {
-		if params, ok := value.(map[string]any); ok {
-			wrapped := make(map[string]any, len(params))
-			for key, param := range params {
-				wrapped[key] = typeconv.WrapJsonValue(param)
-			}
-			return wrapped
-		}
-	}
-	return nil
 }
 
 // decodeStepOutcome converts the driver response into a StepOutcome,
@@ -870,6 +1095,13 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 	out := resp.StepOutcome
 	out.SchemaVersion = contracts.StepOutcomeSchemaVersion
 	out.PayloadVersion = contracts.PayloadVersion
+	if len(resp.ConditionWire) > 0 && string(resp.ConditionWire) != "null" {
+		var condition basbase.ConditionOutcome
+		if err := protojson.Unmarshal(resp.ConditionWire, &condition); err != nil {
+			return contracts.StepOutcome{}, fmt.Errorf("decode condition outcome: %w", err)
+		}
+		out.Condition = contracts.ProtoToConditionOutcome(&condition)
+	}
 
 	if resp.ScreenshotBase64 != "" {
 		data, err := base64.StdEncoding.DecodeString(resp.ScreenshotBase64)
@@ -959,7 +1191,7 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 			"step_type":      out.StepType,
 		}).Debug("Checking ExtractedData for assertion")
 		if assertionRaw, ok := out.ExtractedData["assertion"]; ok {
-			out.Assertion = typeconv.ToAssertionOutcome(assertionRaw)
+			out.Assertion = contracts.ToAssertionOutcome(assertionRaw)
 			logrus.WithFields(logrus.Fields{
 				"assertion_raw": assertionRaw,
 				"assertion":     out.Assertion,
@@ -991,6 +1223,39 @@ func ResolveMaxConcurrentSessions() int {
 
 // HTTP helper methods
 
+func validateSessionOwner(executionID, leaseID string) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return errors.New("session route requires execution ID and lease ID")
+	}
+	return nil
+}
+
+func setSessionOwnerHeaders(headers http.Header, executionID, leaseID string) {
+	headers.Set(SessionExecutionHeader, executionID)
+	headers.Set(SessionLeaseHeader, leaseID)
+}
+
+func (c *Client) getWithSessionOwner(ctx context.Context, path, executionID, leaseID string, response interface{}) error {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	setSessionOwnerHeaders(req.Header, executionID, leaseID)
+	return c.doRequest(req, response, "GET "+path)
+}
+
+func (c *Client) deleteWithSessionOwner(ctx context.Context, path, executionID, leaseID string, response interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	setSessionOwnerHeaders(req.Header, executionID, leaseID)
+	return c.doRequest(req, response, "DELETE "+path)
+}
+
 func (c *Client) get(ctx context.Context, path string, response interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -1000,6 +1265,10 @@ func (c *Client) get(ctx context.Context, path string, response interface{}) err
 }
 
 func (c *Client) post(ctx context.Context, path string, body interface{}, response interface{}) error {
+	return c.postWithHeaders(ctx, path, body, response, nil)
+}
+
+func (c *Client) postWithHeaders(ctx context.Context, path string, body interface{}, response interface{}, headers http.Header) error {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -1009,6 +1278,11 @@ func (c *Client) post(ctx context.Context, path string, body interface{}, respon
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
 	return c.doRequest(req, response, "POST "+path)
 }
 
@@ -1017,15 +1291,6 @@ func (c *Client) postNoBody(ctx context.Context, path string, response interface
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	return c.doRequest(req, response, "POST "+path)
-}
-
-func (c *Client) postRaw(ctx context.Context, path string, body []byte, response interface{}) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
 	return c.doRequest(req, response, "POST "+path)
 }
 
@@ -1077,7 +1342,7 @@ func (c *Client) doRequestInternal(req *http.Request, response interface{}, oper
 
 	body, _ := io.ReadAll(resp.Body)
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 		bodyStr := strings.TrimSpace(string(body))
 		hint := hintForDriverFailure(bodyStr)
 		return &Error{
@@ -1096,6 +1361,78 @@ func (c *Client) doRequestInternal(req *http.Request, response interface{}, oper
 	}
 
 	return nil
+}
+
+// SessionRouteRequest is the broker's escape hatch for driver session endpoints
+// whose response is intentionally proxied without interpreting its schema.
+// Callers must still enter through automation/session's owned Session.
+func (c *Client) SessionRouteRequest(ctx context.Context, sessionID, executionID, leaseID, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
+	allowed := map[string]bool{
+		http.MethodGet + " /record/debug":          true,
+		http.MethodPost + " /ai-navigate":          true,
+		http.MethodPost + " /ai-navigate/abort":    true,
+		http.MethodPost + " /ai-navigate/resume":   true,
+		http.MethodPost + " /extensions/install":   true,
+		http.MethodPost + " /extensions/load":      true,
+		http.MethodPost + " /extensions/reload":    true,
+		http.MethodPost + " /extensions/unload":    true,
+		http.MethodPost + " /extensions/validate":  true,
+		http.MethodGet + " /extensions/inventory":  true,
+		http.MethodPost + " /extensions/inventory": true,
+		http.MethodPost + " /audio/restart":        true,
+		http.MethodPost + " /audio/stop":           true,
+		http.MethodPost + " /audio/diagnostics":    true,
+	}
+	if strings.TrimSpace(sessionID) == "" || validateSessionOwner(executionID, leaseID) != nil || !allowed[method+" "+suffix] {
+		return nil, errors.New("invalid session route")
+	}
+	endpoint := c.baseURL + "/session/" + url.PathEscape(sessionID) + suffix
+	var requestBody io.Reader
+	if body != nil {
+		requestBody = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, requestBody)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	setSessionOwnerHeaders(req.Header, executionID, leaseID)
+	// Authorization is forwarded only to the AI start endpoint. Callers cannot
+	// smuggle arbitrary headers into other driver routes through this broker.
+	if method == http.MethodPost && suffix == "/ai-navigate" && headers != nil {
+		if values := headers.Values("Authorization"); len(values) == 1 && strings.HasPrefix(values[0], "Bearer ") && strings.TrimSpace(strings.TrimPrefix(values[0], "Bearer ")) != "" {
+			req.Header.Set("Authorization", values[0])
+		}
+	}
+	var response *http.Response
+	operation := method + " /session/:id" + suffix
+	call := func() error {
+		resp, doErr := c.httpClient.Do(req)
+		if doErr != nil {
+			return &Error{Op: operation, URL: c.baseURL, Message: "driver unavailable", Cause: doErr, Hint: "verify playwright-driver is running and PLAYWRIGHT_DRIVER_URL is correct"}
+		}
+		response = resp
+		if resp.StatusCode >= 400 {
+			if method == http.MethodGet && suffix == "/record/debug" {
+				return nil // The debug API is a transparent proxy and preserves upstream status/body.
+			}
+			payload, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return &Error{Op: operation, URL: c.baseURL, Status: resp.StatusCode, Message: strings.TrimSpace(string(payload)), Hint: hintForDriverFailure(string(payload))}
+		}
+		return nil
+	}
+	if c.breaker != nil {
+		_, err = c.breaker.Execute(func() (any, error) { return nil, call() })
+	} else {
+		err = call()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func hintForDriverFailure(message string) string {

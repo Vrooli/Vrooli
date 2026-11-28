@@ -12,7 +12,7 @@ import {
 import { format } from 'date-fns'
 import { apiService } from '../services/api'
 import { Card } from './common/Card'
-import { Badge } from './common/Badge'
+import { Badge } from './common/BadgeAdapter'
 
 export default function ScenarioDetail() {
   const { id } = useParams<{ id: string }>()

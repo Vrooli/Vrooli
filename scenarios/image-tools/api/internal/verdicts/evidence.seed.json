@@ -1,0 +1,614 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Curated findings behind the model verdicts. A verdict is derived (verdicts.Derive) from the latest claim here plus live job history and operator ratings; this file holds only what a qualification run or judged comparison established.",
+    "To add evidence: append a claim with the model id, the operation (or \"*\" for every operation the model serves), a grade (recommended | works | experimental | not_recommended | broken), a one-line reason, the evidence kind, a ref and the date. Never write \"untested\": a model with no evidence is untested.",
+    "ref: a path to the artifact. The \"research:\" prefix is the Image Tools research topic, ~/.vrooli/research/topics/image-tools-foundation/.",
+    "A claim naming one operation overrides the model's \"*\" claim for that operation. Among claims for the same pair the newest date wins; ties go to the entry written later."
+  ],
+  "claims": [
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "edit_instruct",
+      "grade": "recommended",
+      "reason": "Kept the animal's identity, pose and markings on every showcase edit and beat the 9B and InstructPix2Pix; about 1.5 to 2 minutes per edit on this GPU.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/flux-2-klein/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "image_to_image",
+      "grade": "recommended",
+      "reason": "Reference-conditioned like the edit route; the anime restyle came out near-identical to the edit result. Prefer edit for identity-preserving changes.",
+      "kind": "live_run",
+      "ref": "research:runs/showcase-20261121/outputs/flux-2-klein/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "text_to_image",
+      "grade": "recommended",
+      "reason": "Coherent light, anatomy and geometry on the 1024 px treehouse prompt; clearly above Stable Diffusion 1.5.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/flux-2-klein/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "flux-2-klein-9b",
+      "operation": "*",
+      "grade": "works",
+      "reason": "About 2x slower and 2x the RAM of the 4B with no identity gain (it re-posed the animal on two of three edits); marginally better text-to-image. Non-commercial licence.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/flux-2-klein-9b/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "instruct-pix2pix",
+      "operation": "edit_instruct",
+      "grade": "not_recommended",
+      "reason": "Recoloured the background instead of the stars it was asked to change, and lost every comparison to FLUX.2 klein.",
+      "kind": "judged_comparison",
+      "ref": "research:RESULTS.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "sd-1.5",
+      "operation": "*",
+      "grade": "not_recommended",
+      "reason": "Lost every image-quality comparison to FLUX.2 klein 4B; keep it only as the CPU fallback.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/flux-2-klein/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "depth-anything-v2-large",
+      "operation": "depth_map",
+      "grade": "recommended",
+      "reason": "Clearly finer structure than V2 Small on all three test photos (fur edges, sky gaps between branches); 60 ms on the GPU and 2.3 GB VRAM.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/license-gated-eval/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "depth-anything-v2-small",
+      "operation": "depth_map",
+      "grade": "works",
+      "reason": "Coarser than Large (hard ear folds, fewer resolved gaps) but 0.2 s on CPU with a clean Apache licence.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/license-gated-eval/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "restoreformer-plus-plus",
+      "operation": "face_restore",
+      "grade": "recommended",
+      "reason": "Keeps wrinkles, eye shape and expression on five real photos; the hosted judge preferred it on face crops (fidelity 0.80 vs 0.75).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/license-gated-eval/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "codeformer",
+      "operation": "face_restore",
+      "grade": "works",
+      "reason": "Smooths age and can change an eye's shape (Lincoln, Einstein); the invented colour on monochrome photos is fixed. Second choice to RestoreFormer++.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/showcase-20261121/outputs/license-gated-eval/README.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "openrouter-image",
+      "operation": "edit_instruct",
+      "grade": "works",
+      "reason": "Gemini identity edit works through the cloud (about $0.14 at 1K); one park edit drifted the subject's hair length.",
+      "kind": "provider_evidence",
+      "ref": "research:runs/showcase-20261121/outputs/cloud/PROVENANCE.md",
+      "date": "2026-11-21"
+    },
+    {
+      "model_id": "isnet-general-use",
+      "operation": "background_removal",
+      "grade": "works",
+      "reason": "IoU 0.85 against the reference alpha on the coffee-bean fixture; one fixture, so boundary quality on natural photos is unproven.",
+      "kind": "qualification",
+      "ref": "research:runs/programme-four-20261108/quality/coffee-alpha-20261109T172700Z/",
+      "date": "2026-11-09"
+    },
+    {
+      "model_id": "birefnet-general",
+      "operation": "background_removal",
+      "grade": "experimental",
+      "reason": "Scored IoU 0.02 through the CPU ONNX fallback on the one coffee-bean fixture; jobs complete but output quality is unproven.",
+      "kind": "qualification",
+      "ref": "research:runs/programme-four-20261108/quality/coffee-alpha-20261109T172700Z/",
+      "date": "2026-11-09"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "inpaint",
+      "grade": "recommended",
+      "reason": "Selected-area edit by crop, instruct-edit and feathered paste-back: cup to red mug and book to tablet came out clean and every pixel outside the mask stayed identical; about 3 minutes warm, up to 30 minutes on a starved host.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/sheet_cup.jpg",
+      "date": "2026-11-22"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "edit_instruct",
+      "grade": "recommended",
+      "reason": "Hair (platinum, bob, curly auburn) and outfit (leather jacket, red dress, navy suit) whole-image edits all read correctly on a real photo; face drift is measurable (LPIPS 0.08 to 0.21), so prefer the masked route for hair and outfit.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/proto/",
+      "date": "2026-11-22"
+    },
+    {
+      "model_id": "hyperswap-1a-256",
+      "operation": "face_swap",
+      "grade": "recommended",
+      "reason": "Best local swap on both tests (subject onto a fictional hiker, fictional face onto the subject): sharpest skin detail, clean blend, no edge artefacts, ArcFace similarity to the source 0.74 to 0.77 against 0.05 for the untouched target; about 5 s per swap including the review. Raw output is preferred: RestoreFormer++ smooths skin and lowers identity similarity by about 0.05.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "hyperswap-1b-256",
+      "operation": "face_swap",
+      "grade": "works",
+      "reason": "Same quality class as 1a (similarity 0.74 to 0.78, clean blend) with no measurable gain; a spare variant if 1a misbehaves on a target.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "hyperswap-1c-256",
+      "operation": "face_swap",
+      "grade": "works",
+      "reason": "Same quality class as 1a (similarity 0.75 to 0.77, clean blend) with no measurable gain; a spare variant.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "inswapper-128",
+      "operation": "face_swap",
+      "grade": "not_recommended",
+      "reason": "Highest raw ArcFace similarity (0.79) but only 128 px: softer skin, a dark patch at the hairline and odd lash detail on the subject photo. Prefer hyperswap-1a-256.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "alphaface-256",
+      "operation": "face_swap",
+      "grade": "works",
+      "reason": "Strong identity transfer (0.77 to 0.78) and the least leftover target identity, but the skin comes out smoother and flatter than hyperswap-1a-256; a fallback.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "openrouter-image",
+      "operation": "face_swap",
+      "grade": "not_recommended",
+      "reason": "Cloud route (Gemini 3 Pro Image, two images, with consent, $0.138) did not swap: the output kept the original face (ArcFace similarity to the source 0.05, to the target 0.74). Use a local swapper.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "florence-2",
+      "operation": "caption",
+      "grade": "recommended",
+      "reason": "Described both real photos correctly (woman with coffee cup and book; brown and white guinea pig, read the Petco sign) in about 1 s warm on GPU; SmolVLM-256M called the guinea pig a porcupine and cut off mid-sentence. General vision models, same photos and a six-fact checklist (species, colouring, enclosure, bedding, Petco sign, water bottle): Qwen3-VL-4B (local, shared Ollama) named 6 of 6 and read the book title, Gemini 3.5 Flash (cloud) 5 of 6 in one sentence, Florence-2 5 of 6, SmolVLM 3 of 6. Qwen3-VL is richer but took 30 to 130 s under GPU contention against 1 s, and image-tools cannot route a gateway vision model yet, so Florence-2 stays the routable default.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "florence-2",
+      "operation": "object_detection",
+      "grade": "works",
+      "reason": "Accurate boxes for face, coffee cup, necklace, book, person and chair on the book photo; its fixed vocabulary labelled the guinea pig a hamster and boxes carry no confidence score. YOLOX-Tiny returned nothing on the same photos. Guinea pig box against a hand-drawn box: Gemini 3.5 Flash 0.96 IoU, Qwen3-VL-4B 0.85, Florence-2 0.70 (it also names the animal a hamster); the general models label open-vocabulary and Qwen3-VL needs thinking budget for the book photo (not completed).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/detect-florence-2-book-overlay.jpg",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "smolvlm-256m",
+      "operation": "caption",
+      "grade": "experimental",
+      "reason": "Right on the woman with a book but missed the coffee cup, called the guinea pig a porcupine and truncated its sentence; the low-RAM CPU fallback only.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/caption-smolvlm-256m-gp.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "nafnet",
+      "operation": "deblur",
+      "grade": "works",
+      "reason": "Was broken on every image (the sidecar resized to a made-up 320x320 that the dynamic-shape model rejects with a Pad error). Fixed 2026-11-23: it runs at the image's own size, padded to the stride and tiled when large. Live on a guinea-pig photo blurred two ways, about 15 s each on the CPU: a 15 px horizontal motion blur is clearly recovered (whiskers, the vent grille and the logo come back; PSNR 24.96 to 26.73 dB, Laplacian variance 249 to 325 against 1004 in the original); a Gaussian blur of sigma 3 improves only slightly (PSNR 22.6 to 22.8, sharper edges but no fine fur). It is a motion-deblur model, not a defocus one.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "yolox-tiny",
+      "operation": "object_detection",
+      "grade": "works",
+      "reason": "Fixed 2026-11-23: the sidecar now letterboxes with grey padding, feeds BGR 0-255 pixels, decodes the raw head's grid and strides, runs class-wise NMS and undoes the letterbox. Live on both real photos in 0.2-0.3 s on the CPU: the portrait gives person 0.90, two chairs and a potted plant (it misses the small cup and book); the guinea pig is called a dog (box IoU about 0.64 against a hand-drawn box, no COCO class for it). It is a fast fixed-vocabulary detector with 80 COCO labels; Florence-2 stays the default for open-vocabulary boxes.",
+      "kind": "qualification",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/detect-yolox-tiny-book.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "paddleocr",
+      "operation": "ocr",
+      "grade": "works",
+      "reason": "Reads the book cover in a 1152x1536 photo (THE HUNGER GAMES, COLLINS, NOW A MAJOR, SUNRISE ON THE REAPING) with misreads on the skewed small type (SUNRISE read BUNRIBE) and fragments in reading order; a tight crop reads cleanly. Tesseract is not installed here, so there is no comparison.",
+      "kind": "qualification",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/ocr-paddleocr-book.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "ddcolor-large",
+      "operation": "colorize",
+      "grade": "recommended",
+      "reason": "Beat ddcolor-tiny on CIEDE2000 against the real colour originals (guinea pig 8.05 vs 9.83, portrait 10.16 vs 10.89) and does not oversaturate: tan guinea pig and natural skin where tiny adds pink and orange casts. About 5 to 11 s on CPU. Against the general model on the same guinea pig (mean CIEDE2000 to the colour original): Gemini 5.17, DDColor large 8.05, DDColor tiny 9.83, and the grey input itself 7.94, so on that mean DDColor large is no better than leaving the photo grey (its 90th percentile is: 14.3 against 15.5) while Gemini is. The local general editor FLUX.2 klein 4B (same prompt, 94 s on GPU) scored 12.37 / 20.81: it oversaturates (orange shavings, mean chroma 24 against the original's 10), so it loses to DDColor large. Gemini is best on the guinea pig but replaced the portrait with a different image, so DDColor large stays the default (on the portrait: DDColor large 10.16, tiny 10.89, klein 12.71, grey 12.53).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/compare-colorize-gp.jpg",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "ddcolor-tiny",
+      "operation": "colorize",
+      "grade": "works",
+      "reason": "Plausible but oversaturated next to ddcolor-large (pink bowl, orange hay, orange cast on the portrait); CIEDE2000 9.83 and 10.89 against the originals. The small, fast tier.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/compare-colorize-book.jpg",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "openrouter-image",
+      "operation": "colorize",
+      "grade": "experimental",
+      "reason": "Inconsistent. On the guinea pig (Gemini, role image.edit.identity, 'Colorize this photo naturally', about $0.14, 19 s) it was the best colourisation measured: mean CIEDE2000 5.17 and p90 9.33 against the colour original (DDColor large 8.05 / 14.28), 5.60 / 9.70 through `ai colorize --byok`. On the portrait of a real person it did not colourise the photo: it returned a different woman in a different scene at a different aspect (1408x768 for 1152x1536), so it cannot be scored and must not be used on photos of people; the route now refuses a result whose shape differs from the photo's. Cloud route: needs --byok, a spend cap and the consent affirmation. DDColor large stays the default; FLUX.2 klein 4B scored 12.37-13.99 (guinea pig) and 12.71 (portrait), oversaturated.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/colorize-gemini-gp.png",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "depth-anything-v1-large",
+      "operation": "depth_map",
+      "grade": "works",
+      "reason": "Correct near-to-far ordering on both real photos but blurrier than V2 Large (loses the guinea pig's ear, the hay and fur edges). Apache-2.0, so the large tier for monetized use.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/compare-depth-gp.jpg",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "siglip2-base",
+      "operation": "embedding",
+      "grade": "recommended",
+      "reason": "768-dim pooled embeddings separated two subjects (colour, grey and colourised versions of each) with a 0.395 same-minus-cross cosine margin and a correct nearest neighbour for all six images; nomic-embed-vision-v1.5 managed 0.191 once reduced to its class token. Two subjects, six images: a small check.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/embed-jobs.tsv",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "nomic-embed-vision-v1.5",
+      "operation": "embedding",
+      "grade": "experimental",
+      "reason": "Its embedding was the whole 197x768 token grid (151,296 numbers, 3.6 MB per image) until the sidecar reduced it to the class token; then it separates two subjects with a 0.191 cosine margin, half of siglip2-base.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/embed-jobs.tsv",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "qwen3-vl-4b",
+      "operation": "caption",
+      "grade": "works",
+      "reason": "General vision model through the AI Gateway (Ollama, role vision.default), live on both real photos: fact checklist 5/6 (guinea pig; missed the water bottle) and 5/5 (the portrait; reads the book title, tan blazer, black mug). Richer than Florence-2 but 12 to 50 s a call on a shared GPU against about 1 s, and one local call runs at a time, so Florence-2 stays the default caption model.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "qwen3-vl-4b",
+      "operation": "tagging",
+      "grade": "recommended",
+      "reason": "Live on both photos: 15 sensible, specific tags each (species, colours, bedding, enclosure, mug, armchair, tan jacket, indoor cafe), 33 to 54 s a call. The seeded tagging default, WD14, is not installed and its sidecar can only name tags tag_<index>, so this is the working tagger and the default.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "qwen3-vl-4b",
+      "operation": "object_detection",
+      "grade": "experimental",
+      "reason": "Local detection is slow and cut off by the host, not by this row: a call takes 80 to 164 s on the shared GPU (boxes for guinea pig, bottle, bowls, bedding, grille and logo; guinea pig IoU 0.65 to 0.85 across runs against a hand-drawn box, no better than Florence-2 at 0.70), and the Ollama resource CLI bounds every non-one-shot call by its 60 s slot-acquire timeout instead of the request timeout (bug knw-1795420084280496977), so detect jobs through image-tools fail with provider.execution_failed. Use Florence-2 locally or the hosted row.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "gemini-flash-lite-vision",
+      "operation": "caption",
+      "grade": "works",
+      "reason": "Hosted general vision model (AI Gateway role vision.default, remote-only), live on both photos in 1.5 s: fact checklist 5/6 and 5/5, and it read the full book title 'The Hunger Games: Sunrise on the Reaping'. Needs --byok, a spend cap and the consent affirmation because the image is sent.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "gemini-flash-lite-vision",
+      "operation": "object_detection",
+      "grade": "recommended",
+      "reason": "Best boxes measured: guinea pig IoU 0.97 against a hand-drawn box (Florence-2 0.70, Qwen3-VL 0.85), and it finds the water bottle and both bowls; on the portrait it boxes person, book, cup and chair. 1.3 s a call, about a tenth of a cent. Hosted: needs --byok, a spend cap and the consent affirmation. Florence-2 stays the default because it is local and needs no consent.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "gemini-flash-lite-vision",
+      "operation": "tagging",
+      "grade": "works",
+      "reason": "15 sensible tags on both photos (species, colours, setting, bedding, water bottle, mood) in 1.3 s. Hosted: needs --byok, a spend cap and the consent affirmation.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/provisioning/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "face_swap",
+      "grade": "experimental",
+      "reason": "General-model route (two-image klein edit, 40 s to 2 min): works only with a tight portrait as the face image, and then as a re-render, not a swap. With a cropped portrait it kept the hiker's scene and moved identity (similarity to the source 0.68) but also took the reference's hair; with a portrait onto a full photo (case b, 0.80) it re-rendered the whole scene; with a full photo as the face image it failed (0.07 to 0.09, three wordings). Prefer a dedicated swapper (hyperswap-1a-256).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "color-transfer-lab-v1",
+      "operation": "color_transfer",
+      "grade": "recommended",
+      "reason": "Skin-tone and hair-colour stages of the swap extent, in under a second on CPU. The swapped face moved toward the source's skin tone (CIEDE2000 to the source face 15.8 to 12.6 on the hiker, 19.8 to 13.6 on the subject photo with the default source option) and the hair preset turned auburn hair black while keeping its strands and shading, all outputs viewed. Limits: one mean shift per region, so the face-to-neck gap is preserved, not closed (it stays within about 1.4 CIEDE2000 of the original on the subject photo); parsed skin only, so a V-neck chest is not recoloured and the 30 px feather hides the step.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/extent/sheet-extent-presets.png",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "mask-composite-lab-v1",
+      "operation": "mask_composite",
+      "grade": "recommended",
+      "reason": "Lays the hair region of a klein edit into the swapped photo with a grown, feathered seam, so the swapped face is not re-rendered: a bob onto the subject photo and the source's straight black hair onto the hiker, every pixel outside the hair region unchanged, all outputs viewed. Limit: the edited image is resampled up to the photo's size, so the pasted hair is slightly softer than the rest.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/extent/sheet-extent-presets.png",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "face_swap",
+      "grade": "works",
+      "reason": "As the whole-head extent (a tight portrait as the reference): replaces face, hair, ears and neck together and reads as one person in the original body, clothes and scene (similarity to the source 0.75 on the hiker, 0.84 on the subject photo; face-to-neck skin gap 4.7 on the subject photo). It re-renders the whole picture at about 1 MP (below the 1.8 MP subject photo) and takes 2 to 4 minutes when the GPU is shared. A dedicated swapper (hyperswap-1a-256) remains the default for the face alone; a full photo as the reference still fails.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/face-swap/extent/sheet-extent-presets.png",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "lustify-sdxl-v9",
+      "operation": "text_to_image",
+      "grade": "experimental",
+      "reason": "Before 2026-11-23 it could not load at all (its repo ships tokenizer.json only); the loader now rebuilds the CLIP tokenizer. After the fix 5 of 5 explicit-use generations passed the minor-safety review (about 63 s each, one face each); image quality is unrated until the operator rates them.",
+      "kind": "live_run",
+      "ref": "research:RESULTS.md#nsfw-generation-and-editing-round-nsfw-2-2026-11-23",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "lustify-sdxl-v9",
+      "operation": "inpaint",
+      "grade": "experimental",
+      "reason": "Same tokenizer fault fixed 2026-11-23. After the fix 4 of 4 masked edits of a clothed fictional base passed the minor-safety review and left every pixel outside the mask unchanged; quality is unrated until the operator rates them.",
+      "kind": "live_run",
+      "ref": "research:RESULTS.md#nsfw-generation-and-editing-round-nsfw-2-2026-11-23",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "big-lust-v16",
+      "operation": "text_to_image",
+      "grade": "experimental",
+      "reason": "Before 2026-11-23 it sampled structureless noise (its repo declares an EDM scheduler beside an epsilon UNet, adjacent-pixel difference 17.7 against 2 to 4 for real images); the loader now swaps in EulerDiscreteScheduler. After the fix 5 of 6 generations passed the minor-safety review and one was refused for having no readable face; quality is unrated.",
+      "kind": "live_run",
+      "ref": "research:RESULTS.md#nsfw-generation-and-editing-round-nsfw-2-2026-11-23",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "big-lust-v16",
+      "operation": "inpaint",
+      "grade": "experimental",
+      "reason": "Same scheduler fault fixed 2026-11-23. After the fix 2 of 3 masked edits passed the minor-safety review and one was refused for having no readable face; quality is unrated.",
+      "kind": "live_run",
+      "ref": "research:RESULTS.md#nsfw-generation-and-editing-round-nsfw-2-2026-11-23",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "inpaint",
+      "grade": "recommended",
+      "reason": "Selected-area edit through a mask: book to tablet and cup to red mug came out clean, every pixel outside the mask identical (outside SSIM 1.000, face LPIPS 0.000); 48 to 83 s and 1.3 GiB peak VRAM warm. Beat whole-image klein, Gemini, SDXL inpainting and SD 1.5 inpainting.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "garment_replace",
+      "grade": "recommended",
+      "reason": "Hair (platinum, chin-length bob, curly auburn) and outfits (leather jacket, red dress, navy suit) on a real photo look natural and the rest of the picture is untouched: outside SSIM 0.99 to 1.00, face LPIPS 0.00 on outfits and 0.03 to 0.08 on hair. 39 to 119 s, 2.0 to 2.2 GiB peak VRAM. Needs a hair or outfit mask first (segment). Operator rated the masked bralette edit (T7) issue-free at 5/5.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "edit_instruct",
+      "grade": "recommended",
+      "reason": "Whole-picture edits are convincing and the best local choice for them, but on a photo of a person they move everything: outside SSIM about 0.72, face LPIPS 0.07 to 0.17, hair shortened, a stray second slab beside the tablet. For hair, outfits and selected areas use the masked route (garment_replace, inpaint).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "openrouter-image",
+      "operation": "edit_instruct",
+      "grade": "works",
+      "reason": "Gemini via the cloud route: the best whole-picture identity of the one-call routes (face LPIPS 0.02 to 0.17) and the quickest (about 20 s, $0.138 at 1K), outfit and hair edits read well. It re-renders every pixel (outside SSIM about 0.83), garbles cover text, and the edit leaves the machine (consent). Prefer the local masked route; use this when no good mask exists.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "sd-1.5-inpainting",
+      "operation": "*",
+      "grade": "not_recommended",
+      "reason": "Lost to FLUX.2 klein masked on every task: rainbow noise instead of a red mug, a blank pale book instead of a tablet, hair left dark for platinum, brown instead of black or navy garments, jeans left under the red dress. Keeps the pixels outside the mask, so it is only a CPU fallback.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "sdxl-inpainting-0.1",
+      "operation": "*",
+      "grade": "not_recommended",
+      "reason": "Lost to FLUX.2 klein masked on every task: a rainbow glitch for the red mug and the tablet, hair colour not changed for platinum with black-and-white earring-like artefacts by the face, brown instead of black or navy garments, an invented suitcase beside the red dress. Pixels outside the mask stay identical, but the edit itself is not usable.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "grounded-sam-2",
+      "operation": "segment",
+      "grade": "recommended",
+      "reason": "Text phrase to mask on the real photo: book, cup, hair and jacket came out with clean silhouettes in about 1.4 s warm (8 s cold, 2.1 to 2.5 GiB peak VRAM). Weak spot: a garment worn under another (\"top\" under a jacket) returns the whole torso whatever the wording; use a SegFormer parser for that.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "segformer-b2-clothes",
+      "operation": "segment",
+      "grade": "works",
+      "reason": "Parser labels in one pass (about 1.3 s per job, 25 to 37 ms forward, 0.58 GiB peak VRAM): hair, face, whole outfit (upper-clothes plus pants) selected correctly; edges are blocky (512 px working size) and it has no jacket-versus-top split. Cannot select objects such as a book or cup and says which labels it can.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "segformer-b3-fashion",
+      "operation": "segment",
+      "grade": "works",
+      "reason": "The right mask for a garment worn under another: its \"top\" class traced the burgundy top under the jacket where Grounded SAM 2 returned the whole torso. Its jacket class covered only half the jacket and it has no hair class; pair it with another model for those.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "juggernaut-xl-v9",
+      "operation": "inpaint",
+      "grade": "recommended",
+      "reason": "The base-checkpoint inpaint route is fixed: no mask crop, no pixel neutralisation, strength 1.0 and Euler sampling. A red-dress replacement on the clothed fictional adult produced the dress in 48 s on GPU with the face, pose and background preserved; the same seed at the old strength/DDPM produced a second head in the mask. Crop plus neutralisation made it worse.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/outputs/nsfw-edit-proxy/product-red-dress-v3.png",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "lustify-sdxl-v9",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "All four rerun edits succeeded with the fixed route (lingerie, topless and full nudity all read as sexual by the ensemble; identity to the source 0.99). Awaiting the operator's ratings of the new pictures; the previous fever-dream ratings were caused by the crop/neutralisation/DDPM recipe, not this checkpoint.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/REVIEW-2.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "big-lust-v16",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "All three rerun edits succeeded with the fixed route, including the two full-nudity prompts the reviewer had refused for a missing face; identity to the source 0.99. Awaiting the operator's ratings.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/REVIEW-2.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "sdxl-inpainting-0.1",
+      "operation": "inpaint",
+      "grade": "not_recommended",
+      "reason": "The dedicated SDXL inpaint model barely changed the outfit on the fixed full-image route (skin share 0.19 against 0.12 clothed), where the base checkpoints changed it cleanly. Keep it out of outfit edits.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/REVIEW-2.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "falconsai-nsfw",
+      "operation": "nsfw_classify",
+      "grade": "recommended",
+      "reason": "Precise on the diverse SFW set: six clothed studio adults across ethnicities, the consenting subject and the pose chart all scored 0.00 to 0.13 (the old AdamCodd classifier scored three adults 0.42 to 0.65). Alone it missed small-figure fine-art nudity (0.00 to 0.001 on two rated-Good generations), so the reviewer runs it with AdamCodd.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/review2.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "adamcodd-vit-nsfw",
+      "operation": "nsfw_classify",
+      "grade": "works",
+      "reason": "High recall on the images the precise classifier missed (small-figure nudity 0.97 to 0.99, deep-skin-tone nudity 0.997) but false-positived clothed portraits at up to 0.65. Use it as the reviewer's second signal, not alone; its calibrated bar is 0.80 (0.70 strict).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/review2.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "dwpose-ll-384",
+      "operation": "pose_extract",
+      "grade": "recommended",
+      "reason": "Read at least nine of the eighteen body joints on 9 of 9 chart cells with line-art preparation (the bare drawing gave that on 3 of 9); every cell found one figure. Used inside pose_generate to turn a chart cell or photo into the OpenPose control.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/outputs/pose/POSE-REVIEW.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "edit_instruct",
+      "grade": "recommended",
+      "reason": "Text-only route for whole-outfit and nudity changes: identity 0.93-0.97, pose within 3-12 px, background SSIM 0.96-0.99; lingerie, topless, bottomless and full nudity (with the target-state wording and 8 steps) all coherent. Operator review 2026-11-24: rated far superior to the masked regenerate, with four edits (lingerie, scene, full nudity, bottomless) issue-free at 5/5. Sleeve cuffs survive a bare 'topless' instruction, so say 'top entirely, including the sleeves' (wrist skin 0.00 to 1.00 at the same seed).",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
+      "date": "2026-11-24"
+    },
+    {
+      "model_id": "lustify-sdxl-v9",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "Masked regenerate keeps the face (outside the mask) exactly, but at strength 1.0 on a large clothing region the generated torso was rated a fever dream on 7 of 8 cases; use it for small objects or a tight selection, and use edit_instruct for a whole outfit.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
+      "date": "2026-11-24"
+    },
+    {
+      "model_id": "big-lust-v16",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "Same masked-regenerate behavior as lustify: face untouched, large-region body synthesis not coherent enough to recommend; use it for smaller selections.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
+      "date": "2026-11-24"
+    },
+    {
+      "model_id": "codeformer",
+      "operation": "face_restore",
+      "grade": "works",
+      "reason": "At fidelity 0.9 it keeps identity 0.85-0.91 and roughly doubles/triples eye-band sharpness on small faces; at the 0.5 default identity falls to 0.61. The Portrait Detail Look pins 0.9. It sharpens detail but does not change a vision model's asymmetry verdict.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/DETAIL-REVIEW.html",
+      "date": "2026-11-24"
+    }
+  ]
+}

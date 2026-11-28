@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- brand-manager:icons:start profile=web-public-v1 brand=extraction-range version=1 -->
+    <link rel="icon" type="image/svg+xml" href="public/logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png" />
+    <link rel="manifest" href="public/site.webmanifest" crossorigin="use-credentials" />
+    <!-- brand-manager:icons:end -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Owned graded practice website for website data extraction tools" />
+    <meta property="og:image" content="/public/og-image.png" />
+    <meta name="twitter:image" content="/public/og-image.png" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Extraction Range" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Extraction Range</title>
+  </head>
+  <body>
+    <div id="root">
+      <section class="range-workbench" aria-label="Extraction workbench" data-testid="page-dashboard">
+        <header class="range-header">
+          <div>
+            <p class="range-eyebrow">EXTRACTION RANGE</p>
+            <h1>Extraction workbench</h1>
+          </div>
+        </header>
+        <section class="range-state range-state-loading" aria-busy="true" role="status" data-testid="experience-surface-workbench-data" data-experience-surface="workbench-data" data-experience-state="loading">
+          Loading challenge catalog and scoreboard…
+        </section>
+      </section>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

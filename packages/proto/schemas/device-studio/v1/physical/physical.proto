@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.device_studio.v1.physical;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/physical;physical_v1";
+
+message ArtifactRef {
+  string bundle_id = 1;
+  uint32 bundle_revision = 2;
+  string manifest_sha256 = 3;
+  string review_sha256 = 4;
+  string artifact_id = 5;
+  string role = 6;
+  int64 size_bytes = 7;
+  string sha256 = 8;
+}
+
+message Vec3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message QuatXYZW {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message TRS {
+  Vec3 translation_m = 1;
+  QuatXYZW rotation_xyzw = 2;
+  Vec3 scale = 3;
+}
+
+message ComponentRevisionRef {
+  string id = 1;
+  uint32 revision = 2;
+  string sha256 = 3;
+}
+
+message InitializeReviewedStarterRequest {
+  // Empty preserves the legacy phone initializer. Other values opt into an
+  // unqualified candidate starter through the existing physical owners.
+  string starter_id = 1;
+}
+
+message InitializeReviewedStarterResponse {
+  ComponentRevisionRef phone_device = 1;
+  ComponentRevisionRef phone_study_scene = 2;
+  ComponentRevisionRef phone_still_motion = 3;
+  repeated ArtifactRef reviewed_artifacts = 4;
+  bool candidate_only = 5;
+  PhysicalStarterPlacement phone_study_placement = 6;
+  ComponentRevisionRef phone_study_preset = 7;
+  string selected_starter_id = 8;
+  ComponentRevisionRef initialized_preset = 9;
+}
+
+message PhysicalStarterPlacement {
+  string profile_id = 1;
+  uint32 profile_version = 2;
+  string display_id = 3;
+  string device_support_id = 4;
+  string scene_support_id = 5;
+  string selected_camera_id = 6;
+  TRS scene_support_world = 7;
+  Vec3 support_pivot_m = 8;
+  TRS device_root_rest = 9;
+  ComponentRevisionRef device = 10;
+  ComponentRevisionRef scene = 11;
+  ComponentRevisionRef motion = 12;
+}
+
+service PhysicalStarterService {
+  rpc InitializeReviewedStarter(InitializeReviewedStarterRequest)
+      returns (InitializeReviewedStarterResponse);
+}

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.topics;
+
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/topics;topics_v1";
+
+service TopicsService {
+  rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+  rpc ListTopicTree(ListTopicTreeRequest) returns (ListTopicsResponse);
+  rpc GetTopic(GetTopicRequest) returns (Topic);
+  rpc CreateTopic(CreateTopicRequest) returns (Topic);
+  rpc UpdateTopic(UpdateTopicRequest) returns (Topic);
+  rpc DeleteTopic(DeleteTopicRequest) returns (DeleteTopicResponse);
+  rpc GetAccumulatedSkills(GetAccumulatedSkillsRequest) returns (AccumulatedSkillsResponse);
+  rpc MatchTopics(MatchTopicsRequest) returns (MatchTopicsResponse);
+}
+
+message Topic {
+  string id = 1; string name = 2; string description = 3; optional string parent_topic_id = 4;
+  repeated string skills = 5; string icon = 6; string status = 7; string content = 8;
+  string created_at = 9; string updated_at = 10;
+}
+message TopicInput {
+  string id = 1; string name = 2; string description = 3; optional string parent_topic_id = 4;
+  repeated string skills = 5; string icon = 6; string status = 7; string content = 8;
+}
+message ListTopicsRequest {}
+message ListTopicTreeRequest {}
+message ListTopicsResponse { repeated Topic topics = 1; }
+message GetTopicRequest { string id = 1; }
+message CreateTopicRequest { TopicInput topic = 1; }
+message UpdateTopicRequest { string id = 1; TopicInput topic = 2; google.protobuf.FieldMask update_mask = 3; }
+message DeleteTopicRequest { string id = 1; }
+message DeleteTopicResponse {}
+message GetAccumulatedSkillsRequest { string id = 1; }
+message AccumulatedSkillsResponse { string topic_id = 1; repeated string ancestry = 2; repeated string skills = 3; }
+message MatchTopicsRequest { repeated string queries = 1; int32 limit = 2; }
+message MatchedTopic { string id = 1; string name = 2; string description = 3; optional string parent_topic_id = 4; double score = 5; int32 score_percent = 6; }
+message MatchTopicsResponse { repeated MatchedTopic topics = 1; repeated string skills = 2; string method = 3; }

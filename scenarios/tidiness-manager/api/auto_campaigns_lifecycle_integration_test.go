@@ -12,6 +12,16 @@ import (
 
 // [REQ:TM-AC-004] Integration test: Pause campaigns via API
 func TestIntegration_CampaignPause(t *testing.T) {
+	assertCampaignLifecycleAction(t, "integration-test-pause", "active", "pause", "paused")
+}
+
+// [REQ:TM-AC-005] Integration test: Resume campaigns via API
+func TestIntegration_CampaignResume(t *testing.T) {
+	assertCampaignLifecycleAction(t, "integration-test-resume", "paused", "resume", "active")
+}
+
+func assertCampaignLifecycleAction(t *testing.T, scenario, initialStatus, action, wantStatus string) {
+	t.Helper()
 	if os.Getenv("DATABASE_URL") == "" {
 		t.Skip("DATABASE_URL not set, skipping lifecycle integration test")
 	}
@@ -22,123 +32,49 @@ func TestIntegration_CampaignPause(t *testing.T) {
 	}
 	defer srv.db.Close()
 
-	testScenario := "integration-test-pause"
-	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", scenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", scenario) }()
 
-	// Create campaign
 	var campaignID int
 	err = srv.db.QueryRow(`
 		INSERT INTO campaigns (scenario, status, max_sessions, max_files_per_session)
-		VALUES ($1, 'active', 10, 5)
+		VALUES ($1, $2, 10, 5)
 		RETURNING id
-	`, testScenario).Scan(&campaignID)
+	`, scenario, initialStatus).Scan(&campaignID)
 	if err != nil {
 		t.Fatalf("Failed to create test campaign: %v", err)
 	}
 
-	// Pause campaign via API
-	pauseReq := map[string]string{"action": "pause"}
-	bodyBytes, _ := json.Marshal(pauseReq)
-
+	bodyBytes, err := json.Marshal(map[string]string{"action": action})
+	if err != nil {
+		t.Fatalf("Failed to encode lifecycle action: %v", err)
+	}
 	req := httptest.NewRequest("POST", fmt.Sprintf("/api/v1/campaigns/%d/action", campaignID), bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-
 	srv.router.ServeHTTP(w, req)
-
 	if w.Code != http.StatusOK {
-		t.Fatalf("Failed to pause campaign: status %d, body: %s", w.Code, w.Body.String())
+		t.Fatalf("Failed to %s campaign: status %d, body: %s", action, w.Code, w.Body.String())
 	}
 
-	// Verify pause via API response
-	var pauseResp struct {
+	var response struct {
 		Campaign map[string]interface{} `json:"campaign"`
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &pauseResp); err != nil {
-		t.Fatalf("Failed to parse pause response: %v", err)
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("Failed to parse %s response: %v", action, err)
+	}
+	if got, ok := response.Campaign["status"].(string); !ok || got != wantStatus {
+		t.Errorf("Expected response status %q, got %v", wantStatus, response.Campaign["status"])
 	}
 
-	if pausedStatus, ok := pauseResp.Campaign["status"].(string); !ok || pausedStatus != "paused" {
-		t.Errorf("Expected campaign status 'paused', got '%v'", pauseResp.Campaign["status"])
-	}
-
-	// Verify pause persists in database
-	var status string
-	err = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
-	if err != nil {
+	var persistedStatus string
+	if err := srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&persistedStatus); err != nil {
 		t.Fatalf("Failed to query campaign status: %v", err)
 	}
-	if status != "paused" {
-		t.Errorf("Expected status 'paused' in database, got '%s'", status)
+	if persistedStatus != wantStatus {
+		t.Errorf("Expected database status %q, got %q", wantStatus, persistedStatus)
 	}
-
-	t.Log("Campaign pause verified via API")
-}
-
-// [REQ:TM-AC-005] Integration test: Resume campaigns via API
-func TestIntegration_CampaignResume(t *testing.T) {
-	if os.Getenv("DATABASE_URL") == "" {
-		t.Skip("DATABASE_URL not set, skipping resume integration test")
-	}
-
-	srv, err := NewServer()
-	if err != nil {
-		t.Fatalf("Failed to create server: %v", err)
-	}
-	defer srv.db.Close()
-
-	testScenario := "integration-test-resume"
-	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
-
-	// Create paused campaign
-	var campaignID int
-	err = srv.db.QueryRow(`
-		INSERT INTO campaigns (scenario, status, max_sessions, max_files_per_session)
-		VALUES ($1, 'paused', 10, 5)
-		RETURNING id
-	`, testScenario).Scan(&campaignID)
-	if err != nil {
-		t.Fatalf("Failed to create test campaign: %v", err)
-	}
-
-	// Resume campaign via API
-	resumeReq := map[string]string{"action": "resume"}
-	bodyBytes, _ := json.Marshal(resumeReq)
-	req := httptest.NewRequest("POST", fmt.Sprintf("/api/v1/campaigns/%d/action", campaignID), bytes.NewReader(bodyBytes))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	srv.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("Failed to resume campaign: status %d, body: %s", w.Code, w.Body.String())
-	}
-
-	// Verify resume via API response
-	var resumeResp struct {
-		Campaign map[string]interface{} `json:"campaign"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &resumeResp); err != nil {
-		t.Fatalf("Failed to parse resume response: %v", err)
-	}
-
-	if resumedStatus, ok := resumeResp.Campaign["status"].(string); !ok || resumedStatus != "active" {
-		t.Errorf("Expected campaign status 'active', got '%v'", resumeResp.Campaign["status"])
-	}
-
-	// Verify resume persists in database
-	var status string
-	err = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
-	if err != nil {
-		t.Fatalf("Failed to query campaign status: %v", err)
-	}
-	if status != "active" {
-		t.Errorf("Expected status 'active' in database, got '%s'", status)
-	}
-
-	t.Log("Campaign resume verified via API")
+	t.Logf("Campaign %s verified via API", action)
 }
 
 // [REQ:TM-AC-006] Integration test: Terminate campaigns via API

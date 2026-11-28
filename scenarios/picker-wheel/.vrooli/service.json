@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "picker-wheel",
     "displayName": "Picker Wheel",
@@ -53,7 +69,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Web UI server port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -88,183 +104,104 @@
     },
     "setup": {
       "description": "Initialize Picker Wheel",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/picker-wheel-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "picker-wheel",
-            "targets": [
-              "picker-wheel"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x picker-wheel && ln -sf $(pwd)/picker-wheel ~/.local/bin/picker-wheel 2>/dev/null || true",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o picker-wheel-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Picker Wheel initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Picker Wheel with API and UI servers",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./picker-wheel-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/picker-wheel-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: picker-wheel --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for picker-wheel",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute picker-wheel --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"picker-wheel-api\" || true; sleep 1; pkill -9 -f \"picker-wheel-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/picker-wheel.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/picker-wheel.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
         }
       ]
     }
   },
   "dependencies": {
     "resources": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/wheel-spinner.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/wheel-manager.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/history-tracker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/option-suggester.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
         "purpose": "Intelligent option suggestions via shared ollama workflow",
-        "models": [
-          "phi3.5:3.8b"
-        ]
+        "startup_policy": "try_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
         "purpose": "Store wheels, options, and spin history",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "picker-wheel",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "picker-wheel"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

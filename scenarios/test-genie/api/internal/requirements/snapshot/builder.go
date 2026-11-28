@@ -4,12 +4,12 @@ package snapshot
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
 	"time"
 
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"test-genie/internal/shared/filesystem"
 )
 
 // Builder builds requirement snapshots.
@@ -18,10 +18,8 @@ type Builder interface {
 	Build(ctx context.Context, index *parsing.ModuleIndex, summary enrichment.Summary) (*Snapshot, error)
 }
 
-// Writer is the minimal file-writing surface needed to persist snapshots.
-type Writer interface {
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-}
+// Writer preserves the snapshot injection API through shared write capability.
+type Writer = filesystem.Writer
 
 // Snapshot represents a point-in-time view of requirements.
 type Snapshot struct {
@@ -42,11 +40,12 @@ type Snapshot struct {
 
 // SnapshotSummary contains high-level statistics.
 type SnapshotSummary struct {
-	TotalRequirements int     `json:"total_requirements"`
-	TotalValidations  int     `json:"total_validations"`
-	CompletionRate    float64 `json:"completion_rate"`
-	PassRate          float64 `json:"pass_rate"`
-	CriticalGap       int     `json:"critical_gap"`
+	TotalRequirements   int     `json:"total_requirements"`
+	RoadmapRequirements int     `json:"roadmap_requirements,omitempty"`
+	TotalValidations    int     `json:"total_validations"`
+	CompletionRate      float64 `json:"completion_rate"`
+	PassRate            float64 `json:"pass_rate"`
+	CriticalGap         int     `json:"critical_gap"`
 }
 
 // OperationalTarget represents a high-level business objective.
@@ -94,9 +93,10 @@ func (b *builder) Build(ctx context.Context, index *parsing.ModuleIndex, summary
 	// Build summary
 	complete := summary.ByDeclaredStatus[types.StatusComplete]
 	snapshot.Summary = SnapshotSummary{
-		TotalRequirements: summary.Total,
-		TotalValidations:  summary.ValidationStats.Total,
-		CriticalGap:       summary.CriticalityGap,
+		TotalRequirements:   summary.Total,
+		RoadmapRequirements: summary.RoadmapTotal,
+		TotalValidations:    summary.ValidationStats.Total,
+		CriticalGap:         summary.CriticalityGap,
 	}
 
 	if summary.Total > 0 {
@@ -133,6 +133,9 @@ func (b *builder) buildOperationalTargets(index *parsing.ModuleIndex) []Operatio
 
 	for _, module := range index.Modules {
 		for _, req := range module.Requirements {
+			if req.IsRoadmap() {
+				continue
+			}
 			if req.PRDRef == "" {
 				continue
 			}
@@ -199,6 +202,9 @@ func (b *builder) buildModuleSnapshots(index *parsing.ModuleIndex) []ModuleSnaps
 		var complete, inProgress, pending int
 
 		for _, req := range module.Requirements {
+			if req.IsRoadmap() {
+				continue
+			}
 			switch req.Status {
 			case types.StatusComplete:
 				complete++
@@ -209,7 +215,7 @@ func (b *builder) buildModuleSnapshots(index *parsing.ModuleIndex) []ModuleSnaps
 			}
 		}
 
-		total := len(module.Requirements)
+		total := complete + inProgress + pending
 		var completionRate float64
 		if total > 0 {
 			completionRate = float64(complete) / float64(total) * 100
@@ -247,5 +253,5 @@ func (w *jsonFileWriter) WriteJSON(path string, v any) error {
 		return err
 	}
 	data = append(data, '\n')
-	return w.writer.WriteFile(path, data, 0644)
+	return w.writer.WriteFile(path, data, 0o644)
 }

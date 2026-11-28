@@ -1,0 +1,7 @@
+/*
+ * SearchInput registers its rules through the library's StyleSheet registry
+ * (`useLibraryStyleSheet`) from SearchInput.tsx. This file remains the
+ * version-local stylesheet artifact so the release shape stays predictable for
+ * tooling that expects a component's CSS companion; there are intentionally no
+ * duplicate rules here.
+ */

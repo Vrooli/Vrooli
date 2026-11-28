@@ -34,16 +34,7 @@ func TestEdgeCases(t *testing.T) {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
 
-		// Should use default site
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
-		if response == nil {
-			t.Fatal("No response received")
-		}
-
-		testResults, ok := response["test_results"].([]interface{})
-		if !ok || len(testResults) == 0 {
-			t.Error("Expected at least one test result with default site")
-		}
+		assertErrorResponse(t, w, http.StatusGone)
 	})
 
 	t.Run("NilTestSites", func(t *testing.T) {
@@ -61,16 +52,7 @@ func TestEdgeCases(t *testing.T) {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
 
-		// Should use default site
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
-		if response == nil {
-			t.Fatal("No response received")
-		}
-
-		testResults, ok := response["test_results"].([]interface{})
-		if !ok || len(testResults) == 0 {
-			t.Error("Expected at least one test result with default site")
-		}
+		assertErrorResponse(t, w, http.StatusGone)
 	})
 
 	t.Run("EmptyScenarioName", func(t *testing.T) {
@@ -418,18 +400,6 @@ func TestConfigEdgeCases(t *testing.T) {
 		// Should use default port when invalid port is provided
 		if cfg.Port != 3201 {
 			t.Errorf("Expected default port 3201, got %d", cfg.Port)
-		}
-	})
-
-	t.Run("BrowserlessURLOverride", func(t *testing.T) {
-		customURL := "http://custom-browserless:3000"
-		os.Setenv("BROWSERLESS_URL", customURL)
-		defer os.Unsetenv("BROWSERLESS_URL")
-
-		cfg := loadConfig()
-
-		if cfg.BrowserlessURL != customURL {
-			t.Errorf("Expected custom browserless URL %s, got %s", customURL, cfg.BrowserlessURL)
 		}
 	})
 

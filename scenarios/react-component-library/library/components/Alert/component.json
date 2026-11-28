@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "feedback.alert",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.2"
+  ],
+  "description": "The local semantic message surface for information, success, warning, or error, carrying a title, description, optional actions, dismissal, and meaning that survives without colour.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Alert",
+  "draft": "1.0.8-draft.1",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.2"
+  ],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:Alert",
+  "tags": []
+}

@@ -1,0 +1,355 @@
+package conformance_test
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/maturity-go/assessment"
+	conformancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	handler "ai-gateway/handlers/conformance"
+	internalconformance "ai-gateway/internal/conformance"
+	internalrouting "ai-gateway/internal/routing"
+)
+
+type modelEvalReadinessSourceFunc func(context.Context, internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error)
+
+func (f modelEvalReadinessSourceFunc) Readiness(ctx context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
+	return f(ctx, roles)
+}
+
+type modelEvalConsumersFunc func(context.Context) ([]string, error)
+
+func (f modelEvalConsumersFunc) ModelEvalConsumers(ctx context.Context) ([]string, error) {
+	return f(ctx)
+}
+
+type modelEvalExecutorStub struct {
+	calls   int
+	receipt handler.ModelEvalExecutionReceipt
+	err     error
+}
+
+func (s *modelEvalExecutorStub) ExecuteAgentManagerModelEval(context.Context) (handler.ModelEvalExecutionReceipt, error) {
+	s.calls++
+	return s.receipt, s.err
+}
+
+func modelEvalRuntimeModels(context.Context) ([]internalrouting.ModelEvalRouteModel, error) {
+	return []internalrouting.ModelEvalRouteModel{{Scenario: "vrooli-memory", Role: "embedding.default", Provider: "ollama", Locality: "local", Model: "nomic-embed-text:latest", Status: "succeeded", SampleCount: 42, LatestObservedAt: "2026-11-14T14:00:00Z"}}, nil
+}
+
+func aiGatewayScenarioRoot(t *testing.T) string {
+	t.Helper()
+	for _, variable := range []string{"VROOLI_SCENARIO_DIR", "TEST_GENIE_SCENARIO_DIR"} {
+		if root := strings.TrimSpace(os.Getenv(variable)); root != "" && filepath.IsAbs(root) {
+			return root
+		}
+	}
+	for _, variable := range []string{"VROOLI_ROOT", "VROOLI_SOURCE_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(variable)); root != "" && filepath.IsAbs(root) {
+			candidate := filepath.Join(root, "scenarios", "ai-gateway")
+			if _, err := os.Stat(filepath.Join(candidate, ".vrooli", "test-genie.json")); err == nil {
+				return candidate
+			}
+		}
+	}
+	_, sourceFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	for candidate := filepath.Dir(sourceFile); candidate != filepath.Dir(candidate); candidate = filepath.Dir(candidate) {
+		paths, err := filepath.Glob(filepath.Join(candidate, ".vrooli", "test-genie*.json"))
+		require.NoError(t, err)
+		if len(paths) > 0 {
+			return candidate
+		}
+	}
+	t.Fatal("could not locate AI Gateway scenario root from test source")
+	return ""
+}
+
+// declaredPolicyRoles reads the role names straight from the model policy
+// file, independently of the loader under test.
+func declaredPolicyRoles(t *testing.T, policyPath string) []string {
+	t.Helper()
+	raw, err := os.ReadFile(policyPath)
+	require.NoError(t, err)
+	var policy struct {
+		Roles map[string]json.RawMessage `json:"roles"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &policy))
+	require.NotEmpty(t, policy.Roles, "the packaged policy declares roles")
+	names := make([]string, 0, len(policy.Roles))
+	for name := range policy.Roles {
+		names = append(names, name)
+	}
+	return names
+}
+
+func TestModelEvalPhaseReportsMissingEvidenceAndNeverExecutesInference(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	policyPath := filepath.Join(scenarioDir, "../../resources/ollama/model-policy.json")
+	taskRoleCatalogPath := filepath.Join(scenarioDir, "config/inference-role-catalog.json")
+	readiness := internalconformance.ModelEvalReadiness{
+		RegisteredSuites:        35,
+		RequiredRetrievalSuites: 35,
+		MissingDenominatorIDs:   []string{"knowledge-observatory.docs.starter"},
+		RoleCoverage: []internalconformance.RoleCoverage{
+			{Role: "chat.default", Cases: 2, Required: 20, Deficient: true},
+			{Role: "chat.small", Cases: 0, Required: 20, Deficient: true},
+		},
+		TaskRoleCoverage: []internalconformance.RoleCoverage{
+			{Role: "classify.fast", Cases: 0, Required: 20, Deficient: true},
+		},
+		ConsumerCoverage: []internalconformance.RoleCoverage{
+			{Role: "vrooli-memory", Cases: 1, Required: 20, Deficient: true},
+		},
+	}
+	h := handler.NewConnectHandler(handler.Deps{
+		ScenarioDir: scenarioDir, ModelPolicyPath: policyPath, TaskRoleCatalogPath: taskRoleCatalogPath,
+		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"vrooli-memory"}, nil }),
+		ModelEvalRuntimeModels: modelEvalRuntimeModels,
+		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
+			// The denominator is every role the packaged policy declares, so a
+			// role added to or removed from the policy changes it without
+			// breaking this test.
+			require.ElementsMatch(t, declaredPolicyRoles(t, policyPath), roles.PolicyRoles)
+			require.NotEmpty(t, roles.TaskRoles)
+			require.Equal(t, []string{"vrooli-memory"}, roles.Consumers)
+			return readiness, nil
+		}),
+	})
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Phase:  "model-eval",
+		Target: &commonv1.ValidationTarget{Id: "ai-gateway", Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
+	require.Equal(t, "model_eval_evidence_incomplete", resp.Msg.GetFailureClassification())
+	var native structpb.Struct
+	require.NoError(t, resp.Msg.GetNativeDetail().UnmarshalTo(&native))
+	require.Equal(t, false, native.GetFields()["live_inference_executed"].GetBoolValue())
+	require.Equal(t, "blocked_accepted_suite_evidence_incomplete", native.GetFields()["execution_state"].GetStringValue())
+	readinessValue := native.GetFields()["readiness"].GetStructValue()
+	require.Equal(t, "knowledge-observatory.docs.starter", readinessValue.GetFields()["missing_denominator_suite_ids"].GetListValue().GetValues()[0].GetStringValue())
+	runtimeModels := readinessValue.GetFields()["observed_runtime_models"].GetListValue().GetValues()
+	require.Len(t, runtimeModels, 1)
+	require.Equal(t, "nomic-embed-text:latest", runtimeModels[0].GetStructValue().GetFields()["model"].GetStringValue())
+	messages := make([]string, 0, len(resp.Msg.GetAssessment().GetFindings()))
+	for _, finding := range resp.Msg.GetAssessment().GetFindings() {
+		messages = append(messages, finding.GetMessage())
+	}
+	require.Contains(t, strings.Join(messages, "\n"), "chat.default=2/20")
+	require.Contains(t, strings.Join(messages, "\n"), "classify.fast=0/20")
+	require.Contains(t, strings.Join(messages, "\n"), "vrooli-memory=1/20")
+}
+
+func TestModelEvalPhaseExecutesOnlyWhenTestGenieRequestsExecutionAndCarriesMetadataOnlyReceipt(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	executor := &modelEvalExecutorStub{receipt: handler.ModelEvalExecutionReceipt{
+		DecisionID: "LM2-INFERENCE-ADMISSION-20261116", CaseSetSHA256: strings.Repeat("a", 64), Denominator: 1, Succeeded: 1,
+		EffectiveModel: "qwen3.5:9b", Cases: []handler.ModelEvalExecutionCase{{SourceEventID: "event-1", SourceRunID: "run-1", RequestID: "request-1", Status: "succeeded", EffectiveModel: "qwen3.5:9b", Locality: "local"}},
+	}}
+	h := handler.NewConnectHandler(handler.Deps{
+		ScenarioDir:            scenarioDir,
+		ModelPolicyPath:        filepath.Join(scenarioDir, "../../resources/ollama/model-policy.json"),
+		TaskRoleCatalogPath:    filepath.Join(scenarioDir, "config/inference-role-catalog.json"),
+		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"agent-manager"}, nil }),
+		ModelEvalRuntimeModels: modelEvalRuntimeModels,
+		ModelEvalExecutor:      executor,
+		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, _ internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
+			return internalconformance.ModelEvalReadiness{RegisteredSuites: 35, RequiredRetrievalSuites: 35, Ready: true}, nil
+		}),
+	})
+	target := &commonv1.ValidationTarget{Id: "ai-gateway", Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}
+	ready, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{Phase: "model-eval", Target: target}))
+	require.NoError(t, err)
+	require.Equal(t, 0, executor.calls)
+	var readyDetail structpb.Struct
+	require.NoError(t, ready.Msg.GetNativeDetail().UnmarshalTo(&readyDetail))
+	require.False(t, readyDetail.GetFields()["live_inference_executed"].GetBoolValue())
+
+	executed, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{Phase: "model-eval", Target: target, IncludeExecution: true}))
+	require.NoError(t, err)
+	require.Equal(t, 1, executor.calls)
+	var executionDetail structpb.Struct
+	require.NoError(t, executed.Msg.GetNativeDetail().UnmarshalTo(&executionDetail))
+	require.True(t, executionDetail.GetFields()["live_inference_executed"].GetBoolValue())
+	require.Equal(t, "terminal_receipt_recorded", executionDetail.GetFields()["execution_state"].GetStringValue())
+	encoded, err := protojson.Marshal(executed.Msg.GetNativeDetail())
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "prompt")
+	require.NotContains(t, string(encoded), "output")
+	require.Contains(t, string(encoded), strings.Repeat("a", 64))
+}
+
+func TestModelEvalPhaseExecutionFailsClosedWithoutOwnerClient(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	h := handler.NewConnectHandler(handler.Deps{ScenarioDir: scenarioDir})
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Phase: "model-eval", IncludeExecution: true,
+		Target: &commonv1.ValidationTarget{Id: "ai-gateway", Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
+	var native structpb.Struct
+	require.NoError(t, resp.Msg.GetNativeDetail().UnmarshalTo(&native))
+	require.False(t, native.GetFields()["live_inference_executed"].GetBoolValue())
+	require.Equal(t, "blocked_owner_executor_unavailable", native.GetFields()["execution_state"].GetStringValue())
+}
+
+func TestModelEvalPhaseIdentitySurvivesLegacyScenarioTransport(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	policyPath := filepath.Join(scenarioDir, "../../resources/ollama/model-policy.json")
+	taskRoleCatalogPath := filepath.Join(scenarioDir, "config/inference-role-catalog.json")
+	h := handler.NewConnectHandler(handler.Deps{
+		ScenarioDir: scenarioDir, ModelPolicyPath: policyPath, TaskRoleCatalogPath: taskRoleCatalogPath,
+		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"vrooli-memory"}, nil }),
+		ModelEvalRuntimeModels: modelEvalRuntimeModels,
+		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, roles internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
+			return internalconformance.ModelEvalReadiness{
+				RegisteredSuites: 35, RequiredRetrievalSuites: 35,
+				MissingDenominatorIDs: []string{"suite.missing"},
+				RoleCoverage:          []internalconformance.RoleCoverage{{Role: roles.PolicyRoles[0], Cases: 0, Required: 20, Deficient: true}},
+				TaskRoleCoverage:      []internalconformance.RoleCoverage{{Role: roles.TaskRoles[0], Cases: 0, Required: 20, Deficient: true}},
+			}, nil
+		}),
+	})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: "ai-gateway", Phase: "model-eval",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "model-eval", resp.Msg.GetAssessment().GetPhase())
+	require.Equal(t, "ai-gateway", resp.Msg.GetAssessment().GetProvider())
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
+}
+
+func TestModelEvalDescriptorHasPhaseSpecificProviderIdentity(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	describer, err := assessment.LoadDescriber(scenarioDir)
+	require.NoError(t, err)
+	response, err := describer.DescribeProvider(context.Background(), connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{Phase: "model-eval"}))
+	require.NoError(t, err)
+	require.Equal(t, "ai-gateway", response.Msg.GetProvider())
+	require.Equal(t, "model-eval", response.Msg.GetPhase())
+	require.Equal(t, "1.0.0", response.Msg.GetSpecVersion())
+}
+
+func TestScanScenarioReturnsScannerFindings(t *testing.T) { // [REQ:AIGW-CONFORMANCE-INVENTORY]
+	root := t.TempDir()
+	path := filepath.Join(root, "api.go")
+	require.NoError(t, os.WriteFile(path, []byte(`package api
+const url = "https://api.openrouter.ai/v1/chat/completions"
+`), 0o644))
+
+	h := handler.NewConnectHandler(handler.Deps{})
+	resp, err := h.ScanScenario(context.Background(), connect.NewRequest(&conformancev1.ScanScenarioRequest{
+		Scenario: "fixture",
+		Path:     root,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "fixture", resp.Msg.GetScenario())
+	require.Equal(t, "blocked-needs-investigation", resp.Msg.GetMaturityLevel())
+	require.Len(t, resp.Msg.GetFindings(), 2)
+	var found bool
+	for _, finding := range resp.Msg.GetFindings() {
+		found = found || finding.GetRuleId() == "ai.direct_openrouter_http"
+	}
+	require.True(t, found)
+}
+
+func TestValidateScenarioReturnsSharedAssessment(t *testing.T) { // [REQ:AIGW-CONFORMANCE-MATURITY]
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "api.go"), []byte(`package api
+const url = "https://api.openrouter.ai/v1/chat/completions"
+`), 0o644))
+
+	h := handler.NewConnectHandler(handler.Deps{MaturitySpec: testMaturitySpec()})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: "fixture",
+		Path:     root,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "fixture", resp.Msg.GetScenario())
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
+	require.Equal(t, "ai-gateway", resp.Msg.GetAssessment().GetProvider())
+	require.Equal(t, "ai-conformance", resp.Msg.GetAssessment().GetPhase())
+	require.NotNil(t, resp.Msg.GetNativeDetail())
+	require.NotNil(t, resp.Msg.GetMetrics())
+}
+
+func TestFixRPCsReturnGuidanceWithoutApplying(t *testing.T) {
+	h := handler.NewConnectHandler(handler.Deps{MaturitySpec: testMaturitySpec()})
+
+	preview, err := h.PreviewFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{Scenario: "fixture"}))
+	require.NoError(t, err)
+	require.False(t, preview.Msg.GetApplied())
+	require.NotEmpty(t, preview.Msg.GetMessages())
+
+	applied, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{Scenario: "fixture"}))
+	require.NoError(t, err)
+	require.False(t, applied.Msg.GetApplied())
+	require.Empty(t, applied.Msg.GetCandidates())
+}
+
+func testMaturitySpec() *assessment.Spec {
+	return &assessment.Spec{
+		Provider: "ai-gateway",
+		Phase:    "ai-conformance",
+		Version:  "2.0.0",
+		Levels: []assessment.Level{
+			{ID: "L0", Name: "Inventory"},
+			{ID: "L1", Name: "Boundary hygiene"},
+			{ID: "L2", Name: "Gateway adoption"},
+		},
+		Capabilities: []assessment.CapabilitySpec{{
+			ID:    "ai_boundary",
+			Label: "AI Boundary",
+			Levels: []assessment.Level{
+				{ID: "L0", Name: "Unknown"},
+				{ID: "L1", Name: "Unsafe"},
+				{ID: "L2", Name: "Clean"},
+			},
+		}},
+		Findings: map[string]assessment.FindingMapping{
+			"ai.direct_openrouter_http": {
+				CapabilityID:     "ai_boundary",
+				LocalLevelImpact: "L1",
+				GlobalImpact:     assessment.ImpactSafetyBlocker,
+				Dimension:        "security",
+				SeverityDefault:  "SEVERITY_ERROR",
+				CleanRequirement: "required",
+				FixClass:         assessment.FixClassManual,
+				FixReason:        "Migration needs scenario-specific API contract judgment.",
+			},
+			"ai.gateway_not_adopted": {
+				CapabilityID:     "ai_boundary",
+				LocalLevelImpact: "L2",
+				GlobalImpact:     assessment.ImpactAdvisory,
+				Dimension:        "operational-targets",
+				SeverityDefault:  "SEVERITY_INFO",
+				CleanRequirement: "advisory",
+				FixClass:         assessment.FixClassManual,
+				FixReason:        "Gateway migration requires scenario-owner review.",
+			},
+		},
+		Fallback: assessment.FallbackPolicy{
+			CapabilityID:     "ai_boundary",
+			LocalLevelImpact: "L1",
+			GlobalImpact:     assessment.ImpactAdvisory,
+			Dimension:        "operational-targets",
+			SeverityDefault:  "SEVERITY_INFO",
+			CleanRequirement: "advisory",
+		},
+	}
+}

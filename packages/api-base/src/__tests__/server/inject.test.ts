@@ -443,6 +443,33 @@ describe('injectScenarioConfig', () => {
   })
 })
 
+describe('opening tag variants', () => {
+  it('tolerates attributes and casing on <head>', () => {
+    const html = '<!doctype html><HTML><HEAD lang="en"><title>x</title></HEAD><BODY></BODY></HTML>'
+    const config = injectScenarioConfig(html, {
+      apiUrl: 'http://localhost:1/api',
+      wsUrl: 'ws://localhost:1/ws',
+      apiPort: '1',
+      uiPort: '2',
+    })
+    expect(config).toContain('<HEAD lang="en">\n<script id="vrooli-scenario-config">')
+
+    const base = injectBaseTag(html, '/app')
+    expect(base).toContain('<HEAD lang="en">\n<base data-vrooli-base="injected" href="/app/">')
+  })
+
+  it('tolerates attributes on <body> when no head exists', () => {
+    const html = '<div><body class="app">content</body></div>'
+    const config = injectScenarioConfig(html, {
+      apiUrl: 'http://localhost:1/api',
+      wsUrl: 'ws://localhost:1/ws',
+      apiPort: '1',
+      uiPort: '2',
+    })
+    expect(config).toContain('<body class="app">\n<script id="vrooli-scenario-config">')
+  })
+})
+
 describe('injectBaseTag', () => {
   it('injects base tag into <head>', () => {
     const html = `<!DOCTYPE html>
@@ -507,6 +534,36 @@ describe('injectBaseTag', () => {
     expect(result).toBe(html)
     expect(result).toContain('href="/existing/"')
     expect(result).not.toContain('href="/new/"')
+  })
+
+  it('replaces only an opted-in root-relative base href and keeps one base tag', () => {
+    const html = '<html><head><base target="_self" href="/" data-vrooli-base="upstream"></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/apps/test-app/proxy/', {
+      replaceRootBaseHref: true,
+      dataAttribute: 'data-vrooli-base',
+    })
+
+    expect(result).toContain('href="/apps/test-app/proxy/"')
+    expect(result).toContain('target="_self"')
+    expect(result).toContain('data-vrooli-base="injected"')
+    expect(result.match(/<base\b/gi)).toHaveLength(1)
+  })
+
+  it('preserves an opted-in non-root upstream base', () => {
+    const html = '<html><head><base href="/owner-app/"></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/apps/test-app/proxy/', { replaceRootBaseHref: true })
+
+    expect(result).toBe(html)
+  })
+
+  it('preserves an opted-in base tag without an href', () => {
+    const html = '<html><head><base target="_blank"></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/apps/test-app/proxy/', { replaceRootBaseHref: true })
+
+    expect(result).toBe(html)
   })
 
   it('injects even if base tag exists (when skipIfExists is false)', () => {

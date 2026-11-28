@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Prompt Manager UI manifest",
+  "description": "Declares the specialized Prompt Manager navigated-console shell and its documented component-library ejection boundary.",
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react"
+  },
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/components/layout/SkillManagerLayout.tsx",
+    "export": "SkillManagerLayout"
+  }
+}

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.gateway;
+
+import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/gateway;gateway_v1";
+
+message ValidateGatewayRequestRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+}
+
+message ValidateGatewayRequestResponse {
+  bool valid = 1;
+  repeated vrooli.ai_gateway.v1.shared.ValidationIssue issues = 2;
+  repeated string accepted_profiles = 3;
+}
+
+service GatewayService {
+  rpc ValidateGatewayRequest(ValidateGatewayRequestRequest) returns (ValidateGatewayRequestResponse);
+}

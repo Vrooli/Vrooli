@@ -1,0 +1,27 @@
+{
+  "profile": "launch",
+  "audio": {
+    "bpm": 128,
+    "first_beat_seconds": 0.14,
+    "cue_source": "alternates/music/chosen-track.music-cues.json"
+  },
+  "scenes": [
+    {
+      "id": "opening",
+      "start_seconds": 0,
+      "end_seconds": 3.75,
+      "words": 3,
+      "settled_hold_seconds": 1.35,
+      "transition_beats": 0.5,
+      "camera": "push"
+    },
+    {
+      "id": "product-proof",
+      "start_seconds": 3.75,
+      "end_seconds": 9.25,
+      "words": 0,
+      "transition_beats": 0.5,
+      "camera": "drift-right"
+    }
+  ]
+}

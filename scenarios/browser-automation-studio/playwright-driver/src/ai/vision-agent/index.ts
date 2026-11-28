@@ -12,6 +12,7 @@ export * from './types';
 // Agent implementation
 export {
   createVisionAgent,
+  observeTaskResult,
   createConsoleLogger,
   createNoopLogger,
   type VisionAgentConfig,

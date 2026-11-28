@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.master-detail",
+    "name": "MasterDetail",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The coordinated collection-and-detail layout preserving selection, scroll position, route state, and transition continuity, and drilling in rather than splitting on compact viewports.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.split-view",
+        "reason": "Desktop adjacency and resizing are shared."
+      },
+      {
+        "asset": "hooks.use-media-query",
+        "reason": "Drill-in versus adjacency is a behavioral breakpoint."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "responsive-transformation",
+    "focus-order",
+    "keyboard-operable",
+    "mobile-capability-parity",
+    "entrance-restraint",
+    "content-reflow"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Selecting a record on a compact viewport drills into detail and returning restores the list exactly where it was, including scroll position and selection, so a triage pass is never interrupted."
+    }
+  }
+}

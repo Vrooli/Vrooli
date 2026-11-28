@@ -3,11 +3,16 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/testutil"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // [REQ:REQ-API-003] Health endpoint returns schema-compliant response
@@ -40,6 +45,64 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 	if _, err := time.Parse(time.RFC3339, ts_); err != nil {
 		t.Fatalf("timestamp not RFC3339: %v", err)
+	}
+}
+
+func TestHealthEndpointRefreshesDescriptorWithoutRestart(t *testing.T) {
+	srv, ts := newTestServer(t)
+	dir := t.TempDir()
+	descriptorPath := filepath.Join(dir, "image.binpb")
+	writeEventsDescriptor(t, descriptorPath, "events-refresh/v1/first.proto")
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.descriptorSource = source
+
+	first := getEventsHealth(t, ts.URL)
+	firstDigest := first.Header.Get("X-Proto-Descriptor-Digest")
+	if firstDigest == "" || first.Header.Get("X-Proto-Descriptor-Generation") != "1" {
+		t.Fatalf("initial descriptor metadata = digest %q generation %q", firstDigest, first.Header.Get("X-Proto-Descriptor-Generation"))
+	}
+
+	stage := descriptorPath + ".stage"
+	writeEventsDescriptor(t, stage, "events-refresh/v1/second.proto")
+	if err := os.Rename(stage, descriptorPath); err != nil {
+		t.Fatal(err)
+	}
+	second := getEventsHealth(t, ts.URL)
+	if second.Header.Get("X-Proto-Descriptor-Digest") == firstDigest {
+		t.Fatal("health continued serving the old descriptor digest")
+	}
+	if second.Header.Get("X-Proto-Descriptor-Generation") != "2" {
+		t.Fatalf("refreshed descriptor generation = %q, want 2", second.Header.Get("X-Proto-Descriptor-Generation"))
+	}
+}
+
+func getEventsHealth(t *testing.T, baseURL string) *http.Response {
+	t.Helper()
+	resp, err := http.Get(baseURL + "/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		t.Fatalf("health status = %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+	return resp
+}
+
+func writeEventsDescriptor(t *testing.T, path, name string) {
+	t.Helper()
+	raw, err := proto.Marshal(&descriptorpb.FileDescriptorSet{File: []*descriptorpb.FileDescriptorProto{{
+		Name: proto.String(name), Syntax: proto.String("proto3"),
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -85,11 +148,28 @@ func TestHealthEndpoint_SubscriberCount(t *testing.T) {
 	}
 
 	body := decodeJSON[map[string]any](t, resp)
-	if body["subscribers"] != float64(5) {
-		t.Fatalf("expected subscribers=5, got %v", body["subscribers"])
+	metrics := body["metrics"].(map[string]any)
+	if metrics["subscribers"] != float64(5) {
+		t.Fatalf("expected subscribers=5, got %v", metrics["subscribers"])
 	}
-	storeData := body["store"].(map[string]any)
-	if storeData["totalEvents"] != float64(42) {
-		t.Fatalf("expected totalEvents=42, got %v", storeData["totalEvents"])
+	if metrics["totalEvents"] != float64(42) {
+		t.Fatalf("expected totalEvents=42, got %v", metrics["totalEvents"])
+	}
+}
+
+// The control plane rejects a start whose /health does not echo the identity it
+// injected, so the handler must serve it.
+func TestHealth_ServesTheLifecycleStartIdentity(t *testing.T) {
+	t.Setenv("VROOLI_START_OPERATION_ID", "start-op-test")
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
+	_, ts := newTestServer(t)
+	resp, err := http.Get(ts.URL + "/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body := decodeJSON[map[string]any](t, resp)
+	if body["start_operation_id"] != "start-op-test" || body["build_identity"] != "sha256:test-build" {
+		t.Fatalf("identity = start %v build %v", body["start_operation_id"], body["build_identity"])
 	}
 }

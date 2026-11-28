@@ -16,6 +16,8 @@ import type {
   ReplayPreviewRequest,
   ReplayPreviewResponse,
 } from './types';
+import { recordingOwner, recordingPermissionDenied } from './recording-ownership';
+import { ActionType, getNavigateParams } from '../../proto';
 
 /**
  * Validate selector endpoint
@@ -32,8 +34,14 @@ export async function handleValidateSelector(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    const permissionDenied = recordingPermissionDenied(session, 'observe');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const request = body as unknown as ValidateSelectorRequest;
 
     if (!request.selector) {
@@ -79,8 +87,14 @@ export async function handleReplayPreview(
   config: Config
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
     const body = await parseJsonBody(req, config);
+    const ownedSession = recordingOwner(body, sessionId, sessionManager);
+    const session = ownedSession();
+    const permissionDenied = recordingPermissionDenied(session, 'replay_preview');
+    if (permissionDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: permissionDenied, kind: 'auth', retryable: false } });
+      return;
+    }
     const request = body as unknown as ReplayPreviewRequest;
 
     if (!request.entries || !Array.isArray(request.entries) || request.entries.length === 0) {
@@ -94,6 +108,29 @@ export async function handleReplayPreview(
     // Use pipeline manager for replay
     if (!session.pipelineManager) {
       throw new Error('Pipeline manager not set on session');
+    }
+
+    // Replay preview is effectful: recorded navigation targets are untrusted
+    // input and must fit the same lease's URL allow/deny policy before replay.
+    for (const entry of request.entries) {
+      if (entry.action?.type !== ActionType.NAVIGATE) continue;
+      const target = getNavigateParams(entry.action)?.url;
+      if (!target) {
+        sendJson(res, 400, { error: 'INVALID_REPLAY_NAVIGATION', message: 'Replay navigation entry has no valid target URL' });
+        return;
+      }
+      const navigationDenied = recordingPermissionDenied(ownedSession(), 'navigate', target);
+      if (navigationDenied) {
+        sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: navigationDenied, kind: 'auth', retryable: false } });
+        return;
+      }
+    }
+
+    ownedSession();
+    const recheckDenied = recordingPermissionDenied(ownedSession(), 'replay_preview');
+    if (recheckDenied) {
+      sendJson(res, 403, { error: { code: 'BROWSER_PERMISSION_DENIED', message: recheckDenied, kind: 'auth', retryable: false } });
+      return;
     }
 
     logger.info(scopedLog(LogContext.RECORDING, 'replay started'), {

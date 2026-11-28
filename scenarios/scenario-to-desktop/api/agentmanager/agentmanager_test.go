@@ -2,6 +2,7 @@ package agentmanager
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -13,8 +14,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 // =============================================================================
@@ -68,23 +71,6 @@ func TestBuildRunTag(t *testing.T) {
 }
 
 // =============================================================================
-// DefaultProfileConfig
-// =============================================================================
-
-func TestDefaultProfileConfig(t *testing.T) {
-	cfg := DefaultProfileConfig()
-
-	assert.Equal(t, domainpb.RunnerType_RUNNER_TYPE_CODEX, cfg.RunnerType)
-	assert.Equal(t, domainpb.ModelPreset_MODEL_PRESET_SMART, cfg.ModelPreset)
-	assert.Equal(t, int32(75), cfg.MaxTurns)
-	assert.Equal(t, int32(600), cfg.TimeoutSeconds)
-	assert.True(t, len(cfg.AllowedTools) > 0, "should have allowed tools")
-	assert.True(t, cfg.SkipPermissions)
-	assert.False(t, cfg.RequiresSandbox)
-	assert.False(t, cfg.RequiresApproval)
-}
-
-// =============================================================================
 // AgentService.IsEnabled / IsAvailable
 // =============================================================================
 
@@ -103,8 +89,9 @@ func TestAgentService_IsEnabled(t *testing.T) {
 func TestAgentService_IsAvailable(t *testing.T) {
 	t.Run("returns true when healthy", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/health" {
-				w.WriteHeader(http.StatusOK)
+			if r.URL.Path == apiconnect.AgentManagerServiceHealthProcedure {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"readiness":true}`))
 				return
 			}
 			w.WriteHeader(http.StatusNotFound)
@@ -116,8 +103,14 @@ func TestAgentService_IsAvailable(t *testing.T) {
 	})
 
 	t.Run("returns false when unhealthy", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusServiceUnavailable)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == apiconnect.AgentManagerServiceHealthProcedure {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = w.Write([]byte(`{"code":"unavailable","message":"not ready"}`))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
 		}))
 		defer srv.Close()
 
@@ -137,8 +130,13 @@ func TestAgentService_IsAvailable(t *testing.T) {
 
 func TestClient_Health(t *testing.T) {
 	t.Run("returns true for 200", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == apiconnect.AgentManagerServiceHealthProcedure {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"readiness":true}`))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
 		}))
 		defer srv.Close()
 
@@ -150,13 +148,15 @@ func TestClient_Health(t *testing.T) {
 
 	t.Run("returns false for non-200", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"code":"unavailable","message":"not ready"}`))
 		}))
 		defer srv.Close()
 
 		c := newTestClient(t, srv.URL)
 		ok, err := c.Health(context.Background())
-		require.NoError(t, err)
+		require.Error(t, err)
 		assert.False(t, ok)
 	})
 }
@@ -167,11 +167,13 @@ func TestClient_Health(t *testing.T) {
 
 func TestClient_StopRun(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v1/runs/run-123/stop", r.URL.Path)
-			assert.Equal(t, "POST", r.Method)
-			w.WriteHeader(http.StatusOK)
-		}))
+		srv := httptest.NewServer(connect.NewUnaryHandler(apiconnect.AgentManagerServiceStopRunProcedure,
+			func(_ context.Context, req *connect.Request[apipb.StopRunRequest]) (*connect.Response[apipb.StopRunResponse], error) {
+				if req.Msg.GetRunId() != "run-123" {
+					t.Errorf("run_id = %q", req.Msg.GetRunId())
+				}
+				return connect.NewResponse(&apipb.StopRunResponse{}), nil
+			}))
 		defer srv.Close()
 
 		c := newTestClient(t, srv.URL)
@@ -180,10 +182,10 @@ func TestClient_StopRun(t *testing.T) {
 	})
 
 	t.Run("error response", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"error":"run not found"}`))
-		}))
+		srv := httptest.NewServer(connect.NewUnaryHandler(apiconnect.AgentManagerServiceStopRunProcedure,
+			func(context.Context, *connect.Request[apipb.StopRunRequest]) (*connect.Response[apipb.StopRunResponse], error) {
+				return nil, connect.NewError(connect.CodeNotFound, errors.New("run not found"))
+			}))
 		defer srv.Close()
 
 		c := newTestClient(t, srv.URL)
@@ -193,6 +195,46 @@ func TestClient_StopRun(t *testing.T) {
 	})
 }
 
+func TestCreateTaskAndRunMapTypedApprovalPendingOverConnect(t *testing.T) {
+	approval := func() error {
+		err := connect.NewError(connect.CodeFailedPrecondition, errors.New("approval pending"))
+		detail, detailErr := connect.NewErrorDetail(&apipb.AuthorizationApprovalPending{Subject: "service:scenario-to-desktop", Detail: "operator approval requested"})
+		if detailErr != nil {
+			t.Fatalf("create approval detail: %v", detailErr)
+		}
+		err.AddDetail(detail)
+		return err
+	}
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.AgentManagerServiceCreateTaskProcedure, connect.NewUnaryHandler(apiconnect.AgentManagerServiceCreateTaskProcedure,
+		func(context.Context, *connect.Request[apipb.CreateTaskRequest]) (*connect.Response[apipb.CreateTaskResponse], error) {
+			return nil, approval()
+		}))
+	mux.Handle(apiconnect.AgentManagerServiceCreateRunProcedure, connect.NewUnaryHandler(apiconnect.AgentManagerServiceCreateRunProcedure,
+		func(context.Context, *connect.Request[apipb.CreateRunRequest]) (*connect.Response[apipb.CreateRunResponse], error) {
+			return nil, approval()
+		}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := newTestClient(t, server.URL)
+
+	_, taskErr := client.CreateTask(context.Background(), &domainpb.Task{Title: "approval test"})
+	assertApprovalPending(t, taskErr)
+	_, runErr := client.CreateRun(context.Background(), &apipb.CreateRunRequest{TaskId: "task-1"})
+	assertApprovalPending(t, runErr)
+}
+
+func assertApprovalPending(t *testing.T, err error) {
+	t.Helper()
+	require.Error(t, err)
+	var pending *ApprovalPendingError
+	require.ErrorAs(t, err, &pending)
+	assert.Equal(t, "service:scenario-to-desktop", pending.Subject)
+	assert.Equal(t, "operator approval requested", pending.Detail)
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.Contains(t, err.Error(), "operation was not started")
+}
+
 // =============================================================================
 // Client.GetRun
 // =============================================================================
@@ -200,7 +242,7 @@ func TestClient_StopRun(t *testing.T) {
 func TestClient_GetRun(t *testing.T) {
 	t.Run("returns run", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v1/runs/run-abc", r.URL.Path)
+			assert.Equal(t, apiconnect.AgentManagerServiceGetRunProcedure, r.URL.Path)
 			resp := &apipb.GetRunResponse{
 				Run: &domainpb.Run{
 					Id:     "run-abc",
@@ -223,9 +265,10 @@ func TestClient_GetRun(t *testing.T) {
 	})
 
 	t.Run("returns nil for 404", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-		}))
+		srv := httptest.NewServer(connect.NewUnaryHandler(apiconnect.AgentManagerServiceGetRunProcedure,
+			func(context.Context, *connect.Request[apipb.GetRunRequest]) (*connect.Response[apipb.GetRunResponse], error) {
+				return nil, connect.NewError(connect.CodeNotFound, errors.New("missing"))
+			}))
 		defer srv.Close()
 
 		c := newTestClient(t, srv.URL)
@@ -233,6 +276,47 @@ func TestClient_GetRun(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, run)
 	})
+}
+
+func TestClient_GetProfileAndRunEvents(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		opts := protojson.MarshalOptions{UseProtoNames: false}
+		switch r.URL.Path {
+		case apiconnect.AgentManagerServiceGetProfileProcedure:
+			data, err := opts.Marshal(&apipb.GetProfileResponse{Profile: &domainpb.AgentProfile{Id: "profile-1"}})
+			require.NoError(t, err)
+			_, _ = w.Write(data)
+		case apiconnect.AgentManagerServiceGetRunEventsProcedure:
+			data, err := opts.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{{RunId: "run-1", Sequence: 10}}})
+			require.NoError(t, err)
+			_, _ = w.Write(data)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	c := newTestClient(t, srv.URL)
+	profile, err := c.GetProfile(context.Background(), "profile-1")
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, "profile-1", profile.Id)
+	events, err := c.GetRunEvents(context.Background(), "run-1", 9)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, int64(10), events[0].Sequence)
+}
+
+func TestClient_GetProfileReturnsNilForNotFound(t *testing.T) {
+	srv := httptest.NewServer(connect.NewUnaryHandler(apiconnect.AgentManagerServiceGetProfileProcedure,
+		func(context.Context, *connect.Request[apipb.GetProfileRequest]) (*connect.Response[apipb.GetProfileResponse], error) {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("missing"))
+		}))
+	defer srv.Close()
+	profile, err := newTestClient(t, srv.URL).GetProfile(context.Background(), "missing")
+	require.NoError(t, err)
+	assert.Nil(t, profile)
 }
 
 // =============================================================================
@@ -296,16 +380,23 @@ func TestClient_WaitForRun(t *testing.T) {
 func TestAgentService_Initialize(t *testing.T) {
 	t.Run("noop when disabled", func(t *testing.T) {
 		svc := &AgentService{enabled: false}
-		err := svc.Initialize(context.Background(), DefaultProfileConfig())
+		err := svc.Initialize(context.Background())
 		assert.NoError(t, err)
 	})
 
 	t.Run("creates profile and stores ID", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v1/profiles/ensure", r.URL.Path)
-			resp := &apipb.EnsureProfileResponse{
-				Profile: &domainpb.AgentProfile{Id: "profile-xyz"},
-				Created: true,
+			assert.Equal(t, apiconnect.AgentManagerServiceReconcileScenarioProfilesProcedure, r.URL.Path)
+			resp := &apipb.ReconcileScenarioProfilesResponse{
+				Scenario: "scenario-to-desktop",
+				Results: []*apipb.ProfileReconcileResult{
+					{
+						ProfileKey: "test-key",
+						ProfileId:  "profile-xyz",
+						Status:     apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_CREATED,
+					},
+				},
+				Created: 1,
 			}
 			opts := protojson.MarshalOptions{UseProtoNames: false}
 			data, _ := opts.Marshal(resp)
@@ -315,7 +406,7 @@ func TestAgentService_Initialize(t *testing.T) {
 		defer srv.Close()
 
 		svc := newTestService(t, srv.URL)
-		err := svc.Initialize(context.Background(), DefaultProfileConfig())
+		err := svc.Initialize(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, "profile-xyz", svc.GetProfileID())
 	})
@@ -346,24 +437,24 @@ func TestAgentService_ExecuteAsync_Disabled(t *testing.T) {
 func TestAgentService_ExecuteAsync(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/api/v1/tasks" && r.Method == "POST":
+		case r.URL.Path == apiconnect.AgentManagerServiceCreateTaskProcedure && r.Method == "POST":
 			resp := &apipb.CreateTaskResponse{
 				Task: &domainpb.Task{Id: "task-1"},
 			}
 			opts := protojson.MarshalOptions{UseProtoNames: false}
 			data, _ := opts.Marshal(resp)
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
 
-		case r.URL.Path == "/api/v1/runs" && r.Method == "POST":
+		case r.URL.Path == apiconnect.AgentManagerServiceCreateRunProcedure && r.Method == "POST":
 			resp := &apipb.CreateRunResponse{
 				Run: &domainpb.Run{Id: "run-async-1"},
 			}
 			opts := protojson.MarshalOptions{UseProtoNames: false}
 			data, _ := opts.Marshal(resp)
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
 
 		default:
@@ -392,25 +483,25 @@ func TestAgentService_Execute(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		opts := protojson.MarshalOptions{UseProtoNames: false}
 		switch {
-		case r.URL.Path == "/api/v1/tasks" && r.Method == "POST":
+		case r.URL.Path == apiconnect.AgentManagerServiceCreateTaskProcedure && r.Method == "POST":
 			resp := &apipb.CreateTaskResponse{
 				Task: &domainpb.Task{Id: "task-exec"},
 			}
 			data, _ := opts.Marshal(resp)
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
 
-		case r.URL.Path == "/api/v1/runs" && r.Method == "POST":
+		case r.URL.Path == apiconnect.AgentManagerServiceCreateRunProcedure && r.Method == "POST":
 			resp := &apipb.CreateRunResponse{
 				Run: &domainpb.Run{Id: "run-exec"},
 			}
 			data, _ := opts.Marshal(resp)
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
 
-		case r.URL.Path == "/api/v1/runs/run-exec" && r.Method == "GET":
+		case r.URL.Path == apiconnect.AgentManagerServiceGetRunProcedure && r.Method == "POST":
 			n := atomic.AddInt32(&runPollCount, 1)
 			status := domainpb.RunStatus_RUN_STATUS_RUNNING
 			var summary *domainpb.RunSummary
@@ -452,7 +543,7 @@ func TestAgentService_Execute(t *testing.T) {
 	assert.True(t, result.Success)
 	assert.Equal(t, "run-exec", result.RunID)
 	assert.Equal(t, "Found the bug in build config", result.Output)
-	assert.Equal(t, int32(1500), result.TokensUsed)
+	assert.Equal(t, int64(1500), result.TokensUsed)
 	assert.InDelta(t, 0.05, result.CostEstimate, 0.001)
 }
 
@@ -489,40 +580,6 @@ func TestAgentService_DisabledGuards(t *testing.T) {
 }
 
 // =============================================================================
-// Client.parseError
-// =============================================================================
-
-func TestClient_ParseError(t *testing.T) {
-	c := &Client{}
-
-	t.Run("parses error field", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"error":"bad request"}`))
-		}))
-		defer srv.Close()
-
-		cl := newTestClient(t, srv.URL)
-		resp, _ := cl.doRequest(context.Background(), "GET", "/test", nil)
-		err := c.parseError(resp)
-		assert.Contains(t, err.Error(), "bad request")
-	})
-
-	t.Run("parses message field", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"message":"something went wrong"}`))
-		}))
-		defer srv.Close()
-
-		cl := newTestClient(t, srv.URL)
-		resp, _ := cl.doRequest(context.Background(), "GET", "/test", nil)
-		err := c.parseError(resp)
-		assert.Contains(t, err.Error(), "something went wrong")
-	})
-}
-
-// =============================================================================
 // NewUUID
 // =============================================================================
 
@@ -534,26 +591,4 @@ func TestNewUUID(t *testing.T) {
 	// Uniqueness
 	id2 := NewUUID()
 	assert.NotEqual(t, id, id2)
-}
-
-// =============================================================================
-// buildProfile
-// =============================================================================
-
-func TestBuildProfile(t *testing.T) {
-	svc := &AgentService{
-		profileName: "test-profile",
-		profileKey:  "test-key",
-	}
-
-	cfg := DefaultProfileConfig()
-	profile := svc.buildProfile(cfg)
-
-	assert.Equal(t, "test-profile", profile.Name)
-	assert.Equal(t, "test-key", profile.ProfileKey)
-	assert.Equal(t, int32(75), profile.MaxTurns)
-	assert.Equal(t, "scenario-to-desktop", profile.CreatedBy)
-	assert.NotNil(t, profile.Timeout)
-	assert.Equal(t, cfg.AllowedTools, profile.AllowedTools)
-	assert.True(t, profile.SkipPermissionPrompt)
 }

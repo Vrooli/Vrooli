@@ -127,7 +127,7 @@
    - Parent dashboard for content review adds safety
 
 2. **Performance**:
-   - Implement story caching for common themes
+   - Implement story caching for common themes. **Retained:** the existing bounded 20-entry cache is keyed by story ID and speeds retrieval; it does not cache generation by theme, and the register contains conflicting historical performance measurements. **Owner:** Bedtime Story Generator API/performance owner. **Next:** capture a current reproducible repeated-theme latency and cache-hit sample, then decide whether theme-keyed generation caching is needed. Do not close this item based only on the retrieval cache or the age of the note.
    - Pre-generate stories during idle time
    - Consider smaller specialized models
 
@@ -238,7 +238,7 @@
 - ✅ PDF export functional (3484 bytes tested)
 - ✅ 10 themes available and accessible
 - ✅ Character name customization working
-- ⚠️ Favorite toggle endpoint responds but may have minor timing issue
+- ✅ `TestToggleFavoriteInvalidatesCachedStory`: fixed (2026-11-24).
 **Security**: 0 vulnerabilities found (confirmed via scenario-auditor)
 **Standards**: 691 style violations remain (Level 1 trivial - non-blocking)
 

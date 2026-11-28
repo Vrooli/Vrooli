@@ -1,0 +1,380 @@
+syntax = "proto3";
+
+package vrooli.chain_forensics.v1.cases;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/chain-forensics/v1/cases;cases_v1";
+
+// Case evidence is kept local. This contract exposes typed chain facts and
+// sources; it has no publish, submit-tip, or contact operation.
+service CasesService {
+  rpc ListCases(ListCasesRequest) returns (ListCasesResponse);
+  rpc ImportCase(ImportCaseRequest) returns (CaseResponse);
+  rpc GetCase(GetCaseRequest) returns (CaseResponse);
+  rpc ExportPrivatePacket(ExportPrivatePacketRequest) returns (ExportPrivatePacketResponse);
+  rpc AddAnalystLabel(AddAnalystLabelRequest) returns (AnalystLabelResponse);
+  rpc ListAnalystLabels(ListAnalystLabelsRequest) returns (ListAnalystLabelsResponse);
+  rpc CaptureEVMTransaction(CaptureEVMTransactionRequest) returns (CaptureEVMTransactionResponse);
+  rpc CaptureBitcoinTransaction(CaptureBitcoinTransactionRequest) returns (CaptureBitcoinTransactionResponse);
+  rpc CaptureBitcoinAddressPage(CaptureBitcoinAddressPageRequest) returns (CaptureBitcoinAddressPageResponse);
+  rpc CaptureEVMWalletSnapshot(CaptureEVMWalletSnapshotRequest) returns (CaptureEVMWalletSnapshotResponse);
+  rpc CaptureSolanaAddressPage(CaptureSolanaAddressPageRequest) returns (CaptureSolanaAddressPageResponse);
+  rpc CaptureSolanaTransaction(CaptureSolanaTransactionRequest) returns (CaptureSolanaTransactionResponse);
+  rpc CaptureSolanaTokenAccounts(CaptureSolanaTokenAccountsRequest) returns (CaptureSolanaTokenAccountsResponse);
+  // Revisions append typed evidence and edges; existing captured evidence is immutable.
+  rpc ReviseCase(ReviseCaseRequest) returns (ReviseCaseResponse);
+  rpc ListCaseRevisions(ListCaseRevisionsRequest) returns (ListCaseRevisionsResponse);
+}
+
+enum Chain {
+  CHAIN_UNSPECIFIED = 0;
+  CHAIN_BITCOIN = 1;
+  CHAIN_ETHEREUM = 2;
+  CHAIN_BASE = 3;
+  CHAIN_SOLANA = 4;
+  CHAIN_ARBITRUM = 5;
+}
+
+enum EvidenceKind {
+  EVIDENCE_KIND_UNSPECIFIED = 0;
+  EVIDENCE_KIND_OBSERVATION = 1;
+  EVIDENCE_KIND_LEGAL_CLAIM = 2;
+  EVIDENCE_KIND_PUBLIC_LABEL = 3;
+  EVIDENCE_KIND_DERIVATION = 4;
+}
+
+enum EvidenceGrade {
+  EVIDENCE_GRADE_UNSPECIFIED = 0;
+  EVIDENCE_GRADE_OBSERVED = 1;
+  EVIDENCE_GRADE_PROTOCOL_CORRELATED = 2;
+  EVIDENCE_GRADE_SOURCE_CORROBORATED = 3;
+  EVIDENCE_GRADE_HYPOTHESIS = 4;
+  EVIDENCE_GRADE_UNRESOLVED = 5;
+}
+
+message Source {
+  string id = 1;
+  string name = 2;
+  string url = 3;
+  string retrieved_at = 4;
+  string sha256 = 5;
+  string citation = 6;
+  string limitations = 7;
+  bytes result_body = 8;
+  bytes raw_response_body = 9;
+  string raw_response_sha256 = 10;
+  // Exact retained signature-history source that selected this transaction.
+  string selected_by_source_id = 11;
+}
+
+message Claim {
+  string id = 1;
+  string text = 2;
+  string source_id = 3;
+  EvidenceKind kind = 4;
+}
+
+message Occurrence {
+  string id = 1;
+  Chain chain = 2;
+  string transaction_id = 3;
+  uint64 block_height = 4;
+  string timestamp = 5;
+  uint32 event_index = 6;
+  string direction = 7;
+  string previous_transaction_id = 8;
+  uint32 previous_output_index = 9;
+  string from = 10;
+  string to = 11;
+  string asset = 12;
+  string atomic_quantity = 13;
+  uint32 scale = 14;
+  EvidenceKind kind = 15;
+  string source_id = 16;
+  // Net account balance deltas are not per-instruction transfer evidence.
+  string measurement = 17;
+  string account = 18;
+}
+
+message FlowEdge {
+  string id = 1;
+  string from_occurrence = 2;
+  string to_occurrence = 3;
+  EvidenceGrade grade = 4;
+  string rule = 5;
+  repeated string evidence_ids = 6;
+  repeated string caveats = 7;
+}
+
+message EvidenceCase {
+  string id = 1;
+  string title = 2;
+  string summary = 3;
+  bool private = 4;
+  repeated Source sources = 5;
+  repeated Claim claims = 6;
+  repeated Occurrence occurrences = 7;
+  repeated FlowEdge edges = 8;
+  repeated string gaps = 9;
+  repeated string counterexamples = 10;
+  repeated string source_disagreements = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  repeated EVMWalletSnapshot wallet_snapshots = 14;
+  repeated PumpInstruction pump_instructions = 15;
+  repeated UnresolvedPumpInstruction unresolved_pump_instructions = 16;
+  repeated SolanaTokenAccountSnapshot solana_token_account_snapshots = 17;
+}
+
+// An owner-filtered inventory of SPL token accounts at one finalized RPC slot.
+// A token account's address and its owner address are distinct fields.
+message SolanaTokenAccount {
+  string address = 1;
+  string mint = 2;
+  string owner = 3;
+  string program_id = 4;
+  string atomic_quantity = 5;
+  uint32 scale = 6;
+  bool scale_known = 7;
+}
+message SolanaTokenAccountSnapshot {
+  string id = 1;
+  string owner = 2;
+  string program_id = 3;
+  uint64 context_slot = 4;
+  string source_id = 5;
+  repeated SolanaTokenAccount accounts = 6;
+}
+
+// A decoded Pump instruction is an instruction-level observation tied to its
+// exact source capture. It does not assert deployed-code semantics or identity.
+message PumpInstruction {
+  string id = 1;
+  string transaction_id = 2;
+  uint64 slot = 3;
+  uint32 instruction_index = 4;
+  string program_id = 5;
+  string source_id = 6;
+  string kind = 7;
+  string decoder_version = 8;
+  string mint = 9;
+  string user = 10;
+  string creator = 11;
+  string name = 12;
+  string symbol = 13;
+  string metadata_uri = 14;
+  bool mayhem_mode = 15;
+  bool cashback_enabled = 16;
+  uint64 creator_fee_bps = 17;
+  bool holder_reward = 18;
+}
+
+// Unknown or malformed Pump instructions remain visible without interpretation.
+message UnresolvedPumpInstruction {
+  string id = 1;
+  string transaction_id = 2;
+  uint64 slot = 3;
+  uint32 instruction_index = 4;
+  string program_id = 5;
+  string source_id = 6;
+  string discriminator = 7;
+  string reason = 8;
+  // A pinned current IDL candidate may be recognized while historical
+  // arguments remain unresolved (for example, if instruction byte length differs).
+  string candidate_kind = 9;
+  string decoder_version = 10;
+  uint32 expected_data_length = 11;
+  uint32 observed_data_length = 12;
+}
+
+message EVMTokenBalance {
+  string contract = 1;
+  string atomic_quantity = 2;
+  uint32 scale = 3;
+  bool scale_known = 4;
+}
+
+message EVMWalletSnapshot {
+  string id = 1;
+  Chain chain = 2;
+  string address = 3;
+  uint64 block_height = 4;
+  string block_hash = 5;
+  string timestamp = 6;
+  string native_asset = 7;
+  string native_atomic_quantity = 8;
+  uint32 native_scale = 9;
+  repeated EVMTokenBalance tokens = 10;
+  repeated string source_ids = 11;
+}
+
+message CaseSummary {
+  string id = 1;
+  string title = 2;
+  bool private = 3;
+  uint32 source_count = 4;
+  uint32 occurrence_count = 5;
+  uint32 edge_count = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message ListCasesRequest { uint32 limit = 1; }
+message ListCasesResponse { repeated CaseSummary cases = 1; }
+message ImportCaseRequest { EvidenceCase case = 1; }
+message CaseResponse { EvidenceCase case = 1; }
+message GetCaseRequest { string id = 1; }
+message ExportPrivatePacketRequest { string id = 1; }
+message ExportPrivatePacketResponse {
+  string schema_version = 1;
+  bytes packet_json = 2;
+  // SHA-256 of the persisted canonical packet bytes.
+  string sha256 = 3;
+}
+
+// Analyst labels are kept in their own table and are never rewritten into
+// immutable chain observations or public source captures.
+message AnalystLabel {
+  string id = 1;
+  string case_id = 2;
+  string subject = 3;
+  string label = 4;
+  string source_url = 5;
+  string source_citation = 6;
+  EvidenceGrade grade = 7;
+  string counter_explanation = 8;
+  string unresolved_gap = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message AddAnalystLabelRequest { AnalystLabel label = 1; }
+message AnalystLabelResponse { AnalystLabel label = 1; }
+message ListAnalystLabelsRequest { string case_id = 1; }
+message ListAnalystLabelsResponse { repeated AnalystLabel labels = 1; }
+
+message CaptureEVMTransactionRequest {
+  string case_id = 1;
+  Chain chain = 2;
+  string transaction_hash = 3;
+}
+message CaptureEVMTransactionResponse {
+  EvidenceCase case = 1;
+  uint32 captured_occurrence_count = 2;
+}
+
+message CaptureBitcoinTransactionRequest {
+  string case_id = 1;
+  string transaction_id = 2;
+}
+message CaptureBitcoinTransactionResponse {
+  EvidenceCase case = 1;
+  uint32 captured_occurrence_count = 2;
+}
+
+message CaptureBitcoinAddressPageRequest {
+  string case_id = 1;
+  string address = 2;
+  string after_txid = 3;
+}
+message CaptureBitcoinAddressPageResponse {
+  EvidenceCase case = 1;
+  uint32 captured_transaction_count = 2;
+  uint32 captured_occurrence_count = 3;
+  string next_after_txid = 4;
+}
+
+message CaptureEVMWalletSnapshotRequest {
+  string case_id = 1;
+  Chain chain = 2;
+  string address = 3;
+  repeated string token_contracts = 4;
+}
+message CaptureEVMWalletSnapshotResponse { EvidenceCase case = 1; }
+
+message CaptureSolanaAddressPageRequest {
+  string case_id = 1;
+  string address = 2;
+  string before_signature = 3;
+  // Signature-only pages can be larger than the transaction+delta operation.
+  uint32 signature_limit = 4;
+  bool signatures_only = 5;
+  // Bounded number of sequential signature pages to capture in one case append.
+  uint32 signature_page_count = 6;
+}
+message CaptureSolanaAddressPageResponse {
+  EvidenceCase case = 1;
+  uint32 captured_transaction_count = 2;
+  uint32 captured_occurrence_count = 3;
+  string next_before_signature = 4;
+  uint32 captured_pump_instruction_count = 5;
+  uint32 unresolved_pump_instruction_count = 6;
+  uint32 captured_signature_count = 7;
+  bool signatures_only = 8;
+  string case_id = 9;
+  uint32 captured_page_count = 10;
+  string stopped_reason = 11;
+}
+
+message CaptureSolanaTransactionRequest {
+  string case_id = 1;
+  string signature = 2;
+  string selection_source_id = 3;
+}
+message CaptureSolanaTransactionResponse {
+  EvidenceCase case = 1;
+  uint32 captured_occurrence_count = 2;
+  uint32 captured_pump_instruction_count = 3;
+  uint32 unresolved_pump_instruction_count = 4;
+  bool transaction_failed = 5;
+  string signature = 6;
+  string selection_source_id = 7;
+}
+
+message CaptureSolanaTokenAccountsRequest {
+  string case_id = 1;
+  string owner = 2;
+  string program_id = 3;
+}
+message CaptureSolanaTokenAccountsResponse {
+  EvidenceCase case = 1;
+  uint32 captured_account_count = 2;
+  uint64 context_slot = 3;
+}
+
+message ReviseCaseRequest {
+  string case_id = 1;
+  // Exact updated_at value read by the caller; stale revisions fail with ABORTED.
+  google.protobuf.Timestamp expected_updated_at = 2;
+  repeated Source sources = 3;
+  repeated Claim claims = 4;
+  repeated FlowEdge edges = 5;
+  repeated string gaps = 6;
+  repeated string counterexamples = 7;
+  repeated string source_disagreements = 8;
+  repeated Occurrence occurrences = 9;
+  string summary = 10;
+  repeated string resolved_gaps = 11;
+  repeated EdgeRevision edge_revisions = 12;
+  // Instruction decoder assessments are append-only and retain prior records.
+  repeated PumpInstruction pump_instructions = 13;
+  repeated UnresolvedPumpInstruction unresolved_pump_instructions = 14;
+}
+message EdgeRevision {
+  string supersedes_edge_id = 1;
+  FlowEdge replacement = 2;
+}
+message ReviseCaseResponse {
+  string revision_id = 1;
+  EvidenceCase case = 2;
+  google.protobuf.Timestamp previous_updated_at = 3;
+}
+message CaseRevision {
+  string id = 1;
+  string case_id = 2;
+  google.protobuf.Timestamp previous_updated_at = 3;
+  google.protobuf.Timestamp applied_at = 4;
+  ReviseCaseRequest additions = 5;
+  EvidenceCase previous_case = 6;
+}
+message ListCaseRevisionsRequest { string case_id = 1; }
+message ListCaseRevisionsResponse { repeated CaseRevision revisions = 1; }

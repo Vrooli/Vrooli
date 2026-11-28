@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "foundations.contracts",
+    "name": "Contracts",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "The framework-light type layer defining shared change events, async actions, collection shapes, overlay descriptors, and telemetry events, so every other asset speaks one vocabulary at its boundaries.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "rationale": "Authored first because every port contract and every asset API references these types. Framework-light on purpose: the native targets must be able to mirror the vocabulary without importing React."
+}

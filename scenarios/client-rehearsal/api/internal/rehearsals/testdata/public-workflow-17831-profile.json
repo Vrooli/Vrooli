@@ -1,0 +1,57 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-project-sheet",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic project intake sheet", "version": "1" },
+        "servers": [{ "url": "https://sheets.synthetic.invalid" }],
+        "paths": {
+          "/v1/projects/append": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": { "status": "recorded", "rowId": "synthetic-project-row-1" }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "append"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-project-mail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic project intake mail", "version": "1" },
+        "servers": [{ "url": "https://mail.synthetic.invalid" }],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": { "id": "synthetic-message-1", "status": "recorded" }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

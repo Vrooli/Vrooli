@@ -41,7 +41,7 @@ function formatBytes(bytes: number): string {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  return `${String(parseFloat((bytes / Math.pow(k, i)).toFixed(1)))} ${sizes[i] ?? 'B'}`;
 }
 
 interface ArtifactUploaderProps {
@@ -167,7 +167,7 @@ export function ArtifactUploader({
 
       // Step 2: Upload to S3
       const headers = new Headers();
-      Object.entries(presign.required_headers ?? {}).forEach(([key, value]) => {
+      Object.entries(presign.required_headers).forEach(([key, value]) => {
         if (key.toLowerCase() === 'host') return;
         headers.set(key, value);
       });
@@ -182,7 +182,7 @@ export function ArtifactUploader({
       });
 
       if (!uploadResp.ok) {
-        throw new Error(`Upload failed (${uploadResp.status})`);
+        throw new Error(`Upload failed (${String(uploadResp.status)})`);
       }
       setProgress(70);
 
@@ -199,14 +199,17 @@ export function ArtifactUploader({
       });
       setProgress(100);
 
-      setSuccess(`Uploaded ${file.name}${setAsCurrent ? ' and set as latest version' : ''}`);
+      const successMessage = `Uploaded ${file.name}${setAsCurrent ? ' and set as latest version' : ''}`;
+
+      // Reset the form before publishing feedback. handleClearFile deliberately
+      // clears stale messages for a new selection, so calling it afterwards
+      // would otherwise erase the confirmation of this successful upload.
+      handleClearFile();
+      setSuccess(successMessage);
 
       if (onUploadComplete) {
         onUploadComplete(artifact.id);
       }
-
-      // Reset form for next upload
-      handleClearFile();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -296,7 +299,7 @@ export function ArtifactUploader({
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">App</label>
             <select
               value={appKey}
-              onChange={(e) => setAppKey(e.target.value)}
+              onChange={(e) => { setAppKey(e.target.value); }}
               className={inputBaseClassName}
               disabled={uploading}
             >
@@ -312,7 +315,7 @@ export function ArtifactUploader({
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Platform</label>
             <select
               value={platform}
-              onChange={(e) => setPlatform(e.target.value as PlatformKey | '')}
+              onChange={(e) => { setPlatform(e.target.value as PlatformKey | ''); }}
               className={inputBaseClassName}
               disabled={uploading}
             >
@@ -333,7 +336,7 @@ export function ArtifactUploader({
             <input
               type="text"
               value={version}
-              onChange={(e) => setVersion(e.target.value)}
+              onChange={(e) => { setVersion(e.target.value); }}
               placeholder="e.g. 2.1.0"
               className={inputBaseClassName}
               disabled={uploading}
@@ -350,7 +353,7 @@ export function ArtifactUploader({
               <input
                 type="checkbox"
                 checked={setAsCurrent}
-                onChange={(e) => setSetAsCurrent(e.target.checked)}
+                onChange={(e) => { setSetAsCurrent(e.target.checked); }}
                 className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
                 disabled={uploading}
               />
@@ -366,7 +369,7 @@ export function ArtifactUploader({
           <div className="h-2 overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full bg-blue-500 transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${String(progress)}%` }}
             />
           </div>
           <p className="text-center text-sm text-slate-400">
@@ -385,7 +388,7 @@ export function ArtifactUploader({
       {/* Action buttons */}
       <div className="flex flex-wrap items-center gap-3">
         <Button
-          onClick={handleUpload}
+          onClick={() => { void handleUpload(); }}
           disabled={!file || !platform || !version || !appKey || uploading}
           className="gap-2"
         >

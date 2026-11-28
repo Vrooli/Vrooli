@@ -1,0 +1,101 @@
+[
+  {
+    "name": "failed-status-with-warning-only-findings",
+    "structure": {"success": true, "schema_passed": true},
+    "tidiness": {
+      "required": false,
+      "status": "VALIDATION_STATUS_FAILED",
+      "findings": [
+        {"code": "EXAMPLE_ADVISORY", "severity": "warning", "message": "advisory accompanying failed provider status"}
+      ]
+    },
+    "sda": {"clean": true, "mode": "touched", "summary": {"checked": 0}},
+    "want_success": false,
+    "want_blocking": 1,
+    "want_warnings": 1,
+    "want_codes": ["tidiness_validation_failed", "EXAMPLE_ADVISORY"]
+  },
+  {
+    "name": "degraded-required-coverage",
+    "structure": {"success": true, "schema_passed": true},
+    "tidiness": {
+      "required": true,
+      "status": "VALIDATION_STATUS_DEGRADED",
+      "findings": [
+        {"code": "EXAMPLE_PARTIAL", "severity": "warning", "message": "partial coverage"}
+      ]
+    },
+    "sda": {"clean": true, "mode": "touched", "summary": {"checked": 0}},
+    "want_success": false,
+    "want_blocking": 1,
+    "want_warnings": 1,
+    "want_codes": ["tidiness_validation_failed", "EXAMPLE_PARTIAL"]
+  },
+  {
+    "name": "distinct-owner-blockers-are-retained-once",
+    "structure": {
+      "success": false,
+      "schema_passed": true,
+      "findings": [
+        {"code": "STRUCTURE_REQUIRED_FIXTURE", "severity": "error", "target_kind": "project", "target_id": "repo", "location": "repo contract", "message": "structure contract violation", "remediation": "repair the fixture contract"}
+      ]
+    },
+    "tidiness": {
+      "required": false,
+      "status": "VALIDATION_STATUS_PASSED",
+      "findings": []
+    },
+    "sda": {
+      "clean": false,
+      "mode": "touched",
+      "summary": {"checked": 1, "stale": 1},
+      "surfaces": [{"scenario": "fixture", "surface": "api", "go_mod_path": "scenarios/fixture/api/go.mod", "status": "stale", "diff_paths": ["scenarios/fixture/api/go.mod"]}],
+      "next_actions": [{"code": "reconcile_go_modules", "message": "reconcile fixture module", "command": "scenario-dependency-analyzer deps reconcile --all-modules --apply"}]
+    },
+    "want_success": false,
+    "want_blocking": 2,
+    "want_warnings": 0,
+    "want_codes": ["STRUCTURE_REQUIRED_FIXTURE", "dependency_freshness"]
+  },
+  {
+    "name": "unavailable-dependency-coverage-is-blocking",
+    "structure": {"success": true, "schema_passed": true},
+    "tidiness": {"status": "VALIDATION_STATUS_PASSED", "findings": []},
+    "sda_error": "provider unavailable",
+    "want_success": false,
+    "want_blocking": 1,
+    "want_warnings": 0,
+    "want_codes": ["dependency_freshness_provider"]
+  },
+  {
+    "name": "unknown-nonrequired-status-is-visible-as-partial",
+    "structure": {"success": true, "schema_passed": true},
+    "tidiness": {"status": "VALIDATION_STATUS_FUTURE_VALUE", "required": false, "findings": []},
+    "sda": {"clean": true, "mode": "touched", "summary": {"checked": 0}},
+    "want_success": true,
+    "want_blocking": 0,
+    "want_warnings": 1,
+    "want_codes": ["tidiness_validation_incomplete"]
+  },
+  {
+    "name": "unavailable-required-structure-coverage-is-blocking",
+    "structure": {"success": false, "schema_passed": false, "required": true, "error": "structure-health unavailable"},
+    "tidiness": {"status": "VALIDATION_STATUS_PASSED", "findings": []},
+    "sda": {"clean": true, "mode": "touched", "summary": {"checked": 0}},
+    "want_success": false,
+    "want_blocking": 1,
+    "want_warnings": 0,
+    "want_codes": ["repo_contract_unguarded"]
+  },
+  {
+    "name": "unavailable-required-plan-coverage-is-blocking",
+    "structure": {"success": true, "schema_passed": true},
+    "tidiness": {"status": "VALIDATION_STATUS_PASSED", "findings": []},
+    "plans": {"required": true, "error": "plan-manager unavailable"},
+    "sda": {"clean": true, "mode": "touched", "summary": {"checked": 0}},
+    "want_success": false,
+    "want_blocking": 1,
+    "want_warnings": 0,
+    "want_codes": ["plan_manager_unavailable"]
+  }
+]

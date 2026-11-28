@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "name": "root-redirects-to-mission-control",
+    "description": "Navigates to the application root and verifies the router redirects to /mission-control with data-theme='ground-control'.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-001\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-root",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /"
+        }
+      }
+    },
+    {
+      "id": "wait-ground-control",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='ground-control']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for redirected /mission-control theme"
+        }
+      }
+    },
+    {
+      "id": "assert-ground-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-theme='ground-control']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected root '/' to redirect to /mission-control (data-theme='ground-control')"
+        },
+        "metadata": {
+          "label": "Assert mission-control theme after redirect"
+        }
+      }
+    },
+    {
+      "id": "capture-root-redirect",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture redirected root"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-root", "target": "wait-ground-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-ground-control", "target": "assert-ground-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-ground-control", "target": "capture-root-redirect", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

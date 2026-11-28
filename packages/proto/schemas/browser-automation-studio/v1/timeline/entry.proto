@@ -16,9 +16,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // TIMELINE ENTRY (UNIFIED FORMAT)
 // =============================================================================
 //
-// @layer 3
-// @domain timeline
-// @imports base, actions, domain
 // @stability stable
 //
 // TimelineEntry is THE canonical format for timeline data, used for both:
@@ -42,7 +39,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 // TimelineEntry captures a single action in the timeline.
 // This is the unified format for both streaming and batch access.
 //
-// @usage ExecutionTimeline.entries, GetActionsResponse.entries, TimelineStreamMessage.entry
 message TimelineEntry {
   // === IDENTITY ===
   // Unique entry identifier.
@@ -93,7 +89,6 @@ message TimelineEntry {
 // This data is calculated when an execution completes and is NOT populated
 // during real-time streaming.
 //
-// @usage TimelineEntry.aggregates
 message TimelineEntryAggregates {
   // Step execution status (pending, running, completed, failed, etc.).
   StepStatus status = 1;
@@ -122,7 +117,6 @@ message TimelineEntryAggregates {
 // TimelineArtifact represents a stored artifact from execution.
 // Examples: screenshots, console logs, network traces, DOM snapshots.
 //
-// @usage TimelineEntryAggregates.artifacts, TimelineEntryAggregates.dom_snapshot
 message TimelineArtifact {
   // Unique artifact identifier.
   // @format uuid
@@ -153,7 +147,6 @@ message TimelineArtifact {
 
 // ElementFocus captures focus metadata for screenshot framing and highlighting.
 //
-// @usage TimelineEntryAggregates.focused_element
 message ElementFocus {
   // CSS selector of the focused element.
   string selector = 1;
@@ -167,7 +160,6 @@ message ElementFocus {
 
 // TimelineLog captures execution log output for the timeline.
 //
-// @usage ExecutionTimeline.logs, TimelineStreamMessage.log
 message TimelineLog {
   // Unique log entry identifier.
   // @format uuid
@@ -188,7 +180,6 @@ message TimelineLog {
 
 // TimelineMessageType enumerates WebSocket message types for streaming.
 //
-// @usage TimelineStreamMessage.type
 enum TimelineMessageType {
   TIMELINE_MESSAGE_TYPE_UNSPECIFIED = 0;
   TIMELINE_MESSAGE_TYPE_ENTRY = 1; // TimelineEntry payload
@@ -200,7 +191,6 @@ enum TimelineMessageType {
 // TimelineStreamMessage wraps timeline data for WebSocket transport.
 // This is the envelope format for all streaming timeline messages.
 //
-// @usage WebSocket timeline streaming endpoint
 message TimelineStreamMessage {
   // Message type for routing and parsing.
   TimelineMessageType type = 1;
@@ -216,7 +206,6 @@ message TimelineStreamMessage {
 
 // TimelineStatusUpdate reports overall session/execution status.
 //
-// @usage TimelineStreamMessage.status
 message TimelineStatusUpdate {
   // Session ID (recording) or Execution ID (playback).
   // @format uuid
@@ -233,7 +222,6 @@ message TimelineStatusUpdate {
 
 // TimelineHeartbeat keeps WebSocket connection alive.
 //
-// @usage TimelineStreamMessage.heartbeat
 message TimelineHeartbeat {
   // Heartbeat timestamp.
   google.protobuf.Timestamp timestamp = 1;

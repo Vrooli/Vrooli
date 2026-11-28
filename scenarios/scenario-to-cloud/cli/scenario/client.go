@@ -7,9 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -18,18 +15,6 @@ import (
 // Client provides API access for scenario operations.
 type Client struct {
 	api *cliutil.APIClient
-}
-
-var resolveAnalyzerBaseURL = defaultResolveAnalyzerBaseURL
-
-// SetResolveAnalyzerBaseURLForTest overrides analyzer URL resolution for tests.
-func SetResolveAnalyzerBaseURLForTest(fn func(ctx context.Context) (string, error)) {
-	resolveAnalyzerBaseURL = fn
-}
-
-// ResolveAnalyzerBaseURLForTest returns the current analyzer URL resolver.
-func ResolveAnalyzerBaseURLForTest() func(ctx context.Context) (string, error) {
-	return resolveAnalyzerBaseURL
 }
 
 // NewClient creates a new scenario client.
@@ -78,12 +63,26 @@ func (c *Client) Dependencies(scenarioID string) ([]byte, DepsResponse, error) {
 
 // DeploymentReport returns deployment sizing and dependency graph metadata for a scenario.
 func (c *Client) DeploymentReport(ctx context.Context, scenarioID string) ([]byte, DeploymentReportResponse, error) {
-	baseURL, err := resolveAnalyzerBaseURL(ctx)
+	baseURL, err := cliutil.ResolveScenarioAPIBaseURL(ctx, cliutil.ScenarioAPIBaseOptions{
+		Target:  "scenario-dependency-analyzer",
+		EnvVars: []string{"SCENARIO_DEPENDENCY_ANALYZER_API_BASE_URL"},
+	})
 	if err != nil {
 		return nil, DeploymentReportResponse{}, err
 	}
 
-	endpoint := fmt.Sprintf("%s/api/v1/scenarios/%s/deployment?refresh=true", strings.TrimSuffix(baseURL, "/"), url.PathEscape(scenarioID))
+	endpoint, err := url.JoinPath(baseURL, "api/v1/scenarios", url.PathEscape(scenarioID), "deployment")
+	if err != nil {
+		return nil, DeploymentReportResponse{}, fmt.Errorf("build analyzer endpoint: %w", err)
+	}
+	parsedEndpoint, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, DeploymentReportResponse{}, fmt.Errorf("parse analyzer endpoint: %w", err)
+	}
+	query := parsedEndpoint.Query()
+	query.Set("refresh", "true")
+	parsedEndpoint.RawQuery = query.Encode()
+	endpoint = parsedEndpoint.String()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, DeploymentReportResponse{}, err
@@ -110,18 +109,4 @@ func (c *Client) DeploymentReport(ctx context.Context, scenarioID string) ([]byt
 		return body, DeploymentReportResponse{}, err
 	}
 	return body, report, nil
-}
-
-func defaultResolveAnalyzerBaseURL(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "scenario-dependency-analyzer", "API_PORT")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("resolve analyzer port: %w", err)
-	}
-	portStr := strings.TrimSpace(string(out))
-	port, err := strconv.Atoi(portStr)
-	if err != nil || port <= 0 {
-		return "", fmt.Errorf("invalid analyzer port: %s", portStr)
-	}
-	return fmt.Sprintf("http://localhost:%d", port), nil
 }

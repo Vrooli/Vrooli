@@ -19,19 +19,15 @@ func TestHealthHandler(t *testing.T) {
 			Path:   "/health",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var response HealthResponse
 		assertJSONResponse(t, w, http.StatusOK, &response)
 
-		if response.Status != "healthy" {
-			t.Errorf("Expected status 'healthy', got '%s'", response.Status)
+		// The database is optional: without it the API serves in-memory
+		// wheels, so it is ready but degraded.
+		if response.Status != "degraded" {
+			t.Errorf("Expected status 'degraded' without a database, got '%s'", response.Status)
 		}
 		if response.Service != "picker-wheel-api" {
 			t.Errorf("Expected service 'picker-wheel-api', got '%s'", response.Service)
@@ -62,13 +58,7 @@ func TestGetWheelsHandler(t *testing.T) {
 			Path:   "/api/wheels",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var wheelsList []Wheel
 		assertJSONResponse(t, w, http.StatusOK, &wheelsList)
@@ -106,13 +96,7 @@ func TestGetWheelsHandler(t *testing.T) {
 			Path:   "/api/wheels",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		// Should return default wheels when in-memory is empty
 		var wheelsList []Wheel
@@ -144,13 +128,7 @@ func TestCreateWheelHandler(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var createdWheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &createdWheel)
@@ -175,13 +153,7 @@ func TestCreateWheelHandler(t *testing.T) {
 			Body:   "invalid json",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		assertErrorResponse(t, w, http.StatusBadRequest, "")
 	})
@@ -202,13 +174,7 @@ func TestCreateWheelHandler(t *testing.T) {
 			Body:   newWheel,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		// Should accept even with empty options
 		var createdWheel Wheel
@@ -217,6 +183,76 @@ func TestCreateWheelHandler(t *testing.T) {
 		if len(createdWheel.Options) != 0 {
 			t.Errorf("Expected 0 options, got %d", len(createdWheel.Options))
 		}
+	})
+
+	t.Run("InMemoryWheelCanBeReadAndDeletedAfterCreation", func(t *testing.T) {
+		resetTestState()
+		request := HTTPTestRequest{
+			Method: "POST",
+			Path:   "/api/wheels",
+			Body: Wheel{
+				Name:    "Addressable wheel",
+				Options: []Option{{Label: "Keep", Color: "#123456", Weight: 1}},
+			},
+		}
+		httpReq, created, err := makeHTTPRequest(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		setupTestRouter().ServeHTTP(created, httpReq)
+		if created.Code != http.StatusOK {
+			t.Fatalf("create status = %d, want %d: %s", created.Code, http.StatusOK, created.Body.String())
+		}
+		var wheel Wheel
+		if err := json.Unmarshal(created.Body.Bytes(), &wheel); err != nil {
+			t.Fatal(err)
+		}
+		if wheel.ID == "" {
+			t.Fatal("created in-memory wheel has no ID")
+		}
+		listReq, listed, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: "/api/wheels"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		setupTestRouter().ServeHTTP(listed, listReq)
+		var listedWheels []Wheel
+		assertJSONResponse(t, listed, http.StatusOK, &listedWheels)
+		foundCreated := false
+		for _, listedWheel := range listedWheels {
+			if listedWheel.ID == wheel.ID {
+				foundCreated = true
+				break
+			}
+		}
+		if !foundCreated {
+			t.Fatalf("created wheel %q is absent from the in-memory collection", wheel.ID)
+		}
+
+		readReq, readResponse, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: "/api/wheels/" + wheel.ID, URLVars: map[string]string{"id": wheel.ID}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		setupTestRouter().ServeHTTP(readResponse, readReq)
+		var readWheel Wheel
+		assertJSONResponse(t, readResponse, http.StatusOK, &readWheel)
+		if readWheel.ID != wheel.ID || readWheel.Name != "Addressable wheel" {
+			t.Fatalf("read after create = %+v, want created wheel %q", readWheel, wheel.ID)
+		}
+
+		deleteReq, deleted, err := makeHTTPRequest(HTTPTestRequest{Method: "DELETE", Path: "/api/wheels/" + wheel.ID, URLVars: map[string]string{"id": wheel.ID}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		setupTestRouter().ServeHTTP(deleted, deleteReq)
+		if deleted.Code != http.StatusNoContent {
+			t.Fatalf("delete status = %d, want %d", deleted.Code, http.StatusNoContent)
+		}
+		missingReq, missing, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: "/api/wheels/" + wheel.ID, URLVars: map[string]string{"id": wheel.ID}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		setupTestRouter().ServeHTTP(missing, missingReq)
+		assertErrorResponse(t, missing, http.StatusNotFound, "Wheel not found")
 	})
 }
 
@@ -235,13 +271,7 @@ func TestGetWheelHandler(t *testing.T) {
 			URLVars: map[string]string{"id": "yes-or-no"},
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var wheel Wheel
 		assertJSONResponse(t, w, http.StatusOK, &wheel)
@@ -264,15 +294,9 @@ func TestGetWheelHandler(t *testing.T) {
 			URLVars: map[string]string{"id": "non-existent"},
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
+		w := serveTestRequest(t, req)
 
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
-
-		assertErrorResponse(t, w, http.StatusNotFound, "")
+		assertErrorResponse(t, w, http.StatusNotFound, "Wheel not found")
 	})
 }
 
@@ -293,13 +317,7 @@ func TestDeleteWheelHandler(t *testing.T) {
 			URLVars: map[string]string{"id": "yes-or-no"},
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		if w.Code != http.StatusNoContent {
 			t.Errorf("Expected status %d, got %d", http.StatusNoContent, w.Code)
@@ -321,15 +339,9 @@ func TestDeleteWheelHandler(t *testing.T) {
 			URLVars: map[string]string{"id": "non-existent"},
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
+		w := serveTestRequest(t, req)
 
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
-
-		assertErrorResponse(t, w, http.StatusNotFound, "")
+		assertErrorResponse(t, w, http.StatusNotFound, "Wheel not found")
 	})
 }
 
@@ -353,13 +365,7 @@ func TestSpinHandler(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -407,13 +413,7 @@ func TestSpinHandler(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -460,13 +460,7 @@ func TestSpinHandler(t *testing.T) {
 				Body:   spinRequest,
 			}
 
-			httpReq, w, err := makeHTTPRequest(req)
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			router := setupTestRouter()
-			router.ServeHTTP(w, httpReq)
+			w := serveTestRequest(t, req)
 
 			var result SpinResult
 			if err := json.Unmarshal(w.Body.Bytes(), &result); err == nil {
@@ -496,13 +490,7 @@ func TestSpinHandler(t *testing.T) {
 			Body:   spinRequest,
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var result SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &result)
@@ -521,13 +509,7 @@ func TestSpinHandler(t *testing.T) {
 			Body:   "invalid json",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		assertErrorResponse(t, w, http.StatusBadRequest, "")
 	})
@@ -546,13 +528,7 @@ func TestGetHistoryHandler(t *testing.T) {
 			Path:   "/api/history",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var historyList []SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &historyList)
@@ -585,13 +561,7 @@ func TestGetHistoryHandler(t *testing.T) {
 			Path:   "/api/history",
 		}
 
-		httpReq, w, err := makeHTTPRequest(req)
-		if err != nil {
-			t.Fatalf("Failed to create request: %v", err)
-		}
-
-		router := setupTestRouter()
-		router.ServeHTTP(w, httpReq)
+		w := serveTestRequest(t, req)
 
 		var historyList []SpinResult
 		assertJSONResponse(t, w, http.StatusOK, &historyList)

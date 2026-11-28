@@ -48,7 +48,7 @@ export function useVariantSEOEditor({
   }, [variantSlug, siteBranding]);
 
   useEffect(() => {
-    fetchSEO();
+    void fetchSEO();
   }, [fetchSEO]);
 
   const handleSave = useCallback(async () => {
@@ -59,7 +59,7 @@ export function useVariantSEOEditor({
     try {
       await saveVariantSEOConfig(variantSlug, seoConfig);
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => { setSuccess(false); }, 3000);
       onSave?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');

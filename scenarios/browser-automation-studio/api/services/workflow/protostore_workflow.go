@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	corestorage "github.com/vrooli/api-core/storage"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -146,19 +147,26 @@ func flexibleWorkflowPayloadToProto(project *database.ProjectIndex, payload map[
 	}
 
 	return &basapi.WorkflowSummary{
-		Id:          id.String(),
-		ProjectId:   project.ID.String(),
-		Name:        name,
-		FolderPath:  folderPath,
-		Description: description,
-		Tags:        tags,
-		Version:     version,
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
+		Id:             id.String(),
+		ProjectId:      project.ID.String(),
+		Name:           name,
+		FolderPath:     folderPath,
+		Description:    description,
+		Tags:           tags,
+		Version:        version,
+		CreatedAt:      createdAt,
+		UpdatedAt:      updatedAt,
 		FlowDefinition: def,
 	}, needsWrite, nil
 }
 
+// WriteWorkflowSummaryFile persists a WorkflowSummary as a .workflow.json
+// file under the project root. preferredRel, when non-empty, is treated
+// as a project-root-relative path (matching WorkflowIndex.FilePath and
+// the relPath produced by sync). Returning to ProjectWorkflowsDir-relative
+// here causes path doubling on every round-trip (workflows/workflows/...
+// recursion), so the two relativity spaces are kept aligned in this
+// function and in desiredWorkflowSummaryFilePath.
 func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.WorkflowSummary, preferredRel string) (absPath string, relPath string, err error) {
 	if project == nil {
 		return "", "", errors.New("project is nil")
@@ -170,9 +178,11 @@ func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.Workflo
 	abs, rel := desiredWorkflowSummaryFilePath(project, wf)
 	targetAbs := abs
 	targetRel := rel
-	if strings.TrimSpace(preferredRel) != "" {
-		targetAbs = filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(preferredRel))
-		targetRel = preferredRel
+	if trimmed := strings.TrimSpace(preferredRel); trimmed != "" {
+		// preferredRel is project-root-relative; honor it verbatim.
+		cleanRel := filepath.ToSlash(filepath.Clean(trimmed))
+		targetAbs = filepath.Join(project.FolderPath, filepath.FromSlash(cleanRel))
+		targetRel = cleanRel
 	}
 
 	if err := os.MkdirAll(filepath.Dir(targetAbs), 0o755); err != nil {
@@ -190,16 +200,17 @@ func WriteWorkflowSummaryFile(project *database.ProjectIndex, wf *basapi.Workflo
 		indented = buf.Bytes()
 	}
 
-	tmp := targetAbs + ".tmp"
-	if err := os.WriteFile(tmp, indented, 0o644); err != nil {
-		return "", "", fmt.Errorf("failed to write workflow temp file: %w", err)
-	}
-	if err := os.Rename(tmp, targetAbs); err != nil {
-		return "", "", fmt.Errorf("failed to finalize workflow file write: %w", err)
+	if err := corestorage.WriteFileAtomic(targetAbs, indented, 0o644); err != nil {
+		return "", "", fmt.Errorf("failed to write workflow file: %w", err)
 	}
 	return targetAbs, filepath.ToSlash(targetRel), nil
 }
 
+// desiredWorkflowSummaryFilePath returns the canonical absolute path and
+// project-root-relative path for a workflow summary. The relative path
+// always includes the leading "workflows/" segment so it round-trips
+// cleanly through WorkflowIndex.FilePath, which is project-root-relative
+// per sync.go's filepath.Rel(projectRoot, path) contract.
 func desiredWorkflowSummaryFilePath(project *database.ProjectIndex, wf *basapi.WorkflowSummary) (absPath string, relPath string) {
 	folder := normalizeFolderPath(wf.FolderPath)
 	subdir := workflowsSubdir(folder)
@@ -207,8 +218,9 @@ func desiredWorkflowSummaryFilePath(project *database.ProjectIndex, wf *basapi.W
 	id, _ := uuid.Parse(wf.Id)
 	fileName := fmt.Sprintf("%s--%s%s", slug, shortID(id), workflowFileExt)
 	baseDir := ProjectWorkflowsDir(project)
+	rootRelDir := workflowDirectoryName // "workflows"
 	if subdir != "" {
-		return filepath.Join(baseDir, subdir, fileName), filepath.Join(subdir, fileName)
+		return filepath.Join(baseDir, subdir, fileName), filepath.ToSlash(filepath.Join(rootRelDir, subdir, fileName))
 	}
-	return filepath.Join(baseDir, fileName), fileName
+	return filepath.Join(baseDir, fileName), filepath.ToSlash(filepath.Join(rootRelDir, fileName))
 }

@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "runner": "grok",
+  "provenance": {"source": "Live grok models observation 2026-10-27 offers grok-build, matching every declared role model. The authoritative listing is partial, not an exhaustive inventory; inference, billing and a newer harness release remain unqualified.", "observed_at": "2026-10-27"},
+  "billing": {"mode": "unknown", "source": "operator-not-declared"},
+  "model_aliases": {
+    "grok-build": {"canonical_model": "grok-build", "provider": "xai"}
+  },
+  "roles": {
+    "code.default": {"model": "grok-build", "canonical_model": "grok-build", "description": "Default Grok Build implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "grok-build", "canonical_model": "grok-build", "description": "Grok Build low-latency coding work.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "grok-build", "canonical_model": "grok-build", "description": "Grok Build complex reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.judgment": {"model": "grok-build", "canonical_model": "grok-build", "description": "Fallback for high-level judgment and strategic reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.inspection": {"model": "grok-build", "canonical_model": "grok-build", "description": "Code inspection, reproduction, execution, and evidence gathering.", "capabilities": ["code", "tools"]},
+    "code.cheap": {"model": "grok-build", "canonical_model": "grok-build", "description": "Grok Build cost-conscious tasks when selected.", "capabilities": ["code", "tools"]}
+  }
+}

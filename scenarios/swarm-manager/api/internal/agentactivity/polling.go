@@ -2,11 +2,18 @@ package agentactivity
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+type workflowStateReader interface {
+	GetWorkflowExecutionState(context.Context, string) (agentmanager.WorkflowExecutionState, error)
+}
 
 func (s *Service) refreshActiveLocked(ctx context.Context) error {
 	if s.agentService == nil {
@@ -19,12 +26,37 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 	}
 
 	stateByRunID := make(map[string]agentmanager.RunState)
+	stateByWorkflowID := make(map[string]agentmanager.WorkflowExecutionState)
+	workflowReader, _ := s.agentService.(workflowStateReader)
 	changed := false
 	changedRecords := make(map[string]Record)
 
 	for i := range records {
 		record := &records[i]
-		if !isActiveStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+		if !isActiveStatus(record.Status) {
+			continue
+		}
+		if workflowID := strings.TrimSpace(record.Metadata["workflow_execution_id"]); workflowID != "" && workflowReader != nil {
+			state, ok := stateByWorkflowID[workflowID]
+			if !ok {
+				fetched, fetchErr := workflowReader.GetWorkflowExecutionState(ctx, workflowID)
+				if fetchErr != nil {
+					continue
+				}
+				state = fetched
+				stateByWorkflowID[workflowID] = state
+			}
+			updated, transitionErr := applyWorkflowStateToRecord(record, state)
+			if transitionErr != nil {
+				return fmt.Errorf("refresh workflow activity %q: %w", record.ActivityID, transitionErr)
+			}
+			if updated {
+				changed = true
+				changedRecords[record.ActivityID] = *record
+			}
+			continue
+		}
+		if strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
 
@@ -39,30 +71,14 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 			stateByRunID[runID] = state
 		}
 
-		nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
-		if nextStatus == record.Status &&
-			record.StartedAt == strings.TrimSpace(state.StartedAt) &&
-			record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
-			record.FailureReason == strings.TrimSpace(reason) {
-			continue
+		updated, transitionErr := applyRunStateToRecord(record, state)
+		if transitionErr != nil {
+			return fmt.Errorf("refresh run activity %q: %w", record.ActivityID, transitionErr)
 		}
-
-		record.Status = nextStatus
-		record.FailureReason = strings.TrimSpace(reason)
-		record.UpdatedAt = nowRFC3339()
-		if record.TaskID == "" {
-			record.TaskID = strings.TrimSpace(state.TaskID)
+		if updated {
+			changed = true
+			changedRecords[record.ActivityID] = *record
 		}
-		if strings.TrimSpace(state.StartedAt) != "" {
-			record.StartedAt = strings.TrimSpace(state.StartedAt)
-		}
-		if strings.TrimSpace(state.FinishedAt) != "" {
-			record.FinishedAt = strings.TrimSpace(state.FinishedAt)
-		} else if !isActiveStatus(nextStatus) {
-			record.FinishedAt = record.UpdatedAt
-		}
-		changed = true
-		changedRecords[record.ActivityID] = *record
 	}
 
 	if !changed {
@@ -87,6 +103,8 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 	}
 
 	stateByRunID := make(map[string]agentmanager.RunState)
+	stateByWorkflowID := make(map[string]agentmanager.WorkflowExecutionState)
+	workflowReader, _ := s.agentService.(workflowStateReader)
 	changed := false
 	changedRecords := make(map[string]Record)
 
@@ -95,7 +113,30 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 		if record.OwnerType != OwnerBacklog || record.OwnerKind != ownerKind || record.OwnerName != ownerName {
 			continue
 		}
-		if !isActiveStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+		if !isActiveStatus(record.Status) {
+			continue
+		}
+		if workflowID := strings.TrimSpace(record.Metadata["workflow_execution_id"]); workflowID != "" && workflowReader != nil {
+			state, ok := stateByWorkflowID[workflowID]
+			if !ok {
+				fetched, fetchErr := workflowReader.GetWorkflowExecutionState(ctx, workflowID)
+				if fetchErr != nil {
+					continue
+				}
+				state = fetched
+				stateByWorkflowID[workflowID] = state
+			}
+			updated, transitionErr := applyWorkflowStateToRecord(record, state)
+			if transitionErr != nil {
+				return fmt.Errorf("refresh workflow activity %q: %w", record.ActivityID, transitionErr)
+			}
+			if updated {
+				changed = true
+				changedRecords[record.ActivityID] = *record
+			}
+			continue
+		}
+		if strings.TrimSpace(record.RunID) == "" {
 			continue
 		}
 
@@ -110,30 +151,14 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 			stateByRunID[runID] = state
 		}
 
-		nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
-		if nextStatus == record.Status &&
-			record.StartedAt == strings.TrimSpace(state.StartedAt) &&
-			record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
-			record.FailureReason == strings.TrimSpace(reason) {
-			continue
+		updated, transitionErr := applyRunStateToRecord(record, state)
+		if transitionErr != nil {
+			return fmt.Errorf("refresh run activity %q: %w", record.ActivityID, transitionErr)
 		}
-
-		record.Status = nextStatus
-		record.FailureReason = strings.TrimSpace(reason)
-		record.UpdatedAt = nowRFC3339()
-		if record.TaskID == "" {
-			record.TaskID = strings.TrimSpace(state.TaskID)
+		if updated {
+			changed = true
+			changedRecords[record.ActivityID] = *record
 		}
-		if strings.TrimSpace(state.StartedAt) != "" {
-			record.StartedAt = strings.TrimSpace(state.StartedAt)
-		}
-		if strings.TrimSpace(state.FinishedAt) != "" {
-			record.FinishedAt = strings.TrimSpace(state.FinishedAt)
-		} else if !isActiveStatus(nextStatus) {
-			record.FinishedAt = record.UpdatedAt
-		}
-		changed = true
-		changedRecords[record.ActivityID] = *record
 	}
 
 	if !changed {
@@ -173,7 +198,108 @@ func matchesFilters(record Record, filters ListFilters) bool {
 	if value := strings.TrimSpace(filters.RunID); value != "" && record.RunID != value {
 		return false
 	}
+	if !filters.ActiveOrFinishedSince.IsZero() && !recordWithinWindow(record, filters.ActiveOrFinishedSince) {
+		return false
+	}
 	return true
+}
+
+// recordWithinWindow returns true when the record is still active
+// (pending / starting / running / needs_review) OR finished at or after
+// the given cutoff. Records with malformed FinishedAt strings are kept
+// (we can't tell whether they fall outside the window — failing closed
+// would silently lose them from the operations view).
+func recordWithinWindow(record Record, since time.Time) bool {
+	if isActiveStatus(record.Status) {
+		return true
+	}
+	finished := strings.TrimSpace(record.FinishedAt)
+	if finished == "" {
+		// No FinishedAt yet but not active — treat as "still recent" so the
+		// operator sees the row instead of losing it to a clock race.
+		return true
+	}
+	t, err := time.Parse(time.RFC3339, finished)
+	if err != nil {
+		return true
+	}
+	return !t.Before(since)
+}
+
+// applyRunStateToRecord reconciles a record against a freshly fetched run state,
+// mutating it in place. It returns true when the record changed (and therefore
+// needs to be persisted/dispatched); a no-op state returns false.
+func applyRunStateToRecord(record *Record, state agentmanager.RunState) (bool, error) {
+	nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
+	if nextStatus == record.Status &&
+		record.StartedAt == strings.TrimSpace(state.StartedAt) &&
+		record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
+		record.FailureReason == strings.TrimSpace(reason) {
+		return false, nil
+	}
+
+	if err := record.TransitionStatus(nextStatus); err != nil {
+		return false, err
+	}
+	record.FailureReason = strings.TrimSpace(reason)
+	record.UpdatedAt = nowRFC3339()
+	if record.TaskID == "" {
+		record.TaskID = strings.TrimSpace(state.TaskID)
+	}
+	if strings.TrimSpace(state.StartedAt) != "" {
+		record.StartedAt = strings.TrimSpace(state.StartedAt)
+	}
+	if strings.TrimSpace(state.FinishedAt) != "" {
+		record.FinishedAt = strings.TrimSpace(state.FinishedAt)
+	} else if !isActiveStatus(nextStatus) {
+		record.FinishedAt = record.UpdatedAt
+	}
+	return true, nil
+}
+
+func applyWorkflowStateToRecord(record *Record, state agentmanager.WorkflowExecutionState) (bool, error) {
+	nextStatus := mapWorkflowStatus(state.Status)
+	updatedAt := strings.TrimSpace(state.UpdatedAt)
+	if nextStatus == record.Status && (updatedAt == "" || record.UpdatedAt == updatedAt) {
+		return false, nil
+	}
+	if err := record.TransitionStatus(nextStatus); err != nil {
+		return false, err
+	}
+	if updatedAt != "" {
+		record.UpdatedAt = updatedAt
+	} else {
+		record.UpdatedAt = nowRFC3339()
+	}
+	if !isActiveStatus(nextStatus) && strings.TrimSpace(record.FinishedAt) == "" {
+		record.FinishedAt = record.UpdatedAt
+	}
+	return true, nil
+}
+
+func mapWorkflowStatus(status domainpb.WorkflowExecutionStatus) Status {
+	switch status {
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING:
+		return StatusPending
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLING:
+		return StatusRunning
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING,
+		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED:
+		return StatusNeedsReview
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED:
+		return StatusComplete
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
+		return StatusCancelled
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED:
+		return StatusAbstained
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED:
+		return StatusBudgetExhausted
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
+		return StatusFailed
+	default:
+		return StatusUnspecified
+	}
 }
 
 func indexByID(records []Record, activityID string) int {
@@ -197,6 +323,10 @@ func mapRunStatus(status, errorMsg string) (Status, string) {
 		return StatusNeedsReview, ""
 	case string(StatusComplete):
 		return StatusComplete, ""
+	case string(StatusAbstained):
+		return StatusAbstained, strings.TrimSpace(errorMsg)
+	case string(StatusBudgetExhausted):
+		return StatusBudgetExhausted, strings.TrimSpace(errorMsg)
 	case string(StatusFailed):
 		return StatusFailed, strings.TrimSpace(errorMsg)
 	case string(StatusCancelled):

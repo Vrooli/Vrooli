@@ -1,0 +1,243 @@
+{
+  "run_id": "20260817T215333Z",
+  "authorship": {
+    "scenario": "blind-label-a",
+    "baseline": "blind-label-b"
+  },
+  "generated_text": "Every builder knows the acute pain of watching a forty-minute validation suite abort because a laptop went to sleep on a commuter train. For months, our test runner kept its heartbeat tethered to the local browser tab. If your laptop closed, your network dropped, or your browser killed a background tab to reclaim memory, the whole run vanished into the ether. That was an unacceptable failure path. It forced developers to baby their machines instead of writing software, burning engineering hours on reruns that failed for reasons unrelated to actual code quality. To eliminate this fragility, we redesigned our pipeline around a server-owned model. In this setup, the process lifecycle moves entirely off local developer hardware and anchors directly into dedicated infrastructure. When you trigger a run today, your browser acts strictly as a lightweight viewport rather than an execution anchor. If your connection drops halfway through a suite, the runner does not care. Our autonomous validation agent, which we call test-genie, continues stepping through verification sequences in the cloud, collecting telemetry and storing evidence at every boundary. You can shut your laptop, switch networks, or step away for lunch without risking execution state. We also eliminated naive sleeps by introducing an explicit server-side wait protocol that evaluates true downstream readiness before continuing assertions. We shipped this architecture because builders deserve verification tools that are as durable as the production systems they test. Shifting the ownership boundary from the client to the server ensures that every validation cycle runs to completion, regardless of the chaotic conditions on your local machine.\n\nEvery long-running test eventually faces a hard reality: compute nodes fail, spot instances vanish, and network links flicker. If an orchestrator treats validation as an unbroken in-memory loop, any hardware hiccup forces a complete rerun. I designed our autonomous orchestration agent, test-genie, to treat execution as a durable sequence of state transitions rather than an ephemeral process.\n\nAt its core, test-genie functions as an isolated validation agent that dispatches commands, evaluates assertions, and records deterministic evidence without relying on an active client connection. When we shipped this runner, our priority was eliminating the blind spots that occur during transient worker crashes. Instead of bundling multi-step validation into an opaque payload, test-genie executes tasks as explicit discrete boundaries. Before any command executes, the agent writes the pending transition to a persistent store. Once downstream resources complete that command, the agent logs verified telemetry evidence before advancing to the next step.\n\nThis step-level state checkpointing transforms how we handle operational failures. When a host crashes midway through a forty-minute regression run, the new worker does not restart from the beginning. It reads the last immutable checkpoint recorded by test-genie, reconstructs the execution graph, and resumes at the exact step where progress paused. We avoid corrupted states by generating cryptographic run-hashes for each milestone, ensuring downstream steps never execute against stale pre-conditions.\n\nDecoupling execution from live runtimes also changes how we capture diagnostic data. In brittle architectures, when a runner process terminates abruptly, console output and intermediate network traces vanish into the ether. Because our server-owned architecture streams structured milestones directly to our persistence layer as they happen, every log line, memory profile, and visual snapshot remains intact. Even when a worker node encounters a kernel panic, the collected evidence remains fully inspectable by the builder.\n\nThis state model shifts test execution from fragile scripting to robust workflow orchestration. By enforcing fine-grained step persistence, we ensure that long-running validation suites withstand machine restarts, resource rebalancing, and infrastructure churn without losing progress or context. The runner no longer has to guess what happened before a crash; it has an auditable, persistent trail that guarantees durability across every validation phase.\n\nEvery builder has inherited a test suite littered with arbitrary sleeps. We watch pipelines fail because ten seconds was plenty in staging but not under load. To close this failure path, we replaced client timeouts with a server-enforced wait protocol. Downstream assertions no longer guess when a background transaction finishes. Instead, our background orchestrator, the test-genie agent, polls verifiable state snapshots directly on the host worker. By relying on deterministic state synchronization rather than optimistic delays, the system only unblocks execution when storage records match our validation contract. This shift anchors the entire lifecycle within our server-owned runtime, making validation durable even when network latency spikes between runners. We shipped this model to both our cloud infrastructure and self-hosted instances. Telemetry gathered from active pipelines shows a steady drop in false-negative job failures. Running resilient checks on a server-owned foundation guarantees that every test outcome reflects true software quality rather than fragile test infrastructure.",
+  "baseline_text": "# Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.",
+  "round": {
+    "id": "bceecead-b14e-4b36-9665-eba68d34b8ff",
+    "session_id": "a58f2ff8-6f2d-4cd3-bcd7-a78bb7b09422",
+    "strategy": {
+      "kind": "vs_standard",
+      "k": 5,
+      "tau": 0.7,
+      "temperature_stance": "role_default",
+      "max_output_tokens": 1400
+    },
+    "candidate_ids": [
+      "e7c880db-2c4d-41cb-8135-6ee78cfc9a5f",
+      "a4c1ce92-9e5f-4b03-b028-fb07d1987dcb",
+      "06c72c51-d277-4e68-94ba-cac463a11742",
+      "77322870-1577-4d27-b409-6f75556d9d00",
+      "70173e57-b3dd-4efa-ba40-e6865c816398"
+    ],
+    "sampling_key": {
+      "k": 5,
+      "temperature_stance": "role_default",
+      "max_output_tokens_effective": 7000,
+      "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST",
+      "measurement_tier": "deterministic_and_semantic"
+    },
+    "selection_seed": 1787003649987853083,
+    "total_cost_micros": 29305,
+    "negative_context": {},
+    "lexical_set_measurements": {
+      "candidate_count": 5,
+      "pairwise_similarity": [
+        [
+          0,
+          0.5272385214388499,
+          0.5159304024908131,
+          0.5132046566554787,
+          0.5178997241639451
+        ],
+        [
+          0.5272385214388499,
+          0,
+          0.4866316716281581,
+          0.5004675070099522,
+          0.4979609723213049
+        ],
+        [
+          0.5159304024908131,
+          0.4866316716281581,
+          0,
+          0.49775788205060867,
+          0.5060703754013888
+        ],
+        [
+          0.5132046566554787,
+          0.5004675070099522,
+          0.49775788205060867,
+          0,
+          0.49796079855145287
+        ],
+        [
+          0.5178997241639451,
+          0.4979609723213049,
+          0.5060703754013888,
+          0.49796079855145287,
+          0
+        ]
+      ],
+      "mean_similarity": 0.5061122511711952,
+      "diversity": 0.4938877488288048,
+      "coverage": 0.4964373361027713,
+      "basis": "lexical token 1-3 gram cosine/Jaccard blend; no embeddings available"
+    },
+    "semantic_set_measurements": {
+      "candidate_count": 5,
+      "pairwise_similarity": [
+        [
+          0,
+          0.9192203067607352,
+          0.89275688432426,
+          0.9215168764852185,
+          0.9069515885548467
+        ],
+        [
+          0.9192203067607352,
+          0,
+          0.8771034178394402,
+          0.9065377840176997,
+          0.8983680193262747
+        ],
+        [
+          0.89275688432426,
+          0.8771034178394402,
+          0,
+          0.9041462054882033,
+          0.8889032182785019
+        ],
+        [
+          0.9215168764852185,
+          0.9065377840176997,
+          0.9041462054882033,
+          0,
+          0.9223817787470373
+        ],
+        [
+          0.9069515885548467,
+          0.8983680193262747,
+          0.8889032182785019,
+          0.9223817787470373,
+          0
+        ]
+      ],
+      "mean_similarity": 0.9037886079822218,
+      "diversity": 0.09621139201777817,
+      "coverage": 0.8880026287539693,
+      "basis": "semantic cosine similarity over gateway embeddings (dimension 3)"
+    },
+    "measurement_basis": "semantic cosine similarity over gateway embeddings (dimension 3)"
+  },
+  "document": {
+    "id": "a460a534-c1a3-4a6c-87cc-4d676d99f297",
+    "title": "How Vrooli's server-owned test runs make long-running validation durable Explicitly use these exact terms where they fit naturally: server-owned, test-genie, wait",
+    "profile_key": "content-desk/marketing-dev-log-profile",
+    "outline_profile_key": "content-desk/marketing-dev-log-profile",
+    "style_key": "content-desk/marketing-dev-log-style",
+    "outline_id": "076d96bd-3e07-4a31-995a-d90eb655d2db",
+    "outline_text": "{\"section_1\":{\"intent\":\"Hook the builder community with the failure path of client-side disconnects during prolonged validation and establish why we transitioned to durable execution.\",\"summary\":\"I open with the core problem we shipped a fix for: long verification suites dying because of dropped client websockets or laptop sleep events. I introduce our server-owned execution architecture, which anchors process lifecycles directly on persistent host workers so validation runs independently of local browser sessions.\",\"target_words\":350},\"section_2\":{\"intent\":\"Detail the operational design of our autonomous orchestration agent and state persistence model.\",\"summary\":\"I explain the architecture of our test-genie runner, our dedicated background validation agent that coordinates execution steps across distributed nodes. I break down how step-level state checkpointing captures verifiable execution evidence at every milestone, ensuring telemetry survives sudden process restarts or transient worker faults.\",\"target_words\":450},\"section_3\":{\"intent\":\"Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines.\",\"summary\":\"I address how replacing brittle client sleeps with a server-enforced wait protocol ensures downstream assertions trigger only after real system state settles. I conclude by reviewing shipped telemetry evidence showing lower flakiness rates across long-running pipelines for both hosted teams and self-hosted environments.\",\"target_words\":300}}",
+    "outline": [
+      {
+        "intent": "Hook the builder community with the failure path of client-side disconnects during prolonged validation and establish why we transitioned to durable execution.",
+        "summary": "I open with the core problem we shipped a fix for: long verification suites dying because of dropped client websockets or laptop sleep events. I introduce our server-owned execution architecture, which anchors process lifecycles directly on persistent host workers so validation runs independently of local browser sessions.",
+        "target_words": 350
+      },
+      {
+        "intent": "Detail the operational design of our autonomous orchestration agent and state persistence model.",
+        "summary": "I explain the architecture of our test-genie runner, our dedicated background validation agent that coordinates execution steps across distributed nodes. I break down how step-level state checkpointing captures verifiable execution evidence at every milestone, ensuring telemetry survives sudden process restarts or transient worker faults.",
+        "target_words": 450
+      },
+      {
+        "intent": "Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines.",
+        "summary": "I address how replacing brittle client sleeps with a server-enforced wait protocol ensures downstream assertions trigger only after real system state settles. I conclude by reviewing shipped telemetry evidence showing lower flakiness rates across long-running pipelines for both hosted teams and self-hosted environments.",
+        "target_words": 300
+      }
+    ],
+    "outline_profile_version": "content-desk/marketing-dev-log-profile@10",
+    "section_profile_version": "content-desk/marketing-dev-log-profile@10",
+    "section_ids": [
+      "34c84642-cd59-4fbc-a140-01025b51734e",
+      "54d8e0e1-7f7a-433d-853f-f5d45572f295",
+      "16d16deb-3bdb-408f-b757-f3f57f4b17ef"
+    ],
+    "status": "assembled",
+    "assembled_text": "Every builder knows the acute pain of watching a forty-minute validation suite abort because a laptop went to sleep on a commuter train. For months, our test runner kept its heartbeat tethered to the local browser tab. If your laptop closed, your network dropped, or your browser killed a background tab to reclaim memory, the whole run vanished into the ether. That was an unacceptable failure path. It forced developers to baby their machines instead of writing software, burning engineering hours on reruns that failed for reasons unrelated to actual code quality. To eliminate this fragility, we redesigned our pipeline around a server-owned model. In this setup, the process lifecycle moves entirely off local developer hardware and anchors directly into dedicated infrastructure. When you trigger a run today, your browser acts strictly as a lightweight viewport rather than an execution anchor. If your connection drops halfway through a suite, the runner does not care. Our autonomous validation agent, which we call test-genie, continues stepping through verification sequences in the cloud, collecting telemetry and storing evidence at every boundary. You can shut your laptop, switch networks, or step away for lunch without risking execution state. We also eliminated naive sleeps by introducing an explicit server-side wait protocol that evaluates true downstream readiness before continuing assertions. We shipped this architecture because builders deserve verification tools that are as durable as the production systems they test. Shifting the ownership boundary from the client to the server ensures that every validation cycle runs to completion, regardless of the chaotic conditions on your local machine.\n\nEvery long-running test eventually faces a hard reality: compute nodes fail, spot instances vanish, and network links flicker. If an orchestrator treats validation as an unbroken in-memory loop, any hardware hiccup forces a complete rerun. I designed our autonomous orchestration agent, test-genie, to treat execution as a durable sequence of state transitions rather than an ephemeral process.\n\nAt its core, test-genie functions as an isolated validation agent that dispatches commands, evaluates assertions, and records deterministic evidence without relying on an active client connection. When we shipped this runner, our priority was eliminating the blind spots that occur during transient worker crashes. Instead of bundling multi-step validation into an opaque payload, test-genie executes tasks as explicit discrete boundaries. Before any command executes, the agent writes the pending transition to a persistent store. Once downstream resources complete that command, the agent logs verified telemetry evidence before advancing to the next step.\n\nThis step-level state checkpointing transforms how we handle operational failures. When a host crashes midway through a forty-minute regression run, the new worker does not restart from the beginning. It reads the last immutable checkpoint recorded by test-genie, reconstructs the execution graph, and resumes at the exact step where progress paused. We avoid corrupted states by generating cryptographic run-hashes for each milestone, ensuring downstream steps never execute against stale pre-conditions.\n\nDecoupling execution from live runtimes also changes how we capture diagnostic data. In brittle architectures, when a runner process terminates abruptly, console output and intermediate network traces vanish into the ether. Because our server-owned architecture streams structured milestones directly to our persistence layer as they happen, every log line, memory profile, and visual snapshot remains intact. Even when a worker node encounters a kernel panic, the collected evidence remains fully inspectable by the builder.\n\nThis state model shifts test execution from fragile scripting to robust workflow orchestration. By enforcing fine-grained step persistence, we ensure that long-running validation suites withstand machine restarts, resource rebalancing, and infrastructure churn without losing progress or context. The runner no longer has to guess what happened before a crash; it has an auditable, persistent trail that guarantees durability across every validation phase.\n\nEvery builder has inherited a test suite littered with arbitrary sleeps. We watch pipelines fail because ten seconds was plenty in staging but not under load. To close this failure path, we replaced client timeouts with a server-enforced wait protocol. Downstream assertions no longer guess when a background transaction finishes. Instead, our background orchestrator, the test-genie agent, polls verifiable state snapshots directly on the host worker. By relying on deterministic state synchronization rather than optimistic delays, the system only unblocks execution when storage records match our validation contract. This shift anchors the entire lifecycle within our server-owned runtime, making validation durable even when network latency spikes between runners. We shipped this model to both our cloud infrastructure and self-hosted instances. Telemetry gathered from active pipelines shows a steady drop in false-negative job failures. Running resilient checks on a server-owned foundation guarantees that every test outcome reflects true software quality rather than fragile test infrastructure.",
+    "coherence": {
+      "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text",
+      "cross_section_repetition": 0.3973258017537306,
+      "style_drift": 0,
+      "thresholds": {
+        "max_cross_section_repetition": 0.55,
+        "max_style_drift": 0.35
+      },
+      "verdict": {
+        "coherent": true,
+        "cross_section_repetition": true,
+        "style_drift": true
+      }
+    },
+    "sections": [
+      {
+        "id": "34c84642-cd59-4fbc-a140-01025b51734e",
+        "document_id": "a460a534-c1a3-4a6c-87cc-4d676d99f297",
+        "position": 0,
+        "intent": "Hook the builder community with the failure path of client-side disconnects during prolonged validation and establish why we transitioned to durable execution.",
+        "summary": "I open with the core problem we shipped a fix for: long verification suites dying because of dropped client websockets or laptop sleep events. I introduce our server-owned execution architecture, which anchors process lifecycles directly on persistent host workers so validation runs independently of local browser sessions.",
+        "target_words": 350,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "ca8e2b81-f7b7-48b5-8893-bb715823fbbd",
+        "committed_candidate_id": "42e951f5-dcae-444b-925f-c55a0e057549",
+        "context_snapshot": {
+          "outline_ref": "076d96bd-3e07-4a31-995a-d90eb655d2db",
+          "outline_text": "{\"section_1\":{\"intent\":\"Hook the builder community with the failure path of client-side disconnects during prolonged validation and establish why we transitioned to durable execution.\",\"summary\":\"I open with the core problem we shipped a fix for: long verification suites dying because of dropped client websockets or laptop sleep events. I introduce our server-owned execution architecture, which anchors process lifecycles directly on persistent host workers so validation runs independently of local browser sessions.\",\"target_words\":350},\"section_2\":{\"intent\":\"Detail the operational design of our autonomous orchestration agent and state persistence model.\",\"summary\":\"I explain the architecture of our test-genie runner, our dedicated background validation agent that coordinates execution steps across distributed nodes. I break down how step-level state checkpointing captures verifiable execution evidence at every milestone, ensuring telemetry survives sudden process restarts or transient worker faults.\",\"target_words\":450},\"section_3\":{\"intent\":\"Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines.\",\"summary\":\"I address how replacing brittle client sleeps with a server-enforced wait protocol ensures downstream assertions trigger only after real system state settles. I conclude by reviewing shipped telemetry evidence showing lower flakiness rates across long-running pipelines for both hosted teams and self-hosted environments.\",\"target_words\":300}}",
+          "following_intents": [
+            "Detail the operational design of our autonomous orchestration agent and state persistence model.",
+            "Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines."
+          ],
+          "estimated_tokens": 0
+        }
+      },
+      {
+        "id": "54d8e0e1-7f7a-433d-853f-f5d45572f295",
+        "document_id": "a460a534-c1a3-4a6c-87cc-4d676d99f297",
+        "position": 1,
+        "intent": "Detail the operational design of our autonomous orchestration agent and state persistence model.",
+        "summary": "I explain the architecture of our test-genie runner, our dedicated background validation agent that coordinates execution steps across distributed nodes. I break down how step-level state checkpointing captures verifiable execution evidence at every milestone, ensuring telemetry survives sudden process restarts or transient worker faults.",
+        "target_words": 450,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "6dba5a5a-4c3a-4070-b587-83cf91f4a412",
+        "committed_candidate_id": "e8101ef5-d4c7-409f-850f-9e08f2bdb863",
+        "context_snapshot": {
+          "outline_ref": "076d96bd-3e07-4a31-995a-d90eb655d2db",
+          "outline_text": "{\"section_1\":{\"intent\":\"Hook the builder community with the failure path of client-side disconnects during prolonged validation and establish why we transitioned to durable execution.\",\"summary\":\"I open with the core problem we shipped a fix for: long verification suites dying because of dropped client websockets or laptop sleep events. I introduce our server-owned execution architecture, which anchors process lifecycles directly on persistent host workers so validation runs independently of local browser sessions.\",\"target_words\":350},\"section_2\":{\"intent\":\"Detail the operational design of our autonomous orchestration agent and state persistence model.\",\"summary\":\"I explain the architecture of our test-genie runner, our dedicated background validation agent that coordinates execution steps across distributed nodes. I break down how step-level state checkpointing captures verifiable execution evidence at every milestone, ensuring telemetry survives sudden process restarts or transient worker faults.\",\"target_words\":450},\"section_3\":{\"intent\":\"Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines.\",\"summary\":\"I address how replacing brittle client sleeps with a server-enforced wait protocol ensures downstream assertions trigger only after real system state settles. I conclude by reviewing shipped telemetry evidence showing lower flakiness rates across long-running pipelines for both hosted teams and self-hosted environments.\",\"target_words\":300}}",
+          "following_intents": [
+            "Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines."
+          ],
+          "estimated_tokens": 0
+        }
+      },
+      {
+        "id": "16d16deb-3bdb-408f-b757-f3f57f4b17ef",
+        "document_id": "a460a534-c1a3-4a6c-87cc-4d676d99f297",
+        "position": 2,
+        "intent": "Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines.",
+        "summary": "I address how replacing brittle client sleeps with a server-enforced wait protocol ensures downstream assertions trigger only after real system state settles. I conclude by reviewing shipped telemetry evidence showing lower flakiness rates across long-running pipelines for both hosted teams and self-hosted environments.",
+        "target_words": 300,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "f7b79e92-7308-4264-a472-9da81a040d12",
+        "committed_candidate_id": "b534fba2-f27a-4386-9a2c-837a481bb164",
+        "context_snapshot": {
+          "outline_ref": "076d96bd-3e07-4a31-995a-d90eb655d2db",
+          "outline_text": "{\"section_1\":{\"intent\":\"Hook the builder community with the failure path of client-side disconnects during prolonged validation and establish why we transitioned to durable execution.\",\"summary\":\"I open with the core problem we shipped a fix for: long verification suites dying because of dropped client websockets or laptop sleep events. I introduce our server-owned execution architecture, which anchors process lifecycles directly on persistent host workers so validation runs independently of local browser sessions.\",\"target_words\":350},\"section_2\":{\"intent\":\"Detail the operational design of our autonomous orchestration agent and state persistence model.\",\"summary\":\"I explain the architecture of our test-genie runner, our dedicated background validation agent that coordinates execution steps across distributed nodes. I break down how step-level state checkpointing captures verifiable execution evidence at every milestone, ensuring telemetry survives sudden process restarts or transient worker faults.\",\"target_words\":450},\"section_3\":{\"intent\":\"Demonstrate how deterministic state synchronization and resilient polling eliminate flake in CI pipelines.\",\"summary\":\"I address how replacing brittle client sleeps with a server-enforced wait protocol ensures downstream assertions trigger only after real system state settles. I conclude by reviewing shipped telemetry evidence showing lower flakiness rates across long-running pipelines for both hosted teams and self-hosted environments.\",\"target_words\":300}}",
+          "estimated_tokens": 0
+        }
+      }
+    ]
+  },
+  "gates": {
+    "word_count": true,
+    "essay_shape": true,
+    "section_count": true,
+    "claims": true,
+    "semantic_diversity": true,
+    "coherence": true
+  },
+  "provider": "openrouter",
+  "model": "google/gemini-3.7-flash",
+  "cost_micros": 29305
+}

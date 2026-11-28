@@ -14,11 +14,6 @@ export interface StatusColorClasses {
   text: string;
 }
 
-/** RGB color string for use in SVG/Canvas contexts (e.g. MiniMap). */
-export interface StatusRgb {
-  rgb: string;
-}
-
 type StatusGroup = "neutral" | "active" | "waiting" | "done" | "error" | "terminal";
 
 // PERF: Backgrounds use 90% opacity (solid enough to hide the dot grid
@@ -59,15 +54,6 @@ const STATUS_GROUP_COLORS: Record<StatusGroup, StatusColorClasses> = {
   },
 };
 
-const STATUS_GROUP_RGB: Record<StatusGroup, string> = {
-  neutral: "rgb(148 163 184 / 0.6)",
-  active: "rgb(34 211 238 / 0.6)",
-  waiting: "rgb(251 191 36 / 0.6)",
-  done: "rgb(52 211 153 / 0.6)",
-  error: "rgb(248 113 113 / 0.6)",
-  terminal: "rgb(100 116 139 / 0.4)",
-};
-
 const STATUS_TO_GROUP: Record<string, StatusGroup> = {
   // Neutral
   pending: "neutral",
@@ -91,7 +77,6 @@ const STATUS_TO_GROUP: Record<string, StatusGroup> = {
   // Done
   completed: "done",
   complete: "done",
-  classified: "done",
   // Error
   failed: "error",
   error: "error",
@@ -111,14 +96,9 @@ export function getStatusColorClasses(status: string | undefined): StatusColorCl
   return STATUS_GROUP_COLORS[getStatusGroup(status)];
 }
 
-/** Get an RGB color string for SVG/Canvas contexts (e.g. MiniMap nodeColor). */
-export function getStatusRgb(status: string | undefined): string {
-  return STATUS_GROUP_RGB[getStatusGroup(status)];
-}
-
 /**
- * Backlog statuses considered "actionable" — these items appear in the Operations lens.
- * Mirrors the Go-side `actionableBacklogStatuses` in projection.go.
+ * Backlog statuses considered "actionable" — the attention highlight and
+ * sidebar chips treat these as ready-for-operator-input.
  */
 export const ACTIONABLE_BACKLOG_STATUSES: ReadonlySet<string> = new Set([
   "backlog", "researching", "ready", "queued", "in_progress", "failed",
@@ -134,7 +114,7 @@ export const STATUS_GROUP_INFO: { group: StatusGroup; label: string; exampleStat
   { group: "neutral", label: "Pending", exampleStatuses: ["pending", "backlog", "stopped"], classes: STATUS_GROUP_COLORS.neutral },
   { group: "active", label: "Active", exampleStatuses: ["in_progress", "running", "starting"], classes: STATUS_GROUP_COLORS.active },
   { group: "waiting", label: "Waiting", exampleStatuses: ["queued", "needs_review", "ready"], classes: STATUS_GROUP_COLORS.waiting },
-  { group: "done", label: "Done", exampleStatuses: ["completed", "classified"], classes: STATUS_GROUP_COLORS.done },
+  { group: "done", label: "Done", exampleStatuses: ["completed"], classes: STATUS_GROUP_COLORS.done },
   { group: "error", label: "Error", exampleStatuses: ["failed", "error"], classes: STATUS_GROUP_COLORS.error },
   { group: "terminal", label: "Archived", exampleStatuses: ["archived", "cancelled"], classes: STATUS_GROUP_COLORS.terminal },
 ];

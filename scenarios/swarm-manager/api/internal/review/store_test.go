@@ -2,6 +2,7 @@ package review
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,6 @@ func validCompletedRound(roundNum int) Round {
 	return Round{
 		RoundNum:        roundNum,
 		GeneratedAt:     "2026-04-02T00:00:00Z",
-		ExecutionID:     "exec-1",
 		Status:          RoundStatusComplete,
 		AgentAssessment: "Looks good.",
 		Classification:  "ready",
@@ -196,7 +196,7 @@ func TestLoadRound_Specific(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	round := Round{RoundNum: 2, GeneratedAt: "2026-04-02T00:00:00Z", ExecutionID: "exec-1", Status: RoundStatusGathering}
+	round := Round{RoundNum: 2, GeneratedAt: "2026-04-02T00:00:00Z", Status: RoundStatusGathering}
 	data, _ := json.MarshalIndent(round, "", "  ")
 	if err := os.WriteFile(filepath.Join(reviewDir, "round-002.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -230,7 +230,6 @@ func TestSaveRound_CreatesDirectory(t *testing.T) {
 	round := Round{
 		RoundNum:    1,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
 		Status:      RoundStatusGathering,
 		Evidence:    []EvidenceItem{},
 	}
@@ -250,6 +249,32 @@ func TestSaveRound_CreatesDirectory(t *testing.T) {
 	}
 	if loaded.RoundNum != 1 {
 		t.Errorf("expected round 1, got %d", loaded.RoundNum)
+	}
+}
+
+func TestSaveRoundRejectsIllegalPersistedStatusReversal(t *testing.T) {
+	dir := t.TempDir()
+	round := Round{RoundNum: 1, GeneratedAt: "2026-04-02T00:00:00Z", Status: RoundStatusGathering, Evidence: []EvidenceItem{}}
+	if err := SaveRound(dir, round); err != nil {
+		t.Fatalf("SaveRound(gathering) error = %v", err)
+	}
+	if err := round.TransitionStatus(RoundStatusFailed); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveRound(dir, round); err != nil {
+		t.Fatalf("SaveRound(failed) error = %v", err)
+	}
+	round.Status = RoundStatusGathering // direct field write must not bypass persisted transition validation
+	var transitionErr *InvalidRoundTransitionError
+	if err := SaveRound(dir, round); !errors.As(err, &transitionErr) {
+		t.Fatalf("SaveRound(reopened) error = %v, want InvalidRoundTransitionError", err)
+	}
+	stored, err := LoadRound(dir, 1)
+	if err != nil {
+		t.Fatalf("LoadRound() error = %v", err)
+	}
+	if stored == nil || stored.Status != RoundStatusFailed {
+		t.Fatalf("stored round = %+v, want failed", stored)
 	}
 }
 
@@ -330,7 +355,6 @@ func TestLoadRounds_NormalizesInvalidCompletedRound(t *testing.T) {
 	round := Round{
 		RoundNum:    1,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
 		Status:      RoundStatusComplete,
 	}
 	data, _ := json.MarshalIndent(round, "", "  ")
@@ -363,7 +387,6 @@ func TestLoadRound_NormalizesInvalidCompletedRound(t *testing.T) {
 	round := Round{
 		RoundNum:    2,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-2",
 		Status:      RoundStatusComplete,
 	}
 	data, _ := json.MarshalIndent(round, "", "  ")

@@ -1,0 +1,169 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "job",
+    "title": "Job detail",
+    "routes": [
+      "/jobs/:jobId"
+    ],
+    "purpose": "Inspect one durable operation with its exact shot snapshot, execution receipts, partial artifacts and safe recovery options.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Understand what is executing and what has finished."
+    },
+    {
+      "statement": "See limits, receipts and useful partial work."
+    },
+    {
+      "statement": "Recover or retry only after reconciliation."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "queued",
+      "description": "Record submitted snapshot and queued reason without claiming rendering started."
+    },
+    {
+      "id": "running",
+      "description": "Display observed completed frames/steps and actual limits."
+    },
+    {
+      "id": "stopping",
+      "description": "Keep stop request and actual worker terminal evidence distinct."
+    },
+    {
+      "id": "interrupted",
+      "description": "Retain partials, event history and backend/provider reconciliation."
+    },
+    {
+      "id": "recovering",
+      "description": "Show recovery plan and idempotency basis; no duplicate submit while uncertain."
+    },
+    {
+      "id": "budget-blocked",
+      "description": "Show cap/funding/enforcement blocker and supported local actions."
+    },
+    {
+      "id": "accounting-pending",
+      "description": "Output can be available while settlement remains explicitly pending."
+    }
+  ],
+  "claims": [
+    {
+      "id": "job-intent-1",
+      "type": "custom",
+      "statement": "Recovery reconciles authoritative job and payment state before new work begins, preserving receipts and partial outputs.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "job-intent-2",
+      "type": "custom",
+      "statement": "Execution success, complete output validation and operator final-look acceptance remain separately visible.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "State and observed progress above preview/filmstrip; tabs for parameters, event log, artifacts, worker, privacy and accounting with sanitized diagnostics.",
+    "controls": [
+      "Inspect frozen recipe/source versions and launch authority",
+      "Preview retained completed frames and logs without implying final success",
+      "Request stop and inspect downstream effects",
+      "Reconcile provider/worker status and settlement before retry",
+      "Open result, save diagnostics or resume supported frame ranges"
+    ],
+    "details": [
+      "A terminal process plus file existence is insufficient: frame coverage, dimensions, decode, color tags, source clocks and representative review remain separate checks.",
+      "Missing cost/final settlement is pending/unknown, never zero by inference.",
+      "Retry explains reused versus new operation identity and asks for fresh authority only where the operation actually needs it."
+    ]
+  },
+  "x-requirements": [
+    "DS-SAFETY-BUDGET",
+    "DS-COMMERCE-DELIVERY"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

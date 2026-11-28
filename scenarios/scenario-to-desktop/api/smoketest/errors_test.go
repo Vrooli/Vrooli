@@ -1,6 +1,7 @@
 package smoketest
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -56,303 +57,68 @@ func TestError_Unwrap(t *testing.T) {
 	}
 }
 
-// Test that each error kind has appropriate recovery info
-func TestNewArtifactError_HasRecoveryInfo(t *testing.T) {
-	err := NewArtifactError("test error", nil, "/path/to/artifact")
-
-	if err.Kind != ErrKindArtifact {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindArtifact)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if err.Recoverable {
-		t.Error("Artifact errors should not be recoverable")
-	}
-	if err.RetryStrategy != nil {
-		t.Error("Artifact errors should not have retry strategy")
-	}
-}
-
-func TestNewExecutionError_HasRecoveryInfo(t *testing.T) {
-	err := NewExecutionError("test error", nil, nil)
-
-	if err.Kind != ErrKindExecution {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindExecution)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if !err.Recoverable {
-		t.Error("Execution errors should be recoverable")
-	}
-	if err.RetryStrategy == nil {
-		t.Error("Execution errors should have retry strategy")
-	}
-	if err.RetryStrategy.MaxAttempts <= 0 {
-		t.Error("RetryStrategy.MaxAttempts should be positive")
-	}
-}
-
-func TestNewTimeoutError_HasRecoveryInfo(t *testing.T) {
-	err := NewTimeoutError("test error", nil, nil)
-
-	if err.Kind != ErrKindTimeout {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindTimeout)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if !err.Recoverable {
-		t.Error("Timeout errors should be recoverable")
-	}
-	if err.RetryStrategy == nil {
-		t.Error("Timeout errors should have retry strategy")
-	}
-}
-
-func TestNewValidationError_HasRecoveryInfo(t *testing.T) {
-	err := NewValidationError("test error", nil)
-
-	if err.Kind != ErrKindValidation {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindValidation)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if err.Recoverable {
-		t.Error("Validation errors should not be recoverable")
-	}
-}
-
-func TestNewTelemetryError_HasRecoveryInfo(t *testing.T) {
-	err := NewTelemetryError("test error", nil, nil)
-
-	if err.Kind != ErrKindTelemetry {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindTelemetry)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if !err.Recoverable {
-		t.Error("Telemetry errors should be recoverable")
-	}
-	if err.RetryStrategy == nil {
-		t.Error("Telemetry errors should have retry strategy")
-	}
-}
-
-func TestNewPlatformError_HasRecoveryInfo_Linux(t *testing.T) {
-	err := NewPlatformError("test error", nil, "linux")
-
-	if err.Kind != ErrKindPlatform {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindPlatform)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if err.Recoverable {
-		t.Error("Platform errors should not be recoverable")
-	}
-	if err.AutoFix == nil {
-		t.Error("Linux platform errors should have AutoFix")
-	}
-	if err.AutoFix.Command == "" {
-		t.Error("AutoFix.Command should be set")
-	}
-
-	// Verify Linux-specific steps
-	foundXvfb := false
-	for _, step := range err.ManualSteps {
-		if containsSubstring(step, "xvfb") {
-			foundXvfb = true
-			break
-		}
-	}
-	if !foundXvfb {
-		t.Error("Linux platform error should mention xvfb in ManualSteps")
-	}
-}
-
-func TestNewPlatformError_HasRecoveryInfo_Mac(t *testing.T) {
-	err := NewPlatformError("test error", nil, "mac")
-
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-
-	// Verify Mac-specific steps
-	foundGatekeeper := false
-	for _, step := range err.ManualSteps {
-		if containsSubstring(step, "Gatekeeper") || containsSubstring(step, "signed") {
-			foundGatekeeper = true
-			break
-		}
-	}
-	if !foundGatekeeper {
-		t.Error("Mac platform error should mention signing or Gatekeeper")
-	}
-}
-
-func TestNewPlatformError_HasRecoveryInfo_Windows(t *testing.T) {
-	err := NewPlatformError("test error", nil, "win")
-
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-
-	// Verify Windows-specific steps
-	foundDefender := false
-	for _, step := range err.ManualSteps {
-		if containsSubstring(step, "Defender") || containsSubstring(step, "Firewall") {
-			foundDefender = true
-			break
-		}
-	}
-	if !foundDefender {
-		t.Error("Windows platform error should mention Defender or Firewall")
-	}
-}
-
-func TestNewStoreError_HasRecoveryInfo(t *testing.T) {
-	err := NewStoreError("test error", nil)
-
-	if err.Kind != ErrKindStore {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindStore)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if !err.Recoverable {
-		t.Error("Store errors should be recoverable")
-	}
-	if err.RetryStrategy == nil {
-		t.Error("Store errors should have retry strategy")
-	}
-}
-
-func TestNewCancelledError_HasRecoveryInfo(t *testing.T) {
-	err := NewCancelledError("test error")
-
-	if err.Kind != ErrKindCancelled {
-		t.Errorf("Kind = %v, want %v", err.Kind, ErrKindCancelled)
-	}
-	if err.SuggestedAction == "" {
-		t.Error("SuggestedAction should be set")
-	}
-	if len(err.ManualSteps) == 0 {
-		t.Error("ManualSteps should not be empty")
-	}
-	if err.Recoverable {
-		t.Error("Cancelled errors should not be recoverable")
-	}
-}
-
-// Test that Recoverable flag matches actual recoverability
-func TestRecoverableFlag_MatchesRecoverability(t *testing.T) {
+// Test every constructor against independent recovery-contract expectations.
+// Each kind's policy stays visible while the common safety checks stay in one place.
+func TestErrorRecoveryContracts(t *testing.T) {
 	tests := []struct {
-		name        string
-		err         *Error
-		recoverable bool
+		name          string
+		kind          ErrorKind
+		newError      func() *Error
+		recoverable   bool
+		retryExpected bool
+		autoFix       bool
+		recoveryPath  string
+		manualHint    string
 	}{
-		{"artifact", NewArtifactError("", nil, ""), false},
-		{"execution", NewExecutionError("", nil, nil), true},
-		{"timeout", NewTimeoutError("", nil, nil), true},
-		{"validation", NewValidationError("", nil), false},
-		{"telemetry", NewTelemetryError("", nil, nil), true},
-		{"platform", NewPlatformError("", nil, "linux"), false},
-		{"store", NewStoreError("", nil), true},
-		{"cancelled", NewCancelledError(""), false},
+		{"artifact", ErrKindArtifact, func() *Error { return NewArtifactError("test error", nil, "/path/to/artifact") }, false, false, false, "Check build stage output", "artifact exists"},
+		{"execution", ErrKindExecution, func() *Error { return NewExecutionError("test error", nil, nil) }, true, true, false, "Check app startup logs", "run manually"},
+		{"timeout", ErrKindTimeout, func() *Error { return NewTimeoutError("test error", nil, nil) }, true, true, false, "Increase timeout", "TIMEOUT_MS"},
+		{"validation", ErrKindValidation, func() *Error { return NewValidationError("test error", nil) }, false, false, false, "Ensure app outputs", "SMOKE_TEST_RESULT=passed"},
+		{"telemetry", ErrKindTelemetry, func() *Error { return NewTelemetryError("test error", nil, nil) }, true, true, false, "Check telemetry service", "network connectivity"},
+		{"platform/linux", ErrKindPlatform, func() *Error { return NewPlatformError("test error", nil, "linux") }, false, false, true, "Install required dependencies", "xvfb"},
+		{"platform/mac", ErrKindPlatform, func() *Error { return NewPlatformError("test error", nil, "mac") }, false, false, false, "Install required dependencies", "Gatekeeper"},
+		{"platform/windows", ErrKindPlatform, func() *Error { return NewPlatformError("test error", nil, "win") }, false, false, false, "Install required dependencies", "Defender"},
+		{"store", ErrKindStore, func() *Error { return NewStoreError("test error", nil) }, true, true, false, "Check disk space", "permissions"},
+		{"cancelled", ErrKindCancelled, func() *Error { return NewCancelledError("test error") }, false, false, false, "Re-run smoke test", "cancellation"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.err.Recoverable != tt.recoverable {
-				t.Errorf("Recoverable = %v, want %v", tt.err.Recoverable, tt.recoverable)
+			err := tt.newError()
+			if err.Kind != tt.kind {
+				t.Errorf("Kind = %v, want %v", err.Kind, tt.kind)
 			}
-			// Verify recoverable errors have retry strategy
-			if tt.recoverable && tt.err.RetryStrategy == nil {
-				t.Error("Recoverable errors should have RetryStrategy")
+			if err.Recoverable != tt.recoverable {
+				t.Errorf("Recoverable = %v, want %v", err.Recoverable, tt.recoverable)
 			}
-		})
-	}
-}
-
-// Test that ManualSteps are actionable (non-empty strings)
-func TestManualSteps_AreActionable(t *testing.T) {
-	errors := []*Error{
-		NewArtifactError("", nil, "/path"),
-		NewExecutionError("", nil, nil),
-		NewTimeoutError("", nil, nil),
-		NewValidationError("", nil),
-		NewTelemetryError("", nil, nil),
-		NewPlatformError("", nil, "linux"),
-		NewPlatformError("", nil, "mac"),
-		NewPlatformError("", nil, "win"),
-		NewStoreError("", nil),
-		NewCancelledError(""),
-	}
-
-	for _, err := range errors {
-		t.Run(err.Kind.String(), func(t *testing.T) {
+			if (err.RetryStrategy != nil) != tt.retryExpected {
+				t.Errorf("RetryStrategy present = %v, want %v", err.RetryStrategy != nil, tt.retryExpected)
+			}
+			if err.RetryStrategy != nil && err.RetryStrategy.MaxAttempts <= 0 {
+				t.Errorf("RetryStrategy.MaxAttempts = %d, want positive", err.RetryStrategy.MaxAttempts)
+			}
+			if (err.AutoFix != nil) != tt.autoFix {
+				t.Errorf("AutoFix present = %v, want %v", err.AutoFix != nil, tt.autoFix)
+			}
+			if err.AutoFix != nil && err.AutoFix.Command == "" {
+				t.Error("AutoFix.Command should be set")
+			}
+			if err.SuggestedAction == "" {
+				t.Error("SuggestedAction should be set")
+			}
 			if len(err.ManualSteps) == 0 {
-				t.Errorf("%s error should have ManualSteps", err.Kind.String())
-				return
+				t.Fatal("ManualSteps should not be empty")
 			}
 			for i, step := range err.ManualSteps {
-				if step == "" {
-					t.Errorf("ManualSteps[%d] should not be empty", i)
-				}
 				if len(step) < 10 {
-					t.Errorf("ManualSteps[%d] = %q seems too short to be actionable", i, step)
+					t.Errorf("ManualSteps[%d] = %q, want an actionable instruction", i, step)
 				}
 			}
-		})
-	}
-}
-
-// Test RecoveryPaths coverage
-func TestRecoveryPaths_AllKindsCovered(t *testing.T) {
-	allKinds := []ErrorKind{
-		ErrKindArtifact,
-		ErrKindExecution,
-		ErrKindTimeout,
-		ErrKindValidation,
-		ErrKindTelemetry,
-		ErrKindPlatform,
-		ErrKindStore,
-		ErrKindCancelled,
-	}
-
-	for _, kind := range allKinds {
-		t.Run(kind.String(), func(t *testing.T) {
-			path, ok := RecoveryPaths[kind]
-			if !ok {
-				t.Errorf("RecoveryPaths missing entry for %v", kind)
+			if !containsSubstring(strings.Join(err.ManualSteps, " "), tt.manualHint) {
+				t.Errorf("ManualSteps %q do not include independent hint %q", err.ManualSteps, tt.manualHint)
 			}
-			if path == "" {
-				t.Errorf("RecoveryPaths[%v] is empty", kind)
+			if got := RecoveryPaths[tt.kind]; got == "" || !containsSubstring(got, tt.recoveryPath) {
+				t.Errorf("RecoveryPaths[%v] = %q, want a path containing %q", tt.kind, got, tt.recoveryPath)
 			}
 		})
 	}

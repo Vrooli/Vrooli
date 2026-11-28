@@ -253,13 +253,14 @@ func TestApplyMiddleware(t *testing.T) {
 		handler := applyMiddleware(router)
 
 		req := httptest.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://localhost:3000")
 		w := httptest.NewRecorder()
 
 		handler.ServeHTTP(w, req)
 
 		// Check that CORS middleware was applied
-		if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-			t.Error("Expected CORS middleware to be applied")
+		if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:3000" {
+			t.Error("Expected CORS middleware to grant the local origin")
 		}
 	})
 

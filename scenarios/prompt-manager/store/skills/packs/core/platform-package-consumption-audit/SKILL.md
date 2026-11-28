@@ -1,10 +1,32 @@
+---
+name: "platform-package-consumption-audit"
+description: "Audit how scenarios consume a shared package, identify friction/inconsistency, and produce a prioritized package-level reliability backlog with verification plans."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["platform","audit"]
+  tags: ["platform","packages","audit","compatibility"]
+  status: "active"
+  defaultScope: "work-scope"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
+  origin:
+    kind: "authored"
+---
 ## Platform focus: Package Consumption Audit
+
+**Scope mode: `platform`.** Hold to that row of `work-scope` for this session.
 
 Analyze how scenarios consume `packages/{{PACKAGE}}/`, identify repeated friction and contract drift, and produce a prioritized improvement backlog that makes the package more reliable and easier to use without breaking downstream consumers.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
-- `prompt-manager skill read platform-scope`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `prompt-manager skill read work-scope`
 
 Optional reading:
 - `prompt-manager skill read conversation-friction-analysis`
@@ -97,7 +119,7 @@ For each proposed improvement:
 
 ---
 
-### 4. Output Expectations
+### **4. Output Expectations**
 
 **Must produce:**
 - A written audit artifact at `docs/internal/platform/{{PACKAGE}}/consumption-audit.md` using the template below

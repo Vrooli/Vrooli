@@ -1,6 +1,43 @@
 # API Endpoints
 
 Base URL: `http://localhost:${API_PORT}` (API port is assigned by the scenario lifecycle).
+Resolve it with `vrooli scenario port knowledge-observatory API_PORT`.
+
+## REST Quick Calls
+
+```bash
+API_PORT=$(vrooli scenario port knowledge-observatory API_PORT)
+curl -X POST "http://localhost:${API_PORT}/api/v1/knowledge/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"agent workflows","limit":10}'
+curl "http://localhost:${API_PORT}/api/v1/knowledge/health"
+curl -X POST "http://localhost:${API_PORT}/api/v1/knowledge/graph" \
+  -H "Content-Type: application/json" \
+  -d '{"center_concept":"research","depth":3}'
+```
+
+## Knowledge Base Connect Service
+
+`KnowledgeBaseService` exposes read-only, typed source search, inspection, review,
+and index-status operations. Each unary request is sent as `POST` to
+`/knowledge_observatory.v1.KnowledgeBaseService/<Method>`. The wire contract is the
+repository [Knowledge Base proto](../../../../packages/proto/schemas/knowledge-observatory/v1/knowledge_base.proto).
+
+| Method | Request fields | Result and boundary |
+|---|---|---|
+| `SearchDocuments` | `query` (non-empty, at most 2,000 characters), `scope` (`global`, `scenario`, or `path`), `target`, `mode` (`auto`, `hybrid`, `dense`, or `text`), `limit` (maximum 20; zero selects the default 5). | Ranked document paths, snippets, scores, metadata, search method, and reranker. |
+| `InspectDocument` | Repository-relative `path`, character `offset`/`limit` (maximum 12,000; zero defaults to 4,000), optional `expectedSha256`, and `allowMissing`. | Exact source SHA-256, bounded UTF-8 content page, metadata, references, truncation flags, and a typed missing observation only when the path is absent and `allowMissing` is true. |
+| `ReviewDocuments` | One to eight `paths`, a repository-relative `basePath`, and optional `maxFiles` (maximum 1,000; zero defaults to 300). | Selected source pages plus bounded duplicate/backlink observations, `truncated`, and explicit `gaps`; this is not proof of whole-repository reference closure or semantic agreement. |
+| `KnowledgeStatus` | No fields. | Index availability, indexed count, last reconciliation time/outcome, and reranker. |
+
+Paths use portable repository-relative `/` separators. Absolute paths, traversal,
+Windows drive/UNC forms, symlink escapes, non-prose inspection targets, and
+oversized/non-UTF-8 sources are rejected. A source revision mismatch returns a
+precondition error; the caller must inspect the new revision before proceeding.
+No method edits documents or authorizes retirement.
+
+[CODE: api/knowledge_base.go]
+[CODE: api/internal/knowledgebase/documents.go]
 
 ## Health
 `GET /health`
@@ -44,7 +81,62 @@ Returns infrastructure health (API + dependency checks).
 ```
 
 [CODE: api/search.go]
-[CODE: api/internal/services/search/service.go]
+[CODE: api/internal/aisearch/search.go]
+
+## Documentation Search and Index Control
+
+`POST /api/v1/search/query` searches the reconciled documentation corpus.
+
+**Request fields**: `query` (required), `mode` (`auto`, `hybrid`, `dense`, or
+`text`), `scope` (`global`, `scenario`, or `path`), `target`, `limit`, and
+optional `facets` (`doc_type`, `audience`, `maturity`, `canonical_for`).
+
+**Response fields**: `results`, `total`, `query`, `method`, and `reranker`.
+`total` is the number of returned result objects (therefore no greater than
+`limit`); it is not a count of every matching document in the corpus. The
+vector engine searches a bounded candidate shortlist and does not provide an
+exact corpus-wide match count for this endpoint.
+The docs preset retrieves a bounded 240-chunk candidate pool, then keeps the
+highest-ranked chunk per source document before limiting the page. Exact query
+terms receive a bounded score boost so a short literal query can surface a
+source that contains the requested term ahead of merely semantic neighbors.
+
+`GET /api/v1/search/status` reports availability, Ollama/Qdrant readiness,
+reranker, indexed document count, and last reconciliation outcome.
+
+`POST /api/v1/reindex/run` plans or starts reconciliation. The body may include
+`dry_run` and an optional `control_token`; an empty body starts an async run.
+Dry runs return planned upsert/delete/refresh counts. Applied runs return
+`running` (or `busy`) and planned counts. A presented control token must match
+the token registered by search-hub; requests without a token remain available
+for local operation.
+
+`GET /api/v1/reindex/status` reports `idle`, `running`, `succeeded`, `failed`,
+`cancelled`, or `unavailable`, with processed/total/deferred counts and timing.
+`POST /api/v1/reindex/cancel` requests cancellation and returns whether a run
+was active.
+
+The documentation indexer is separate from knowledge collection ingest. There
+is no `/api/v1/ingest/health` route; per-collection provenance and diagnostics
+are available through collection inventory and diagnostics below.
+
+[CODE: api/search_surface.go]
+[CODE: api/internal/aisearch/indexer.go]
+
+## Maintenance observation and routing
+
+`POST /api/v1/knowledge/maintenance/inventory` returns bounded candidate records
+with source hashes, owner hypotheses, artifact classifications, portability
+signals, and inspect/propose handles. It is read-only and reports truncation.
+
+`POST /api/v1/knowledge/maintenance/proposals` converts candidate records into
+review-only dispositions. Every proposal remains `proposed`, cites its source
+hash, names preservation obligations, and requires owner authorization.
+
+`POST /api/v1/knowledge/maintenance/route` returns a dry-run or owner-admission
+receipt. It refuses missing idempotency keys, stale source hashes, unresolved
+actions, and unauthorized non-dry-run requests. It does not mutate Knowledge
+Observatory or project artifacts.
 
 ## Health Metrics
 `GET /api/v1/knowledge/health`
@@ -52,28 +144,6 @@ Returns infrastructure health (API + dependency checks).
 Returns collection health and aggregated quality metrics.
 
 [CODE: api/metrics.go]
-
-## Ingest Health
-`GET /api/v1/ingest/health`
-
-Returns ingest runner/backlog telemetry.
-
-**Response**
-```json
-{
-  "runner_interval_ms": 500,
-  "pending_jobs": 0,
-  "running_jobs": 0,
-  "failed_jobs": 2,
-  "successful_jobs": 42,
-  "failures_last_24h": 1,
-  "oldest_pending_age_ms": 0,
-  "status": "healthy|warning|degraded|unknown",
-  "timestamp": "2026-02-08T18:32:01Z"
-}
-```
-
-[CODE: api/knowledge_maintenance.go]
 
 ## Graph
 `GET /api/v1/knowledge/graph` or `POST /api/v1/knowledge/graph`
@@ -155,6 +225,57 @@ Returns the documentation tree for a scenario, including doc type hints and warn
 
 [CODE: api/docs_explorer.go]
 [CODE: api/internal/services/explorer/tree.go]
+
+## Documentation Operations
+
+The following registered REST endpoints are used by the `docs` CLI workflows.
+The route registrations in `api/server.go` and their handlers are authoritative.
+For terminal examples, use the [CLI reference](cli-commands.md).
+
+### Audit and auto-fix
+
+`GET /api/v1/scenarios/{name}/docs/audit` runs the full scenario audit and
+returns `scenario_name`, `health_score`, `total_docs`, infrastructure findings,
+broken or unknown marked references, orphaned docs, duplicate titles, and
+undocumented targets. This is the REST audit result; the typed
+`KnowledgeObservatoryService.DocHealth` contract is the canonical health check.
+
+`POST /api/v1/scenarios/{name}/docs/autofix` accepts `{"dry_run":true}` and
+returns `scenario_name`, `moved`, `skipped`, `health_before`, `health_after`,
+and `dry_run`. Each moved item has `from_path`, `to_path`, and `doc_type`; each
+skipped item also includes a reason. The handler's zero-value request defaults
+to `dry_run:false`, so callers must send `true` to preview before applying moves.
+
+### Typed document read and append
+
+`GET /api/v1/scenarios/{name}/docs/{doc_type}/content` reads a manifest-owned
+document by type. `format` accepts `raw` (default), `highlighted`, or `preview`.
+The response uses the same content fields as `GET /api/v1/docs/content`, plus
+`can_reset` and optional `reset_config` when the document type supports
+append-log reset.
+
+`POST /api/v1/scenarios/{name}/docs/{doc_type}/entries` accepts a required
+`title` and optional `body`, `author`, and `status`. It appends only to a
+manifest-supported append log and returns HTTP 201 with `scenario_name`,
+`doc_type`, and `entry_added`. It does not accept arbitrary document paths.
+
+### Access statistics and templates
+
+`GET /api/v1/docs/stats` returns `{"stats":[...]}`. Optional `scenario` and
+`doc_type` query parameters filter each row, which contains `scenario_name`,
+`doc_type`, `read_count`, `write_count`, and `reset_count`.
+
+`GET /api/v1/docs/templates` lists the documents in a resolved template as
+`doc_type`, `expected_path`, `purpose`, and `title`. Select the source with
+`template=<id>` or `scenario=<name>`. `GET /api/v1/docs/templates/{doc_type}`
+returns the same metadata plus template `content`. Scenario names are resolved
+against scenario manifests; these read endpoints do not apply templates.
+
+[CODE: api/server.go]
+[CODE: api/docs_audit.go]
+[CODE: api/docs_heal.go]
+[CODE: api/docs_entry.go]
+[CODE: api/docs_template.go]
 
 ## Documentation Search
 `POST /api/v1/docs/search/files`
@@ -356,27 +477,55 @@ Query params: `path` (repo-relative) and optional `format` (`raw`, `highlighted`
 [CODE: api/internal/services/viewer/reset.go]
 
 ## Documentation Health
-`GET /api/v1/scenarios/{name}/docs/health`
 
-Returns documentation health for a scenario (misplaced, missing, extra docs).
+`POST /knowledge_observatory.v1.KnowledgeObservatoryService/DocHealth` (Connect-RPC)
 
-**Response**
+Single source of truth for scenario documentation health. Runs structural
+placement (misplaced/missing/extra/temporary) + content checks
+(markdown, mermaid, links, absolute paths) + bidirectional reference
+audits (`[CODE:]`, `// DOC:`, marked refs) + manifest coverage in one
+call. The legacy REST `GET /api/v1/scenarios/{name}/docs/health` was
+removed; this is the only surface.
+
+**Request (JSON unary)**
+
 ```json
 {
-  "scenario_name": "string",
-  "health_score": 0.92,
-  "total_docs": 12,
-  "misplaced_docs": [
-    {"actual_path": "docs/PROGRESS.md", "expected_path": "docs/internal/PROGRESS.md", "doc_type": "progress", "severity": "warning"}
-  ],
-  "missing_docs": ["progress"],
-  "extra_docs": ["docs/misc/NOTE.md"],
-  "warnings": [
-    {"type": "misplaced", "message": "Documentation file is in the wrong location", "expected_path": "docs/internal/PROGRESS.md", "severity": "warning"}
-  ],
-  "can_auto_fix": true
+  "scenarioName": "demo",
+  "strictExternalLinks": false,
+  "requireAllDocsRegistered": false,
+  "skipExternalLinks": false
 }
 ```
+
+**Response (excerpt)**
+
+```json
+{
+  "scenarioName": "demo",
+  "healthScore": 0.92,
+  "totalDocs": 12,
+  "misplacedDocs": [
+    {"actualPath": "docs/PROGRESS.md", "expectedPath": "docs/internal/PROGRESS.md", "docType": "progress", "severity": "DOC_HEALTH_SEVERITY_WARNING"}
+  ],
+  "missingDocs": [
+    {"docType": "progress", "path": "docs/internal/PROGRESS.md", "severity": "DOC_HEALTH_SEVERITY_WARNING"}
+  ],
+  "extraDocs": ["docs/misc/NOTE.md"],
+  "contentFindings": [],
+  "referenceFindings": [],
+  "manifestFindings": [],
+  "counts": {"filesChecked": 12, "localLinks": 4, "externalLinks": 1}
+}
+```
+
+See `packages/proto/schemas/knowledge-observatory/v1/api.proto` for the
+full schema.
+
+[CODE: api/handlers/dochealth/handler.go]
+[CODE: api/internal/services/dochealth/service.go]
+
+Proto schema (outside scenario tree): `packages/proto/schemas/knowledge-observatory/v1/api.proto`.
 
 `POST /api/v1/scenarios/{name}/docs/reset`
 
@@ -403,9 +552,9 @@ Returns documentation health for a scenario (misplaced, missing, extra docs).
 }
 ```
 
-[CODE: api/docs_health.go]
-[CODE: api/internal/docschema/validation.go]
-[CODE: api/internal/docschema/reset.go]
+[CODE: api/docs_reset.go]
+[CODE: api/internal/docvalidation/validation.go]
+[CODE: api/internal/doclogs/logs.go]
 
 ## Documentation Healing
 `POST /api/v1/scenarios/{name}/docs/heal`
@@ -470,106 +619,12 @@ Reject and discard healing changes.
 [CODE: api/docs_heal.go]
 [CODE: api/internal/services/dochealing/service.go]
 [CODE: api/internal/adapters/agentmanager/dochealing_client.go]
-[CODE: api/internal/adapters/dochealingstore/postgres.go]
-
-## Upsert Record
-`POST /api/v1/knowledge/records/upsert`
-
-**Request**
-```json
-{
-  "namespace": "string",
-  "collection": "string?",
-  "record_id": "string?",
-  "external_id": "string?",
-  "content": "string",
-  "tags": ["string"],
-  "metadata": {},
-  "visibility": "private|shared|global",
-  "source": "string?",
-  "source_type": "string?"
-}
-```
-
-**Response**
-```json
-{
-  "record_id": "string",
-  "collection": "string",
-  "namespace": "string",
-  "content_hash": "string",
-  "upserted": true,
-  "took_ms": 18
-}
-```
-
-[CODE: api/ingest.go]
-[CODE: api/internal/services/ingest/service.go]
-
-## Delete Record
-`DELETE /api/v1/knowledge/records/{record_id}`
-
-**Response**
-```json
-{
-  "record_id": "string",
-  "collection": "string",
-  "deleted": true,
-  "took_ms": 6
-}
-```
-
-[CODE: api/delete.go]
-
-## Document Ingest
-`POST /api/v1/knowledge/documents/ingest`
-
-Chunked, synchronous ingest for long documents.
-
-**Request**
-```json
-{
-  "namespace": "string",
-  "collection": "string?",
-  "document_id": "string?",
-  "external_id": "string?",
-  "content": "string",
-  "tags": ["string"],
-  "metadata": {},
-  "visibility": "private|shared|global",
-  "source": "string?",
-  "source_type": "string?",
-  "chunk_size": 1200,
-  "chunk_overlap": 150,
-  "prune_stale": true
-}
-```
-
-**Response**
-```json
-{
-  "document_id": "string",
-  "collection": "string",
-  "namespace": "string",
-  "chunk_count": 4,
-  "record_ids": ["string"],
-  "content_hash": "string",
-  "pruned_stale_count": 2,
-  "took_ms": 120
-}
-```
-
-[CODE: api/document_ingest.go]
-[CODE: api/internal/services/ingest/chunking.go]
-
-## Ingest Jobs (Async)
-`POST /api/v1/ingest/jobs`
-
-Enqueues an async document ingest job.
-
-[CODE: api/jobs.go]
+[CODE: api/internal/dochealing/sqlite.go]
 
 ## Collection Inventory
+
+Knowledge Observatory currently exposes collection inspection and maintenance, not generic record/document upsert or ingest-job routes. Scenario documentation indexing is managed by the configured indexer.
+
 `GET /api/v1/knowledge/collections`
 
 Lists collections with ownership/provenance signals for triage.
@@ -698,40 +753,3 @@ Deletes superseded chunks per `(namespace, document_id, chunk_index)`, keeping n
 Deletes duplicate chunks by `(namespace, content_hash)`, keeping newest.
 
 [CODE: api/knowledge_maintenance.go]
-
-## Delete Document
-`POST /api/v1/knowledge/documents/delete`
-
-Delete all chunks for a namespace+document.
-
-**Request**
-```json
-{
-  "namespace": "ecosystem-manager",
-  "collection": "knowledge_chunks_v1",
-  "document_id": "string?",
-  "external_id": "string?",
-  "dry_run": false
-}
-```
-
-**Response**
-```json
-{
-  "collection": "knowledge_chunks_v1",
-  "namespace": "ecosystem-manager",
-  "document_id": "string",
-  "candidate_delete_count": 18,
-  "deleted_count": 18,
-  "took_ms": 25
-}
-```
-
-[CODE: api/knowledge_maintenance.go]
-[CODE: api/internal/services/ingestjobs/runner.go]
-
-`GET /api/v1/ingest/jobs/{job_id}`
-
-Returns job status and timestamps.
-
-[CODE: api/jobs.go]

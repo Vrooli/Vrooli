@@ -1,0 +1,12 @@
+{
+  "samples": 100,
+  "successful": 100,
+  "failed": 0,
+  "p50_ms": 404.29249685257673,
+  "p95_ms": 522.2109780646861,
+  "max_ms": 850.4266729578376,
+  "p95_target_ms": 1500.0,
+  "landing_page_workspace_first": true,
+  "failures": [],
+  "passed": true
+}

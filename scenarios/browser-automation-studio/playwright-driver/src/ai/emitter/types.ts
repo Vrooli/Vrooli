@@ -7,7 +7,7 @@
  */
 
 import type { BrowserAction } from '../action/types';
-import type { TokenUsage, ElementLabel } from '../vision-client/types';
+import type { InferenceReceipt, TokenUsage, ElementLabel } from '../vision-client/types';
 
 /**
  * Navigation step event sent to the API callback.
@@ -29,6 +29,8 @@ export interface NavigationStepEvent {
   currentUrl: string;
   /** Token usage for this step */
   tokensUsed: TokenUsage;
+  /** Gateway accounting receipt for the inference that selected this step. */
+  inferenceReceipt?: InferenceReceipt;
   /** Duration of the step in milliseconds */
   durationMs: number;
   /** Whether the goal was achieved */
@@ -52,6 +54,9 @@ export interface NavigationStepEvent {
  * Navigation completion event sent to the API callback.
  */
 export interface NavigationCompleteEvent {
+  verifiedSuccess?: boolean;
+  extractedData?: Record<string, string[]>;
+  verificationError?: string;
   /** Navigation session ID */
   navigationId: string;
   /** Final status */

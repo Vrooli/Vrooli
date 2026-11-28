@@ -6,14 +6,14 @@ export type FetchResponseInit = {
   body?: unknown
 }
 
-export const createFetchResponse = (init: FetchResponseInit = {}): Response => {
+export const createFetchResponse = (init: FetchResponseInit = {}) => {
   const { ok = true, status = 200, body = {} } = init
   return {
     ok,
     status,
     json: vi.fn().mockResolvedValue(body),
     text: vi.fn().mockResolvedValue(JSON.stringify(body)),
-  } as unknown as Response
+  }
 }
 
 export const mockFetchResolved = (init: FetchResponseInit = {}) => {

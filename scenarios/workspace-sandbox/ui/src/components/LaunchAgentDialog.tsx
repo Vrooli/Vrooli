@@ -33,6 +33,7 @@ import { Input, Label } from "./ui/input";
 import type { Sandbox, IsolationProfile } from "../lib/api";
 import { useProfiles, useExecutionConfig } from "../lib/hooks";
 import { SELECTORS } from "../consts/selectors";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 
 // --- Types ---
 
@@ -97,6 +98,9 @@ const EXECUTION_MODES: Array<{
     available: true,
   },
 ];
+
+const API_BASE = resolveApiBase({ appendSuffix: true });
+const WS_BASE = API_BASE.replace(/^http/, "ws");
 
 // --- Helper Components ---
 
@@ -498,7 +502,7 @@ export function LaunchAgentDialog({
       });
 
       return `# WebSocket URL (connect and send start message):
-ws://localhost:15427/api/v1/sandboxes/${sandbox.id}/exec-interactive
+${buildApiUrl(`/sandboxes/${sandbox.id}/exec-interactive`, { baseUrl: WS_BASE })}
 
 # First message to send after connecting:
 ${JSON.stringify(wsBody, null, 2)}`;
@@ -529,7 +533,7 @@ ${JSON.stringify(wsBody, null, 2)}`;
       if (body[key] === undefined) delete body[key];
     });
 
-    return `curl -X POST localhost:15427${endpoint} \\
+    return `curl -X POST ${buildApiUrl(endpoint.replace(/^\/api\/v1/, ""), { baseUrl: API_BASE })} \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify(body, null, 2)}'`;
   }, [

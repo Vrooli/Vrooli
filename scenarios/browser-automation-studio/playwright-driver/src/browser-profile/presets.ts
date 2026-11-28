@@ -57,7 +57,7 @@ export const DEFAULT_BEHAVIOR: Required<BehaviorSettings> = {
 };
 
 /**
- * Default anti-detection settings (ad blocking enabled by default).
+ * Default legacy browser-signal settings (ad blocking enabled by default).
  */
 export const DEFAULT_ANTI_DETECTION: Required<AntiDetectionSettings> = {
   disable_automation_controlled: false,
@@ -90,8 +90,8 @@ export const DEFAULT_PROXY: Required<ProxySettings> = {
 };
 
 /**
- * Stealth preset - Maximum anti-detection with realistic human behavior.
- * Use for sites with aggressive bot detection.
+ * Legacy "stealth" preset. It combines browser-signal and interaction
+ * settings; it is not qualified for any detection corpus or site.
  */
 export const PRESET_STEALTH: BrowserProfile = {
   preset: 'stealth',

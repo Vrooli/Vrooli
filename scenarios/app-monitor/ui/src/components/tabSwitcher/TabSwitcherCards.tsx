@@ -16,6 +16,9 @@ import {
 
 export type SortOption<T extends string> = { value: T; label: string };
 
+const CARD_GRID_INITIAL_WINDOW = 48;
+const CARD_GRID_WINDOW_INCREMENT = 48;
+
 export function Section({
   title,
   description,
@@ -86,38 +89,13 @@ export function AppGrid({
   errorMessage?: string | null;
   isRefreshing?: boolean;
 }) {
-  const [visibleCount, setVisibleCount] = useState(() => Math.min(apps.length, 24));
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(apps.length, CARD_GRID_INITIAL_WINDOW));
 
   useEffect(() => {
-    if (apps.length <= 24) {
-      setVisibleCount(apps.length);
-      return;
-    }
-
-    setVisibleCount(24);
-    let rafId = 0;
-    const revealNextBatch = () => {
-      setVisibleCount((current) => {
-        if (current >= apps.length) {
-          return current;
-        }
-        const nextValue = Math.min(apps.length, current + 24);
-        if (nextValue < apps.length) {
-          rafId = window.requestAnimationFrame(revealNextBatch);
-        }
-        return nextValue;
-      });
-    };
-    rafId = window.requestAnimationFrame(revealNextBatch);
-    return () => {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
+    setVisibleCount(Math.min(apps.length, CARD_GRID_INITIAL_WINDOW));
   }, [apps]);
 
-  const isBusy = Boolean(isLoading || isRefreshing);
-  if (isBusy) {
+  if (isLoading && apps.length === 0) {
     return <AppsGridSkeleton count={skeletonCount} viewMode="grid" />;
   }
 
@@ -138,24 +116,14 @@ export function AppGrid({
 
   const visibleApps = apps.slice(0, visibleCount);
   const hasPendingRender = visibleCount < apps.length;
+  const renderMoreApps = () => {
+    setVisibleCount((current) => Math.min(apps.length, current + CARD_GRID_WINDOW_INCREMENT));
+  };
 
   return (
     <>
       {hasError && (
-        <div className="tab-switcher__error-banner" role="alert">
-          <p>{errorMessage}</p>
-          {onRetry && (
-            <button
-              type="button"
-              className="tab-switcher__error-retry"
-              onClick={onRetry}
-              aria-label="Retry loading"
-            >
-              <RefreshCw size={16} aria-hidden />
-              <span>Retry</span>
-            </button>
-          )}
-        </div>
+        <CatalogErrorBanner message={errorMessage ?? ''} onRetry={onRetry} retryLabel="Retry loading" isRefreshing={isRefreshing} />
       )}
       <div className="tab-switcher__grid">
         {visibleApps.map(app => (
@@ -164,7 +132,10 @@ export function AppGrid({
       </div>
       {hasPendingRender && (
         <div className="tab-switcher__progressive-status" role="status" aria-live="polite">
-          Loading more results...
+          Showing {visibleCount} of {apps.length} scenarios.
+          <button type="button" onClick={renderMoreApps}>
+            Show more
+          </button>
         </div>
       )}
     </>
@@ -176,54 +147,40 @@ export function ResourceGrid({
   onSelect,
   emptyMessage,
   isLoading,
+  errorMessage,
+  onRetry,
+  isRefreshing,
   skeletonCount = 6,
 }: {
   resources: Resource[];
   onSelect(resource: Resource): void;
   emptyMessage?: string;
   isLoading?: boolean;
+  errorMessage?: string | null;
+  onRetry?: () => void;
+  isRefreshing?: boolean;
   skeletonCount?: number;
 }) {
-  const [visibleCount, setVisibleCount] = useState(() => Math.min(resources.length, 24));
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(resources.length, CARD_GRID_INITIAL_WINDOW));
 
   useEffect(() => {
-    if (resources.length <= 24) {
-      setVisibleCount(resources.length);
-      return;
-    }
-
-    setVisibleCount(24);
-    let rafId = 0;
-    const revealNextBatch = () => {
-      setVisibleCount((current) => {
-        if (current >= resources.length) {
-          return current;
-        }
-        const nextValue = Math.min(resources.length, current + 24);
-        if (nextValue < resources.length) {
-          rafId = window.requestAnimationFrame(revealNextBatch);
-        }
-        return nextValue;
-      });
-    };
-    rafId = window.requestAnimationFrame(revealNextBatch);
-    return () => {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-    };
+    setVisibleCount(Math.min(resources.length, CARD_GRID_INITIAL_WINDOW));
   }, [resources]);
 
-  if (isLoading) {
+  if (isLoading && resources.length === 0) {
     return <ResourcesGridSkeleton count={skeletonCount} />;
   }
   if (resources.length === 0) {
-    return <EmptyState message={emptyMessage ?? 'No resources available.'} />;
+    return <EmptyState message={errorMessage ?? emptyMessage ?? 'No resources available.'} onRetry={onRetry} retryLabel="Retry resource inventory" isError={Boolean(errorMessage)} />;
   }
   const visibleResources = resources.slice(0, visibleCount);
   const hasPendingRender = visibleCount < resources.length;
+  const renderMoreResources = () => {
+    setVisibleCount((current) => Math.min(resources.length, current + CARD_GRID_WINDOW_INCREMENT));
+  };
   return (
     <>
+      {errorMessage && <CatalogErrorBanner message={errorMessage} onRetry={onRetry} retryLabel="Retry resource inventory" isRefreshing={isRefreshing} />}
       <div className="tab-switcher__grid">
         {visibleResources.map(resource => (
           <ResourceTabCard key={resource.id} resource={resource} onSelect={onSelect} />
@@ -231,10 +188,33 @@ export function ResourceGrid({
       </div>
       {hasPendingRender && (
         <div className="tab-switcher__progressive-status" role="status" aria-live="polite">
-          Loading more results...
+          Showing {visibleCount} of {resources.length} resources.
+          <button type="button" onClick={renderMoreResources}>
+            Show more
+          </button>
         </div>
       )}
     </>
+  );
+}
+
+function CatalogErrorBanner({ message, onRetry, retryLabel, isRefreshing = false }: { message: string; onRetry?: () => void; retryLabel: string; isRefreshing?: boolean }) {
+  return (
+    <div className="tab-switcher__error-banner" role="alert">
+      <p>{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          className="tab-switcher__error-retry"
+          onClick={onRetry}
+          disabled={isRefreshing}
+          aria-label={retryLabel}
+        >
+          <RefreshCw size={16} aria-hidden />
+          <span>{isRefreshing ? 'Retrying' : 'Retry'}</span>
+        </button>
+      )}
+    </div>
   );
 }
 

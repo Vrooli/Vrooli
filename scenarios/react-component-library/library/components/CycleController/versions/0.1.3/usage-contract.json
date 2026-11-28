@@ -1,0 +1,15 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "AmbientDisplayShell",
+      "Chart",
+      "CartesianCharts",
+      "HeroReadout",
+      "PanelReadout"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:CycleController",
+  "version": "0.1.3"
+}

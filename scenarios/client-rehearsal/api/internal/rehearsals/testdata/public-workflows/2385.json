@@ -1,0 +1,721 @@
+{
+  "id": "public-2385",
+  "name": "Save synthetic workflows to a GitLab repository",
+  "active": false,
+  "nodes": [
+    {
+      "id": "public-2385-node-01",
+      "name": "When clicking \"Test Workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        880,
+        360
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "public-2385-node-02",
+      "name": "Globals",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1100,
+        360
+      ],
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "repo.owner",
+              "stringValue": "synthetic-owner"
+            },
+            {
+              "name": "repo.name",
+              "stringValue": "synthetic-repo"
+            },
+            {
+              "name": "repo.branch",
+              "stringValue": "main"
+            },
+            {
+              "name": "repo.path",
+              "stringValue": "workflow-archive/"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "public-2385-node-03",
+      "name": "Result",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        1700,
+        80
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "public-2385-node-04",
+      "name": "Current workflow",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        1720,
+        460
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "public-2385-node-05",
+      "name": "Loop Over Workflows",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        1500,
+        360
+      ],
+      "parameters": {
+        "options": {}
+      },
+      "typeVersion": 3
+    },
+    {
+      "id": "public-2385-node-06",
+      "name": "Get file",
+      "type": "n8n-nodes-base.gitlab",
+      "onError": "continueErrorOutput",
+      "position": [
+        1960,
+        460
+      ],
+      "parameters": {
+        "owner": "={{ $('Globals').first().json.repo.owner }}",
+        "filePath": "={{ $('Globals').first().json.repo.path }}{{ $json.id }}.json",
+        "resource": "file",
+        "operation": "get",
+        "repository": "={{ $('Globals').first().json.repo.name }}",
+        "binaryPropertyName": "file-from-gitlab",
+        "additionalParameters": {
+          "reference": "={{ $('Globals').first().json.repo.branch }}"
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 1,
+      "alwaysOutputData": false,
+      "credentials": {
+        "gitlabApi": {
+          "id": "synthetic-gitlabApi",
+          "name": "Synthetic gitlabApi"
+        }
+      }
+    },
+    {
+      "id": "public-2385-node-07",
+      "name": "File status",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        2620,
+        440
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "var item = $json;\n\n// Check first if is error\nif (item.error) {\n  if (\"The resource you are requesting could not be found\" == item.error) {\n    item[\"status\"] = \"new\";\n  } else {\n    item[\"status\"] = \"error\";\n  }\n  return $input.item;\n}\n\n// If not error check file with saved version\nvar workflowFromN8n = item[\"workflow-from-n8n\"];\nvar workflowFromGitlab = item[\"workflow-from-gitlab\"];\nvar areEquals = objectsAreEquals(workflowFromN8n, workflowFromGitlab);\n\nif (areEquals) {\n  item[\"status\"] = \"same\";\n} else {\n  item[\"status\"] = \"diff\";\n}\n\n// Return Item\nreturn item;\n\n/**\n * Compare to objects\n * @param object1 \n * @param object2 \n * @returns true if the are the same without ignored fields\n */\nfunction objectsAreEquals(object1, object2) {\n  const objectKeys1 = Object.keys(object1);\n  const objectKeys2 = Object.keys(object2);\n\n  // If the numbers of fields are differents, the objects are differents\n  if (objectKeys1.length !== objectKeys2.length) {\n    return false;\n  }\n  for (const key of objectKeys1) {\n    // Define some fields to be ignored\n    var ignoreCurrent = false;\n    switch (key) {\n      case \"updatedAt\": // Changed because workflow change... not usefull\n      case \"global\": // changed for running reasons, no need to check\n        ignoreCurrent = true;\n    }\n\n    // If it's not an ignored field\n    if (!ignoreCurrent) {\n      const value1 = object1[key];\n      const value2 = object2[key];\n      const isBothAreObjects = isObject(value1) && isObject(value2);\n\n      // If it's objects recursive check\n      if (isBothAreObjects && !objectsAreEquals(value1, value2)) {\n        return false;\n      }\n\n      // If it's not objects, just compare values\n      if (!isBothAreObjects && value1 != value2) {\n        return false;\n      }\n    }\n  }\n  return true;\n}\n\n/**\n * Tool function to determine if an parameter is an object\n * @param object \n * @returns \n */\nfunction isObject(object) {\n  return object !== null && typeof object === \"object\";\n}\n"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "public-2385-node-08",
+      "name": "Status error",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        3360,
+        640
+      ],
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "name",
+              "stringValue": "={{ $('Current workflow').item.json.name }}"
+            },
+            {
+              "name": "status",
+              "stringValue": "=Error : {{ $json.error }}"
+            }
+          ]
+        },
+        "include": "none",
+        "options": {}
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "public-2385-node-09",
+      "name": "End Loop",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        3600,
+        420
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "public-2385-node-10",
+      "name": "Create file",
+      "type": "n8n-nodes-base.gitlab",
+      "onError": "continueErrorOutput",
+      "position": [
+        3100,
+        140
+      ],
+      "parameters": {
+        "owner": "={{ $('Globals').first().json.repo.owner }}",
+        "branch": "={{ $('Globals').first().json.repo.branch }}",
+        "filePath": "={{ $('Globals').first().json.repo.path }}{{ $json.id }}.json",
+        "resource": "file",
+        "repository": "={{ $('Globals').first().json.repo.name }}",
+        "fileContent": "={{ JSON.stringify($('Current workflow').item.json, null, 4) }}",
+        "commitMessage": "=Create file for workflow {{ $('Current workflow').item.json.name }}",
+        "additionalParameters": {
+          "author": {
+            "name": "n8n",
+            "email": "automation@example.invalid"
+          }
+        }
+      },
+      "executeOnce": true,
+      "typeVersion": 1,
+      "alwaysOutputData": false,
+      "credentials": {
+        "gitlabApi": {
+          "id": "synthetic-gitlabApi",
+          "name": "Synthetic gitlabApi"
+        }
+      }
+    },
+    {
+      "id": "public-2385-node-11",
+      "name": "Extract From File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "position": [
+        2180,
+        360
+      ],
+      "parameters": {
+        "options": {},
+        "operation": "fromJson",
+        "destinationKey": "workflow-from-gitlab",
+        "binaryPropertyName": "file-from-gitlab"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "public-2385-node-12",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        2880,
+        440
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "new",
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "new"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "same",
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "0ff6e053-e89d-49fa-b8c8-3a51ffe016d8",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "same"
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "diff",
+              "conditions": {
+                "options": {
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "b6b954c3-e74c-4f60-8e9e-ac79d4b741f3",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "diff"
+                  }
+                ]
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "error"
+        }
+      },
+      "typeVersion": 3
+    },
+    {
+      "id": "public-2385-node-13",
+      "name": "New file version",
+      "type": "n8n-nodes-base.gitlab",
+      "onError": "continueErrorOutput",
+      "position": [
+        3100,
+        300
+      ],
+      "parameters": {
+        "owner": "={{ $('Globals').first().json.repo.owner }}",
+        "branch": "={{ $('Globals').first().json.repo.branch }}",
+        "filePath": "={{ $('Globals').first().json.repo.path }}{{ $json['workflow-from-n8n'].id }}.json",
+        "resource": "file",
+        "operation": "edit",
+        "repository": "={{ $('Globals').first().json.repo.name }}",
+        "fileContent": "={{ JSON.stringify($json['workflow-from-n8n'], null, 4) }}",
+        "commitMessage": "=New file version for workflow {{ $json['workflow-from-n8n'].name }}"
+      },
+      "executeOnce": true,
+      "typeVersion": 1,
+      "alwaysOutputData": false,
+      "credentials": {
+        "gitlabApi": {
+          "id": "synthetic-gitlabApi",
+          "name": "Synthetic gitlabApi"
+        }
+      }
+    },
+    {
+      "id": "public-2385-node-14",
+      "name": "Error output to normal output",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        2180,
+        560
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "public-2385-node-15",
+      "name": "Status new",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        3360,
+        120
+      ],
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "name",
+              "stringValue": "={{ $('Current workflow').item.json.name }}"
+            },
+            {
+              "name": "status",
+              "stringValue": "new"
+            }
+          ]
+        },
+        "include": "none",
+        "options": {}
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "public-2385-node-16",
+      "name": "Status diff",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        3360,
+        280
+      ],
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "name",
+              "stringValue": "={{ $('Current workflow').item.json.name }}"
+            },
+            {
+              "name": "status",
+              "stringValue": "diff"
+            }
+          ]
+        },
+        "include": "none",
+        "options": {}
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "public-2385-node-17",
+      "name": "Status same",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        3360,
+        420
+      ],
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "name",
+              "stringValue": "={{ $('Current workflow').item.json.name }}"
+            },
+            {
+              "name": "status",
+              "stringValue": "same"
+            }
+          ]
+        },
+        "include": "none",
+        "options": {}
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "public-2385-node-18",
+      "name": "Retrieve all workflows",
+      "type": "n8n-nodes-base.n8n",
+      "position": [
+        1300,
+        360
+      ],
+      "parameters": {
+        "filters": {}
+      },
+      "typeVersion": 1,
+      "credentials": {
+        "n8nApi": {
+          "id": "synthetic-n8nApi",
+          "name": "Synthetic n8nApi"
+        }
+      }
+    },
+    {
+      "id": "public-2385-node-19",
+      "name": "Save each version in a different field",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        2400,
+        360
+      ],
+      "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "workflow-from-gitlab",
+              "type": "objectValue",
+              "objectValue": "={{ $json['workflow-from-gitlab'] }}"
+            },
+            {
+              "name": "workflow-from-n8n",
+              "type": "objectValue",
+              "objectValue": "={{ $('Current workflow').item.json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 3.2
+    }
+  ],
+  "connections": {
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Create file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status same",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "New file version",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Globals": {
+      "main": [
+        [
+          {
+            "node": "Retrieve all workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get file": {
+      "main": [
+        [
+          {
+            "node": "Extract From File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error output to normal output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status new": {
+      "main": [
+        [
+          {
+            "node": "End Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create file": {
+      "main": [
+        [
+          {
+            "node": "Status new",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File status": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status diff": {
+      "main": [
+        [
+          {
+            "node": "End Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status same": {
+      "main": [
+        [
+          {
+            "node": "End Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status error": {
+      "main": [
+        [
+          {
+            "node": "End Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Current workflow": {
+      "main": [
+        [
+          {
+            "node": "Get file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New file version": {
+      "main": [
+        [
+          {
+            "node": "Status diff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract From File": {
+      "main": [
+        [
+          {
+            "node": "Save each version in a different field",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Workflows": {
+      "main": [
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Current workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve all workflows": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Workflows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error output to normal output": {
+      "main": [
+        [
+          {
+            "node": "File status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking \"Test Workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Globals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save each version in a different field": {
+      "main": [
+        [
+          {
+            "node": "File status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

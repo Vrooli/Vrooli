@@ -1,0 +1,60 @@
+{
+  "coverage": "IN-REACH",
+  "description": "Producer-owned Business Digest reading.",
+  "format": "integer",
+  "id": "funnel_30d",
+  "kind": "funnel",
+  "label": "Visitor-to-paid funnel",
+  "sample": {
+    "basis": "authored structural sample; production validation pending",
+    "rows": [
+      {
+        "key": "visitors",
+        "label": "Visitors",
+        "share": 1,
+        "value": 100
+      },
+      {
+        "denominator": 100,
+        "key": "cta_clickers",
+        "label": "Clicked a CTA",
+        "share": 0.35,
+        "value": 35
+      },
+      {
+        "denominator": 35,
+        "key": "checkouts_started",
+        "label": "Checkouts started",
+        "share": 0.08,
+        "value": 8
+      },
+      {
+        "denominator": 8,
+        "key": "paid",
+        "label": "Paid",
+        "share": 0.02,
+        "value": 2
+      }
+    ],
+    "series": [
+      100
+    ],
+    "value": 100
+  },
+  "shape": "series",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "business-digest.v1",
+    "expectedUnit": "count",
+    "featureId": "digest_funnel",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest?windowDays=30",
+    "select": "digest_funnel",
+    "selector": "digest_funnel",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
+}

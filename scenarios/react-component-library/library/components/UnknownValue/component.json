@@ -1,0 +1,24 @@
+{
+  "category": "uncategorized",
+  "deprecatedVersions": [],
+  "description": "Inline fallback for a value that is absent or cannot be derived",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Unknown Value",
+  "draft": "",
+  "entry": "UnknownValue.tsx",
+  "kind": "control",
+  "latest": "0.1.0",
+  "libraryId": "react-component-library:UnknownValue",
+  "slot": "ui-primitive",
+  "supplemental": true,
+  "tags": [
+    "data-display",
+    "uncertainty"
+  ]
+}

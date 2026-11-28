@@ -1,0 +1,513 @@
+{
+  "metadata": {
+    "name": "workspace-inpaint-c03",
+    "description": "C03 inpainting journey through the served Create workspace using the non-person Aquila pointer fixture and its explicit mask. It opts into a 96px contextual crop around that mask, submits a real masked fill on the resolved CPU tier, renders the edit and returns it to the canvas; full execution requires shared CPU/RAM and disk admission.",
+    "requirement": "IMAGE-TOOLS-C03",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "inpaint-c03",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to the Workspace"
+        }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Mode switcher visible"
+        }
+      }
+    },
+    {
+      "id": "switch-to-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.modeOption(mode=\"create\")"
+        },
+        "metadata": {
+          "label": "Switch to Create mode"
+        }
+      }
+    },
+    {
+      "id": "wait-create-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Create panel composes"
+        }
+      }
+    },
+    {
+      "id": "load-aquila-source-image",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "@selector/workspace.fileInput",
+          "file_paths": [
+            "/home/matthalloran8/Vrooli/scenarios/image-tools/api/internal/ai/testdata/aquila-original-512.png"
+          ]
+        },
+        "metadata": {
+          "label": "Load the non-person Aquila source with a pointer over the emblem"
+        }
+      }
+    },
+    {
+      "id": "wait-aquila-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.canvas.image",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Confirm source is loaded on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-inpaint-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createAction(name=\"inpaint\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The inpaint action must be present in the live operation catalog."
+        },
+        "metadata": {
+          "label": "Discover inpainting"
+        }
+      }
+    },
+    {
+      "id": "select-inpaint-action",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createAction(name=\"inpaint\")"
+        },
+        "metadata": {
+          "label": "Select inpainting"
+        }
+      }
+    },
+    {
+      "id": "wait-mask-upload",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.mask.upload",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Wait for the mask control"
+        }
+      }
+    },
+    {
+      "id": "upload-pointer-mask",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "@selector/workspace.mask.upload",
+          "file_paths": [
+            "/home/matthalloran8/Vrooli/scenarios/image-tools/api/internal/ai/testdata/mask-pointer-512.png"
+          ]
+        },
+        "metadata": {
+          "label": "Upload the explicit pointer mask"
+        }
+      }
+    },
+    {
+      "id": "wait-mask-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.mask.status",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 15000
+        },
+        "metadata": {
+          "label": "Confirm the mask is attached"
+        }
+      }
+    },
+    {
+      "id": "fill-inpaint-instruction",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.prompt",
+          "value": "Fill the masked area with the uninterrupted dark navy of the emblem panel, continuing the background smoothly. Do not add text, shapes, or symbols.",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Describe the masked fill"
+        }
+      }
+    },
+    {
+      "id": "open-advanced-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.advanced"
+        },
+        "metadata": {
+          "label": "Open execution settings"
+        }
+      }
+    },
+    {
+      "id": "request-cpu-only",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.forceCpu"
+        },
+        "metadata": {
+          "label": "Choose CPU-only execution"
+        }
+      }
+    },
+    {
+      "id": "assert-cpu-tier",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/models.pickerTrigger",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Runs on CPU (requested)"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 15000,
+          "failure_message": "The selected inpaint model must resolve to local CPU when CPU-only execution is requested."
+        },
+        "metadata": {
+          "label": "Confirm CPU execution is selected"
+        }
+      }
+    },
+    {
+      "id": "run-inpaint",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.run"
+        },
+        "metadata": {
+          "label": "Submit the inpaint job"
+        }
+      }
+    },
+    {
+      "id": "check-install-gate",
+      "action": {
+        "type": "ACTION_TYPE_CONDITIONAL",
+        "conditional": {
+          "conditionType": "CONDITIONAL_TYPE_ELEMENT",
+          "selector": "@selector/workspace.create.installGate",
+          "timeoutMs": 1000
+        },
+        "metadata": {
+          "label": "Check whether the installed model is ready"
+        }
+      }
+    },
+    {
+      "id": "assert-install-gate",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.installGate",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A clean host should show the install gate before attempting inference."
+        },
+        "metadata": {
+          "label": "Model install gate appears"
+        }
+      }
+    },
+    {
+      "id": "wait-inpaint-result",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.succeeded",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 300000
+        },
+        "metadata": {
+          "label": "Wait for the local inpaint result"
+        }
+      }
+    },
+    {
+      "id": "assert-result-grid",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.results",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A completed inpaint job must render its result grid."
+        },
+        "metadata": {
+          "label": "Edited result renders"
+        }
+      }
+    },
+    {
+      "id": "assert-first-result",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createVariation(index=1)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The result grid must contain the edited image."
+        },
+        "metadata": {
+          "label": "Edited image is present"
+        }
+      }
+    },
+    {
+      "id": "send-result-to-canvas",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createSend(index=1)"
+        },
+        "metadata": {
+          "label": "Open the inpaint result on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-edited-canvas",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.canvas.image",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The inpaint output must load as the current canvas image."
+        },
+        "metadata": {
+          "label": "Edited image loads on canvas"
+        }
+      }
+    },
+    {
+      "id": "crop-inpaint-to-mask",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.cropToMask"
+        },
+        "metadata": {
+          "label": "Enable mask-aware contextual cropping"
+        }
+      }
+    },
+    {
+      "id": "set-mask-context",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.cropContextPixels",
+          "value": "96",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Keep 96 pixels of context around the removal area"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "c03-e1",
+      "source": "navigate-workspace",
+      "target": "wait-mode-switcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e2",
+      "source": "wait-mode-switcher",
+      "target": "switch-to-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e3",
+      "source": "switch-to-create",
+      "target": "wait-create-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e4",
+      "source": "wait-create-panel",
+      "target": "load-aquila-source-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e5",
+      "source": "load-aquila-source-image",
+      "target": "wait-aquila-canvas-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e6",
+      "source": "wait-aquila-canvas-image",
+      "target": "assert-inpaint-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e7",
+      "source": "assert-inpaint-action",
+      "target": "select-inpaint-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e8",
+      "source": "select-inpaint-action",
+      "target": "wait-mask-upload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e9",
+      "source": "wait-mask-upload",
+      "target": "upload-pointer-mask",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e10",
+      "source": "upload-pointer-mask",
+      "target": "wait-mask-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e11",
+      "source": "wait-mask-ready",
+      "target": "fill-inpaint-instruction",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e12",
+      "source": "fill-inpaint-instruction",
+      "target": "open-advanced-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e15",
+      "source": "assert-cpu-tier",
+      "target": "run-inpaint",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e16",
+      "source": "run-inpaint",
+      "target": "check-install-gate",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e19",
+      "source": "wait-inpaint-result",
+      "target": "assert-result-grid",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e20",
+      "source": "assert-result-grid",
+      "target": "assert-first-result",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e21",
+      "source": "assert-first-result",
+      "target": "send-result-to-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-install-needed",
+      "source": "check-install-gate",
+      "target": "assert-install-gate",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "true"
+    },
+    {
+      "id": "c03-model-ready",
+      "source": "check-install-gate",
+      "target": "wait-inpaint-result",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "false"
+    },
+    {
+      "id": "c03-canvas-loaded",
+      "source": "send-result-to-canvas",
+      "target": "assert-edited-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e13a",
+      "source": "open-advanced-settings",
+      "target": "crop-inpaint-to-mask",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e13b",
+      "source": "crop-inpaint-to-mask",
+      "target": "set-mask-context",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c03-e13c",
+      "source": "set-mask-context",
+      "target": "request-cpu-only",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

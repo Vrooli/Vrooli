@@ -1,0 +1,653 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "development-toolchain-validator",
+  "key": "development-toolchain-validator/divergence-probe",
+  "version": "1.0.0",
+  "description": "Multi-agent divergence probe. Three runners independently execute one skill against one golden target and each emit a structured decision list; a judge diffs the three lists and anchors material divergence to the skill sentence that permitted both readings. Advisory: emits findings, mutates nothing. Executor and judge instructions are the divergence-probe-executor and divergence-probe-judge skills resolved via promptRef at reconcile time.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "skill": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "skillId"
+        ],
+        "additionalProperties": false
+      },
+      "target": {
+        "type": "object",
+        "properties": {
+          "goldenSlug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "scenarioPath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "goldenSlug",
+          "scenarioPath"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "skill",
+      "target"
+    ],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "entryNode": "fanout",
+  "nodes": [
+    {
+      "id": "fanout",
+      "kind": "branch",
+      "branch": {
+        "parallel": true
+      }
+    },
+    {
+      "id": "executor_a",
+      "kind": "run",
+      "run": {
+        "profileKey": "development-toolchain-validator/default",
+        "promptRef": {
+          "skillId": "divergence-probe-executor"
+        },
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "executed",
+                  "abstained"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "files_touched": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "commands_run": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              },
+              "acceptance_checks": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              },
+              "key_decisions": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "decision": {
+                      "type": "string",
+                      "maxLength": 1024
+                    },
+                    "skill_sentence": {
+                      "type": "string",
+                      "maxLength": 1024
+                    }
+                  },
+                  "required": [
+                    "decision",
+                    "skill_sentence"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "outcome",
+              "files_touched",
+              "commands_run",
+              "acceptance_checks",
+              "key_decisions"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "skill_id",
+            "source": "workflow_input",
+            "selector": "$.skill.skillId",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "skill_version",
+            "source": "workflow_input",
+            "selector": "$.skill.version",
+            "limit": 1,
+            "maxBytes": 64,
+            "renderAs": "text",
+            "missingPolicy": "null"
+          },
+          {
+            "name": "golden_slug",
+            "source": "workflow_input",
+            "selector": "$.target.goldenSlug",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "target_path",
+            "source": "workflow_input",
+            "selector": "$.target.scenarioPath",
+            "limit": 1,
+            "maxBytes": 1024,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 40,
+        "timeoutSeconds": 2400
+      }
+    },
+    {
+      "id": "executor_b",
+      "kind": "run",
+      "run": {
+        "profileKey": "development-toolchain-validator/default",
+        "promptRef": {
+          "skillId": "divergence-probe-executor"
+        },
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "executed",
+                  "abstained"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "files_touched": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "commands_run": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              },
+              "acceptance_checks": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              },
+              "key_decisions": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "decision": {
+                      "type": "string",
+                      "maxLength": 1024
+                    },
+                    "skill_sentence": {
+                      "type": "string",
+                      "maxLength": 1024
+                    }
+                  },
+                  "required": [
+                    "decision",
+                    "skill_sentence"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "outcome",
+              "files_touched",
+              "commands_run",
+              "acceptance_checks",
+              "key_decisions"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "skill_id",
+            "source": "workflow_input",
+            "selector": "$.skill.skillId",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "skill_version",
+            "source": "workflow_input",
+            "selector": "$.skill.version",
+            "limit": 1,
+            "maxBytes": 64,
+            "renderAs": "text",
+            "missingPolicy": "null"
+          },
+          {
+            "name": "golden_slug",
+            "source": "workflow_input",
+            "selector": "$.target.goldenSlug",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "target_path",
+            "source": "workflow_input",
+            "selector": "$.target.scenarioPath",
+            "limit": 1,
+            "maxBytes": 1024,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 40,
+        "timeoutSeconds": 2400
+      }
+    },
+    {
+      "id": "executor_c",
+      "kind": "run",
+      "run": {
+        "profileKey": "development-toolchain-validator/default",
+        "promptRef": {
+          "skillId": "divergence-probe-executor"
+        },
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "executed",
+                  "abstained"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "files_touched": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              },
+              "commands_run": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              },
+              "acceptance_checks": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1024
+                }
+              },
+              "key_decisions": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "decision": {
+                      "type": "string",
+                      "maxLength": 1024
+                    },
+                    "skill_sentence": {
+                      "type": "string",
+                      "maxLength": 1024
+                    }
+                  },
+                  "required": [
+                    "decision",
+                    "skill_sentence"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "outcome",
+              "files_touched",
+              "commands_run",
+              "acceptance_checks",
+              "key_decisions"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "skill_id",
+            "source": "workflow_input",
+            "selector": "$.skill.skillId",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "skill_version",
+            "source": "workflow_input",
+            "selector": "$.skill.version",
+            "limit": 1,
+            "maxBytes": 64,
+            "renderAs": "text",
+            "missingPolicy": "null"
+          },
+          {
+            "name": "golden_slug",
+            "source": "workflow_input",
+            "selector": "$.target.goldenSlug",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "target_path",
+            "source": "workflow_input",
+            "selector": "$.target.scenarioPath",
+            "limit": 1,
+            "maxBytes": 1024,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 40,
+        "timeoutSeconds": 2400
+      }
+    },
+    {
+      "id": "judge_join",
+      "kind": "join",
+      "join": {
+        "strategy": "all"
+      }
+    },
+    {
+      "id": "judge",
+      "kind": "run",
+      "run": {
+        "profileKey": "development-toolchain-validator/default",
+        "promptRef": {
+          "skillId": "divergence-probe-judge"
+        },
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "verdict": {
+                "enum": [
+                  "converged",
+                  "diverged"
+                ]
+              },
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "findings": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "severity": {
+                      "enum": [
+                        "critical",
+                        "major",
+                        "gap",
+                        "minor"
+                      ]
+                    },
+                    "dimension": {
+                      "enum": [
+                        "files_touched",
+                        "commands_run",
+                        "acceptance_checks",
+                        "key_decisions"
+                      ]
+                    },
+                    "skill_sentence": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "divergent_readings": {
+                      "type": "array",
+                      "minItems": 2,
+                      "maxItems": 8,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 1024
+                      }
+                    },
+                    "explanation": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  },
+                  "required": [
+                    "severity",
+                    "dimension",
+                    "skill_sentence",
+                    "divergent_readings",
+                    "explanation"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "verdict",
+              "summary",
+              "findings"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {
+            "name": "skill_id",
+            "source": "workflow_input",
+            "selector": "$.skill.skillId",
+            "limit": 1,
+            "maxBytes": 256,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "decision_lists",
+            "source": "structured_result",
+            "selector": "$.value",
+            "order": "desc",
+            "limit": 3,
+            "maxBytes": 60000,
+            "renderAs": "xml",
+            "itemTag": "decision_list",
+            "itemMaxBytes": 18000,
+            "evictionPolicy": "keep_last",
+            "missingPolicy": "error"
+          }
+        ],
+        "maxTurns": 30,
+        "timeoutSeconds": 1200
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "structured_result",
+            "selector": "$.value",
+            "order": "desc",
+            "limit": 1,
+            "maxBytes": 16384,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "fanout",
+      "to": "executor_a"
+    },
+    {
+      "from": "fanout",
+      "to": "executor_b"
+    },
+    {
+      "from": "fanout",
+      "to": "executor_c"
+    },
+    {
+      "from": "executor_a",
+      "to": "judge_join"
+    },
+    {
+      "from": "executor_b",
+      "to": "judge_join"
+    },
+    {
+      "from": "executor_c",
+      "to": "judge_join"
+    },
+    {
+      "from": "judge_join",
+      "to": "judge"
+    },
+    {
+      "from": "judge",
+      "to": "done"
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 9000,
+    "maxTurns": 160,
+    "maxTokens": 2500000,
+    "maxChargeMicroUsd": 60000000,
+    "maxNodeAttempts": 24,
+    "maxChildren": 4,
+    "maxConcurrency": 3,
+    "maxRecursion": 2,
+    "maxRetries": 6,
+    "maxWaitSeconds": 600
+  },
+  "trigger": {
+    "initiators": [
+      "human",
+      "programmatic",
+      "agent"
+    ],
+    "selfTrigger": {
+      "mode": "deny"
+    }
+  },
+  "metadata": {
+    "pilot": "divergence-probe",
+    "consumer": "development-toolchain-validator",
+    "runners": "3",
+    "judgeStrategy": "all",
+    "advisory": "true"
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "description": "Where Chimesail can reach you, and what each place may receive.",
+  "browser": {
+    "title": "This browser",
+    "checking": "Checking…",
+    "onTitle": "Notifications are on",
+    "onBody": "This browser is registered and can receive notifications.",
+    "offTitle": "Notifications are off",
+    "offBody": "Turn them on to get decisions and updates in this browser.",
+    "deniedTitle": "Notifications are blocked",
+    "deniedBody": "This browser isn’t allowing notifications from Chimesail. Allow them in the browser’s site settings, then check again.",
+    "unsupportedTitle": "Notifications aren’t available here",
+    "unsupportedBody": "This browser can’t receive push notifications. On iPhone, open Chimesail from the Home Screen instead of a Safari tab.",
+    "turnOn": "Turn on notifications",
+    "checkAgain": "Check again",
+    "update": "Update this browser",
+    "updating": "Updating…",
+    "updateHelp": "A newer version of Chimesail is available. Update to keep notifications reliable.",
+    "statusUnavailable": "Couldn’t read this browser’s notification state.",
+    "asking": "Waiting for your answer in the browser…",
+    "registering": "Registering this browser…",
+    "confirmTitle": "Turn on notifications here?",
+    "confirmBody": "Chimesail will ask this browser for permission, then register it. A registered browser can show every kind of notification, including sensitive and critical ones; you can change that from its device page afterwards.",
+    "confirm": "Continue",
+    "result": {
+      "registered": "Notifications are on for this browser.",
+      "registeredNoSubscription": "Registered with Chimesail, but this browser reports no active push subscription. Reload the app and check again.",
+      "unsupported": "This browser can’t receive push notifications.",
+      "denied": "The browser blocked notifications. Allow them in site settings, then check again.",
+      "dismissed": "No permission was given, so nothing was registered.",
+      "noKey": "Chimesail has no push key to register with. Nothing was registered.",
+      "unconfirmed": "Couldn’t confirm the registration. Check again in a moment.",
+      "failed": "This browser wasn’t registered. Nothing was changed."
+    },
+    "details": "Details",
+    "support": "Browser support",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "permission": "Permission",
+    "permissionState": {
+      "granted": "Granted",
+      "denied": "Blocked",
+      "default": "Not asked yet",
+      "unsupported": "Unsupported",
+      "unknown": "Unknown"
+    },
+    "subscription": "Subscription",
+    "subscribed": "Active",
+    "notSubscribed": "None",
+    "worker": "Service worker",
+    "noWorker": "Not running",
+    "currentWorker": "Up to date ({{version}})",
+    "staleWorker": "Running {{running}}; {{available}} is available",
+    "unknown": "unknown"
+  },
+  "devices": {
+    "title": "Devices",
+    "refresh": "Refresh",
+    "refreshLabel": "Refresh devices",
+    "thisBrowser": "This browser",
+    "noChannels": "No channels reported",
+    "emptyTitle": "No devices yet",
+    "emptyDetail": "You can still answer decisions here. Turn on notifications in this browser to get them as they arrive.",
+    "loadFailed": "Couldn’t load your devices",
+    "loadFailedDetail": "This isn’t an empty list, and nothing was removed.",
+    "stale": "Couldn’t refresh devices. Showing what loaded earlier.",
+    "removed": "{{name}} was removed.",
+    "removedUncertain": "{{name}} was removed. The response was unclear, but the device list no longer shows it."
+  },
+  "device": {
+    "title": "Device",
+    "back": "Devices and channels",
+    "machine": "Machine",
+    "channels": "Channels",
+    "noChannels": "This device reports no channels.",
+    "addEmail": "Add email",
+    "addressesFailed": "Couldn’t read saved settings",
+    "addressesFailedDetail": "Destinations and content settings are hidden until they load. Nothing was changed.",
+    "addressesStale": "Showing what loaded earlier.",
+    "goneTitle": "This device isn’t registered",
+    "goneDetail": "It may have been removed.",
+    "removeHeading": "Remove this device",
+    "removeBody": "Chimesail will stop sending to it. Browser permission and notifications already delivered are not affected.",
+    "remove": "Remove device",
+    "removing": "Removing…",
+    "confirmTitle": "Remove {{name}}?",
+    "confirmBody": "Chimesail will stop sending to this device. You can register it again later.",
+    "removeFailed": "Couldn’t confirm the removal",
+    "removeFailedDetail": "The device is still in your list. Try again."
+  },
+  "channel": {
+    "description": "Where notifications go on this channel, and what they may contain.",
+    "back": "Back to device",
+    "loadFailed": "Couldn’t load this channel",
+    "loadFailedDetail": "Nothing was changed.",
+    "notEditableTitle": "This can’t be edited here",
+    "notEditableDetail": "There’s no saved setting to change for this channel.",
+    "emailAddress": "Email address",
+    "emailHelp": "Notifications for {{device}} go here.",
+    "invalidEmail": "Enter a valid email address.",
+    "invalidEmailKept": "Enter a valid email address. The saved address stays as it is until you do.",
+    "fullContentHeading": "Allowed in full",
+    "fullContentHelp": "Content at a level you leave unticked isn’t sent here in full.",
+    "labels": {
+      "public": "Public",
+      "private": "Private",
+      "sensitive": "Sensitive",
+      "critical": "Critical"
+    },
+    "hints": {
+      "public": "Nothing private in it.",
+      "private": "The usual level for your own activity.",
+      "sensitive": "Details you’d rather not have on a lock screen.",
+      "critical": "Incident and security details."
+    },
+    "fullContent": "Allowed in full: {{labels}}",
+    "none": "nothing",
+    "thisBrowserPrivate": "This browser",
+    "unreadable": "Saved settings couldn’t be read.",
+    "preserved": "Also approved, kept as is: {{labels}}",
+    "pickOne": "Choose at least one. An empty choice would be treated as Public.",
+    "widenEmail": "Sensitive and critical details will leave Chimesail and arrive in email.",
+    "widenPush": "Sensitive and critical details may appear in notifications on this browser.",
+    "confirmTitle": "Allow this?",
+    "confirmEmail": "{{address}} will be able to receive {{labels}} content in full.",
+    "confirmPush": "Notifications on this browser will be able to show {{labels}} content in full.",
+    "keepEditing": "Keep editing",
+    "saved": "{{channel}} settings saved.",
+    "savedUncertain": "{{channel}} settings saved. The response was unclear, but a fresh read confirms them.",
+    "problem": {
+      "conflict": {
+        "title": "Another address is already saved",
+        "body": "This device already has an email address, and it wasn’t changed. Open it from the device page to edit it."
+      },
+      "uncertain": {
+        "title": "Couldn’t confirm the save",
+        "body": "The response was unclear and the latest read doesn’t show these details. Your changes are still here; trying again is safe."
+      },
+      "unconfirmed": {
+        "title": "The save didn’t take",
+        "body": "The latest read doesn’t show these details. Your changes are still here."
+      },
+      "unreadable": {
+        "title": "Couldn’t confirm the save",
+        "body": "Chimesail couldn’t read the settings back. Your changes are still here; check your connection and try again."
+      }
+    }
+  },
+  "deviceApps": {
+    "title": "Apps on your devices",
+    "explanation": "A scenario’s own app can show its notifications on a device instead of Chimesail. Turn that on from the scenario’s app, in its notification settings. Each device still gets every notification once.",
+    "loadFailed": "Couldn’t load apps",
+    "empty": "No device has notifications turned on yet.",
+    "chimesail": "Chimesail",
+    "useChimesail": "Use Chimesail instead",
+    "removing": "Switching…",
+    "removed": "{{app}} notifications on {{device}} now arrive in Chimesail.",
+    "removeError": "{{app}} could not be switched back. Try again.",
+    "lastSeen": "Last seen {{date}}",
+    "confirmTitle": "Show {{app}} notifications in Chimesail on {{device}}?",
+    "confirmBody": "{{app}} will stop showing notifications on this device. To switch back, turn them on again in {{app}}’s own notification settings."
+  }
+}

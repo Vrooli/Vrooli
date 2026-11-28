@@ -5,7 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	redisconfig "github.com/vrooli/api-core/redis"
 	"github.com/vrooli/api-core/server"
 )
 
@@ -26,9 +28,10 @@ func main() {
 
 	// Load optional resource configurations
 	config.MinIOURL = os.Getenv("MINIO_URL")
-	config.RedisURL = os.Getenv("REDIS_URL")
-	config.OllamaURL = os.Getenv("OLLAMA_URL")
-	config.DatabaseURL = os.Getenv("DATABASE_URL")
+	if redisEnv, err := redisconfig.Resolve(os.Getenv); err == nil {
+		config.RedisURL = "redis://" + redisEnv.Addr
+	}
+	config.DatabaseURL, _ = database.ResolvePostgresDSN(os.Getenv)
 
 	// Create and initialize server
 	srv := NewServer(config)

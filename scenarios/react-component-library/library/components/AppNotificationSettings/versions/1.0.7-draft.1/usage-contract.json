@@ -1,0 +1,21 @@
+{
+  "componentId": "react-component-library:AppNotificationSettings",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 30,
+    "maximumLabelCharacters": 48,
+    "primaryAction": "not-applicable",
+    "property": "groups",
+    "requiredFieldTypes": {
+      "id": "string",
+      "label": "string"
+    },
+    "requiredFields": [
+      "id",
+      "label"
+    ],
+    "stableIdField": "id",
+    "typicalCount": 3
+  },
+  "version": "1.0.7-draft.1"
+}

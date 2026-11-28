@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "purpose": "Single source of truth for the Ollama runtime options that decide whether a loaded runner can be reused. Ollama restarts a model's runner whenever a request carries different load options, so callers never choose them: the daemon applies the server values to every runner, and the gateway and activity edge send exactly RequestOptions (a declared context above the server default) for each model, replacing any caller-supplied load options.",
+  "request_load_options": [
+    "num_ctx",
+    "num_batch",
+    "num_gpu",
+    "main_gpu",
+    "use_mmap",
+    "num_thread"
+  ],
+  "server": {
+    "context_tokens": 8192,
+    "cpu_threads": 4,
+    "environment": {
+      "OLLAMA_CONTEXT_LENGTH": "context_tokens",
+      "LLAMA_ARG_THREADS": "cpu_threads"
+    }
+  },
+  "variants": {
+    "cpu-only": {
+      "num_gpu": 0
+    }
+  },
+  "embedding": {
+    "overflow": "truncate_tail"
+  },
+  "models": {
+    "nomic-embed-text:latest": {
+      "context_tokens": 2048,
+      "reason": "Ollama caps this runner at the model's trained context (n_ctx_train=2048). Not sent (below the server default); it is the embedding input limit: longer inputs are truncated at the tail."
+    },
+    "qwen3.5:4b": {
+      "context_tokens": 32768,
+      "reason": "Matches the context OpenCode's local provider projection already runs for this model; a smaller runner would truncate its prompts and a different one restarts the shared runner. Measured: 4.5 GiB predicted at 32768 versus 4.1 GiB at 8192 (2026-11-21 service.log)."
+    },
+    "qwen3.5:9b": {
+      "context_tokens": 32768,
+      "reason": "Matches the context OpenCode's local provider projection already runs for this model; a smaller runner would truncate its prompts and a different one restarts the shared runner."
+    },
+    "qwen3-vl:4b": {
+      "context_tokens": 32768,
+      "reason": "Matches the context OpenCode's local provider projection already runs for this model; a smaller runner would truncate its prompts and a different one restarts the shared runner."
+    },
+    "gemma4:12b": {
+      "context_tokens": 16384,
+      "reason": "Matches the context OpenCode's local provider projection already runs for this model; a smaller runner would truncate its prompts and a different one restarts the shared runner. Dense attention: watch VRAM; model-policy records 11.13 GiB at 20480."
+    },
+    "huihui_ai/granite4.1-abliterated:8b": {
+      "context_tokens": 20480,
+      "reason": "Matches the context OpenCode's local provider projection already runs for this model; a smaller runner would truncate its prompts and a different one restarts the shared runner."
+    }
+  }
+}

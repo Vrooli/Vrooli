@@ -6,24 +6,29 @@ import (
 	"os"
 	"time"
 
+	schema "local-info-scout/internal/scout"
+
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 )
 
 var db *sql.DB
 
-// initDB initializes the PostgreSQL database connection with automatic retry and backoff.
-// Reads POSTGRES_* environment variables set by the lifecycle system.
-func initDB() {
-	// Check if database configuration is available
-	if os.Getenv("POSTGRES_HOST") == "" && os.Getenv("POSTGRES_PORT") == "" {
+// initDB connects PostgreSQL persistence from the lifecycle's POSTGRES_*
+// environment, with retry and backoff bounded by ctx. Missing configuration or
+// an unreachable database disables persistence rather than failing startup.
+func initDB(ctx context.Context) {
+	// Check if database configuration is available through the shared seam.
+	dsn, dsnErr := database.ResolvePostgresDSN(os.Getenv)
+	if dsnErr != nil || dsn == "" {
 		dbLogger.Info("Database configuration not found, persistence disabled", nil)
 		return
 	}
 
 	var err error
-	db, err = database.Connect(context.Background(), database.Config{
+	db, err = database.Connect(ctx, database.Config{
 		Driver:          "postgres",
+		DSN:             dsn,
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: 5 * time.Minute,
@@ -32,6 +37,13 @@ func initDB() {
 		dbLogger.Error("PostgreSQL connection failed, persistence disabled", map[string]interface{}{
 			"error": err.Error(),
 		})
+		db = nil
+		return
+	}
+
+	if err := database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		dbLogger.Error("schema initialization failed", map[string]interface{}{"error": err.Error()})
+		_ = db.Close()
 		db = nil
 		return
 	}
@@ -45,68 +57,6 @@ func initDB() {
 		"max_lifetime":  "5m",
 		"max_idle_time": "1m",
 	})
-
-	// Create tables if they don't exist
-	createTables()
-}
-
-// createTables creates the necessary database tables with lis_ prefix to avoid conflicts
-func createTables() {
-	if db == nil {
-		return
-	}
-
-	createPlacesTable := `
-    CREATE TABLE IF NOT EXISTS lis_places (
-        id VARCHAR(50) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        address VARCHAR(500),
-        category VARCHAR(50),
-        lat DOUBLE PRECISION,
-        lon DOUBLE PRECISION,
-        rating DECIMAL(2,1),
-        price_level INTEGER,
-        open_now BOOLEAN,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_lis_places_category ON lis_places(category);
-    CREATE INDEX IF NOT EXISTS idx_lis_places_location ON lis_places(lat, lon);
-    CREATE INDEX IF NOT EXISTS idx_lis_places_rating ON lis_places(rating);
-    `
-
-	createSearchLogsTable := `
-    CREATE TABLE IF NOT EXISTS lis_search_logs (
-        id SERIAL PRIMARY KEY,
-        query TEXT,
-        lat DOUBLE PRECISION,
-        lon DOUBLE PRECISION,
-        radius DOUBLE PRECISION,
-        category VARCHAR(50),
-        results_count INTEGER,
-        cache_hit BOOLEAN,
-        search_time_ms INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_lis_search_logs_created ON lis_search_logs(created_at);
-    `
-
-	_, err := db.Exec(createPlacesTable)
-	if err != nil {
-		dbLogger.Error("Failed to create lis_places table", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
-
-	_, err = db.Exec(createSearchLogsTable)
-	if err != nil {
-		dbLogger.Error("Failed to create lis_search_logs table", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
 }
 
 // savePlaceToDb saves a place to the database
@@ -155,46 +105,4 @@ func logSearch(req SearchRequest, resultsCount int, cacheHit bool, duration time
 			"query": req.Query,
 		})
 	}
-}
-
-// getPopularSearches returns the most popular recent searches
-func getPopularSearches() []string {
-	if db == nil {
-		return []string{}
-	}
-
-	query := `
-    SELECT query, COUNT(*) as count
-    FROM lis_search_logs
-    WHERE query IS NOT NULL AND query != ''
-        AND created_at > NOW() - INTERVAL '24 hours'
-    GROUP BY query
-    ORDER BY count DESC
-    LIMIT 10
-    `
-
-	rows, err := db.Query(query)
-	if err != nil {
-		dbLogger.Error("Failed to get popular searches", map[string]interface{}{
-			"error": err.Error(),
-		})
-		return []string{}
-	}
-	defer rows.Close()
-
-	var searches []string
-	for rows.Next() {
-		var query string
-		var count int
-		if err := rows.Scan(&query, &count); err == nil {
-			searches = append(searches, query)
-		}
-	}
-
-	return searches
-}
-
-// getDB returns the database connection (useful for testing)
-func getDB() *sql.DB {
-	return db
 }

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "scenario": "extraction-range",
+  "input_digest": "sha256:61b5ea5165c9fefd6de8f14a143f429148573e5dcfabae892feadf96c2a45141",
+  "input_files": [
+    "schemas/extraction-range/v1/range/range.proto",
+    "schemas/extraction-range/v1/shared/errors.proto",
+    "schemas/extraction-range/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "generator_digest": "sha256:47bbfc74c5d2c0e0172be6ac47ec939b6b4678e8ca51fa8202f7056c8fc16447",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/extraction-range/v1/range/range.pb.go": "sha256:e9d2a6e5a983ab0f0516a7210f8661560ef10cb0531b745415bda22bfc8b5ce3",
+    "gen/go/extraction-range/v1/range/range_v1connect/range.connect.go": "sha256:e88f2399d5d0a98be5eabb399419a558f3ee42c4f54f0251f9a059b84c27ffda",
+    "gen/go/extraction-range/v1/shared/errors.pb.go": "sha256:62e40842f18fe495bf4dc4fbcbb41274b1e38cfdb1f42ef4d5acceb4c30e0fdd",
+    "gen/go/extraction-range/v1/shared/health.pb.go": "sha256:803004592cc3e067d8ded5710772a46eb963906d47972d7289b0954b668fadc7",
+    "gen/python/extraction_range/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/extraction_range/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/extraction_range/v1/range/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/extraction_range/v1/range/range_pb2.py": "sha256:89aa849919c80765c71450943cd77a7fe0269dc8ca786cd6df6651fd4419dce5",
+    "gen/python/extraction_range/v1/range/range_pb2.pyi": "sha256:65f673f4af924c79ff946e37b2e7e15b15106400fbea8c095ad70b46fd366638",
+    "gen/python/extraction_range/v1/shared/errors_pb2.py": "sha256:8b3dbad02c897f18fa6b4b369a28e98b532b494d05f6b56025c508eeb18665a2",
+    "gen/python/extraction_range/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/extraction_range/v1/shared/health_pb2.py": "sha256:7844d0e0b811d0dd33a46aa714bb158025c8c2cb5aef8e8732485c53528e99e1",
+    "gen/python/extraction_range/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/extraction_range/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/extraction-range/v1/range/range_pb.ts": "sha256:4601be87bcbcfe5884c502dbe395d00162c088fa02975a78e2a02d0c932fc8ef",
+    "gen/typescript/extraction-range/v1/shared/errors_pb.ts": "sha256:13e895b4bf3d2159738cc563ca07ad366eec8d31e7a49dbe7c059f4d8c677b79",
+    "gen/typescript/extraction-range/v1/shared/health_pb.ts": "sha256:f53e41e39e47bae9a3ea0b04dc60f2daf5f468c32502d1027295cc0b2099d3e5",
+    "gen/typescript/package.json": "sha256:d7210c69e0b4e8eb72d65b1503ce8ea1eeb61aa893b5442e16d0ab4a9980e5d6"
+  }
+}

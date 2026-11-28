@@ -1,0 +1,70 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/vrooli/repo-contract-go/cliinvoke"
+)
+
+func TestNativeLightingQuiesceNeverResolvesSourceOrAcquiresIntent(t *testing.T) {
+	var events []string
+	e := nativeLightingOperatorEntrypoint{identity: func() error { events = append(events, "identity"); return nil }, pin: func() error { events = append(events, "pin"); return nil }, home: func() (string, error) { return "/operator", nil }, guard: func(home string, native bool) error {
+		if home != "/operator" || native {
+			t.Fatal("wrong operator guard")
+		}
+		events = append(events, "guard")
+		return nil
+	}, quiesce: func(context.Context, string) error { events = append(events, "quiesce"); return nil }}
+	var out bytes.Buffer
+	handled, code := e.dispatch(context.Background(), cliinvoke.NativeLightingQuiesce(), &out)
+	if !handled || code != 0 || strings.Join(events, ",") != "identity,pin,guard,quiesce" {
+		t.Fatalf("wrong quiesce flow %v %d %v %s", handled, code, events, out.String())
+	}
+	events = nil
+	e.identity = func() error { events = append(events, "denied"); return errors.New("root token") }
+	if handled, code = e.dispatch(context.Background(), cliinvoke.NativeLightingQuiesce(), &out); !handled || code != 1 || strings.Join(events, ",") != "denied" {
+		t.Fatal("root identity crossed operator effect boundary")
+	}
+}
+
+func TestNativeLightingOperatorRejectsArgumentsBeforeIdentityEffects(t *testing.T) {
+	e := nativeLightingOperatorEntrypoint{}
+	var out bytes.Buffer
+	for _, base := range [][]string{cliinvoke.NativeLightingQuiesce()} {
+		args := append(base, "--source", "/caller")
+		if handled, code := e.dispatch(context.Background(), args, &out); !handled || code != 1 {
+			t.Fatalf("accepted %v", args)
+		}
+	}
+	if handled, _ := e.dispatch(context.Background(), []string{"runtime", "lighting", "prepare"}, &out); handled {
+		t.Fatal("operator hidden entrypoint intercepted public preparation")
+	}
+}
+
+func TestNativeLightingSoftwareAcquisitionRequiresActualOperatorBeforeUserSource(t *testing.T) {
+	var events []string
+	e := nativeLightingOperatorEntrypoint{identity: func() error { events = append(events, "operator"); return nil }, pin: func() error { events = append(events, "pin"); return nil }, home: func() (string, error) { return "/operator", nil }, guard: func(string, bool) error { return nil }, source: func(home string) (string, error) { events = append(events, "source"); return "/recorded-source", nil }, acquire: func(_ context.Context, home, root string) error {
+		if home != "/operator" || root != "/recorded-source" {
+			t.Fatal("operator source changed")
+		}
+		events = append(events, "SDA")
+		return nil
+	}}
+	var out bytes.Buffer
+	if handled, code := e.dispatch(context.Background(), cliinvoke.NativeOpenRGBSoftwareAcquire(), &out); !handled || code != 0 || strings.Join(events, ",") != "operator,pin,source,SDA" {
+		t.Fatalf("acquisition boundary %v %d %v %s", handled, code, events, out.String())
+	}
+	events = nil
+	e.identity = func() error { events = append(events, "denied-root"); return errors.New("root token") }
+	if handled, code := e.dispatch(context.Background(), cliinvoke.NativeOpenRGBSoftwareAcquire(), &out); !handled || code != 1 || strings.Join(events, ",") != "denied-root" {
+		t.Fatal("root token executed operator SDA")
+	}
+	args := append(cliinvoke.NativeOpenRGBSoftwareAcquire(), "--version", "arbitrary")
+	if _, code := e.dispatch(context.Background(), args, &out); code != 1 {
+		t.Fatal("caller-selected software admitted")
+	}
+}

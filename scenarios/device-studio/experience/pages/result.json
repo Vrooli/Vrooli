@@ -1,0 +1,159 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "result",
+    "title": "Result and handoff",
+    "routes": [
+      "/results/:resultId"
+    ],
+    "purpose": "Review actual output quality, download direct artifacts and reopen a reproducible shot with its provenance and known portability limits.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-006",
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-012",
+      "OT-P0-013",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Inspect the delivered image or controlled-motion video."
+    },
+    {
+      "statement": "Understand validation and final-look status."
+    },
+    {
+      "statement": "Download or reuse exact artifacts and recipe."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Offer retained frames/preview with incomplete status and exact missing output."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "review-needed",
+      "description": "Technical validation may pass while visual/motion acceptance awaits human review."
+    },
+    {
+      "id": "missing-media",
+      "description": "Reopening preserves output inspection and offers deterministic local relink."
+    },
+    {
+      "id": "handoff-ready",
+      "description": "Show exact consumer contract and artifact hashes; no automatic publication."
+    }
+  ],
+  "claims": [
+    {
+      "id": "result-intent-1",
+      "type": "custom",
+      "statement": "Direct inspectable media and artifacts are primary deliverables; an HTML inspector is optional and cannot substitute for them.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "result-intent-2",
+      "type": "custom",
+      "statement": "Recipe replay exposes missing inputs, compatibility and non-reproducible provider behavior instead of claiming bit-identical generation.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Large media player/hero with representative frame strip, direct artifact list and provenance/validation panel; view/edit recipe alongside output only on sufficient width.",
+    "controls": [
+      "Play/pause/scrub video and inspect representative full-resolution stills",
+      "Compare source/capture and output with masks and color evidence",
+      "Download PNG/MP4 and explicit native blend/portable GLB/static representative classes",
+      "Export recipe/project bundle with content hashes and safe relink manifest",
+      "Reopen exact revision or duplicate for edits",
+      "Prepare launch-video/API/CLI handoff with exact paths/contracts, attribution and capabilities"
+    ],
+    "details": [
+      "Static GLB screen representative is never advertised as embedded playback.",
+      "Native versus portable lighting/material/precision differences and unsupported joints are stated per artifact.",
+      "Output profiles identify dimensions, fps, duration, SAR, SDR/HDR/color transform and audio policy; 4K latency is not asserted from unmeasured CPU scaling.",
+      "A manifest excludes credentials/tokens/private unrelated files and identifies retained versus external sources.",
+      "User final-look acceptance remains pending until actually provided, even when technical checks pass."
+    ]
+  },
+  "x-requirements": [
+    "DS-SCREEN-CLOCKS",
+    "DS-SCREEN-AUDIO"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

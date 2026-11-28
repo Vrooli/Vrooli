@@ -1,28 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 import type { useLandingVariant } from '../../../app/providers/useLandingVariant';
-import type { LandingConfigResponse } from '../../../shared/api';
+import { publicConfig } from '../../public-landing/presentation/publicTestFixtures';
+vi.mock('../hooks/useComingSoonToggle', () => ({ useComingSoonToggle: () => ({ comingSoonEnabled: false, toggling: false, loading: false, error: undefined, handleToggle: vi.fn(), reload: vi.fn() }) }));
 
-const mockUseLandingVariant = vi.fn<[], ReturnType<typeof useLandingVariant>>();
+const mockUseLandingVariant = vi.fn<() => ReturnType<typeof useLandingVariant>>();
 
 vi.mock('../../../app/providers/useLandingVariant', () => ({
   useLandingVariant: () => mockUseLandingVariant(),
 }));
 
-const baseConfig: LandingConfigResponse = {
-  variant: { id: 1, slug: 'control', name: 'Control' },
-  sections: [],
-  downloads: [],
-  header: {
-    branding: { mode: 'logo' },
-    nav: { links: [] },
-    ctas: { primary: { mode: 'inherit_hero' }, secondary: { mode: 'hidden' } },
-    behavior: { sticky: true, hide_on_scroll: false },
-  },
-  fallback: false,
-};
+const baseConfig = publicConfig();
 
 const buildContext = (
   overrides: Partial<ReturnType<typeof useLandingVariant>> = {}
@@ -34,7 +25,7 @@ const buildContext = (
   resolution: 'api_select',
   statusNote: 'Variant selected via weighted API',
   lastUpdated: Date.now(),
-  refresh: vi.fn<[], Promise<void>>(),
+  refresh: vi.fn<() => Promise<void>>(),
   ...overrides,
 });
 

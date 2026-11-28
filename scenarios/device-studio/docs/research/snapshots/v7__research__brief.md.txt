@@ -1,0 +1,7 @@
+# Final pre-implementation research
+
+User request: finish research, then ask all open decisions with multiple-choice options and recommendations. After answers, resolve dependent research and present the current state plus a complete implementation/validation approach. Do not scaffold or implement the scenario before this decision round.
+
+This is an investigation. Current design: ../../v2/device-domain.md. Earlier v1-v6 evidence is immutable; the living design may receive dated additions. Production source and services are read-only. No dependency installs, paid model acquisitions, credentials, new provider spend, or shared lifecycle changes. Existing local artifacts/tools may be used for bounded probes with retained receipts. Research must distinguish verified implementation, design intention, unverified assumption, recommendation, and operator decision. Preserve primary source links and local file:line references. Do not treat existing docs as runtime proof.
+
+Topics: ecosystem ownership/integration; rendering, animation and performance; general device/asset contracts and creation lifecycle; operator-facing decisions and acceptance standards. End this stage with a synthesized decision packet, not a declaration that all research uncertainty has vanished. Image generation versus physical geometry fidelity and current 3D visual deficiencies remain explicit.

@@ -19,6 +19,11 @@ describe("QueryParams type shape", () => {
     expect(params.source).toBe("my-scenario");
   });
 
+  it("accepts target filter", () => {
+    const params: QueryParams = { target: "plan-manager" };
+    expect(params.target).toBe("plan-manager");
+  });
+
   it("accepts correlationId filter", () => {
     const params: QueryParams = { correlationId: "trace-abc" };
     expect(params.correlationId).toBe("trace-abc");
@@ -38,11 +43,12 @@ describe("QueryParams type shape", () => {
     const params: QueryParams = {
       type: "*.created",
       source: "src",
+      target: "dst",
       correlationId: "cid-123",
       since: 10,
       limit: 50,
     };
-    expect(Object.keys(params).length).toBe(5);
+    expect(Object.keys(params).length).toBe(6);
   });
 });
 

@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "account",
+    "title": "Account",
+    "routes": ["/"],
+    "purpose": "Show account and subscription state without making sign-in a prerequisite for the local-first workspace."
+  },
+  "priorities": [
+    { "statement": "The account surface makes signed-out, connected, and degraded states explicit." },
+    { "statement": "Local workspace capability remains visible and available without an account." },
+    { "statement": "Provider credentials and account state remain separate concepts." }
+  ],
+  "states": [
+    { "id": "signed-out", "description": "No Vrooli account is configured; local access remains available.", "setup": { "route": "/" } },
+    { "id": "signed-in", "description": "Account identity and current plan information are available.", "setup": { "route": "/" } },
+    { "id": "degraded", "description": "Account or subscription data is unavailable and the reason is visible.", "setup": { "route": "/" } }
+  ],
+  "elements": [
+    { "id": "account-surface", "role": "region", "description": "Account settings surface." },
+    { "id": "account-plan", "role": "status", "description": "Current plan or unavailable account state." },
+    { "id": "account-key-input", "role": "textbox", "description": "Optional device-scoped refresh token input." }
+  ],
+  "claims": [
+    {
+      "id": "account-surface-present",
+      "type": "element-present",
+      "statement": "The account surface is inspectable in every account state.",
+      "tier": "machine",
+      "elements": ["account-surface"],
+      "states": ["signed-out", "signed-in", "degraded"]
+    },
+    {
+      "id": "account-state-visible",
+      "type": "element-present",
+      "statement": "The current account or plan state is visible without requiring provider credentials.",
+      "tier": "machine",
+      "elements": ["account-plan"],
+      "states": ["signed-out", "signed-in", "degraded"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "account-surface": { "testid": "settings-account" },
+      "account-plan": { "testid": "account-plan" },
+      "account-key-input": { "testid": "account-refresh-token" }
+    }
+  }
+}

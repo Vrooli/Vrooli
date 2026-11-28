@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "TooltipTrigger",
+      "TooltipContent"
+    ],
+    "maximumCount": 2,
+    "typicalCount": 2
+  },
+  "componentId": "react-component-library:Tooltip",
+  "version": "1.0.8"
+}

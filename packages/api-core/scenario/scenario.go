@@ -5,8 +5,9 @@
 // name in multiple places.
 //
 // Detection order:
-//  1. SCENARIO_NAME environment variable (if set)
-//  2. Directory structure: parent of "api/" directory
+//  1. VROOLI_SCENARIO environment variable (if set)
+//  2. SCENARIO_NAME environment variable (if set)
+//  3. Directory structure: parent of "api/" directory
 //
 // Example directory structure:
 //
@@ -24,6 +25,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var (
@@ -31,14 +34,17 @@ var (
 	detectOnce sync.Once
 
 	// For testing
-	getwd     = os.Getwd
-	envGetter = os.Getenv
+	getwd        = os.Getwd
+	envGetter    = os.Getenv
+	findRepoRoot = repocontract.FindRepoRootFromPath
+	loadContract = repocontract.LoadDefault
+	statPath     = os.Stat
 )
 
 // Name returns the scenario name.
 //
 // Detection priority:
-//  1. SCENARIO_NAME environment variable
+//  1. VROOLI_SCENARIO, then SCENARIO_NAME environment variables
 //  2. Parent directory of "api/" in current working directory
 //  3. "unknown" if detection fails
 //
@@ -57,8 +63,7 @@ func ServiceName() string {
 
 // detect determines the scenario name from environment or directory structure.
 func detect() string {
-	// Priority 1: Environment variable
-	if name := strings.TrimSpace(envGetter("SCENARIO_NAME")); name != "" {
+	if name := IdentityFromEnv(envGetter); name != "" {
 		return name
 	}
 
@@ -68,6 +73,19 @@ func detect() string {
 	}
 
 	return "unknown"
+}
+
+// IdentityFromEnv returns the scenario identity shared by lifecycle and
+// scenario startup. The control-plane supplied VROOLI_SCENARIO is canonical;
+// SCENARIO_NAME remains a compatibility fallback for older launches.
+func IdentityFromEnv(getenv func(string) string) string {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if name := strings.TrimSpace(getenv("VROOLI_SCENARIO")); name != "" {
+		return name
+	}
+	return strings.TrimSpace(getenv("SCENARIO_NAME"))
 }
 
 // detectFromDirectory attempts to detect scenario name from current working directory.
@@ -80,26 +98,57 @@ func detectFromDirectory() string {
 		return ""
 	}
 
-	// Normalize path separators
-	cwd = filepath.ToSlash(cwd)
-
-	// Look for /api in the path
-	// Handle both: .../scenarios/foo/api and .../scenarios/foo/api/subdir
-	parts := strings.Split(cwd, "/")
-	for i := len(parts) - 1; i >= 1; i-- {
-		if parts[i] == "api" {
-			// Parent of "api" is the scenario name
-			return parts[i-1]
-		}
+	repoRoot, err := findRepoRoot(cwd)
+	if err != nil {
+		return ""
+	}
+	contract, err := loadContract(repoRoot)
+	if err != nil {
+		return ""
+	}
+	scenarioDir, err := contract.TopLevelDir(repoRoot, "scenarios")
+	if err != nil {
+		return ""
+	}
+	rel, err := filepath.Rel(scenarioDir, cwd)
+	if err != nil {
+		return ""
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." || rel == "" || strings.HasPrefix(rel, "../") {
+		return ""
 	}
 
-	// Also check if cwd itself is the api directory
-	if filepath.Base(cwd) == "api" {
-		parent := filepath.Dir(cwd)
-		return filepath.Base(parent)
+	parts := strings.Split(rel, "/")
+	if len(parts) < 2 {
+		return ""
+	}
+	scenarioName := strings.TrimSpace(parts[0])
+	if scenarioName == "" {
+		return ""
 	}
 
-	return ""
+	apiPath, ok := contract.Scenario().WellKnownPaths["api"]
+	if !ok {
+		return ""
+	}
+	apiPath = strings.Trim(strings.TrimSpace(filepath.ToSlash(apiPath)), "/")
+	if apiPath == "" {
+		return ""
+	}
+	remaining := strings.Join(parts[1:], "/")
+	if remaining != apiPath && !strings.HasPrefix(remaining, apiPath+"/") {
+		return ""
+	}
+
+	servicePath, err := contract.ScenarioFile(repoRoot, scenarioName, "service")
+	if err != nil {
+		return ""
+	}
+	if _, err := statPath(servicePath); err != nil {
+		return ""
+	}
+	return scenarioName
 }
 
 // Reset clears the cached name, forcing re-detection on next call.
@@ -114,14 +163,23 @@ func Reset() {
 func SetTestHooks(getwdFn func() (string, error), envGetterFn func(string) string) func() {
 	oldGetwd := getwd
 	oldEnvGetter := envGetter
+	oldFindRepoRoot := findRepoRoot
+	oldLoadContract := loadContract
+	oldStatPath := statPath
 
 	getwd = getwdFn
 	envGetter = envGetterFn
+	findRepoRoot = repocontract.FindRepoRootFromPath
+	loadContract = repocontract.LoadDefault
+	statPath = os.Stat
 	Reset()
 
 	return func() {
 		getwd = oldGetwd
 		envGetter = oldEnvGetter
+		findRepoRoot = oldFindRepoRoot
+		loadContract = oldLoadContract
+		statPath = oldStatPath
 		Reset()
 	}
 }

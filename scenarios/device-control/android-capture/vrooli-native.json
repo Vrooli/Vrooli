@@ -1,0 +1,16 @@
+{
+  "package_name": "com.vrooli.devicecontrol.capture",
+  "app_name": "Device Control Capture",
+  "target_sdk": 36,
+  "version_code": 1,
+  "version_name": "1.0.0",
+  "namespace": "com.vrooli.devicecontrol.capture",
+  "default_profile": "capture",
+  "profiles": {
+    "capture": {
+      "package_name": "com.vrooli.devicecontrol.capture",
+      "app_name": "Device Control Capture",
+      "home_enabled": false
+    }
+  }
+}

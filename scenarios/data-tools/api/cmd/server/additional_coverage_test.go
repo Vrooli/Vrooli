@@ -10,11 +10,7 @@ import (
 
 // TestDataParseEdgeCases tests additional parse scenarios for coverage
 func TestDataParseEdgeCases(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ParseWithURL", func(t *testing.T) {
 		parseBody := map[string]interface{}{
@@ -81,11 +77,7 @@ func TestDataParseEdgeCases(t *testing.T) {
 
 // TestDataTransformEdgeCases tests transformation edge cases
 func TestDataTransformEdgeCases(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("TransformWithDatasetID", func(t *testing.T) {
 		transformBody := map[string]interface{}{
@@ -150,11 +142,7 @@ func TestDataTransformEdgeCases(t *testing.T) {
 
 // TestDataValidateEdgeCases tests validation edge cases
 func TestDataValidateEdgeCases(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ValidateWithDatasetID", func(t *testing.T) {
 		validateBody := map[string]interface{}{
@@ -381,11 +369,7 @@ func TestHelperFunctionCoverage(t *testing.T) {
 
 // TestDataValidationWithDatasetID tests storing quality reports
 func TestDataValidationWithDatasetID(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	// This test is designed to hit the code path that stores quality reports
 	// It requires a non-empty dataset_id in the request

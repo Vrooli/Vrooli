@@ -1,0 +1,17 @@
+{
+  "actions": {
+    "sharedContract": "react-component-library:OverlayActionBar@1.0.0"
+  },
+  "children": {
+    "allowedChildComponents": [
+      "any-content-composition"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:Dialog",
+  "sharedParts": [
+    "react-component-library:OverlayActionBar"
+  ],
+  "version": "1.3.11-draft.1"
+}

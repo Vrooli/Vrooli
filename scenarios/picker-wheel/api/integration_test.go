@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -43,12 +45,7 @@ func TestEndToEndWheelCreationAndSpin(t *testing.T) {
 	var createdWheel Wheel
 	assertJSONResponse(t, w, http.StatusOK, &createdWheel)
 
-	// Step 2: Manually add to wheels slice (simulating what would happen with DB)
-	// Note: In the current implementation, wheels created when db==nil are not added to the slice
-	// This is a limitation we work around in tests
-	wheels = append(wheels, createdWheel)
-
-	// Retrieve the wheel
+	// Step 2: The no-database path must keep the new wheel available in memory.
 	req = HTTPTestRequest{
 		Method:  "GET",
 		Path:    "/api/wheels/" + createdWheel.ID,
@@ -201,7 +198,8 @@ func TestMultipleSpinsSameWheel(t *testing.T) {
 	}
 }
 
-// TestConcurrentRequests simulates concurrent API usage
+// TestConcurrentRequests pins both response validity and exact in-memory
+// history cardinality under concurrent spins.
 func TestConcurrentRequests(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -209,8 +207,13 @@ func TestConcurrentRequests(t *testing.T) {
 	resetTestState()
 	initTestWheels()
 
-	concurrency := 5
-	done := make(chan bool, concurrency)
+	concurrency := 50
+	type spinResponse struct {
+		status int
+		result SpinResult
+		err    error
+	}
+	done := make(chan spinResponse, concurrency)
 
 	for i := 0; i < concurrency; i++ {
 		go func(id int) {
@@ -227,8 +230,7 @@ func TestConcurrentRequests(t *testing.T) {
 
 			httpReq, w, err := makeHTTPRequest(req)
 			if err != nil {
-				t.Errorf("Concurrent request %d failed: %v", id, err)
-				done <- false
+				done <- spinResponse{err: fmt.Errorf("request %d: %w", id, err)}
 				return
 			}
 
@@ -236,12 +238,15 @@ func TestConcurrentRequests(t *testing.T) {
 			router.ServeHTTP(w, httpReq)
 
 			if w.Code != http.StatusOK {
-				t.Errorf("Concurrent request %d got status %d", id, w.Code)
-				done <- false
+				done <- spinResponse{status: w.Code, err: fmt.Errorf("request %d returned status %d", id, w.Code)}
 				return
 			}
-
-			done <- true
+			var result SpinResult
+			if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+				done <- spinResponse{status: w.Code, err: fmt.Errorf("request %d response: %w", id, err)}
+				return
+			}
+			done <- spinResponse{status: w.Code, result: result}
 		}(i)
 	}
 
@@ -249,12 +254,101 @@ func TestConcurrentRequests(t *testing.T) {
 	timeout := time.After(5 * time.Second)
 	for i := 0; i < concurrency; i++ {
 		select {
-		case success := <-done:
-			if !success {
-				t.Error("At least one concurrent request failed")
+		case response := <-done:
+			if response.err != nil {
+				t.Error(response.err)
+				continue
+			}
+			if response.result.WheelID != "yes-or-no" || response.result.SessionID != "concurrent-test" || response.result.Timestamp.IsZero() {
+				t.Errorf("concurrent response = %+v, want the requested wheel/session and a timestamp", response.result)
+			}
+			if response.result.Result != "YES! ✅" && response.result.Result != "NO ❌" {
+				t.Errorf("concurrent result = %q, want one of the independently specified wheel options", response.result.Result)
 			}
 		case <-timeout:
 			t.Fatal("Timeout waiting for concurrent requests")
+		}
+	}
+	if got := len(snapshotSpinHistory()); got != concurrency {
+		t.Fatalf("in-memory history entries = %d, want one result for each of %d successful spins", got, concurrency)
+	}
+}
+
+func TestConcurrentInMemoryWheelCreationKeepsUniqueListedItems(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+	resetTestState()
+
+	const concurrency = 32
+	type createResponse struct {
+		wheel Wheel
+		err   error
+	}
+	done := make(chan createResponse, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func(index int) {
+			request := HTTPTestRequest{
+				Method: "POST",
+				Path:   "/api/wheels",
+				Body: Wheel{
+					Name:    fmt.Sprintf("concurrent wheel %d", index),
+					Options: []Option{{Label: "Only", Color: "#123456", Weight: 1}},
+				},
+			}
+			httpReq, response, err := makeHTTPRequest(request)
+			if err != nil {
+				done <- createResponse{err: err}
+				return
+			}
+			setupTestRouter().ServeHTTP(response, httpReq)
+			if response.Code != http.StatusOK {
+				done <- createResponse{err: fmt.Errorf("create status = %d: %s", response.Code, response.Body.String())}
+				return
+			}
+			var wheel Wheel
+			if err := json.Unmarshal(response.Body.Bytes(), &wheel); err != nil {
+				done <- createResponse{err: err}
+				return
+			}
+			done <- createResponse{wheel: wheel}
+		}(i)
+	}
+
+	createdIDs := make(map[string]struct{}, concurrency)
+	for i := 0; i < concurrency; i++ {
+		created := <-done
+		if created.err != nil {
+			t.Fatal(created.err)
+		}
+		if created.wheel.ID == "" {
+			t.Fatal("created wheel has an empty ID")
+		}
+		if _, exists := createdIDs[created.wheel.ID]; exists {
+			t.Fatalf("concurrent creates reused wheel ID %q", created.wheel.ID)
+		}
+		createdIDs[created.wheel.ID] = struct{}{}
+	}
+
+	request, response, err := makeHTTPRequest(HTTPTestRequest{Method: "GET", Path: "/api/wheels"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	setupTestRouter().ServeHTTP(response, request)
+	var listed []Wheel
+	assertJSONResponse(t, response, http.StatusOK, &listed)
+	if len(listed) != concurrency {
+		t.Fatalf("in-memory wheel list contains %d items, want exactly %d", len(listed), concurrency)
+	}
+	listedIDs := make(map[string]struct{}, len(listed))
+	for _, wheel := range listed {
+		if _, expected := createdIDs[wheel.ID]; !expected {
+			t.Errorf("in-memory wheel list contains unexpected ID %q", wheel.ID)
+		}
+		listedIDs[wheel.ID] = struct{}{}
+	}
+	for id := range createdIDs {
+		if _, ok := listedIDs[id]; !ok {
+			t.Errorf("created wheel %q is absent from list response", id)
 		}
 	}
 }

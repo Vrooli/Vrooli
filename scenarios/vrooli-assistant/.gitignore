@@ -1,1 +1,5 @@
 api/vrooli-assistant
+
+# Local task state.
+/data/tasks/
+/data/contexts/

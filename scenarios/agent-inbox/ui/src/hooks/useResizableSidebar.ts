@@ -33,6 +33,8 @@ interface UseResizableSidebarResult {
   width: number;
   /** Whether currently resizing */
   isResizing: boolean;
+  /** Ref for the sidebar panel whose width is live-mutated during drag */
+  panelRef: React.RefObject<HTMLDivElement>;
   /** Ref to attach to the container element for ResizeObserver */
   containerRef: React.RefObject<HTMLDivElement>;
   /** Mouse down handler for the resize handle */
@@ -50,7 +52,14 @@ export function useResizableSidebar(
   } = options;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const resizeRef = useRef<{ startX: number; startWidth: number; maxWidth: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{
+    startX: number;
+    startWidth: number;
+    maxWidth: number;
+    latestWidth: number;
+    frame: number | null;
+  } | null>(null);
 
   // Initialize width from localStorage
   const [width, setWidth] = useState(() => {
@@ -74,6 +83,12 @@ export function useResizableSidebar(
     }
   }, [width, storageKey]);
 
+  useEffect(() => {
+    if (panelRef.current) {
+      panelRef.current.style.width = `${width}px`;
+    }
+  }, [width]);
+
   // ResizeObserver to clamp width when container resizes
   useEffect(() => {
     if (!containerRef.current || typeof ResizeObserver === "undefined") return;
@@ -84,9 +99,11 @@ export function useResizableSidebar(
       const maxWidth = Math.floor(containerWidth * maxWidthRatio);
 
       setWidth((prev) => {
-        if (prev > maxWidth) return Math.max(minWidth, maxWidth);
-        if (prev < minWidth) return minWidth;
-        return prev;
+        const next = Math.max(minWidth, Math.min(maxWidth, prev));
+        if (panelRef.current) {
+          panelRef.current.style.width = `${next}px`;
+        }
+        return next === prev ? prev : next;
       });
     };
 
@@ -96,39 +113,6 @@ export function useResizableSidebar(
 
     return () => observer.disconnect();
   }, [minWidth, maxWidthRatio]);
-
-  // Mouse event handlers for resizing
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!resizeRef.current) return;
-
-      const delta = e.clientX - resizeRef.current.startX;
-      const newWidth = resizeRef.current.startWidth + delta;
-      const clampedWidth = Math.max(minWidth, Math.min(resizeRef.current.maxWidth, newWidth));
-      setWidth(clampedWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      resizeRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing, minWidth]);
 
   // Handler to start resizing
   const handleResizeStart = useCallback(
@@ -143,15 +127,63 @@ export function useResizableSidebar(
         startX: e.clientX,
         startWidth: width,
         maxWidth,
+        latestWidth: width,
+        frame: null,
       };
+
+      const handleMouseMove = (event: MouseEvent) => {
+        const resize = resizeRef.current;
+        if (!resize) return;
+
+        const delta = event.clientX - resize.startX;
+        resize.latestWidth = Math.max(minWidth, Math.min(resize.maxWidth, resize.startWidth + delta));
+        if (resize.frame !== null) return;
+
+        resize.frame = window.requestAnimationFrame(() => {
+          const current = resizeRef.current;
+          if (!current) return;
+          current.frame = null;
+          if (panelRef.current) {
+            panelRef.current.style.width = `${current.latestWidth}px`;
+          }
+        });
+      };
+
+      const cleanup = () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      const handleMouseUp = () => {
+        const resize = resizeRef.current;
+        if (resize?.frame != null) {
+          window.cancelAnimationFrame(resize.frame);
+        }
+        const nextWidth = resize?.latestWidth ?? width;
+        if (panelRef.current) {
+          panelRef.current.style.width = `${nextWidth}px`;
+        }
+        resizeRef.current = null;
+        setWidth(nextWidth);
+        setIsResizing(false);
+        cleanup();
+      };
+
       setIsResizing(true);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
     },
-    [width, maxWidthRatio]
+    [minWidth, width, maxWidthRatio]
   );
 
   return {
     width,
     isResizing,
+    panelRef,
     containerRef,
     handleResizeStart,
   };

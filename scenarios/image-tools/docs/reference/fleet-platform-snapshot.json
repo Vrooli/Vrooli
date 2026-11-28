@@ -1,0 +1,9 @@
+{
+  "schema": "vrooli.fleet-platform-snapshot/v1",
+  "observed_at": "2026-11-10T22:07:14Z",
+  "nodes": [
+    {"id":"697b6224-6283-4a31-90e2-73724e424c05","name":"swarminator","os":"linux","arch":"amd64","online":true,"dispatchable":true},
+    {"id":"58a4f1d0-2846-46b9-9f9b-4e1ddca963f0","name":"minimouse","os":"darwin","arch":"amd64","revision":"2d7ffa13204158a47afb8bcee45f110f40643b7b+dirty","online":true,"dispatchable":true},
+    {"id":"25c7e426-c76c-421a-8351-aaf964589802","name":"minimouse","os":"darwin","arch":"amd64","revision":"365f9071ef08b9dc64f076bba3874b52f666a7f8+dirty","online":false,"dispatchable":false}
+  ]
+}

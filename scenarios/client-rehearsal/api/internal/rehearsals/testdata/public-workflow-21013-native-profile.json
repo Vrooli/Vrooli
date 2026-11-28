@@ -1,0 +1,42 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "sheets",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "F7 synthetic Google Sheets API", "version": "1" },
+        "servers": [{ "url": "https://sheets.googleapis.com" }],
+        "paths": {
+          "/v4/spreadsheets/synthetic-sheet-id/values/Leads:append": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "append",
+              "x-n8n-input-match": { "documentId": "synthetic-sheet-id", "sheetName": "Leads" },
+              "responses": { "200": { "content": { "application/json": { "example": { "spreadsheetId": "synthetic-sheet-id", "updatedRange": "Leads!A2:C2", "updatedRows": 1 } } } } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "gmail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "F7 synthetic Gmail API", "version": "1" },
+        "servers": [{ "url": "https://gmail.googleapis.com" }],
+        "paths": {
+          "/gmail/v1/users/me/messages/send": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send",
+              "responses": { "200": { "content": { "application/json": { "example": { "id": "synthetic-message-21013", "threadId": "synthetic-thread-21013" } } } } }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

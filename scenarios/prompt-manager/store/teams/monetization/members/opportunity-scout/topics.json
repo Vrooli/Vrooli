@@ -1,0 +1,31 @@
+{
+  "loop_kind": "queue",
+  "intake": [
+    {
+      "prefix": "opportunity-inbox/*",
+      "taxonomy": "monetization-opportunity",
+      "classifier_skill": "signal-classifier"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "scout-scan/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "scout-scan/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "monetization/opportunity/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
+}

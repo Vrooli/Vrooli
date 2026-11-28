@@ -12,7 +12,7 @@ import {
   isSelectorOptional,
   isValidActionType,
   normalizeToProtoActionType,
-} from '../../../src/proto/action-type-utils';
+} from '../../../src/recording/action-types';
 import { calculateActionConfidence } from '../../../src/recording/action-types';
 
 describe('Recording Action Types (proto-first)', () => {
@@ -50,6 +50,9 @@ describe('Recording Action Types (proto-first)', () => {
       expect(actionTypeToString(ActionType.CLICK)).toBe('click');
       expect(actionTypeToString(ActionType.INPUT)).toBe('input');
       expect(actionTypeToString(ActionType.NAVIGATE)).toBe('navigate');
+      expect(actionTypeToString(ActionType.UPLOAD_FILE)).toBe('uploadfile');
+      expect(actionTypeToString(ActionType.FRAME_SWITCH)).toBe('frame-switch');
+      expect(actionTypeToString(ActionType.NETWORK_MOCK)).toBe('network-mock');
     });
   });
 

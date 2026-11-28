@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // Default context items to include if none specified
@@ -119,7 +120,7 @@ func buildPromptAndContext(
 
 	// Output Format (medium priority)
 	if containsContext(includeContexts, "output-format") {
-		attachments = append(attachments, buildOutputFormatAttachment(autoFix))
+		attachments = append(attachments, shared.BuildOutputFormatAttachment(autoFix))
 	}
 
 	// VPS Connection (medium priority)
@@ -362,7 +363,7 @@ func buildDiagnosticChecklistAttachment() *domainpb.ContextAttachment {
    → Check ~/.vrooli/logs/ for resource and scenario start logs
 
 3. If no, is it declared in the scenario's service.json?
-   → Check <workdir>/scenarios/<scenario>/.vrooli/service.json
+   → Check the target scenario's .vrooli/service.json at its contract-defined scenario root
 
 4. Is the Vrooli CLI working?
    → Run: vrooli --version && vrooli resource list
@@ -386,68 +387,14 @@ func buildDiagnosticChecklistAttachment() *domainpb.ContextAttachment {
 	}
 }
 
-// buildOutputFormatAttachment creates the output format specification.
-func buildOutputFormatAttachment(autoFix bool) *domainpb.ContextAttachment {
-	var content strings.Builder
-	content.WriteString(`Report structure:
-
-### Scope Decision
-- Chosen domain: scenario-to-cloud OR target scenario
-- Evidence: at least two concrete evidence points
-- Confidence: high/medium/low
-
-### Root Cause
-What caused the failure. Distinguish symptoms from causes.
-Example: "postgres not running" is a symptom; "postgres not in manifest" is a cause.
-
-### Evidence
-- Answers to diagnostic questions
-- Relevant log snippets
-- Command outputs confirming the issue
-
-### Impact
-What is broken or not working.
-
-### Immediate Fix
-Commands to run on this VPS to restore service (hotfix).`)
-
-	if autoFix {
-		content.WriteString(`
-If you applied fixes, list what you did.`)
-	}
-
-	content.WriteString(`
-
-### Permanent Fix
-Code/configuration changes needed so this doesn't recur:
-- Missing dependencies in .vrooli/service.json
-- Manifest generation fixes
-- Health checks or startup delays
-- VPS setup process fixes
-
-### Prevention
-Monitoring, alerts, or pipeline improvements to catch this earlier.`)
-
-	return &domainpb.ContextAttachment{
-		Type:     "note",
-		Key:      "output-format",
-		Tags:     []string{"format", "report"},
-		Label:    "Report Format",
-		Summary:  "Required sections: Scope, Root Cause, Evidence, Impact, Fixes, Prevention",
-		Format:   "markdown",
-		Priority: "medium",
-		Content:  content.String(),
-	}
-}
-
 // buildVPSConnectionAttachment creates the VPS connection details.
 func buildVPSConnectionAttachment(vps *domain.ManifestVPS, sshUser string, sshPort int, m *domain.CloudManifest) *domainpb.ContextAttachment {
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	content.WriteString(fmt.Sprintf("ssh -p %d %s@%s \"<command>\"\n\n", sshPort, sshUser, vps.Host))
 	content.WriteString(fmt.Sprintf("host: %s\n", vps.Host))
 	content.WriteString(fmt.Sprintf("user: %s\n", sshUser))
 	content.WriteString(fmt.Sprintf("port: %d\n", sshPort))
-	content.WriteString(fmt.Sprintf("key_path: %s\n", vps.KeyPath))
+	content.WriteString("identity: credential binding vrooli/scenario-to-cloud:ssh-key, or the operator's ambient SSH identity\n")
 	if vps.Workdir != "" {
 		content.WriteString(fmt.Sprintf("workdir: %s\n", vps.Workdir))
 	}
@@ -720,14 +667,14 @@ func buildFixPrompt(
 	sb.WriteString("## VPS Connection\n")
 	sb.WriteString("To apply fixes on the VPS, use SSH commands:\n")
 	sb.WriteString("```bash\n")
-	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	sb.WriteString(fmt.Sprintf("ssh -p %d %s@%s \"<command>\"\n", sshPort, sshUser, vps.Host))
 	sb.WriteString("```\n\n")
 
 	sb.WriteString("## Deployment Configuration\n")
 	sb.WriteString(fmt.Sprintf("- VPS Host: %s\n", vps.Host))
 	sb.WriteString(fmt.Sprintf("- SSH User: %s\n", sshUser))
 	sb.WriteString(fmt.Sprintf("- SSH Port: %d\n", sshPort))
-	sb.WriteString(fmt.Sprintf("- SSH Key Path: %s\n", vps.KeyPath))
+	sb.WriteString("- SSH identity: credential binding vrooli/scenario-to-cloud:ssh-key (or ambient)\n")
 	if vps.Workdir != "" {
 		sb.WriteString(fmt.Sprintf("- VPS Workdir: %s\n", vps.Workdir))
 	}

@@ -1,0 +1,45 @@
+{
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "degraded-observation",
+    "title": "Useful bounded design with degraded sources",
+    "purpose": "Useful bounded design with degraded sources with explicit authority, provenance and evidence boundaries.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-008",
+      "OT-P1-002"
+    ]
+  },
+  "steps": [
+    {
+      "page": "overview",
+      "state": "partial",
+      "intent": "Identify the unavailable source and what remains usable."
+    },
+    {
+      "page": "graph",
+      "state": "stale",
+      "intent": "Inspect cached context with source age and limitations."
+    },
+    {
+      "page": "graph",
+      "state": "scope-limited",
+      "intent": "Narrow a large selection instead of rendering an unbounded graph."
+    },
+    {
+      "page": "planning",
+      "state": "default",
+      "intent": "Continue permitted draft work without implying observation or apply readiness."
+    }
+  ],
+  "claims": [
+    {
+      "id": "degraded-observation-outcome",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Given stale or unavailable observation, when browsing continues, then the interface distinguishes incomplete evidence from a healthy empty ecosystem.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    }
+  ]
+}

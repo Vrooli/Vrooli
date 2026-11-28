@@ -1,0 +1,54 @@
+== before stop 2026-11-12T07:09:24Z
+    PID                  STARTED COMMAND
+1713414 Thu Nov 12 01:01:11 2026 node /home/matthalloran8/.local/bin/codex --yolo -m gpt-6-luna -c model_reasoning_effort=medium
+-rw-rw-r-- 1 matthalloran8 matthalloran8 3254 2026-11-12 01:46:57.291361890 -0500 /home/matthalloran8/.vrooli/research/cohorts/debt-crypto-models-20261112/LEDGER.md
+-rw-r--r-- 1 matthalloran8 matthalloran8  537 2026-11-12 01:48:40.562165616 -0500 /home/matthalloran8/.vrooli/research/cohorts/debt-crypto-models-20261112/OPERATOR.md
+-rw-rw-r-- 1 matthalloran8 matthalloran8 4650 2026-11-12 01:46:57.291071980 -0500 /home/matthalloran8/.vrooli/research/cohorts/debt-crypto-models-20261112/STATE.md
+time=2026-11-12T02:09:24.553-05:00 level=INFO msg="Scenario stop requested" component=vrooli subsystem=lifecycle scenario=research-desk
+time=2026-11-12T02:09:26.665-05:00 level=INFO msg="Scenario stop completed" component=vrooli subsystem=lifecycle scenario=research-desk
+
+Stopped scenario 'research-desk'
+  Logs: vrooli scenario logs research-desk
+== stopped at 2026-11-12T07:09:26Z
+Scenario: research-desk
+Display name: Research Desk
+Status: stopped
+Description: Configure, launch, watch, steer and review supervised research from a phone, without being in the research loop.
+Path: /home/matthalloran8/Vrooli/scenarios/research-desk
+desk api health http=000
+== while stopped 2026-11-12T07:09:37Z
+skill read research-coordination: ok
+skill read adaptive-research: ok
+skill read local-experimentation: ok
+skill read research-review: ok
+skill read research-desk: ok
+skill by path: ok (30027 B)
+old pack path: ok
+packet preview: ok=True written=False gates=[('charter_bytes', True), ('stance_chars', True), ('stance_ending', True), ('kernel_chars', True), ('paths_exist', True), ('missions', True)]
+packet check (live commission): ok=True
+mission_check: keys=[{'topic': 'debt-reduction', 'mode': 'build', 'architect_pass': '2026-11-07', 'ambition_review': '2026-11-07 REJECT→revised', 'workstreams': {'open': 7, 'active': 0, 'waiting-operator': 0, 'waiting-time': 0, 'landed': 0, 'proposed': 0, 'approved': 0, 'declined': 0}, 'workstream
+manual launch files: 2
+needs-you from file: 3
+supervisor process: alive
+== writes after the stop (2026-11-12T07:09:26Z), seen at 2026-11-12T07:10:28Z:
+2026-11-12T02:10:23 local  /home/matthalloran8/.vrooli/research/topics/debt-reduction/runs/debt-crypto-models-20261112/CHECKPOINT.md
+desk still stopped: http=000
+supervisor process: alive
+== started again 2026-11-12T07:10:52Z
+desk api health http=200
+Summary:
+  Commissions: 1 live, 1 paused, 2 stopped, 17 unknown, 4 ended.
+  Research home: /home/matthalloran8/.vrooli/research (read 2026-11-12 02:10)
+  Courier: last pass 2026-11-12T07:10:52Z; answers read back 2026-11-12T07:10:52Z; last delivery 2026-11-12T06:48:40Z; the desk cannot withdraw an ask once sent; an answered or expired ask closes it
+  Web Console access: local availability policy (no desk credential)
+Supervisor windows open (live, paused or limited):
+  debt-crypto-models-20261112              live               last write 2026-11-12 02:10 · topics: debt-reduction, crypto-foundations, local-model-performance
+  supervisor window open; goal active · claim: Supported owner reads show the prior commission stopped, both teams disabled with idle queues and paused heartbeats, all seven run records terminal, and W1/W3 transcripts archived. Native thread-state reads were 
+  programme-three-20261111                 paused             last write 2026-11-12 02:08 · topics: medical-practice-it-modernization, niche-book-production, ai-video-production-and-funnels
+  10 item(s) wait for an answer (answered items are listed, not counted) and 2 older list(s) are shown, never sent.
+  courier: none — delivered by the desk at 2026-11-12T06:48:40Z (hub notice f7feb96c-e459-4a87-8509-342477458ecb)
+  courier: none — delivered by the desk at 2026-11-12T06:39:45Z (hub notice 101e014b-8d7f-4a79-bc81-2ccc652065b7)
+  courier: none — delivered by the desk at 2026-11-12T06:05:16Z (hub notice 7a723ac5-0bbe-4320-a327-88464993e0d0)
+  courier: none — global items: off until the operator turns delivery on for them
+  courier: none — global items: off until the operator turns delivery on for them
+ui http=200

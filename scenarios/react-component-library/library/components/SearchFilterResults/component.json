@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "patterns.search-filter-results",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
+  ],
+  "description": "The complete search experience combining query entry, structured filters, URL state, suggestions, loading, stale results, empty and no-match distinction, errors, pagination, and result actions.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "SearchFilterResults",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.0",
+    "1.0.3",
+    "1.0.4",
+    "1.0.6"
+  ],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:SearchFilterResults",
+  "tags": []
+}

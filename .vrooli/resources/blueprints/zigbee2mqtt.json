@@ -1,0 +1,63 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "zigbee2mqtt",
+  "display_name": "Zigbee2MQTT",
+  "category": "iot",
+  "summary": "Bridge for integrating Zigbee devices through MQTT and local automation systems.",
+  "why_it_matters": "Zigbee2MQTT is valuable capability knowledge for IoT scenarios, but it depends on hardware adapters and environment-specific setup that should remain blueprint-level until proven demand exists.",
+  "when_to_use": [
+    "A scenario manages Zigbee devices through MQTT.",
+    "You are building local automation around sensors, lights, or switches.",
+    "The deployment has real Zigbee hardware and coordinator ownership."
+  ],
+  "example_scenarios": [
+    "Smart home automation",
+    "Local sensor ingestion",
+    "Device orchestration gateways"
+  ],
+  "integration_kind": "hardware",
+  "platform_support": {
+    "notes": "Containerized management is possible, but useful operation depends on USB or serial hardware access and host-specific device passthrough.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Supported Zigbee coordinator hardware",
+    "MQTT broker strategy",
+    "Host USB or serial device access"
+  ],
+  "dependencies": [
+    "mqtt-broker"
+  ],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Any future implementation should capture hardware requirements explicitly.",
+    "Treat MQTT dependency and coordinator passthrough as first-class manifest concerns.",
+    "Blueprint status is preferable until a real device-driven scenario needs support."
+  ],
+  "operational_notes": [
+    "Device pairing and backup of network state matter.",
+    "Health checks should include broker connectivity where appropriate.",
+    "Logs are operationally important during pairing and troubleshooting."
+  ],
+  "risks": [
+    "Hardware-specific support burden is high.",
+    "Cross-platform value is limited without a clear appliance-style target."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "zigbee2mqtt"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/zigbee2mqtt"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

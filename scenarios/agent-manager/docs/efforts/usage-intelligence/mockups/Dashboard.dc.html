@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mizar Dashboard with usage strip</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1d4ed8}a:hover{color:#1e3a8a}
+</style>
+</helmet>
+<div style="width: 1440px; height: 520px; box-sizing: border-box; background: #f8fafc; font-family: Inter, system-ui, sans-serif; color: #0f172a; padding: 28px 36px; display: flex; flex-direction: column; gap: 20px;">
+  <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Dashboard</h1>
+
+  <a href="Main.dc.html" aria-label="Open Usage: Codex weekly limit will run out before reset" style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 14px 18px; background: #fff; border: 1px solid #fecaca; border-radius: 10px; text-decoration: none; color: #0f172a;">
+    <span style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; background: #fef2f2; color: #b91c1c; font-size: 13px; font-weight: 600;">Will run out</span>
+    <span style="font-size: 14px; font-weight: 600; min-width: 140px;">Codex · weekly</span>
+    <span style="flex: 1 1 260px; display: flex; align-items: center; gap: 10px;">
+      <span style="flex: 1; height: 8px; border-radius: 9999px; background: #e2e8f0;"><span style="display: block; width: 33%; height: 8px; border-radius: 9999px; background: #dc2626;"></span></span>
+      <span style="font-size: 14px; font-weight: 700;">33%</span>
+    </span>
+    <span style="font-size: 14px; color: #334155;">Runs out <strong>Oct 30–31</strong> · resets Nov 4</span>
+    <span style="font-size: 14px; color: #166534; font-weight: 600;">3 recommendations →</span>
+  </a>
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 10px 18px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; color: #334155;">
+    <span style="padding: 3px 10px; border-radius: 9999px; background: #f1f5f9; color: #334155; font-size: 13px; font-weight: 600;">No reading</span>
+    <span style="font-weight: 600; color: #0f172a; min-width: 140px;">Claude Code</span>
+    <span>5-hour and weekly readings appear after the next reply.</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; opacity: 0.55;" aria-hidden="true">
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; height: 120px; box-sizing: border-box;"><div style="font-size: 13px; color: #64748b;">Active runs</div><div style="font-size: 28px; font-weight: 700;">12</div></div>
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; height: 120px; box-sizing: border-box;"><div style="font-size: 13px; color: #64748b;">Needs review</div><div style="font-size: 28px; font-weight: 700;">22</div></div>
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; height: 120px; box-sizing: border-box;"><div style="font-size: 13px; color: #64748b;">Runs today</div><div style="font-size: 28px; font-weight: 700;">—</div></div>
+  </div>
+  <p style="margin: 0; font-size: 13px; color: #64748b;">Existing dashboard content (faded) stays as it is. The strips sit above it and only take a full row while a window is at risk; when on track they shrink to one quiet line.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

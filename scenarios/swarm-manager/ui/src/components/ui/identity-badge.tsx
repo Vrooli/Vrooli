@@ -7,6 +7,7 @@
 
 import { Bot, User } from "lucide-react";
 import { memo } from "react";
+import { buildAgentRunUrl } from "../../services/external-links";
 
 interface IdentityBadgeProps {
   value?: string;
@@ -40,7 +41,7 @@ export const IdentityBadge = memo(function IdentityBadge({ value, agentManagerUi
 
   if (parsed.type === "agent") {
     const label = parsed.profileKey.length > 20 ? parsed.profileKey.slice(0, 18) + "\u2026" : parsed.profileKey;
-    const runUrl = agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${parsed.runId}` : null;
+    const runUrl = buildAgentRunUrl(agentManagerUiUrl, parsed.runId);
     const content = (
       <span
         className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-400"

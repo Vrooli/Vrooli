@@ -2,8 +2,11 @@ package apierror
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -150,5 +153,30 @@ func TestPredefinedErrors(t *testing.T) {
 				t.Errorf("Expected code '%s', got '%s'", tt.code, tt.err.Code)
 			}
 		})
+	}
+}
+
+type failingResponseWriter struct{ header http.Header }
+
+func (w *failingResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+func (*failingResponseWriter) WriteHeader(int)           {}
+func (*failingResponseWriter) Write([]byte) (int, error) { return 0, errResponseWrite }
+
+type captureLogger struct{ message string }
+
+func (l *captureLogger) Errorf(format string, args ...any) { l.message = fmt.Sprintf(format, args...) }
+
+var errResponseWrite = errors.New("response write failed")
+
+func TestRespondErrorUsesInjectedLoggerForEncodingFailure(t *testing.T) {
+	logger := &captureLogger{}
+	RespondErrorWithLogger(&failingResponseWriter{}, &APIError{Status: http.StatusBadRequest}, logger)
+	if !strings.Contains(logger.message, errResponseWrite.Error()) {
+		t.Fatalf("logger message = %q, want response write failure", logger.message)
 	}
 }

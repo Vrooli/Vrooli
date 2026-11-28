@@ -2,12 +2,12 @@ import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { SecretsRow } from "../components/ui/SecretsRow";
 import { VulnerabilityItem } from "../components/ui/VulnerabilityItem";
 import { LoadingSecretsRow, Skeleton } from "../components/ui/LoadingStates";
-import type { VaultResourceStatus, SecurityVulnerability } from "../lib/api";
+import type { CredentialResourceStatus, SecurityVulnerability } from "../lib/api";
 
 interface SecurityTablesProps {
-  resourceStatuses: VaultResourceStatus[];
+  resourceStatuses: CredentialResourceStatus[];
   vulnerabilities: SecurityVulnerability[];
-  isVaultLoading: boolean;
+  isCredentialLoading: boolean;
   isVulnerabilityLoading: boolean;
   componentType: string;
   componentFilter: string;
@@ -25,7 +25,7 @@ interface SecurityTablesProps {
 export const SecurityTables = ({
   resourceStatuses,
   vulnerabilities,
-  isVaultLoading,
+  isCredentialLoading,
   isVulnerabilityLoading,
   componentType,
   componentFilter,
@@ -45,11 +45,11 @@ export const SecurityTables = ({
         <h2 className="text-lg font-semibold text-white">Component Security Status</h2>
         <div className="flex items-center gap-2 text-xs text-white/60">
           <ShieldCheck className="h-4 w-4" />
-          {isVaultLoading ? <Skeleton className="h-3 w-32" variant="text" /> : "Live data from vault and file scans"}
+          {isCredentialLoading ? <Skeleton className="h-3 w-32" variant="text" /> : "Live data from credential authority and file scans"}
         </div>
       </div>
       <div className="mt-4 space-y-3">
-        {isVaultLoading ? (
+        {isCredentialLoading ? (
           <>
             <LoadingSecretsRow />
             <LoadingSecretsRow />

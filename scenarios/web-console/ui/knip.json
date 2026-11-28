@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@5.64.0/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.spec.{ts,tsx}",
+    "tests/**/*.{ts,tsx}",
+    "scripts/**/*.mjs",
+    "vite.config.ts",
+    "postcss.config.js",
+    "tailwind.config.ts",
+    "eslint.config.js"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "tests/**/*.{ts,tsx}",
+    "scripts/**/*.{js,mjs,ts,mts}",
+    "vite.config.ts",
+    "postcss.config.js",
+    "tailwind.config.ts",
+    "eslint.config.js"
+  ],
+  "eslint": false
+}

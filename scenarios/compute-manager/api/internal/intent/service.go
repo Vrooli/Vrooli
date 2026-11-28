@@ -1,0 +1,379 @@
+package intent
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
+	"compute-manager/internal/clock"
+	"compute-manager/internal/provider"
+	"github.com/google/uuid"
+)
+
+type State string
+
+const (
+	// StateReserving is retained for durable rows written by older releases.
+	StateReserving State = "reserving"
+	StateOpen      State = "open"
+	StateFulfilled State = "fulfilled"
+	StateRefused   State = "refused"
+	// StateAbandoned is a legacy terminal state; new failures use StateRefused.
+	StateAbandoned State = "abandoned"
+)
+
+var ErrInvalidTransition = errors.New("invalid intent state transition")
+
+func CanTransition(from, to State) bool {
+	if from == StateOpen {
+		return to == StateFulfilled || to == StateRefused
+	}
+	return from == StateReserving &&
+		(to == StateFulfilled || to == StateRefused || to == StateAbandoned)
+}
+
+func validState(state State) bool {
+	return state == StateReserving || state == StateOpen || state == StateFulfilled || state == StateRefused || state == StateAbandoned
+}
+
+type Record struct {
+	ID             string
+	IdempotencyKey string
+	RequestedBy    string
+	Provider       string
+	Spec           map[string]any
+	ReservationID  string
+	State          State
+	InstanceID     string
+	CreatedAt      time.Time
+	ResolvedAt     time.Time
+}
+
+type Store interface {
+	Create(context.Context, Record) (Record, error)
+	GetByIDOrKey(context.Context, string) (Record, error)
+	SaveOpen(context.Context, Record) error
+	Transition(context.Context, State, Record) error
+}
+
+type OpenStore interface {
+	ListOpen(context.Context) ([]Record, error)
+}
+
+type Service struct {
+	Store     Store
+	Provider  provider.Provider
+	Providers *provider.Registry
+	Now       func() time.Time
+}
+
+type Request struct {
+	IdempotencyKey string
+	RequestedBy    string
+	Provider       string
+	Spec           provider.Spec
+}
+
+// RecoverOpen matches provider resources carrying an intent tag to durable
+// open intents left behind by a lost create response. It never creates or
+// destroys a provider resource.
+func (s Service) RecoverOpen(ctx context.Context) ([]Record, error) {
+	store, ok := s.Store.(OpenStore)
+	if !ok {
+		return nil, nil
+	}
+	open, err := store.ListOpen(ctx)
+	if err != nil {
+		return nil, err
+	}
+	recovered := make([]Record, 0)
+	now := clock.System{}.Now
+	if s.Now != nil {
+		now = s.Now
+	}
+	observedByProvider := make(map[string]map[string]provider.Instance)
+	for _, record := range open {
+		selected, selectErr := s.providerFor(record.Provider)
+		if selectErr != nil {
+			return recovered, selectErr
+		}
+		var item provider.Instance
+		var found bool
+		if reconciler, supported := selected.(provider.IntentRecoveryProvider); supported {
+			item, found, err = reconciler.RecoverIntent(ctx, recoveryRequest(record))
+			if err != nil {
+				return recovered, fmt.Errorf("recover intent %q with exact provider target: %w", record.ID, err)
+			}
+		} else {
+			byIntent, loaded := observedByProvider[record.Provider]
+			if !loaded {
+				observed, listErr := selected.List(ctx)
+				if listErr != nil {
+					return recovered, listErr
+				}
+				byIntent = make(map[string]provider.Instance)
+				for _, candidate := range observed {
+					if id := candidate.Tags["vrooli-intent-id"]; id != "" {
+						byIntent[id] = candidate
+					}
+				}
+				observedByProvider[record.Provider] = byIntent
+			}
+			item, found = byIntent[record.ID]
+		}
+		if !found {
+			continue
+		}
+		record.InstanceID = item.ID
+		record.ResolvedAt = now().UTC()
+		if err := s.Transition(ctx, &record, StateFulfilled); err != nil {
+			return recovered, err
+		}
+		recovered = append(recovered, record)
+	}
+	return recovered, nil
+}
+
+func (s Service) providerFor(name string) (provider.Provider, error) {
+	if s.Providers != nil {
+		return s.Providers.Get(name)
+	}
+	if s.Provider != nil && s.Provider.Name() == name {
+		return s.Provider, nil
+	}
+	return nil, fmt.Errorf("provider %q is unavailable for intent recovery", name)
+}
+
+func recoveryRequest(record Record) provider.IntentRecoveryRequest {
+	facts := make(map[string]string)
+	if selected, ok := record.Spec["akash_lease"].(map[string]any); ok {
+		for key, raw := range selected {
+			if value, ok := raw.(string); ok {
+				facts[key] = value
+			} else if value, ok := raw.(float64); ok {
+				facts[key] = fmt.Sprintf("%.0f", value)
+			}
+		}
+	}
+	return provider.IntentRecoveryRequest{IntentID: record.ID, IdempotencyKey: record.IdempotencyKey, Provider: record.Provider, Facts: facts}
+}
+
+// CreateIntent durably records the requested operation before any external
+// reservation or provider call.
+func (s Service) CreateIntent(ctx context.Context, req Request) (Record, error) {
+	if req.IdempotencyKey == "" {
+		return Record{}, fmt.Errorf("idempotency key is required")
+	}
+	if existing, err := s.Store.GetByIDOrKey(ctx, req.IdempotencyKey); err == nil {
+		return existing, nil
+	} else if !errors.Is(err, ErrNotFound) {
+		return Record{}, err
+	}
+	now := clock.System{}.Now
+	if s.Now != nil {
+		now = s.Now
+	}
+	spec := map[string]any{"region": req.Spec.Region, "size": req.Spec.Size, "ipv4": req.Spec.IPv4, "image": req.Spec.Image}
+	// Adopted targets are operator-owned facts needed to validate an exact
+	// replay after a lost response. Persist only non-secret connection metadata;
+	// credentials are deliberately not part of provider.Spec or intent JSON.
+	if target := req.Spec.AdoptedTarget; target != nil {
+		spec["adopted_target"] = map[string]any{
+			"host":         target.Host,
+			"user":         target.User,
+			"display_name": target.DisplayName,
+		}
+	}
+	if req.Provider == "akash" {
+		// This explicit allowlist is the durable intent-to-bid attribution used
+		// for exact lookup after a lost response. Do not persist arbitrary tags.
+		akashFacts := map[string]any{
+			"dseq": req.Spec.Tags["akash-dseq"], "gseq": req.Spec.Tags["akash-gseq"],
+			"oseq": req.Spec.Tags["akash-oseq"], "provider": req.Spec.Tags["akash-provider"],
+			"rate_amount": req.Spec.Tags["akash-rate-amount"], "rate_denom": req.Spec.Tags["akash-rate-denom"],
+			"lifetime_seconds": req.Spec.Tags["akash-lifetime-seconds"],
+		}
+		spec["akash_lease"] = akashFacts
+	}
+	record, err := s.Store.Create(ctx, Record{IdempotencyKey: req.IdempotencyKey, RequestedBy: req.RequestedBy, Provider: req.Provider, Spec: spec, CreatedAt: now().UTC(), State: StateOpen})
+	if err != nil {
+		return Record{}, err
+	}
+	return record, nil
+}
+
+// Transition is the sole domain owner for persisted intent state changes.
+func (s Service) Transition(ctx context.Context, record *Record, to State) error {
+	if record == nil || !CanTransition(record.State, to) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidTransition, stateOf(record), to)
+	}
+	from := record.State
+	record.State = to
+	if err := s.Store.Transition(ctx, from, *record); err != nil {
+		record.State = from
+		return err
+	}
+	return nil
+}
+
+func stateOf(record *Record) State {
+	if record == nil {
+		return ""
+	}
+	return record.State
+}
+
+// SaveOpen persists reservation metadata without allowing an arbitrary state change.
+func (s Service) SaveOpen(ctx context.Context, record Record) error {
+	if record.State != StateOpen {
+		return fmt.Errorf("%w: open metadata save has state %q", ErrInvalidTransition, record.State)
+	}
+	return s.Store.SaveOpen(ctx, record)
+}
+
+type SQLStore struct {
+	DB interface {
+		ExecContext(context.Context, string, ...any) (sql.Result, error)
+		QueryRowContext(context.Context, string, ...any) *sql.Row
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	}
+	Now func() time.Time
+}
+
+func (s SQLStore) ListOpen(ctx context.Context) ([]Record, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT id,idempotency_key,requested_by,provider,spec_json,reservation_id,state,instance_id,created_at,resolved_at FROM instance_intents WHERE state IN (?,?) ORDER BY created_at`, StateOpen, StateReserving)
+	if err != nil {
+		return nil, fmt.Errorf("list open intents: %w", err)
+	}
+	defer rows.Close()
+	result := make([]Record, 0)
+	for rows.Next() {
+		var record Record
+		var spec, created, resolved string
+		if err := rows.Scan(&record.ID, &record.IdempotencyKey, &record.RequestedBy, &record.Provider, &spec, &record.ReservationID, &record.State, &record.InstanceID, &created, &resolved); err != nil {
+			return nil, fmt.Errorf("scan open intent: %w", err)
+		}
+		if err := json.Unmarshal([]byte(spec), &record.Spec); err != nil {
+			return nil, fmt.Errorf("decode open intent spec: %w", err)
+		}
+		if record.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
+			return nil, fmt.Errorf("parse open intent created_at: %w", err)
+		}
+		if resolved != "" {
+			if record.ResolvedAt, err = time.Parse(time.RFC3339Nano, resolved); err != nil {
+				return nil, fmt.Errorf("parse open intent resolved_at: %w", err)
+			}
+		}
+		result = append(result, record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate open intents: %w", err)
+	}
+	return result, nil
+}
+
+var ErrNotFound = errors.New("intent not found")
+
+func (s SQLStore) Create(ctx context.Context, record Record) (Record, error) {
+	if record.ID == "" {
+		record.ID = uuid.NewString()
+	}
+	if record.CreatedAt.IsZero() {
+		now := s.Now
+		if now == nil {
+			now = clock.System{}.Now
+		}
+		record.CreatedAt = now().UTC()
+	}
+	if record.State == "" {
+		record.State = StateOpen
+	}
+	if record.State != StateOpen {
+		return Record{}, fmt.Errorf("%w: create state %q", ErrInvalidTransition, record.State)
+	}
+	spec, err := json.Marshal(record.Spec)
+	if err != nil {
+		return Record{}, fmt.Errorf("marshal intent spec: %w", err)
+	}
+	_, err = s.DB.ExecContext(ctx, `INSERT INTO instance_intents (id,idempotency_key,requested_by,provider,spec_json,reservation_id,state,instance_id,created_at,resolved_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, record.ID, record.IdempotencyKey, record.RequestedBy, record.Provider, string(spec), record.ReservationID, record.State, record.InstanceID, record.CreatedAt.UTC().Format(time.RFC3339Nano), formatTime(record.ResolvedAt))
+	if err != nil {
+		return Record{}, fmt.Errorf("create intent: %w", err)
+	}
+	return record, nil
+}
+
+func (s SQLStore) GetByIDOrKey(ctx context.Context, value string) (Record, error) {
+	var r Record
+	var spec, created, resolved string
+	err := s.DB.QueryRowContext(ctx, `SELECT id,idempotency_key,requested_by,provider,spec_json,reservation_id,state,instance_id,created_at,resolved_at FROM instance_intents WHERE id=? OR idempotency_key=? LIMIT 1`, value, value).Scan(&r.ID, &r.IdempotencyKey, &r.RequestedBy, &r.Provider, &spec, &r.ReservationID, &r.State, &r.InstanceID, &created, &resolved)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Record{}, ErrNotFound
+	}
+	if err != nil {
+		return Record{}, fmt.Errorf("get intent: %w", err)
+	}
+	if !validState(r.State) {
+		return Record{}, fmt.Errorf("invalid persisted intent state %q", r.State)
+	}
+	if r.Spec = map[string]any{}; spec != "" {
+		if err := json.Unmarshal([]byte(spec), &r.Spec); err != nil {
+			return Record{}, fmt.Errorf("decode intent spec: %w", err)
+		}
+	}
+	if r.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
+		return Record{}, fmt.Errorf("parse intent created_at: %w", err)
+	}
+	if resolved != "" {
+		r.ResolvedAt, err = time.Parse(time.RFC3339Nano, resolved)
+		if err != nil {
+			return Record{}, fmt.Errorf("parse intent resolved_at: %w", err)
+		}
+	}
+	return r, nil
+}
+
+func (s SQLStore) SaveOpen(ctx context.Context, r Record) error {
+	if r.State != StateOpen {
+		return fmt.Errorf("%w: save-open state %q", ErrInvalidTransition, r.State)
+	}
+	spec, err := json.Marshal(r.Spec)
+	if err != nil {
+		return err
+	}
+	result, err := s.DB.ExecContext(ctx, `UPDATE instance_intents SET reservation_id=?,spec_json=? WHERE id=? AND state=?`, r.ReservationID, string(spec), r.ID, StateOpen)
+	if err != nil {
+		return fmt.Errorf("save open intent: %w", err)
+	}
+	if n, err := result.RowsAffected(); err == nil && n == 0 {
+		return fmt.Errorf("save open intent: %w", ErrNotFound)
+	}
+	return nil
+}
+
+func (s SQLStore) Transition(ctx context.Context, from State, r Record) error {
+	if !CanTransition(from, r.State) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidTransition, from, r.State)
+	}
+	spec, err := json.Marshal(r.Spec)
+	if err != nil {
+		return err
+	}
+	result, err := s.DB.ExecContext(ctx, `UPDATE instance_intents SET reservation_id=?,state=?,instance_id=?,resolved_at=?,spec_json=? WHERE id=? AND state=?`, r.ReservationID, r.State, r.InstanceID, formatTime(r.ResolvedAt), string(spec), r.ID, from)
+	if err != nil {
+		return fmt.Errorf("transition intent: %w", err)
+	}
+	if n, err := result.RowsAffected(); err == nil && n == 0 {
+		return fmt.Errorf("transition intent: %w", ErrNotFound)
+	}
+	return nil
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339Nano)
+}

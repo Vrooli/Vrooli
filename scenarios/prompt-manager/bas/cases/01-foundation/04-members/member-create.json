@@ -3,9 +3,11 @@
     "name": "member-create",
     "description": "Validate agent creation adds a new agent row",
     "labels": {
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,
@@ -84,9 +86,9 @@
     {
       "id": "click-new-agent",
       "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/agents.newButton"
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const button = document.querySelector('[data-testid=\"agent-new-button\"]'); if (!(button instanceof HTMLButtonElement)) { throw new Error('New agent button not found'); } button.click(); return true; })()"
         },
         "metadata": {
           "label": "Create new agent"
@@ -98,10 +100,12 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "duration_ms": 1500
+          "selector": "@selector/agentEditor.header",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
         },
         "metadata": {
-          "label": "Wait for agent creation"
+          "label": "Wait for created agent editor"
         }
       }
     },

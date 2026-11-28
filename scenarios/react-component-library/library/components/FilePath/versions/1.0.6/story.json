@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Compact path popover", "args": {}, "expect": [] },
+    {
+      "id": "inline-context-path",
+      "name": "Inline wrapped link with canonical copy",
+      "args": {
+        "path": "/workspace/research/topics/example/MISSION.md",
+        "presentation": "inline",
+        "displayText": "~research/topics/experience-engineering/MISSION.md",
+        "href": "/files/topics/experience-engineering/MISSION.md",
+        "showCopyButton": true,
+        "copyLabel": "Copy path",
+        "copiedLabel": "Copied"
+      },
+      "expect": []
+    }
+  ]
+}

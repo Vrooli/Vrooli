@@ -9,7 +9,7 @@
       "description": "Create a system to store, organize, and retrieve artifacts generated during run execution including logs, outputs, and temporary files. Support versioning and cleanup policies.",
       "id": "REQ-P1-008",
       "prd_ref": "OT-P1-008",
-      "status": "draft",
+      "status": "planned",
       "title": "Run Artifact Management",
       "validation": [
         {

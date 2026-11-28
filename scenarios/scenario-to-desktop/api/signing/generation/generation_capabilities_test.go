@@ -1,6 +1,9 @@
 package generation
 
 import (
+	"bytes"
+	"encoding/json"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -70,6 +73,7 @@ func TestGenerateNotarizeJS_APIKeyMethod(t *testing.T) {
 	cfg := &types.MacOSSigningConfig{
 		Notarize:         true,
 		AppleAPIKeyID:    "KEY123",
+		AppleAPIKeyFile:  "/tmp/AuthKey_FIXTURE.p8",
 		AppleAPIIssuerID: "ISSUER456",
 		TeamID:           "TEAM789",
 	}
@@ -91,6 +95,15 @@ func TestGenerateNotarizeJS_APIKeyMethod(t *testing.T) {
 	if !strings.Contains(content, "APPLE_API_KEY_ID") {
 		t.Error("should reference APPLE_API_KEY_ID env var")
 	}
+	if !strings.Contains(content, "APPLE_API_KEY_FILE") {
+		t.Error("should reference the declared private-key file environment variable")
+	}
+	if !strings.Contains(content, "APPLE_API_ISSUER_ID") {
+		t.Error("should reference the canonical issuer ID environment variable")
+	}
+	if strings.Contains(content, "appleApiKey: process.env.APPLE_API_KEY_ID") {
+		t.Error("must not pass the key ID as the private-key file path")
+	}
 	if !strings.Contains(content, "notarize") {
 		t.Error("should contain notarize import")
 	}
@@ -111,8 +124,61 @@ func TestGenerateNotarizeJS_AppPasswordMethod(t *testing.T) {
 	if !strings.Contains(content, "APPLE_ID") {
 		t.Error("should reference APPLE_ID env var")
 	}
-	if !strings.Contains(content, "APPLE_ID_PASSWORD") {
-		t.Error("should reference APPLE_ID_PASSWORD env var")
+	if !strings.Contains(content, "APPLE_APP_SPECIFIC_PASSWORD") {
+		t.Error("should reference the configured app-password env var")
+	}
+}
+
+func executeGeneratedNotarize(t *testing.T, config *types.MacOSSigningConfig, environment map[string]string) map[string]any {
+	t.Helper()
+	if environment == nil {
+		environment = map[string]string{}
+	}
+	script, err := generateNotarizeJS(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envJSON, err := json.Marshal(environment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Execute the generated artifact against an independent mock of the
+	// library boundary. This proves the options passed to @electron/notarize,
+	// rather than only proving that template text contains familiar names.
+	runner := `const fs=require('fs'),vm=require('vm'),hostRequire=require;let observed;const box={exports:{},require:(name)=>name==='@electron/notarize'?{notarize:async(options)=>{observed=options}}:hostRequire(name),process:{env:` + string(envJSON) + `},console:{log:()=>{},error:()=>{}}};vm.runInNewContext(fs.readFileSync(0,'utf8'),box);box.exports.default({electronPlatformName:'darwin',appOutDir:'/tmp/audit',packager:{appInfo:{productFilename:'Fixture'}}}).then(()=>process.stdout.write(JSON.stringify(observed))).catch(()=>process.exit(2));`
+	cmd := exec.Command("node", "-e", runner)
+	cmd.Stdin = bytes.NewReader(script)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("execute generated notarization hook: %v\n%s", err, output)
+	}
+	var observed map[string]any
+	if err := json.Unmarshal(output, &observed); err != nil {
+		t.Fatalf("decode notarization options %q: %v", output, err)
+	}
+	return observed
+}
+
+func TestGeneratedNotarizeJSUsesPrivateKeyFileAndKeyIDSeparately(t *testing.T) {
+	got := executeGeneratedNotarize(t, &types.MacOSSigningConfig{
+		Notarize:         true,
+		AppleAPIKeyID:    "FIXTURE123",
+		AppleAPIKeyFile:  "/audit/AuthKey_FIXTURE.p8",
+		AppleAPIIssuerID: "fixture-issuer",
+		TeamID:           "FIXTURETEAM",
+	}, nil)
+	if got["appleApiKey"] != "/audit/AuthKey_FIXTURE.p8" || got["appleApiKeyId"] != "FIXTURE123" || got["appleApiIssuer"] != "fixture-issuer" {
+		t.Fatalf("notarization options = %#v, want separate path, key ID, and issuer", got)
+	}
+}
+
+func TestGeneratedNotarizeJSUsesDeclaredAppPasswordBinding(t *testing.T) {
+	got := executeGeneratedNotarize(t, &types.MacOSSigningConfig{Notarize: true, TeamID: "FIXTURETEAM"}, map[string]string{
+		"APPLE_ID":                    "fixture@example.test",
+		"APPLE_APP_SPECIFIC_PASSWORD": "synthetic-fixture",
+	})
+	if got["appleId"] != "fixture@example.test" || got["appleIdPassword"] != "synthetic-fixture" {
+		t.Fatalf("notarization options = %#v, want declared Apple ID and app-password bindings", got)
 	}
 }
 
@@ -149,7 +215,7 @@ func TestNotarizeCredentialMethod(t *testing.T) {
 		{"notarize disabled", &types.MacOSSigningConfig{Notarize: false}, ""},
 		{
 			"api key method",
-			&types.MacOSSigningConfig{Notarize: true, AppleAPIKeyID: "KEY"},
+			&types.MacOSSigningConfig{Notarize: true, AppleAPIKeyID: "KEY", AppleAPIKeyFile: "key.p8", AppleAPIIssuerID: "ISSUER"},
 			"api_key",
 		},
 		{

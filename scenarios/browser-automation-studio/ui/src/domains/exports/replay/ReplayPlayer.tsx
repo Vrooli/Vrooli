@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSPropertie
 import clsx from 'clsx';
 
 // Sub-components
+import { RecordedVideo } from './RecordedVideo';
 import { IntroCard } from './IntroCard';
 import { OutroCard } from './OutroCard';
 import { WatermarkOverlay } from './WatermarkOverlay';
@@ -95,6 +96,7 @@ interface ReplayOverlayLayerProps {
   pointerClassName: string;
   pointerEventProps?: React.HTMLAttributes<HTMLDivElement>;
   clickEffect?: ReactNode;
+  cursorProvenance: 'observed' | 'edited' | 'derived' | 'missing';
   introCard?: ReplayPlayerProps['introCard'];
   outroCard?: ReplayPlayerProps['outroCard'];
   playbackPhase: PlaybackPhase;
@@ -126,6 +128,7 @@ function ReplayOverlayLayer({
   introCard,
   outroCard,
   playbackPhase,
+  cursorProvenance,
 }: ReplayOverlayLayerProps) {
   const registry = useOverlayRegistry();
   const overlayBounds = registry?.getRect('overlay-root') ?? null;
@@ -257,6 +260,7 @@ function ReplayOverlayLayer({
         ghostStyle={ghostWrapperStyle}
         pointerStyle={pointerWrapperStyle}
         pointerClassName={pointerClassName}
+        cursorProvenance={cursorProvenance}
         pointerEventProps={pointerEventProps}
         clickEffect={clickEffect}
       />
@@ -267,6 +271,7 @@ function ReplayOverlayLayer({
 }
 
 export function ReplayPlayer({
+  recordedVideo,
   frames,
   pages,
   autoPlay = true,
@@ -282,6 +287,7 @@ export function ReplayPlayer({
   presentationFit,
   presentationBounds,
   allowPointerEditing = true,
+  cursorRequired = false,
   presentationDimensions,
   watermark,
   introCard,
@@ -379,8 +385,8 @@ export function ReplayPlayer({
       height: presentationDimensions?.height || currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
     },
     viewportDimensions: {
-      width: currentFrame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
-      height: currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
+      width: currentFrame?.viewport?.width || currentFrame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
+      height: currentFrame?.viewport?.height || currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
     },
     presentationBounds,
     presentationFit,
@@ -407,14 +413,13 @@ export function ReplayPlayer({
   });
 
   // Cursor animation
-  const { cursorPlans, cursorPosition } = useCursorAnimation({
+  const { cursorPlans, cursorPosition, cursorProvenance } = useCursorAnimation({
     frames: normalizedFrames,
     currentIndex,
     frameProgress,
     isPlaying,
     isCursorEnabled,
     cursorOverrides,
-    cursorInitialPosition: presentationModel.style.cursorInitialPosition,
     basePathStyle,
     baseSpeedProfile,
   });
@@ -505,8 +510,8 @@ export function ReplayPlayer({
   }
 
   const viewportDimensions: Dimensions = {
-    width: currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
-    height: currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
+    width: currentFrame.viewport?.width || currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
+    height: currentFrame.viewport?.height || currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
   };
   const aspectRatio = viewportDimensions.width > 0
     ? (viewportDimensions.height / viewportDimensions.width) * 100
@@ -533,6 +538,11 @@ export function ReplayPlayer({
     currentCursorPlan && !isSamePoint(currentCursorPlan.startNormalized, currentCursorPlan.targetNormalized),
   );
   const shouldRenderGhost = Boolean(isCursorEnabled && currentCursorPlan && !isPlaying && hasMovement);
+  const cursorReviewIssue = cursorRequired && normalizedFrames.some((frame) =>
+    frame.cursorProvenance !== 'observed' && frame.cursorProvenance !== 'edited'
+  );
+  const currentCursorMissing = currentFrame.cursorProvenance === 'missing'
+    || (cursorPlans[currentIndex] === undefined && !cursorOverrides[currentFrame.id]);
 
   const pointerWrapperClassName = clsx(
     'absolute transition-all duration-500 ease-out select-none relative',
@@ -621,6 +631,7 @@ export function ReplayPlayer({
             pointerClassName={pointerWrapperClassName}
             pointerEventProps={pointerEventProps}
             clickEffect={clickEffectElement}
+            cursorProvenance={cursorProvenance}
             introCard={introCard}
             outroCard={outroCard}
             playbackPhase={playbackPhase}
@@ -635,7 +646,8 @@ export function ReplayPlayer({
               zoom={zoom}
               anchorStyle={anchorStyle}
               screenshotRef={screenshotRef}
-              screenshotUrl={currentFrame.screenshot?.url}
+              screenshotUrl={recordedVideo ? undefined : currentFrame.screenshot?.url}
+              emptyState={recordedVideo ? <RecordedVideo source={recordedVideo.source} time={isExportPresentation ? ((recordedVideo.trimStartMs ?? 0) + normalizedFrames.slice(0, currentIndex).reduce((sum, frame) => sum + (frame.durationMs ?? 0), 0) + frameProgress * (currentFrame.durationMs ?? 0)) / 1000 : undefined} controls={!isExportPresentation} /> : undefined}
               screenshotAlt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
               transition={screenshotTransition}
             >
@@ -644,6 +656,17 @@ export function ReplayPlayer({
           </div>
         )}
       </ReplayPresentation>
+
+      {cursorReviewIssue && (
+        <div role="alert" data-testid="cursor-review-warning" className="rounded-md border border-amber-500/50 bg-amber-950/40 px-3 py-2 text-sm text-amber-100">
+          Cursor review is incomplete: one or more frames have no observed pointer telemetry.
+        </div>
+      )}
+      {!cursorRequired && isCursorEnabled && currentCursorMissing && (
+        <div role="status" data-testid="cursor-telemetry-status" className="text-xs text-slate-400">
+          Pointer overlay unavailable for this frame: no observed pointer telemetry.
+        </div>
+      )}
 
       {showInterfaceChrome && (
         <div className="flex items-center justify-between px-2 text-xs uppercase tracking-[0.2em] text-slate-200/80">

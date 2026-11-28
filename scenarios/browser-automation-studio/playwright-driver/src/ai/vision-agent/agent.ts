@@ -20,6 +20,7 @@
  */
 
 import type { Page } from 'rebrowser-playwright';
+import { createHash } from 'node:crypto';
 import type {
   VisionAgent,
   VisionAgentDeps,
@@ -32,7 +33,7 @@ import type {
 } from './types';
 import type { BrowserAction, DoneAction, RequestHumanAction } from '../action/types';
 import { detectCaptcha } from '../detection/captcha-detector';
-import type { TokenUsage, ElementLabel } from '../vision-client/types';
+import type { InferenceReceipt, TokenUsage, ElementLabel } from '../vision-client/types';
 import { extractInteractiveElements, formatElementLabelsForPrompt } from '../screenshot/annotate';
 import { logger } from '../../utils';
 import {
@@ -46,6 +47,7 @@ import {
 } from './loop-detection';
 
 import { AI_DEFAULTS } from '../config';
+import { trimConversationHistory } from './conversation-history';
 import {
   isScreenshotBlockedByCaptcha,
   isGoalAchieved,
@@ -179,7 +181,12 @@ export function createVisionAgent(
 
           // Step delay (for rate limiting)
           if (cfg.stepDelayMs > 0 && stepNumber > 1) {
-            await delay(cfg.stepDelayMs);
+            await delay(cfg.stepDelayMs, signal);
+            if (checkAbort()) {
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
           }
 
           // Get current URL (before any operations that might fail)
@@ -204,10 +211,14 @@ export function createVisionAgent(
                 fullPage: cfg.fullPageScreenshot,
               });
             } catch (screenshotErr) {
-              deps.logger.warn('Screenshot failed during CAPTCHA detection (expected for some CAPTCHAs)', {
-                navigationId: navConfig.navigationId,
-                error: screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr),
-              });
+              deps.logger.warn(
+                'Screenshot failed during CAPTCHA detection (expected for some CAPTCHAs)',
+                {
+                  navigationId: navConfig.navigationId,
+                  error:
+                    screenshotErr instanceof Error ? screenshotErr.message : String(screenshotErr),
+                }
+              );
             }
 
             // Emit awaiting_human step
@@ -240,18 +251,26 @@ export function createVisionAgent(
 
             // Pause and wait for resume or abort
             isPausedState = true;
-            deps.logger.info('Pausing for human intervention', { navigationId: navConfig.navigationId });
-            const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+            deps.logger.info('Pausing for human intervention', {
+              navigationId: navConfig.navigationId,
+            });
+            const pauseResult = await waitForHumanIntervention(signal, (r) => {
+              resumeResolver = r;
+            });
             isPausedState = false;
 
             if (pauseResult === 'aborted') {
-              deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+              deps.logger.info('Navigation aborted during human intervention', {
+                navigationId: navConfig.navigationId,
+              });
               status = 'aborted';
               error = 'Navigation aborted by user';
               break;
             }
 
-            deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+            deps.logger.info('Resumed from human intervention', {
+              navigationId: navConfig.navigationId,
+            });
 
             // After resume, continue loop (will take new screenshot)
             continue;
@@ -295,7 +314,8 @@ export function createVisionAgent(
                 action: {
                   type: 'request_human',
                   reason: 'Screenshot capture blocked - possible CAPTCHA or verification',
-                  instructions: 'Please check the browser for any verification challenges (CAPTCHA, "verify you\'re human", etc.). Complete them and click "I\'m Done".',
+                  instructions:
+                    'Please check the browser for any verification challenges (CAPTCHA, "verify you\'re human", etc.). Complete them and click "I\'m Done".',
                   interventionType: 'captcha',
                 } as RequestHumanAction,
                 reasoning: `Screenshot capture failed: ${errMsg}. This often indicates a CAPTCHA or iframe-based verification blocking page capture.`,
@@ -307,7 +327,8 @@ export function createVisionAgent(
                 awaitingHuman: true,
                 humanIntervention: {
                   reason: 'Screenshot capture blocked - possible CAPTCHA or verification challenge',
-                  instructions: 'Please check the browser for any verification challenges. Complete them and click "I\'m Done".',
+                  instructions:
+                    'Please check the browser for any verification challenges. Complete them and click "I\'m Done".',
                   interventionType: 'captcha',
                   trigger: 'programmatic',
                 },
@@ -318,18 +339,26 @@ export function createVisionAgent(
 
               // Pause and wait for resume or abort
               isPausedState = true;
-              deps.logger.info('Pausing for human intervention (screenshot blocked)', { navigationId: navConfig.navigationId });
-              const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+              deps.logger.info('Pausing for human intervention (screenshot blocked)', {
+                navigationId: navConfig.navigationId,
+              });
+              const pauseResult = await waitForHumanIntervention(signal, (r) => {
+                resumeResolver = r;
+              });
               isPausedState = false;
 
               if (pauseResult === 'aborted') {
-                deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+                deps.logger.info('Navigation aborted during human intervention', {
+                  navigationId: navConfig.navigationId,
+                });
                 status = 'aborted';
                 error = 'Navigation aborted by user';
                 break;
               }
 
-              deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+              deps.logger.info('Resumed from human intervention', {
+                navigationId: navConfig.navigationId,
+              });
 
               // After resume, continue loop (will try again)
               continue;
@@ -355,7 +384,8 @@ export function createVisionAgent(
             conversationHistory,
             stepNumber,
             navConfig.prompt,
-            elementLabels
+            elementLabels,
+            screenshot
           );
 
           // PERFORMANCE: Trim old conversation history to prevent context overflow
@@ -368,6 +398,7 @@ export function createVisionAgent(
             goalAchieved: boolean;
             confidence: number;
             tokensUsed: TokenUsage;
+            inferenceReceipt?: InferenceReceipt;
           };
 
           try {
@@ -377,6 +408,9 @@ export function createVisionAgent(
               goal: navConfig.prompt,
               conversationHistory,
               currentUrl,
+              operationId: createHash('sha256')
+                .update(`${navConfig.rootOperationId}:${stepNumber}`)
+                .digest('hex'),
             });
           } catch (e) {
             const errMsg = e instanceof Error ? e.message : String(e);
@@ -441,6 +475,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: true,
               elementLabels,
@@ -477,6 +512,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: false,
               awaitingHuman: true,
@@ -493,23 +529,37 @@ export function createVisionAgent(
 
             // Pause and wait for resume or abort
             isPausedState = true;
-            deps.logger.info('Pausing for human intervention (AI requested)', { navigationId: navConfig.navigationId });
-            const pauseResult = await waitForHumanIntervention(signal, (r) => { resumeResolver = r; });
+            deps.logger.info('Pausing for human intervention (AI requested)', {
+              navigationId: navConfig.navigationId,
+            });
+            const pauseResult = await waitForHumanIntervention(signal, (r) => {
+              resumeResolver = r;
+            });
             isPausedState = false;
 
             if (pauseResult === 'aborted') {
-              deps.logger.info('Navigation aborted during human intervention', { navigationId: navConfig.navigationId });
+              deps.logger.info('Navigation aborted during human intervention', {
+                navigationId: navConfig.navigationId,
+              });
               status = 'aborted';
               error = 'Navigation aborted by user';
               break;
             }
 
-            deps.logger.info('Resumed from human intervention', { navigationId: navConfig.navigationId });
+            deps.logger.info('Resumed from human intervention', {
+              navigationId: navConfig.navigationId,
+            });
 
             // After resume, continue loop
             continue;
           }
 
+          // Enforce at the executor boundary, never by trusting the model prompt.
+          if (navConfig.effectPolicy === 'read_only' && analysisResult.action.type !== 'wait') {
+            status = 'failed';
+            error = `effect_policy: ${analysisResult.action.type} is not observational`;
+            break;
+          }
           // ACT: Execute the action
           const executionResult = await deps.actionExecutor.execute(
             navConfig.page,
@@ -528,6 +578,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: false,
               elementLabels,
@@ -570,6 +621,7 @@ export function createVisionAgent(
               screenshot,
               currentUrl,
               tokensUsed: analysisResult.tokensUsed,
+              inferenceReceipt: analysisResult.inferenceReceipt,
               durationMs: Date.now() - stepStartTime,
               goalAchieved: false,
               error: loopCheck.reason,
@@ -607,6 +659,7 @@ export function createVisionAgent(
             screenshot,
             currentUrl,
             tokensUsed: analysisResult.tokensUsed,
+            inferenceReceipt: analysisResult.inferenceReceipt,
             durationMs: Date.now() - stepStartTime,
             goalAchieved: false,
             error: executionResult.error,
@@ -617,7 +670,12 @@ export function createVisionAgent(
 
           // Delay after action to let page settle (configurable via postActionSettleMs)
           if (cfg.postActionSettleMs > 0) {
-            await delay(cfg.postActionSettleMs);
+            await delay(cfg.postActionSettleMs, signal);
+            if (checkAbort()) {
+              status = 'aborted';
+              error = 'Navigation aborted by user';
+              break;
+            }
           }
         }
 
@@ -643,7 +701,22 @@ export function createVisionAgent(
         abortController = null;
       }
 
+      let verifiedSuccess = false;
+      let extractedData: Record<string, string[]> = {};
+      let verificationError: string | undefined;
+      if (status === 'completed') {
+        try {
+          const observed = await observeTaskResult(navConfig);
+          verifiedSuccess = observed.verifiedSuccess;
+          extractedData = observed.extractedData;
+        } catch (e) {
+          verificationError = e instanceof Error ? e.message : String(e);
+        }
+      }
       const result: NavigationResult = {
+        verifiedSuccess,
+        extractedData,
+        verificationError,
         navigationId: navConfig.navigationId,
         status,
         totalSteps: stepNumber,
@@ -655,7 +728,11 @@ export function createVisionAgent(
       };
 
       deps.logger.info('Navigation completed', {
-        ...result,
+        navigationId: result.navigationId,
+        status: result.status,
+        totalSteps: result.totalSteps,
+        verifiedSuccess: result.verifiedSuccess,
+        verificationError: result.verificationError,
       });
 
       return result;
@@ -713,7 +790,8 @@ function updateConversationHistory(
   history: ConversationMessageInterface[],
   stepNumber: number,
   prompt: string,
-  elementLabels: ElementLabel[]
+  elementLabels: ElementLabel[],
+  screenshot: Buffer
 ): void {
   // Add system prompt on first step
   if (stepNumber === 1) {
@@ -734,47 +812,8 @@ function updateConversationHistory(
   history.push({
     role: 'user',
     content: `Current state (step ${stepNumber}):\n\n${elementContext}\n\nWhat action should I take next to achieve the goal?`,
+    screenshot,
   });
-}
-
-/**
- * PERFORMANCE: Trim conversation history to prevent context overflow.
- * Keeps the system message and goal, plus the most recent messages.
- */
-function trimConversationHistory(
-  history: ConversationMessageInterface[],
-  maxMessages: number
-): void {
-  if (history.length <= maxMessages) {
-    return;
-  }
-
-  // Find the indices of system message and goal (usually first 2 messages)
-  let systemAndGoalEnd = 0;
-  for (let i = 0; i < history.length && i < 3; i++) {
-    const entry = history[i];
-    if (!entry) {
-      continue;
-    }
-    if (entry.role === 'system') {
-      systemAndGoalEnd = i + 1;
-    } else if (i === 1 && entry.role === 'user' && entry.content.startsWith('Goal:')) {
-      systemAndGoalEnd = i + 1;
-    }
-  }
-
-  // Calculate how many messages to keep after system/goal
-  const messagesAfterSystemGoal = maxMessages - systemAndGoalEnd;
-  if (messagesAfterSystemGoal <= 0) {
-    return; // Can't trim without removing system/goal
-  }
-
-  // Remove old messages, keeping system/goal at the start and recent at the end
-  const messagesToRemove = history.length - maxMessages;
-  if (messagesToRemove > 0) {
-    // Remove from after systemAndGoalEnd
-    history.splice(systemAndGoalEnd, messagesToRemove);
-  }
 }
 
 /**
@@ -878,8 +917,22 @@ async function safeEmit(
 /**
  * Simple delay helper.
  */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (ms <= 0 || signal?.aborted) {
+      resolve();
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    const finish = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', finish);
+      resolve();
+    };
+    timer = setTimeout(finish, ms);
+    signal?.addEventListener('abort', finish, { once: true });
+    if (signal?.aborted) finish();
+  });
 }
 
 /**
@@ -921,10 +974,7 @@ function waitForHumanIntervention(
 /**
  * Merge two abort signals into one.
  */
-function mergeAbortSignals(
-  signal1: AbortSignal,
-  signal2: AbortSignal
-): AbortSignal {
+function mergeAbortSignals(signal1: AbortSignal, signal2: AbortSignal): AbortSignal {
   const controller = new AbortController();
 
   function onAbort(): void {
@@ -981,7 +1031,9 @@ function buildActionContext(
   action: BrowserAction,
   urlBefore: string,
   urlAfter: string,
-  executionContext?: { scroll?: { positionBefore: { x: number; y: number }; positionAfter: { x: number; y: number } } }
+  executionContext?: {
+    scroll?: { positionBefore: { x: number; y: number }; positionAfter: { x: number; y: number } };
+  }
 ): ActionContext {
   // Start with base context
   const context = createActionContext(action, urlBefore, urlAfter);
@@ -999,4 +1051,54 @@ function buildActionContext(
   }
 
   return context;
+}
+
+/** Deterministic final-page observations; never executes the recorded task again. */
+export async function observeTaskResult(
+  config: Pick<NavigationConfig, 'page' | 'postconditions' | 'extraction'>
+): Promise<{ verifiedSuccess: boolean; extractedData: Record<string, string[]> }> {
+  const conditions = config.postconditions ?? [];
+  const extraction = config.extraction ?? [];
+  if (conditions.length > 16 || extraction.length > 16)
+    throw new Error('task contract exceeds observation budget');
+  for (const condition of conditions) {
+    const locator = config.page.locator(condition.selector);
+    const count = await locator.count();
+    const mode = condition.mode;
+    let valid = false;
+    if (mode === 'exists' || mode === 'ASSERTION_MODE_EXISTS') valid = count > 0;
+    else if (mode === 'count_equals')
+      valid = /^\d+$/.test(condition.expected ?? '') && count === Number(condition.expected);
+    else if (mode === 'text_equals' || mode === 'text_contains') {
+      const text = count > 0 ? ((await locator.first().textContent({ timeout: 1000 })) ?? '') : '';
+      valid =
+        count > 0 &&
+        (mode === 'text_equals'
+          ? text === condition.expected
+          : text.includes(condition.expected ?? ''));
+    }
+    if (!valid) throw new Error(`postcondition_failed: ${condition.selector}`);
+  }
+  const extractedData: Record<string, string[]> = Object.create(null);
+  let bytes = 0;
+  for (const spec of extraction) {
+    if (!spec.name || Object.hasOwn(extractedData, spec.name))
+      throw new Error('invalid extraction name');
+    const locator = config.page.locator(spec.selector);
+    const limit = Math.min(100, Math.max(1, spec.limit || 10));
+    const count = Math.min(await locator.count(), limit);
+    const values: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const item = locator.nth(i);
+      const value =
+        (spec.attribute
+          ? await item.getAttribute(spec.attribute, { timeout: 1000 })
+          : await item.textContent({ timeout: 1000 })) ?? '';
+      bytes += Buffer.byteLength(value);
+      if (bytes > 32768) throw new Error('extraction exceeds 32768 byte budget');
+      values.push(value);
+    }
+    extractedData[spec.name] = values;
+  }
+  return { verifiedSuccess: conditions.length > 0, extractedData };
 }

@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Aquila Web Console UI manifest",
+  "description": "Declares the terminal workspace as a documented scenario-local shell because the shared navigated-console frame cannot carry the workspace interaction contract.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/App.tsx",
+    "export": "default"
+  },
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react",
+    "extensionRule": "This pre-template scenario keeps its existing workspace layout; component placement remains scenario-owned."
+  },
+  "slotCoverage": "partial",
+  "slots": {
+    "product-ui": {
+      "dir": "ui/src/components",
+      "description": "Workspace, session and settings UI owned by Web Console."
+    }
+  }
+}

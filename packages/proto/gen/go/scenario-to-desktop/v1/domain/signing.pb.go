@@ -4,11 +4,14 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/signing.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -23,8 +26,6 @@ const (
 )
 
 // CertificateSource enumerates where signing certificates are stored.
-//
-// @usage WindowsSigningConfig.certificate_source
 type CertificateSource int32
 
 const (
@@ -34,9 +35,11 @@ const (
 	CertificateSource_CERTIFICATE_SOURCE_FILE CertificateSource = 1
 	// Certificate in Windows Certificate Store.
 	CertificateSource_CERTIFICATE_SOURCE_STORE CertificateSource = 2
-	// Certificate stored in Azure Key Vault.
+	// Reserved for a future qualified Azure Key Vault signer adapter. Current
+	// Windows generation rejects this source as unsupported.
 	CertificateSource_CERTIFICATE_SOURCE_AZURE_KEY_VAULT CertificateSource = 3
-	// Certificate stored in AWS KMS.
+	// Reserved for a future qualified AWS KMS signer adapter. Current Windows
+	// generation rejects this source as unsupported.
 	CertificateSource_CERTIFICATE_SOURCE_AWS_KMS CertificateSource = 4
 )
 
@@ -86,8 +89,6 @@ func (CertificateSource) EnumDescriptor() ([]byte, []int) {
 }
 
 // SignAlgorithm enumerates supported signing hash algorithms.
-//
-// @usage WindowsSigningConfig.sign_algorithm
 type SignAlgorithm int32
 
 const (
@@ -148,14 +149,12 @@ func (SignAlgorithm) EnumDescriptor() ([]byte, []int) {
 //
 // Supports multiple certificate sources and timestamp servers for
 // long-term validity.
-//
-// @usage SigningConfig.windows
 type WindowsSigningConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether Windows signing is enabled.
 	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// Where the certificate is stored.
-	CertificateSource CertificateSource `protobuf:"varint,2,opt,name=certificate_source,json=certificateSource,proto3,enum=scenario_to_desktop.v1.CertificateSource" json:"certificate_source,omitempty"`
+	CertificateSource CertificateSource `protobuf:"varint,2,opt,name=certificate_source,json=certificateSource,proto3,enum=vrooli.scenario_to_desktop.v1.domain.CertificateSource" json:"certificate_source,omitempty"`
 	// Path to certificate file (for FILE source).
 	// @format path
 	CertificatePath *string `protobuf:"bytes,3,opt,name=certificate_path,json=certificatePath,proto3,oneof" json:"certificate_path,omitempty"`
@@ -168,7 +167,7 @@ type WindowsSigningConfig struct {
 	// @example "WIN_CERT_PASSWORD"
 	PasswordEnv *string `protobuf:"bytes,6,opt,name=password_env,json=passwordEnv,proto3,oneof" json:"password_env,omitempty"`
 	// Signing hash algorithm.
-	SignAlgorithm SignAlgorithm `protobuf:"varint,7,opt,name=sign_algorithm,json=signAlgorithm,proto3,enum=scenario_to_desktop.v1.SignAlgorithm" json:"sign_algorithm,omitempty"`
+	SignAlgorithm SignAlgorithm `protobuf:"varint,7,opt,name=sign_algorithm,json=signAlgorithm,proto3,enum=vrooli.scenario_to_desktop.v1.domain.SignAlgorithm" json:"sign_algorithm,omitempty"`
 	// RFC 3161 timestamp server URL.
 	// @format uri
 	// @default "http://timestamp.digicert.com"
@@ -332,8 +331,6 @@ func (x *WindowsSigningConfig) GetAzureClientSecretEnv() string {
 //
 // Requires an Apple Developer account and certificates installed in the
 // system keychain.
-//
-// @usage SigningConfig.macos
 type MacOSSigningConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether macOS signing is enabled.
@@ -468,9 +465,78 @@ func (x *MacOSSigningConfig) GetProvisioningProfile() string {
 	return ""
 }
 
+// ManagedSigningKey references signing key material held by the Vrooli
+// credential authority instead of a filesystem keyring. The authority owns
+// the private key and passphrase; the build resolves them in-process at
+// signing time. The same logical identity may be referenced by many
+// scenarios so one publisher key signs every desktop app.
+type ManagedSigningKey struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Namespaced logical identity in the credential authority.
+	// @example "vrooli/desktop-signing"
+	LogicalId string `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	// Field holding the ASCII-armored private key.
+	// @default "gpg-private-key"
+	PrivateKeyField *string `protobuf:"bytes,2,opt,name=private_key_field,json=privateKeyField,proto3,oneof" json:"private_key_field,omitempty"`
+	// Field holding the key passphrase.
+	// @default "gpg-passphrase"
+	PassphraseField *string `protobuf:"bytes,3,opt,name=passphrase_field,json=passphraseField,proto3,oneof" json:"passphrase_field,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ManagedSigningKey) Reset() {
+	*x = ManagedSigningKey{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ManagedSigningKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ManagedSigningKey) ProtoMessage() {}
+
+func (x *ManagedSigningKey) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ManagedSigningKey.ProtoReflect.Descriptor instead.
+func (*ManagedSigningKey) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ManagedSigningKey) GetLogicalId() string {
+	if x != nil {
+		return x.LogicalId
+	}
+	return ""
+}
+
+func (x *ManagedSigningKey) GetPrivateKeyField() string {
+	if x != nil && x.PrivateKeyField != nil {
+		return *x.PrivateKeyField
+	}
+	return ""
+}
+
+func (x *ManagedSigningKey) GetPassphraseField() string {
+	if x != nil && x.PassphraseField != nil {
+		return *x.PassphraseField
+	}
+	return ""
+}
+
 // LinuxSigningConfig configures GPG signing for Linux packages.
-//
-// @usage SigningConfig.linux
 type LinuxSigningConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether Linux signing is enabled.
@@ -481,14 +547,17 @@ type LinuxSigningConfig struct {
 	PassphraseEnv *string `protobuf:"bytes,3,opt,name=passphrase_env,json=passphraseEnv,proto3,oneof" json:"passphrase_env,omitempty"`
 	// Path to GPG keyring.
 	// @format path
-	KeyringPath   *string `protobuf:"bytes,4,opt,name=keyring_path,json=keyringPath,proto3,oneof" json:"keyring_path,omitempty"`
+	KeyringPath *string `protobuf:"bytes,4,opt,name=keyring_path,json=keyringPath,proto3,oneof" json:"keyring_path,omitempty"`
+	// Credential-authority custody for the signing key. When set, keyring_path
+	// is not used and the private key never persists in the repository.
+	ManagedKey    *ManagedSigningKey `protobuf:"bytes,5,opt,name=managed_key,json=managedKey,proto3,oneof" json:"managed_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LinuxSigningConfig) Reset() {
 	*x = LinuxSigningConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[2]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -500,7 +569,7 @@ func (x *LinuxSigningConfig) String() string {
 func (*LinuxSigningConfig) ProtoMessage() {}
 
 func (x *LinuxSigningConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[2]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -513,7 +582,7 @@ func (x *LinuxSigningConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinuxSigningConfig.ProtoReflect.Descriptor instead.
 func (*LinuxSigningConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{2}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *LinuxSigningConfig) GetEnabled() bool {
@@ -544,12 +613,17 @@ func (x *LinuxSigningConfig) GetKeyringPath() string {
 	return ""
 }
 
+func (x *LinuxSigningConfig) GetManagedKey() *ManagedSigningKey {
+	if x != nil {
+		return x.ManagedKey
+	}
+	return nil
+}
+
 // SigningConfig is the complete code signing configuration.
 //
 // Contains per-platform signing settings. Only platforms that need
 // signing should have their configuration populated.
-//
-// @usage DesktopConfig.signing, BuildRequest.signing
 type SigningConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether any code signing is enabled.
@@ -568,7 +642,7 @@ type SigningConfig struct {
 
 func (x *SigningConfig) Reset() {
 	*x = SigningConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[3]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +654,7 @@ func (x *SigningConfig) String() string {
 func (*SigningConfig) ProtoMessage() {}
 
 func (x *SigningConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[3]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +667,7 @@ func (x *SigningConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigningConfig.ProtoReflect.Descriptor instead.
 func (*SigningConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{3}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SigningConfig) GetEnabled() bool {
@@ -632,8 +706,6 @@ func (x *SigningConfig) GetSchemaVersion() string {
 }
 
 // CertificateInfo contains details about a discovered certificate.
-//
-// @usage PlatformValidation.certificate
 type CertificateInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Certificate subject name.
@@ -656,7 +728,7 @@ type CertificateInfo struct {
 
 func (x *CertificateInfo) Reset() {
 	*x = CertificateInfo{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[4]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +740,7 @@ func (x *CertificateInfo) String() string {
 func (*CertificateInfo) ProtoMessage() {}
 
 func (x *CertificateInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[4]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +753,7 @@ func (x *CertificateInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificateInfo.ProtoReflect.Descriptor instead.
 func (*CertificateInfo) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{4}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CertificateInfo) GetSubject() string {
@@ -734,12 +806,10 @@ func (x *CertificateInfo) GetDaysUntilExpiry() int32 {
 }
 
 // PlatformValidation contains validation results for a single platform.
-//
-// @usage SigningValidationResult.platforms
 type PlatformValidation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target platform.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform shared.Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
 	// Whether signing is properly configured for this platform.
 	Valid bool `protobuf:"varint,2,opt,name=valid,proto3" json:"valid,omitempty"`
 	// Whether signing is enabled for this platform.
@@ -747,9 +817,9 @@ type PlatformValidation struct {
 	// Certificate details (if discovered).
 	Certificate *CertificateInfo `protobuf:"bytes,4,opt,name=certificate,proto3,oneof" json:"certificate,omitempty"`
 	// Validation errors that block signing.
-	Errors []*ValidationError `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*shared.ValidationError `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Validation warnings that don't block signing.
-	Warnings []*ValidationWarning `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []*shared.ValidationWarning `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// Whether required tools are installed.
 	ToolsAvailable bool `protobuf:"varint,7,opt,name=tools_available,json=toolsAvailable,proto3" json:"tools_available,omitempty"`
 	// Missing tool names.
@@ -760,7 +830,7 @@ type PlatformValidation struct {
 
 func (x *PlatformValidation) Reset() {
 	*x = PlatformValidation{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[5]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -772,7 +842,7 @@ func (x *PlatformValidation) String() string {
 func (*PlatformValidation) ProtoMessage() {}
 
 func (x *PlatformValidation) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[5]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -785,14 +855,14 @@ func (x *PlatformValidation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlatformValidation.ProtoReflect.Descriptor instead.
 func (*PlatformValidation) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{5}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *PlatformValidation) GetPlatform() Platform {
+func (x *PlatformValidation) GetPlatform() shared.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return shared.Platform(0)
 }
 
 func (x *PlatformValidation) GetValid() bool {
@@ -816,14 +886,14 @@ func (x *PlatformValidation) GetCertificate() *CertificateInfo {
 	return nil
 }
 
-func (x *PlatformValidation) GetErrors() []*ValidationError {
+func (x *PlatformValidation) GetErrors() []*shared.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *PlatformValidation) GetWarnings() []*ValidationWarning {
+func (x *PlatformValidation) GetWarnings() []*shared.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -847,8 +917,6 @@ func (x *PlatformValidation) GetMissingTools() []string {
 // SigningValidationResult is the complete signing validation report.
 //
 // Returned by validation endpoints to indicate signing readiness.
-//
-// @usage GET /api/signing/validate response
 type SigningValidationResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether all enabled platforms are ready for signing.
@@ -856,12 +924,12 @@ type SigningValidationResult struct {
 	// Whether any signing is enabled.
 	SigningEnabled bool `protobuf:"varint,2,opt,name=signing_enabled,json=signingEnabled,proto3" json:"signing_enabled,omitempty"`
 	// Per-platform validation results.
-	// Key: Platform name (win, mac, linux)
+	// Key: vrooli.scenario_to_desktop.v1.shared.Platform name (win, mac, linux)
 	Platforms map[string]*PlatformValidation `protobuf:"bytes,3,rep,name=platforms,proto3" json:"platforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Global validation errors.
-	Errors []*ValidationError `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*shared.ValidationError `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Global validation warnings.
-	Warnings []*ValidationWarning `protobuf:"bytes,5,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []*shared.ValidationWarning `protobuf:"bytes,5,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// Timestamp of validation.
 	ValidatedAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -870,7 +938,7 @@ type SigningValidationResult struct {
 
 func (x *SigningValidationResult) Reset() {
 	*x = SigningValidationResult{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[6]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +950,7 @@ func (x *SigningValidationResult) String() string {
 func (*SigningValidationResult) ProtoMessage() {}
 
 func (x *SigningValidationResult) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[6]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +963,7 @@ func (x *SigningValidationResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigningValidationResult.ProtoReflect.Descriptor instead.
 func (*SigningValidationResult) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{6}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SigningValidationResult) GetValid() bool {
@@ -919,14 +987,14 @@ func (x *SigningValidationResult) GetPlatforms() map[string]*PlatformValidation 
 	return nil
 }
 
-func (x *SigningValidationResult) GetErrors() []*ValidationError {
+func (x *SigningValidationResult) GetErrors() []*shared.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *SigningValidationResult) GetWarnings() []*ValidationWarning {
+func (x *SigningValidationResult) GetWarnings() []*shared.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -941,12 +1009,10 @@ func (x *SigningValidationResult) GetValidatedAt() *timestamppb.Timestamp {
 }
 
 // PlatformStatus indicates signing readiness for a single platform.
-//
-// @usage ReadinessResponse.platforms
 type PlatformStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target platform.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform shared.Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
 	// Whether signing is ready.
 	Ready bool `protobuf:"varint,2,opt,name=ready,proto3" json:"ready,omitempty"`
 	// Whether signing is enabled in config.
@@ -959,7 +1025,7 @@ type PlatformStatus struct {
 
 func (x *PlatformStatus) Reset() {
 	*x = PlatformStatus{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -971,7 +1037,7 @@ func (x *PlatformStatus) String() string {
 func (*PlatformStatus) ProtoMessage() {}
 
 func (x *PlatformStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -984,14 +1050,14 @@ func (x *PlatformStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlatformStatus.ProtoReflect.Descriptor instead.
 func (*PlatformStatus) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{7}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *PlatformStatus) GetPlatform() Platform {
+func (x *PlatformStatus) GetPlatform() shared.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return shared.Platform(0)
 }
 
 func (x *PlatformStatus) GetReady() bool {
@@ -1016,8 +1082,6 @@ func (x *PlatformStatus) GetMessage() string {
 }
 
 // ReadinessResponse indicates overall signing readiness.
-//
-// @usage GET /api/signing/ready response
 type ReadinessResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether signing is ready for all enabled platforms.
@@ -1032,7 +1096,7 @@ type ReadinessResponse struct {
 
 func (x *ReadinessResponse) Reset() {
 	*x = ReadinessResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1108,7 @@ func (x *ReadinessResponse) String() string {
 func (*ReadinessResponse) ProtoMessage() {}
 
 func (x *ReadinessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +1121,7 @@ func (x *ReadinessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadinessResponse.ProtoReflect.Descriptor instead.
 func (*ReadinessResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{8}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ReadinessResponse) GetReady() bool {
@@ -1084,8 +1148,6 @@ func (x *ReadinessResponse) GetMessage() string {
 // SigningConfigResponse returns the current signing configuration.
 //
 // Sensitive values (passwords, secrets) are redacted.
-//
-// @usage GET /api/signing/config response
 type SigningConfigResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current signing configuration (with secrets redacted).
@@ -1098,7 +1160,7 @@ type SigningConfigResponse struct {
 
 func (x *SigningConfigResponse) Reset() {
 	*x = SigningConfigResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[9]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1110,7 +1172,7 @@ func (x *SigningConfigResponse) String() string {
 func (*SigningConfigResponse) ProtoMessage() {}
 
 func (x *SigningConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[9]
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1123,7 +1185,7 @@ func (x *SigningConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigningConfigResponse.ProtoReflect.Descriptor instead.
 func (*SigningConfigResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{9}
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SigningConfigResponse) GetConfig() *SigningConfig {
@@ -1140,19 +1202,994 @@ func (x *SigningConfigResponse) GetValidation() *SigningValidationResult {
 	return nil
 }
 
+type SigningScenarioRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SigningScenarioRequest) Reset() {
+	*x = SigningScenarioRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SigningScenarioRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SigningScenarioRequest) ProtoMessage() {}
+
+func (x *SigningScenarioRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SigningScenarioRequest.ProtoReflect.Descriptor instead.
+func (*SigningScenarioRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SigningScenarioRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+type UpsertSigningConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Config        *SigningConfig         `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertSigningConfigRequest) Reset() {
+	*x = UpsertSigningConfigRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertSigningConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertSigningConfigRequest) ProtoMessage() {}
+
+func (x *UpsertSigningConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertSigningConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpsertSigningConfigRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UpsertSigningConfigRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *UpsertSigningConfigRequest) GetConfig() *SigningConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type ValidateSigningRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Config        *SigningConfig         `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateSigningRequest) Reset() {
+	*x = ValidateSigningRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateSigningRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateSigningRequest) ProtoMessage() {}
+
+func (x *ValidateSigningRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateSigningRequest.ProtoReflect.Descriptor instead.
+func (*ValidateSigningRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ValidateSigningRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ValidateSigningRequest) GetConfig() *SigningConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+// PatchSigningPlatformRequest replaces one platform configuration while
+// preserving the other platforms in the scenario signing configuration.
+type PatchSigningPlatformRequest struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Platform     shared.Platform        `protobuf:"varint,2,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	// Types that are valid to be assigned to Config:
+	//
+	//	*PatchSigningPlatformRequest_Windows
+	//	*PatchSigningPlatformRequest_Macos
+	//	*PatchSigningPlatformRequest_Linux
+	Config        isPatchSigningPlatformRequest_Config `protobuf_oneof:"config"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PatchSigningPlatformRequest) Reset() {
+	*x = PatchSigningPlatformRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PatchSigningPlatformRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PatchSigningPlatformRequest) ProtoMessage() {}
+
+func (x *PatchSigningPlatformRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PatchSigningPlatformRequest.ProtoReflect.Descriptor instead.
+func (*PatchSigningPlatformRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *PatchSigningPlatformRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *PatchSigningPlatformRequest) GetPlatform() shared.Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return shared.Platform(0)
+}
+
+func (x *PatchSigningPlatformRequest) GetConfig() isPatchSigningPlatformRequest_Config {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *PatchSigningPlatformRequest) GetWindows() *WindowsSigningConfig {
+	if x != nil {
+		if x, ok := x.Config.(*PatchSigningPlatformRequest_Windows); ok {
+			return x.Windows
+		}
+	}
+	return nil
+}
+
+func (x *PatchSigningPlatformRequest) GetMacos() *MacOSSigningConfig {
+	if x != nil {
+		if x, ok := x.Config.(*PatchSigningPlatformRequest_Macos); ok {
+			return x.Macos
+		}
+	}
+	return nil
+}
+
+func (x *PatchSigningPlatformRequest) GetLinux() *LinuxSigningConfig {
+	if x != nil {
+		if x, ok := x.Config.(*PatchSigningPlatformRequest_Linux); ok {
+			return x.Linux
+		}
+	}
+	return nil
+}
+
+type isPatchSigningPlatformRequest_Config interface {
+	isPatchSigningPlatformRequest_Config()
+}
+
+type PatchSigningPlatformRequest_Windows struct {
+	Windows *WindowsSigningConfig `protobuf:"bytes,3,opt,name=windows,proto3,oneof"`
+}
+
+type PatchSigningPlatformRequest_Macos struct {
+	Macos *MacOSSigningConfig `protobuf:"bytes,4,opt,name=macos,proto3,oneof"`
+}
+
+type PatchSigningPlatformRequest_Linux struct {
+	Linux *LinuxSigningConfig `protobuf:"bytes,5,opt,name=linux,proto3,oneof"`
+}
+
+func (*PatchSigningPlatformRequest_Windows) isPatchSigningPlatformRequest_Config() {}
+
+func (*PatchSigningPlatformRequest_Macos) isPatchSigningPlatformRequest_Config() {}
+
+func (*PatchSigningPlatformRequest_Linux) isPatchSigningPlatformRequest_Config() {}
+
+type DeleteSigningConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSigningConfigRequest) Reset() {
+	*x = DeleteSigningConfigRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSigningConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSigningConfigRequest) ProtoMessage() {}
+
+func (x *DeleteSigningConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSigningConfigRequest.ProtoReflect.Descriptor instead.
+func (*DeleteSigningConfigRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DeleteSigningConfigRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+type DeleteSigningPlatformRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Platform      shared.Platform        `protobuf:"varint,2,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSigningPlatformRequest) Reset() {
+	*x = DeleteSigningPlatformRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSigningPlatformRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSigningPlatformRequest) ProtoMessage() {}
+
+func (x *DeleteSigningPlatformRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSigningPlatformRequest.ProtoReflect.Descriptor instead.
+func (*DeleteSigningPlatformRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DeleteSigningPlatformRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *DeleteSigningPlatformRequest) GetPlatform() shared.Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return shared.Platform(0)
+}
+
+type DeleteSigningResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Platform      *shared.Platform       `protobuf:"varint,2,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform,oneof" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSigningResponse) Reset() {
+	*x = DeleteSigningResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSigningResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSigningResponse) ProtoMessage() {}
+
+func (x *DeleteSigningResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSigningResponse.ProtoReflect.Descriptor instead.
+func (*DeleteSigningResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *DeleteSigningResponse) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *DeleteSigningResponse) GetPlatform() shared.Platform {
+	if x != nil && x.Platform != nil {
+		return *x.Platform
+	}
+	return shared.Platform(0)
+}
+
+// GenerateLinuxSigningKeyRequest creates a signing key and persists only its
+// public identifier plus a credential-authority reference, never a passphrase.
+type GenerateLinuxSigningKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	PassphraseEnv *string                `protobuf:"bytes,4,opt,name=passphrase_env,json=passphraseEnv,proto3,oneof" json:"passphrase_env,omitempty"`
+	KeyType       *string                `protobuf:"bytes,5,opt,name=key_type,json=keyType,proto3,oneof" json:"key_type,omitempty"`
+	Expiry        *string                `protobuf:"bytes,6,opt,name=expiry,proto3,oneof" json:"expiry,omitempty"`
+	Homedir       *string                `protobuf:"bytes,7,opt,name=homedir,proto3,oneof" json:"homedir,omitempty"`
+	Force         bool                   `protobuf:"varint,8,opt,name=force,proto3" json:"force,omitempty"`
+	ExportPublic  bool                   `protobuf:"varint,9,opt,name=export_public,json=exportPublic,proto3" json:"export_public,omitempty"`
+	// Credential-authority logical identity to hold the generated key material.
+	// Defaults to "vrooli/scenario-to-desktop/<scenario_name>".
+	LogicalId     *string `protobuf:"bytes,10,opt,name=logical_id,json=logicalId,proto3,oneof" json:"logical_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateLinuxSigningKeyRequest) Reset() {
+	*x = GenerateLinuxSigningKeyRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateLinuxSigningKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateLinuxSigningKeyRequest) ProtoMessage() {}
+
+func (x *GenerateLinuxSigningKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateLinuxSigningKeyRequest.ProtoReflect.Descriptor instead.
+func (*GenerateLinuxSigningKeyRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetPassphraseEnv() string {
+	if x != nil && x.PassphraseEnv != nil {
+		return *x.PassphraseEnv
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetKeyType() string {
+	if x != nil && x.KeyType != nil {
+		return *x.KeyType
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetExpiry() string {
+	if x != nil && x.Expiry != nil {
+		return *x.Expiry
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetHomedir() string {
+	if x != nil && x.Homedir != nil {
+		return *x.Homedir
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetExportPublic() bool {
+	if x != nil {
+		return x.ExportPublic
+	}
+	return false
+}
+
+func (x *GenerateLinuxSigningKeyRequest) GetLogicalId() string {
+	if x != nil && x.LogicalId != nil {
+		return *x.LogicalId
+	}
+	return ""
+}
+
+type GenerateLinuxSigningKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	KeyId         string                 `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	Fingerprint   string                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Homedir       string                 `protobuf:"bytes,3,opt,name=homedir,proto3" json:"homedir,omitempty"`
+	PublicKey     *string                `protobuf:"bytes,4,opt,name=public_key,json=publicKey,proto3,oneof" json:"public_key,omitempty"`
+	PublicKeyPath *string                `protobuf:"bytes,5,opt,name=public_key_path,json=publicKeyPath,proto3,oneof" json:"public_key_path,omitempty"`
+	// Credential-authority logical identity now holding the key material.
+	LogicalId *string `protobuf:"bytes,6,opt,name=logical_id,json=logicalId,proto3,oneof" json:"logical_id,omitempty"`
+	// message reports a rotation's blast radius, naming scenarios that still
+	// reference a shared identity whose key was replaced.
+	Message       *string `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateLinuxSigningKeyResponse) Reset() {
+	*x = GenerateLinuxSigningKeyResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateLinuxSigningKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateLinuxSigningKeyResponse) ProtoMessage() {}
+
+func (x *GenerateLinuxSigningKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateLinuxSigningKeyResponse.ProtoReflect.Descriptor instead.
+func (*GenerateLinuxSigningKeyResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetHomedir() string {
+	if x != nil {
+		return x.Homedir
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetPublicKey() string {
+	if x != nil && x.PublicKey != nil {
+		return *x.PublicKey
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetPublicKeyPath() string {
+	if x != nil && x.PublicKeyPath != nil {
+		return *x.PublicKeyPath
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetLogicalId() string {
+	if x != nil && x.LogicalId != nil {
+		return *x.LogicalId
+	}
+	return ""
+}
+
+func (x *GenerateLinuxSigningKeyResponse) GetMessage() string {
+	if x != nil && x.Message != nil {
+		return *x.Message
+	}
+	return ""
+}
+
+type SigningToolStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Platform      shared.Platform        `protobuf:"varint,1,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	Tool          string                 `protobuf:"bytes,2,opt,name=tool,proto3" json:"tool,omitempty"`
+	Installed     bool                   `protobuf:"varint,3,opt,name=installed,proto3" json:"installed,omitempty"`
+	Path          *string                `protobuf:"bytes,4,opt,name=path,proto3,oneof" json:"path,omitempty"`
+	Version       *string                `protobuf:"bytes,5,opt,name=version,proto3,oneof" json:"version,omitempty"`
+	Diagnostic    *string                `protobuf:"bytes,6,opt,name=diagnostic,proto3,oneof" json:"diagnostic,omitempty"`
+	Remediation   *string                `protobuf:"bytes,7,opt,name=remediation,proto3,oneof" json:"remediation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SigningToolStatus) Reset() {
+	*x = SigningToolStatus{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SigningToolStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SigningToolStatus) ProtoMessage() {}
+
+func (x *SigningToolStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SigningToolStatus.ProtoReflect.Descriptor instead.
+func (*SigningToolStatus) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SigningToolStatus) GetPlatform() shared.Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return shared.Platform(0)
+}
+
+func (x *SigningToolStatus) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *SigningToolStatus) GetInstalled() bool {
+	if x != nil {
+		return x.Installed
+	}
+	return false
+}
+
+func (x *SigningToolStatus) GetPath() string {
+	if x != nil && x.Path != nil {
+		return *x.Path
+	}
+	return ""
+}
+
+func (x *SigningToolStatus) GetVersion() string {
+	if x != nil && x.Version != nil {
+		return *x.Version
+	}
+	return ""
+}
+
+func (x *SigningToolStatus) GetDiagnostic() string {
+	if x != nil && x.Diagnostic != nil {
+		return *x.Diagnostic
+	}
+	return ""
+}
+
+func (x *SigningToolStatus) GetRemediation() string {
+	if x != nil && x.Remediation != nil {
+		return *x.Remediation
+	}
+	return ""
+}
+
+type ListSigningPrerequisitesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tools         []*SigningToolStatus   `protobuf:"bytes,1,rep,name=tools,proto3" json:"tools,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSigningPrerequisitesResponse) Reset() {
+	*x = ListSigningPrerequisitesResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSigningPrerequisitesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSigningPrerequisitesResponse) ProtoMessage() {}
+
+func (x *ListSigningPrerequisitesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSigningPrerequisitesResponse.ProtoReflect.Descriptor instead.
+func (*ListSigningPrerequisitesResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListSigningPrerequisitesResponse) GetTools() []*SigningToolStatus {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+type DiscoverSigningCertificatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Platform      shared.Platform        `protobuf:"varint,1,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverSigningCertificatesRequest) Reset() {
+	*x = DiscoverSigningCertificatesRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverSigningCertificatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverSigningCertificatesRequest) ProtoMessage() {}
+
+func (x *DiscoverSigningCertificatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverSigningCertificatesRequest.ProtoReflect.Descriptor instead.
+func (*DiscoverSigningCertificatesRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DiscoverSigningCertificatesRequest) GetPlatform() shared.Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return shared.Platform(0)
+}
+
+type DiscoveredSigningCertificate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Subject       *string                `protobuf:"bytes,3,opt,name=subject,proto3,oneof" json:"subject,omitempty"`
+	Issuer        *string                `protobuf:"bytes,4,opt,name=issuer,proto3,oneof" json:"issuer,omitempty"`
+	ExpiresAt     *string                `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	DaysToExpiry  int32                  `protobuf:"varint,6,opt,name=days_to_expiry,json=daysToExpiry,proto3" json:"days_to_expiry,omitempty"`
+	Expired       bool                   `protobuf:"varint,7,opt,name=expired,proto3" json:"expired,omitempty"`
+	CodeSigning   bool                   `protobuf:"varint,8,opt,name=code_signing,json=codeSigning,proto3" json:"code_signing,omitempty"`
+	Type          *string                `protobuf:"bytes,9,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	Platform      shared.Platform        `protobuf:"varint,10,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
+	UsageHint     *string                `protobuf:"bytes,11,opt,name=usage_hint,json=usageHint,proto3,oneof" json:"usage_hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoveredSigningCertificate) Reset() {
+	*x = DiscoveredSigningCertificate{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredSigningCertificate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredSigningCertificate) ProtoMessage() {}
+
+func (x *DiscoveredSigningCertificate) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredSigningCertificate.ProtoReflect.Descriptor instead.
+func (*DiscoveredSigningCertificate) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *DiscoveredSigningCertificate) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DiscoveredSigningCertificate) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DiscoveredSigningCertificate) GetSubject() string {
+	if x != nil && x.Subject != nil {
+		return *x.Subject
+	}
+	return ""
+}
+
+func (x *DiscoveredSigningCertificate) GetIssuer() string {
+	if x != nil && x.Issuer != nil {
+		return *x.Issuer
+	}
+	return ""
+}
+
+func (x *DiscoveredSigningCertificate) GetExpiresAt() string {
+	if x != nil && x.ExpiresAt != nil {
+		return *x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *DiscoveredSigningCertificate) GetDaysToExpiry() int32 {
+	if x != nil {
+		return x.DaysToExpiry
+	}
+	return 0
+}
+
+func (x *DiscoveredSigningCertificate) GetExpired() bool {
+	if x != nil {
+		return x.Expired
+	}
+	return false
+}
+
+func (x *DiscoveredSigningCertificate) GetCodeSigning() bool {
+	if x != nil {
+		return x.CodeSigning
+	}
+	return false
+}
+
+func (x *DiscoveredSigningCertificate) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *DiscoveredSigningCertificate) GetPlatform() shared.Platform {
+	if x != nil {
+		return x.Platform
+	}
+	return shared.Platform(0)
+}
+
+func (x *DiscoveredSigningCertificate) GetUsageHint() string {
+	if x != nil && x.UsageHint != nil {
+		return *x.UsageHint
+	}
+	return ""
+}
+
+type DiscoverSigningCertificatesResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Certificates  []*DiscoveredSigningCertificate `protobuf:"bytes,1,rep,name=certificates,proto3" json:"certificates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverSigningCertificatesResponse) Reset() {
+	*x = DiscoverSigningCertificatesResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverSigningCertificatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverSigningCertificatesResponse) ProtoMessage() {}
+
+func (x *DiscoverSigningCertificatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverSigningCertificatesResponse.ProtoReflect.Descriptor instead.
+func (*DiscoverSigningCertificatesResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DiscoverSigningCertificatesResponse) GetCertificates() []*DiscoveredSigningCertificate {
+	if x != nil {
+		return x.Certificates
+	}
+	return nil
+}
+
 var File_scenario_to_desktop_v1_domain_signing_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_domain_signing_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/domain/signing.proto\x12\x16scenario_to_desktop.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(scenario-to-desktop/v1/base/shared.proto\"\xc3\b\n" +
+	"+scenario-to-desktop/v1/domain/signing.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\"\xdf\b\n" +
 	"\x14WindowsSigningConfig\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12X\n" +
-	"\x12certificate_source\x18\x02 \x01(\x0e2).scenario_to_desktop.v1.CertificateSourceR\x11certificateSource\x12.\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12f\n" +
+	"\x12certificate_source\x18\x02 \x01(\x0e27.vrooli.scenario_to_desktop.v1.domain.CertificateSourceR\x11certificateSource\x12.\n" +
 	"\x10certificate_path\x18\x03 \x01(\tH\x00R\x0fcertificatePath\x88\x01\x01\x12:\n" +
 	"\x16certificate_thumbprint\x18\x04 \x01(\tH\x01R\x15certificateThumbprint\x88\x01\x01\x12=\n" +
 	"\x18certificate_subject_name\x18\x05 \x01(\tH\x02R\x16certificateSubjectName\x88\x01\x01\x12&\n" +
-	"\fpassword_env\x18\x06 \x01(\tH\x03R\vpasswordEnv\x88\x01\x01\x12L\n" +
-	"\x0esign_algorithm\x18\a \x01(\x0e2%.scenario_to_desktop.v1.SignAlgorithmR\rsignAlgorithm\x12.\n" +
+	"\fpassword_env\x18\x06 \x01(\tH\x03R\vpasswordEnv\x88\x01\x01\x12Z\n" +
+	"\x0esign_algorithm\x18\a \x01(\x0e23.vrooli.scenario_to_desktop.v1.domain.SignAlgorithmR\rsignAlgorithm\x12.\n" +
 	"\x10timestamp_server\x18\b \x01(\tH\x04R\x0ftimestampServer\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\t \x01(\tH\x05R\vdescription\x88\x01\x01\x12,\n" +
 	"\x0fdescription_url\x18\n" +
@@ -1195,21 +2232,31 @@ const file_scenario_to_desktop_v1_domain_signing_proto_rawDesc = "" +
 	"\x12_entitlements_pathB\x13\n" +
 	"\x11_hardened_runtimeB\x13\n" +
 	"\x11_keychain_profileB\x17\n" +
-	"\x15_provisioning_profile\"\xd8\x01\n" +
+	"\x15_provisioning_profile\"\xc7\x01\n" +
+	"\x11ManagedSigningKey\x12&\n" +
+	"\n" +
+	"logical_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tlogicalId\x12/\n" +
+	"\x11private_key_field\x18\x02 \x01(\tH\x00R\x0fprivateKeyField\x88\x01\x01\x12.\n" +
+	"\x10passphrase_field\x18\x03 \x01(\tH\x01R\x0fpassphraseField\x88\x01\x01B\x14\n" +
+	"\x12_private_key_fieldB\x13\n" +
+	"\x11_passphrase_field\"\xc7\x02\n" +
 	"\x12LinuxSigningConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12!\n" +
 	"\n" +
 	"gpg_key_id\x18\x02 \x01(\tH\x00R\bgpgKeyId\x88\x01\x01\x12*\n" +
 	"\x0epassphrase_env\x18\x03 \x01(\tH\x01R\rpassphraseEnv\x88\x01\x01\x12&\n" +
-	"\fkeyring_path\x18\x04 \x01(\tH\x02R\vkeyringPath\x88\x01\x01B\r\n" +
+	"\fkeyring_path\x18\x04 \x01(\tH\x02R\vkeyringPath\x88\x01\x01\x12]\n" +
+	"\vmanaged_key\x18\x05 \x01(\v27.vrooli.scenario_to_desktop.v1.domain.ManagedSigningKeyH\x03R\n" +
+	"managedKey\x88\x01\x01B\r\n" +
 	"\v_gpg_key_idB\x11\n" +
 	"\x0f_passphrase_envB\x0f\n" +
-	"\r_keyring_path\"\xe3\x02\n" +
+	"\r_keyring_pathB\x0e\n" +
+	"\f_managed_key\"\x8d\x03\n" +
 	"\rSigningConfig\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12K\n" +
-	"\awindows\x18\x02 \x01(\v2,.scenario_to_desktop.v1.WindowsSigningConfigH\x00R\awindows\x88\x01\x01\x12E\n" +
-	"\x05macos\x18\x03 \x01(\v2*.scenario_to_desktop.v1.MacOSSigningConfigH\x01R\x05macos\x88\x01\x01\x12E\n" +
-	"\x05linux\x18\x04 \x01(\v2*.scenario_to_desktop.v1.LinuxSigningConfigH\x02R\x05linux\x88\x01\x01\x12*\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12Y\n" +
+	"\awindows\x18\x02 \x01(\v2:.vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfigH\x00R\awindows\x88\x01\x01\x12S\n" +
+	"\x05macos\x18\x03 \x01(\v28.vrooli.scenario_to_desktop.v1.domain.MacOSSigningConfigH\x01R\x05macos\x88\x01\x01\x12S\n" +
+	"\x05linux\x18\x04 \x01(\v28.vrooli.scenario_to_desktop.v1.domain.LinuxSigningConfigH\x02R\x05linux\x88\x01\x01\x12*\n" +
 	"\x0eschema_version\x18\x05 \x01(\tH\x03R\rschemaVersion\x88\x01\x01B\n" +
 	"\n" +
 	"\b_windowsB\b\n" +
@@ -1227,41 +2274,141 @@ const file_scenario_to_desktop_v1_domain_signing_proto_rawDesc = "" +
 	"\bis_valid\x18\x05 \x01(\bR\aisValid\x12\x1d\n" +
 	"\n" +
 	"is_expired\x18\x06 \x01(\bR\tisExpired\x12*\n" +
-	"\x11days_until_expiry\x18\a \x01(\x05R\x0fdaysUntilExpiry\"\xb8\x03\n" +
-	"\x12PlatformValidation\x12<\n" +
-	"\bplatform\x18\x01 \x01(\x0e2 .scenario_to_desktop.v1.PlatformR\bplatform\x12\x14\n" +
+	"\x11days_until_expiry\x18\a \x01(\x05R\x0fdaysUntilExpiry\"\xf0\x03\n" +
+	"\x12PlatformValidation\x12J\n" +
+	"\bplatform\x18\x01 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\x12\x14\n" +
 	"\x05valid\x18\x02 \x01(\bR\x05valid\x12\x18\n" +
-	"\aenabled\x18\x03 \x01(\bR\aenabled\x12N\n" +
-	"\vcertificate\x18\x04 \x01(\v2'.scenario_to_desktop.v1.CertificateInfoH\x00R\vcertificate\x88\x01\x01\x12?\n" +
-	"\x06errors\x18\x05 \x03(\v2'.scenario_to_desktop.v1.ValidationErrorR\x06errors\x12E\n" +
-	"\bwarnings\x18\x06 \x03(\v2).scenario_to_desktop.v1.ValidationWarningR\bwarnings\x12'\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\\\n" +
+	"\vcertificate\x18\x04 \x01(\v25.vrooli.scenario_to_desktop.v1.domain.CertificateInfoH\x00R\vcertificate\x88\x01\x01\x12M\n" +
+	"\x06errors\x18\x05 \x03(\v25.vrooli.scenario_to_desktop.v1.shared.ValidationErrorR\x06errors\x12S\n" +
+	"\bwarnings\x18\x06 \x03(\v27.vrooli.scenario_to_desktop.v1.shared.ValidationWarningR\bwarnings\x12'\n" +
 	"\x0ftools_available\x18\a \x01(\bR\x0etoolsAvailable\x12#\n" +
 	"\rmissing_tools\x18\b \x03(\tR\fmissingToolsB\x0e\n" +
-	"\f_certificate\"\xe7\x03\n" +
+	"\f_certificate\"\x9f\x04\n" +
 	"\x17SigningValidationResult\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12'\n" +
-	"\x0fsigning_enabled\x18\x02 \x01(\bR\x0esigningEnabled\x12\\\n" +
-	"\tplatforms\x18\x03 \x03(\v2>.scenario_to_desktop.v1.SigningValidationResult.PlatformsEntryR\tplatforms\x12?\n" +
-	"\x06errors\x18\x04 \x03(\v2'.scenario_to_desktop.v1.ValidationErrorR\x06errors\x12E\n" +
-	"\bwarnings\x18\x05 \x03(\v2).scenario_to_desktop.v1.ValidationWarningR\bwarnings\x12=\n" +
-	"\fvalidated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vvalidatedAt\x1ah\n" +
+	"\x0fsigning_enabled\x18\x02 \x01(\bR\x0esigningEnabled\x12j\n" +
+	"\tplatforms\x18\x03 \x03(\v2L.vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.PlatformsEntryR\tplatforms\x12M\n" +
+	"\x06errors\x18\x04 \x03(\v25.vrooli.scenario_to_desktop.v1.shared.ValidationErrorR\x06errors\x12S\n" +
+	"\bwarnings\x18\x05 \x03(\v27.vrooli.scenario_to_desktop.v1.shared.ValidationWarningR\bwarnings\x12=\n" +
+	"\fvalidated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vvalidatedAt\x1av\n" +
 	"\x0ePlatformsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12@\n" +
-	"\x05value\x18\x02 \x01(\v2*.scenario_to_desktop.v1.PlatformValidationR\x05value:\x028\x01\"\x98\x01\n" +
-	"\x0ePlatformStatus\x12<\n" +
-	"\bplatform\x18\x01 \x01(\x0e2 .scenario_to_desktop.v1.PlatformR\bplatform\x12\x14\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12N\n" +
+	"\x05value\x18\x02 \x01(\v28.vrooli.scenario_to_desktop.v1.domain.PlatformValidationR\x05value:\x028\x01\"\xa6\x01\n" +
+	"\x0ePlatformStatus\x12J\n" +
+	"\bplatform\x18\x01 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\x12\x14\n" +
 	"\x05ready\x18\x02 \x01(\bR\x05ready\x12\x18\n" +
 	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\x89\x01\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\x97\x01\n" +
 	"\x11ReadinessResponse\x12\x14\n" +
-	"\x05ready\x18\x01 \x01(\bR\x05ready\x12D\n" +
-	"\tplatforms\x18\x02 \x03(\v2&.scenario_to_desktop.v1.PlatformStatusR\tplatforms\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xa7\x01\n" +
-	"\x15SigningConfigResponse\x12=\n" +
-	"\x06config\x18\x01 \x01(\v2%.scenario_to_desktop.v1.SigningConfigR\x06config\x12O\n" +
+	"\x05ready\x18\x01 \x01(\bR\x05ready\x12R\n" +
+	"\tplatforms\x18\x02 \x03(\v24.vrooli.scenario_to_desktop.v1.domain.PlatformStatusR\tplatforms\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xc3\x01\n" +
+	"\x15SigningConfigResponse\x12K\n" +
+	"\x06config\x18\x01 \x01(\v23.vrooli.scenario_to_desktop.v1.domain.SigningConfigR\x06config\x12]\n" +
 	"\n" +
-	"validation\x18\x02 \x01(\v2/.scenario_to_desktop.v1.SigningValidationResultR\n" +
-	"validation*\xba\x01\n" +
+	"validation\x18\x02 \x01(\v2=.vrooli.scenario_to_desktop.v1.domain.SigningValidationResultR\n" +
+	"validation\"F\n" +
+	"\x16SigningScenarioRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\"\x97\x01\n" +
+	"\x1aUpsertSigningConfigRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12K\n" +
+	"\x06config\x18\x02 \x01(\v23.vrooli.scenario_to_desktop.v1.domain.SigningConfigR\x06config\"\x93\x01\n" +
+	"\x16ValidateSigningRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12K\n" +
+	"\x06config\x18\x02 \x01(\v23.vrooli.scenario_to_desktop.v1.domain.SigningConfigR\x06config\"\x9d\x03\n" +
+	"\x1bPatchSigningPlatformRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12J\n" +
+	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\x12V\n" +
+	"\awindows\x18\x03 \x01(\v2:.vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfigH\x00R\awindows\x12P\n" +
+	"\x05macos\x18\x04 \x01(\v28.vrooli.scenario_to_desktop.v1.domain.MacOSSigningConfigH\x00R\x05macos\x12P\n" +
+	"\x05linux\x18\x05 \x01(\v28.vrooli.scenario_to_desktop.v1.domain.LinuxSigningConfigH\x00R\x05linuxB\b\n" +
+	"\x06config\"J\n" +
+	"\x1aDeleteSigningConfigRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\"\x98\x01\n" +
+	"\x1cDeleteSigningPlatformRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12J\n" +
+	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\"\x9a\x01\n" +
+	"\x15DeleteSigningResponse\x12#\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12O\n" +
+	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformH\x00R\bplatform\x88\x01\x01B\v\n" +
+	"\t_platform\"\xb7\x03\n" +
+	"\x1eGenerateLinuxSigningKeyRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
+	"\x05email\x18\x03 \x01(\tB\a\xbaH\x04r\x02`\x01R\x05email\x12*\n" +
+	"\x0epassphrase_env\x18\x04 \x01(\tH\x00R\rpassphraseEnv\x88\x01\x01\x12\x1e\n" +
+	"\bkey_type\x18\x05 \x01(\tH\x01R\akeyType\x88\x01\x01\x12\x1b\n" +
+	"\x06expiry\x18\x06 \x01(\tH\x02R\x06expiry\x88\x01\x01\x12\x1d\n" +
+	"\ahomedir\x18\a \x01(\tH\x03R\ahomedir\x88\x01\x01\x12\x14\n" +
+	"\x05force\x18\b \x01(\bR\x05force\x12#\n" +
+	"\rexport_public\x18\t \x01(\bR\fexportPublic\x12\"\n" +
+	"\n" +
+	"logical_id\x18\n" +
+	" \x01(\tH\x04R\tlogicalId\x88\x01\x01B\x11\n" +
+	"\x0f_passphrase_envB\v\n" +
+	"\t_key_typeB\t\n" +
+	"\a_expiryB\n" +
+	"\n" +
+	"\b_homedirB\r\n" +
+	"\v_logical_id\"\xc6\x02\n" +
+	"\x1fGenerateLinuxSigningKeyResponse\x12\x15\n" +
+	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12 \n" +
+	"\vfingerprint\x18\x02 \x01(\tR\vfingerprint\x12\x18\n" +
+	"\ahomedir\x18\x03 \x01(\tR\ahomedir\x12\"\n" +
+	"\n" +
+	"public_key\x18\x04 \x01(\tH\x00R\tpublicKey\x88\x01\x01\x12+\n" +
+	"\x0fpublic_key_path\x18\x05 \x01(\tH\x01R\rpublicKeyPath\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"logical_id\x18\x06 \x01(\tH\x02R\tlogicalId\x88\x01\x01\x12\x1d\n" +
+	"\amessage\x18\a \x01(\tH\x03R\amessage\x88\x01\x01B\r\n" +
+	"\v_public_keyB\x12\n" +
+	"\x10_public_key_pathB\r\n" +
+	"\v_logical_idB\n" +
+	"\n" +
+	"\b_message\"\xc9\x02\n" +
+	"\x11SigningToolStatus\x12J\n" +
+	"\bplatform\x18\x01 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\x12\x12\n" +
+	"\x04tool\x18\x02 \x01(\tR\x04tool\x12\x1c\n" +
+	"\tinstalled\x18\x03 \x01(\bR\tinstalled\x12\x17\n" +
+	"\x04path\x18\x04 \x01(\tH\x00R\x04path\x88\x01\x01\x12\x1d\n" +
+	"\aversion\x18\x05 \x01(\tH\x01R\aversion\x88\x01\x01\x12#\n" +
+	"\n" +
+	"diagnostic\x18\x06 \x01(\tH\x02R\n" +
+	"diagnostic\x88\x01\x01\x12%\n" +
+	"\vremediation\x18\a \x01(\tH\x03R\vremediation\x88\x01\x01B\a\n" +
+	"\x05_pathB\n" +
+	"\n" +
+	"\b_versionB\r\n" +
+	"\v_diagnosticB\x0e\n" +
+	"\f_remediation\"q\n" +
+	" ListSigningPrerequisitesResponse\x12M\n" +
+	"\x05tools\x18\x01 \x03(\v27.vrooli.scenario_to_desktop.v1.domain.SigningToolStatusR\x05tools\"p\n" +
+	"\"DiscoverSigningCertificatesRequest\x12J\n" +
+	"\bplatform\x18\x01 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\"\xcc\x03\n" +
+	"\x1cDiscoveredSigningCertificate\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\asubject\x18\x03 \x01(\tH\x00R\asubject\x88\x01\x01\x12\x1b\n" +
+	"\x06issuer\x18\x04 \x01(\tH\x01R\x06issuer\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\tH\x02R\texpiresAt\x88\x01\x01\x12$\n" +
+	"\x0edays_to_expiry\x18\x06 \x01(\x05R\fdaysToExpiry\x12\x18\n" +
+	"\aexpired\x18\a \x01(\bR\aexpired\x12!\n" +
+	"\fcode_signing\x18\b \x01(\bR\vcodeSigning\x12\x17\n" +
+	"\x04type\x18\t \x01(\tH\x03R\x04type\x88\x01\x01\x12J\n" +
+	"\bplatform\x18\n" +
+	" \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\x12\"\n" +
+	"\n" +
+	"usage_hint\x18\v \x01(\tH\x04R\tusageHint\x88\x01\x01B\n" +
+	"\n" +
+	"\b_subjectB\t\n" +
+	"\a_issuerB\r\n" +
+	"\v_expires_atB\a\n" +
+	"\x05_typeB\r\n" +
+	"\v_usage_hint\"\x8d\x01\n" +
+	"#DiscoverSigningCertificatesResponse\x12f\n" +
+	"\fcertificates\x18\x01 \x03(\v2B.vrooli.scenario_to_desktop.v1.domain.DiscoveredSigningCertificateR\fcertificates*\xba\x01\n" +
 	"\x11CertificateSource\x12\"\n" +
 	"\x1eCERTIFICATE_SOURCE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17CERTIFICATE_SOURCE_FILE\x10\x01\x12\x1c\n" +
@@ -1272,7 +2419,18 @@ const file_scenario_to_desktop_v1_domain_signing_proto_rawDesc = "" +
 	"\x1aSIGN_ALGORITHM_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SIGN_ALGORITHM_SHA256\x10\x01\x12\x19\n" +
 	"\x15SIGN_ALGORITHM_SHA384\x10\x02\x12\x19\n" +
-	"\x15SIGN_ALGORITHM_SHA512\x10\x03B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x15SIGN_ALGORITHM_SHA512\x10\x032\xff\v\n" +
+	"\x0eSigningService\x12\x8d\x01\n" +
+	"\x10GetSigningConfig\x12<.vrooli.scenario_to_desktop.v1.domain.SigningScenarioRequest\x1a;.vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse\x12\x91\x01\n" +
+	"\x10PutSigningConfig\x12@.vrooli.scenario_to_desktop.v1.domain.UpsertSigningConfigRequest\x1a;.vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse\x12\x94\x01\n" +
+	"\x15ValidateSigningConfig\x12<.vrooli.scenario_to_desktop.v1.domain.ValidateSigningRequest\x1a=.vrooli.scenario_to_desktop.v1.domain.SigningValidationResult\x12\x8c\x01\n" +
+	"\x13GetSigningReadiness\x12<.vrooli.scenario_to_desktop.v1.domain.SigningScenarioRequest\x1a7.vrooli.scenario_to_desktop.v1.domain.ReadinessResponse\x12\x96\x01\n" +
+	"\x14PatchSigningPlatform\x12A.vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest\x1a;.vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse\x12\x94\x01\n" +
+	"\x13DeleteSigningConfig\x12@.vrooli.scenario_to_desktop.v1.domain.DeleteSigningConfigRequest\x1a;.vrooli.scenario_to_desktop.v1.domain.DeleteSigningResponse\x12\x98\x01\n" +
+	"\x15DeleteSigningPlatform\x12B.vrooli.scenario_to_desktop.v1.domain.DeleteSigningPlatformRequest\x1a;.vrooli.scenario_to_desktop.v1.domain.DeleteSigningResponse\x12\xa6\x01\n" +
+	"\x17GenerateLinuxSigningKey\x12D.vrooli.scenario_to_desktop.v1.domain.GenerateLinuxSigningKeyRequest\x1aE.vrooli.scenario_to_desktop.v1.domain.GenerateLinuxSigningKeyResponse\x12z\n" +
+	"\x18ListSigningPrerequisites\x12\x16.google.protobuf.Empty\x1aF.vrooli.scenario_to_desktop.v1.domain.ListSigningPrerequisitesResponse\x12\xb2\x01\n" +
+	"\x1bDiscoverSigningCertificates\x12H.vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesRequest\x1aI.vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_signing_proto_rawDescOnce sync.Once
@@ -1287,51 +2445,101 @@ func file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP() []byte {
 }
 
 var file_scenario_to_desktop_v1_domain_signing_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_scenario_to_desktop_v1_domain_signing_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_scenario_to_desktop_v1_domain_signing_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_scenario_to_desktop_v1_domain_signing_proto_goTypes = []any{
-	(CertificateSource)(0),          // 0: scenario_to_desktop.v1.CertificateSource
-	(SignAlgorithm)(0),              // 1: scenario_to_desktop.v1.SignAlgorithm
-	(*WindowsSigningConfig)(nil),    // 2: scenario_to_desktop.v1.WindowsSigningConfig
-	(*MacOSSigningConfig)(nil),      // 3: scenario_to_desktop.v1.MacOSSigningConfig
-	(*LinuxSigningConfig)(nil),      // 4: scenario_to_desktop.v1.LinuxSigningConfig
-	(*SigningConfig)(nil),           // 5: scenario_to_desktop.v1.SigningConfig
-	(*CertificateInfo)(nil),         // 6: scenario_to_desktop.v1.CertificateInfo
-	(*PlatformValidation)(nil),      // 7: scenario_to_desktop.v1.PlatformValidation
-	(*SigningValidationResult)(nil), // 8: scenario_to_desktop.v1.SigningValidationResult
-	(*PlatformStatus)(nil),          // 9: scenario_to_desktop.v1.PlatformStatus
-	(*ReadinessResponse)(nil),       // 10: scenario_to_desktop.v1.ReadinessResponse
-	(*SigningConfigResponse)(nil),   // 11: scenario_to_desktop.v1.SigningConfigResponse
-	nil,                             // 12: scenario_to_desktop.v1.SigningValidationResult.PlatformsEntry
-	(*timestamppb.Timestamp)(nil),   // 13: google.protobuf.Timestamp
-	(Platform)(0),                   // 14: scenario_to_desktop.v1.Platform
-	(*ValidationError)(nil),         // 15: scenario_to_desktop.v1.ValidationError
-	(*ValidationWarning)(nil),       // 16: scenario_to_desktop.v1.ValidationWarning
+	(CertificateSource)(0),                      // 0: vrooli.scenario_to_desktop.v1.domain.CertificateSource
+	(SignAlgorithm)(0),                          // 1: vrooli.scenario_to_desktop.v1.domain.SignAlgorithm
+	(*WindowsSigningConfig)(nil),                // 2: vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfig
+	(*MacOSSigningConfig)(nil),                  // 3: vrooli.scenario_to_desktop.v1.domain.MacOSSigningConfig
+	(*ManagedSigningKey)(nil),                   // 4: vrooli.scenario_to_desktop.v1.domain.ManagedSigningKey
+	(*LinuxSigningConfig)(nil),                  // 5: vrooli.scenario_to_desktop.v1.domain.LinuxSigningConfig
+	(*SigningConfig)(nil),                       // 6: vrooli.scenario_to_desktop.v1.domain.SigningConfig
+	(*CertificateInfo)(nil),                     // 7: vrooli.scenario_to_desktop.v1.domain.CertificateInfo
+	(*PlatformValidation)(nil),                  // 8: vrooli.scenario_to_desktop.v1.domain.PlatformValidation
+	(*SigningValidationResult)(nil),             // 9: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult
+	(*PlatformStatus)(nil),                      // 10: vrooli.scenario_to_desktop.v1.domain.PlatformStatus
+	(*ReadinessResponse)(nil),                   // 11: vrooli.scenario_to_desktop.v1.domain.ReadinessResponse
+	(*SigningConfigResponse)(nil),               // 12: vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse
+	(*SigningScenarioRequest)(nil),              // 13: vrooli.scenario_to_desktop.v1.domain.SigningScenarioRequest
+	(*UpsertSigningConfigRequest)(nil),          // 14: vrooli.scenario_to_desktop.v1.domain.UpsertSigningConfigRequest
+	(*ValidateSigningRequest)(nil),              // 15: vrooli.scenario_to_desktop.v1.domain.ValidateSigningRequest
+	(*PatchSigningPlatformRequest)(nil),         // 16: vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest
+	(*DeleteSigningConfigRequest)(nil),          // 17: vrooli.scenario_to_desktop.v1.domain.DeleteSigningConfigRequest
+	(*DeleteSigningPlatformRequest)(nil),        // 18: vrooli.scenario_to_desktop.v1.domain.DeleteSigningPlatformRequest
+	(*DeleteSigningResponse)(nil),               // 19: vrooli.scenario_to_desktop.v1.domain.DeleteSigningResponse
+	(*GenerateLinuxSigningKeyRequest)(nil),      // 20: vrooli.scenario_to_desktop.v1.domain.GenerateLinuxSigningKeyRequest
+	(*GenerateLinuxSigningKeyResponse)(nil),     // 21: vrooli.scenario_to_desktop.v1.domain.GenerateLinuxSigningKeyResponse
+	(*SigningToolStatus)(nil),                   // 22: vrooli.scenario_to_desktop.v1.domain.SigningToolStatus
+	(*ListSigningPrerequisitesResponse)(nil),    // 23: vrooli.scenario_to_desktop.v1.domain.ListSigningPrerequisitesResponse
+	(*DiscoverSigningCertificatesRequest)(nil),  // 24: vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesRequest
+	(*DiscoveredSigningCertificate)(nil),        // 25: vrooli.scenario_to_desktop.v1.domain.DiscoveredSigningCertificate
+	(*DiscoverSigningCertificatesResponse)(nil), // 26: vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesResponse
+	nil,                              // 27: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.PlatformsEntry
+	(*timestamppb.Timestamp)(nil),    // 28: google.protobuf.Timestamp
+	(shared.Platform)(0),             // 29: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*shared.ValidationError)(nil),   // 30: vrooli.scenario_to_desktop.v1.shared.ValidationError
+	(*shared.ValidationWarning)(nil), // 31: vrooli.scenario_to_desktop.v1.shared.ValidationWarning
+	(*emptypb.Empty)(nil),            // 32: google.protobuf.Empty
 }
 var file_scenario_to_desktop_v1_domain_signing_proto_depIdxs = []int32{
-	0,  // 0: scenario_to_desktop.v1.WindowsSigningConfig.certificate_source:type_name -> scenario_to_desktop.v1.CertificateSource
-	1,  // 1: scenario_to_desktop.v1.WindowsSigningConfig.sign_algorithm:type_name -> scenario_to_desktop.v1.SignAlgorithm
-	2,  // 2: scenario_to_desktop.v1.SigningConfig.windows:type_name -> scenario_to_desktop.v1.WindowsSigningConfig
-	3,  // 3: scenario_to_desktop.v1.SigningConfig.macos:type_name -> scenario_to_desktop.v1.MacOSSigningConfig
-	4,  // 4: scenario_to_desktop.v1.SigningConfig.linux:type_name -> scenario_to_desktop.v1.LinuxSigningConfig
-	13, // 5: scenario_to_desktop.v1.CertificateInfo.expires_at:type_name -> google.protobuf.Timestamp
-	14, // 6: scenario_to_desktop.v1.PlatformValidation.platform:type_name -> scenario_to_desktop.v1.Platform
-	6,  // 7: scenario_to_desktop.v1.PlatformValidation.certificate:type_name -> scenario_to_desktop.v1.CertificateInfo
-	15, // 8: scenario_to_desktop.v1.PlatformValidation.errors:type_name -> scenario_to_desktop.v1.ValidationError
-	16, // 9: scenario_to_desktop.v1.PlatformValidation.warnings:type_name -> scenario_to_desktop.v1.ValidationWarning
-	12, // 10: scenario_to_desktop.v1.SigningValidationResult.platforms:type_name -> scenario_to_desktop.v1.SigningValidationResult.PlatformsEntry
-	15, // 11: scenario_to_desktop.v1.SigningValidationResult.errors:type_name -> scenario_to_desktop.v1.ValidationError
-	16, // 12: scenario_to_desktop.v1.SigningValidationResult.warnings:type_name -> scenario_to_desktop.v1.ValidationWarning
-	13, // 13: scenario_to_desktop.v1.SigningValidationResult.validated_at:type_name -> google.protobuf.Timestamp
-	14, // 14: scenario_to_desktop.v1.PlatformStatus.platform:type_name -> scenario_to_desktop.v1.Platform
-	9,  // 15: scenario_to_desktop.v1.ReadinessResponse.platforms:type_name -> scenario_to_desktop.v1.PlatformStatus
-	5,  // 16: scenario_to_desktop.v1.SigningConfigResponse.config:type_name -> scenario_to_desktop.v1.SigningConfig
-	8,  // 17: scenario_to_desktop.v1.SigningConfigResponse.validation:type_name -> scenario_to_desktop.v1.SigningValidationResult
-	7,  // 18: scenario_to_desktop.v1.SigningValidationResult.PlatformsEntry.value:type_name -> scenario_to_desktop.v1.PlatformValidation
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	0,  // 0: vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfig.certificate_source:type_name -> vrooli.scenario_to_desktop.v1.domain.CertificateSource
+	1,  // 1: vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfig.sign_algorithm:type_name -> vrooli.scenario_to_desktop.v1.domain.SignAlgorithm
+	4,  // 2: vrooli.scenario_to_desktop.v1.domain.LinuxSigningConfig.managed_key:type_name -> vrooli.scenario_to_desktop.v1.domain.ManagedSigningKey
+	2,  // 3: vrooli.scenario_to_desktop.v1.domain.SigningConfig.windows:type_name -> vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfig
+	3,  // 4: vrooli.scenario_to_desktop.v1.domain.SigningConfig.macos:type_name -> vrooli.scenario_to_desktop.v1.domain.MacOSSigningConfig
+	5,  // 5: vrooli.scenario_to_desktop.v1.domain.SigningConfig.linux:type_name -> vrooli.scenario_to_desktop.v1.domain.LinuxSigningConfig
+	28, // 6: vrooli.scenario_to_desktop.v1.domain.CertificateInfo.expires_at:type_name -> google.protobuf.Timestamp
+	29, // 7: vrooli.scenario_to_desktop.v1.domain.PlatformValidation.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	7,  // 8: vrooli.scenario_to_desktop.v1.domain.PlatformValidation.certificate:type_name -> vrooli.scenario_to_desktop.v1.domain.CertificateInfo
+	30, // 9: vrooli.scenario_to_desktop.v1.domain.PlatformValidation.errors:type_name -> vrooli.scenario_to_desktop.v1.shared.ValidationError
+	31, // 10: vrooli.scenario_to_desktop.v1.domain.PlatformValidation.warnings:type_name -> vrooli.scenario_to_desktop.v1.shared.ValidationWarning
+	27, // 11: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.platforms:type_name -> vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.PlatformsEntry
+	30, // 12: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.errors:type_name -> vrooli.scenario_to_desktop.v1.shared.ValidationError
+	31, // 13: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.warnings:type_name -> vrooli.scenario_to_desktop.v1.shared.ValidationWarning
+	28, // 14: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.validated_at:type_name -> google.protobuf.Timestamp
+	29, // 15: vrooli.scenario_to_desktop.v1.domain.PlatformStatus.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	10, // 16: vrooli.scenario_to_desktop.v1.domain.ReadinessResponse.platforms:type_name -> vrooli.scenario_to_desktop.v1.domain.PlatformStatus
+	6,  // 17: vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse.config:type_name -> vrooli.scenario_to_desktop.v1.domain.SigningConfig
+	9,  // 18: vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse.validation:type_name -> vrooli.scenario_to_desktop.v1.domain.SigningValidationResult
+	6,  // 19: vrooli.scenario_to_desktop.v1.domain.UpsertSigningConfigRequest.config:type_name -> vrooli.scenario_to_desktop.v1.domain.SigningConfig
+	6,  // 20: vrooli.scenario_to_desktop.v1.domain.ValidateSigningRequest.config:type_name -> vrooli.scenario_to_desktop.v1.domain.SigningConfig
+	29, // 21: vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	2,  // 22: vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest.windows:type_name -> vrooli.scenario_to_desktop.v1.domain.WindowsSigningConfig
+	3,  // 23: vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest.macos:type_name -> vrooli.scenario_to_desktop.v1.domain.MacOSSigningConfig
+	5,  // 24: vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest.linux:type_name -> vrooli.scenario_to_desktop.v1.domain.LinuxSigningConfig
+	29, // 25: vrooli.scenario_to_desktop.v1.domain.DeleteSigningPlatformRequest.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	29, // 26: vrooli.scenario_to_desktop.v1.domain.DeleteSigningResponse.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	29, // 27: vrooli.scenario_to_desktop.v1.domain.SigningToolStatus.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	22, // 28: vrooli.scenario_to_desktop.v1.domain.ListSigningPrerequisitesResponse.tools:type_name -> vrooli.scenario_to_desktop.v1.domain.SigningToolStatus
+	29, // 29: vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesRequest.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	29, // 30: vrooli.scenario_to_desktop.v1.domain.DiscoveredSigningCertificate.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	25, // 31: vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesResponse.certificates:type_name -> vrooli.scenario_to_desktop.v1.domain.DiscoveredSigningCertificate
+	8,  // 32: vrooli.scenario_to_desktop.v1.domain.SigningValidationResult.PlatformsEntry.value:type_name -> vrooli.scenario_to_desktop.v1.domain.PlatformValidation
+	13, // 33: vrooli.scenario_to_desktop.v1.domain.SigningService.GetSigningConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.SigningScenarioRequest
+	14, // 34: vrooli.scenario_to_desktop.v1.domain.SigningService.PutSigningConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.UpsertSigningConfigRequest
+	15, // 35: vrooli.scenario_to_desktop.v1.domain.SigningService.ValidateSigningConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.ValidateSigningRequest
+	13, // 36: vrooli.scenario_to_desktop.v1.domain.SigningService.GetSigningReadiness:input_type -> vrooli.scenario_to_desktop.v1.domain.SigningScenarioRequest
+	16, // 37: vrooli.scenario_to_desktop.v1.domain.SigningService.PatchSigningPlatform:input_type -> vrooli.scenario_to_desktop.v1.domain.PatchSigningPlatformRequest
+	17, // 38: vrooli.scenario_to_desktop.v1.domain.SigningService.DeleteSigningConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.DeleteSigningConfigRequest
+	18, // 39: vrooli.scenario_to_desktop.v1.domain.SigningService.DeleteSigningPlatform:input_type -> vrooli.scenario_to_desktop.v1.domain.DeleteSigningPlatformRequest
+	20, // 40: vrooli.scenario_to_desktop.v1.domain.SigningService.GenerateLinuxSigningKey:input_type -> vrooli.scenario_to_desktop.v1.domain.GenerateLinuxSigningKeyRequest
+	32, // 41: vrooli.scenario_to_desktop.v1.domain.SigningService.ListSigningPrerequisites:input_type -> google.protobuf.Empty
+	24, // 42: vrooli.scenario_to_desktop.v1.domain.SigningService.DiscoverSigningCertificates:input_type -> vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesRequest
+	12, // 43: vrooli.scenario_to_desktop.v1.domain.SigningService.GetSigningConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse
+	12, // 44: vrooli.scenario_to_desktop.v1.domain.SigningService.PutSigningConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse
+	9,  // 45: vrooli.scenario_to_desktop.v1.domain.SigningService.ValidateSigningConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.SigningValidationResult
+	11, // 46: vrooli.scenario_to_desktop.v1.domain.SigningService.GetSigningReadiness:output_type -> vrooli.scenario_to_desktop.v1.domain.ReadinessResponse
+	12, // 47: vrooli.scenario_to_desktop.v1.domain.SigningService.PatchSigningPlatform:output_type -> vrooli.scenario_to_desktop.v1.domain.SigningConfigResponse
+	19, // 48: vrooli.scenario_to_desktop.v1.domain.SigningService.DeleteSigningConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.DeleteSigningResponse
+	19, // 49: vrooli.scenario_to_desktop.v1.domain.SigningService.DeleteSigningPlatform:output_type -> vrooli.scenario_to_desktop.v1.domain.DeleteSigningResponse
+	21, // 50: vrooli.scenario_to_desktop.v1.domain.SigningService.GenerateLinuxSigningKey:output_type -> vrooli.scenario_to_desktop.v1.domain.GenerateLinuxSigningKeyResponse
+	23, // 51: vrooli.scenario_to_desktop.v1.domain.SigningService.ListSigningPrerequisites:output_type -> vrooli.scenario_to_desktop.v1.domain.ListSigningPrerequisitesResponse
+	26, // 52: vrooli.scenario_to_desktop.v1.domain.SigningService.DiscoverSigningCertificates:output_type -> vrooli.scenario_to_desktop.v1.domain.DiscoverSigningCertificatesResponse
+	43, // [43:53] is the sub-list for method output_type
+	33, // [33:43] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_signing_proto_init() }
@@ -1339,21 +2547,31 @@ func file_scenario_to_desktop_v1_domain_signing_proto_init() {
 	if File_scenario_to_desktop_v1_domain_signing_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[2].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[3].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[5].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[4].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[6].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[14].OneofWrappers = []any{
+		(*PatchSigningPlatformRequest_Windows)(nil),
+		(*PatchSigningPlatformRequest_Macos)(nil),
+		(*PatchSigningPlatformRequest_Linux)(nil),
+	}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[17].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[18].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[19].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[20].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_signing_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_signing_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   11,
+			NumMessages:   26,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_scenario_to_desktop_v1_domain_signing_proto_goTypes,
 		DependencyIndexes: file_scenario_to_desktop_v1_domain_signing_proto_depIdxs,

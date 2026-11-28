@@ -194,9 +194,23 @@ type StripeSettings struct {
 	// @format url
 	DashboardUrl *string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3,oneof" json:"dashboard_url,omitempty"`
 	// When settings were last updated.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Outbound webhook URL that receives payment anomaly alerts.
+	// SENSITIVE: Never expose to frontend or log; redacted in GET responses.
+	// @format url
+	AnomalyWebhookUrl string `protobuf:"bytes,6,opt,name=anomaly_webhook_url,json=anomalyWebhookUrl,proto3" json:"anomaly_webhook_url,omitempty"`
+	// True when anomaly webhook dispatch is enabled.
+	AnomalyWebhookEnabled bool `protobuf:"varint,7,opt,name=anomaly_webhook_enabled,json=anomalyWebhookEnabled,proto3" json:"anomaly_webhook_enabled,omitempty"`
+	// Per-anomaly-type rate limit overrides, encoded as JSON object:
+	//
+	//	{"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+	//
+	// Empty string falls back to built-in defaults (burst=5, refill=60s).
+	AnomalyRateLimits string `protobuf:"bytes,8,opt,name=anomaly_rate_limits,json=anomalyRateLimits,proto3" json:"anomaly_rate_limits,omitempty"`
+	// True when anomaly_webhook_url is configured (redaction indicator).
+	AnomalyWebhookUrlSet bool `protobuf:"varint,9,opt,name=anomaly_webhook_url_set,json=anomalyWebhookUrlSet,proto3" json:"anomaly_webhook_url_set,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *StripeSettings) Reset() {
@@ -262,6 +276,34 @@ func (x *StripeSettings) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *StripeSettings) GetAnomalyWebhookUrl() string {
+	if x != nil {
+		return x.AnomalyWebhookUrl
+	}
+	return ""
+}
+
+func (x *StripeSettings) GetAnomalyWebhookEnabled() bool {
+	if x != nil {
+		return x.AnomalyWebhookEnabled
+	}
+	return false
+}
+
+func (x *StripeSettings) GetAnomalyRateLimits() string {
+	if x != nil {
+		return x.AnomalyRateLimits
+	}
+	return ""
+}
+
+func (x *StripeSettings) GetAnomalyWebhookUrlSet() bool {
+	if x != nil {
+		return x.AnomalyWebhookUrlSet
+	}
+	return false
 }
 
 // GetStripeSettingsRequest requests current Stripe settings and snapshot.
@@ -379,9 +421,20 @@ type UpdateStripeSettingsRequest struct {
 	WebhookSecret *string `protobuf:"bytes,3,opt,name=webhook_secret,json=webhookSecret,proto3,oneof" json:"webhook_secret,omitempty"`
 	// Dashboard URL to set. If unset, current value is retained.
 	// @format url
-	DashboardUrl  *string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3,oneof" json:"dashboard_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DashboardUrl *string `protobuf:"bytes,4,opt,name=dashboard_url,json=dashboardUrl,proto3,oneof" json:"dashboard_url,omitempty"`
+	// Anomaly webhook URL to set. If unset, current value is retained.
+	// @format url
+	AnomalyWebhookUrl *string `protobuf:"bytes,5,opt,name=anomaly_webhook_url,json=anomalyWebhookUrl,proto3,oneof" json:"anomaly_webhook_url,omitempty"`
+	// Enable or disable anomaly webhook dispatch. If unset, current value is retained.
+	AnomalyWebhookEnabled *bool `protobuf:"varint,6,opt,name=anomaly_webhook_enabled,json=anomalyWebhookEnabled,proto3,oneof" json:"anomaly_webhook_enabled,omitempty"`
+	// Per-type rate limit overrides as JSON object:
+	//
+	//	{"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+	//
+	// If unset, current value is retained.
+	AnomalyRateLimits *string `protobuf:"bytes,7,opt,name=anomaly_rate_limits,json=anomalyRateLimits,proto3,oneof" json:"anomaly_rate_limits,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateStripeSettingsRequest) Reset() {
@@ -438,6 +491,27 @@ func (x *UpdateStripeSettingsRequest) GetWebhookSecret() string {
 func (x *UpdateStripeSettingsRequest) GetDashboardUrl() string {
 	if x != nil && x.DashboardUrl != nil {
 		return *x.DashboardUrl
+	}
+	return ""
+}
+
+func (x *UpdateStripeSettingsRequest) GetAnomalyWebhookUrl() string {
+	if x != nil && x.AnomalyWebhookUrl != nil {
+		return *x.AnomalyWebhookUrl
+	}
+	return ""
+}
+
+func (x *UpdateStripeSettingsRequest) GetAnomalyWebhookEnabled() bool {
+	if x != nil && x.AnomalyWebhookEnabled != nil {
+		return *x.AnomalyWebhookEnabled
+	}
+	return false
+}
+
+func (x *UpdateStripeSettingsRequest) GetAnomalyRateLimits() string {
+	if x != nil && x.AnomalyRateLimits != nil {
+		return *x.AnomalyRateLimits
 	}
 	return ""
 }
@@ -509,7 +583,7 @@ const file_landing_page_react_vite_v1_settings_proto_rawDesc = "" +
 	"\x13publishable_key_set\x18\x02 \x01(\bR\x11publishableKeySet\x12$\n" +
 	"\x0esecret_key_set\x18\x03 \x01(\bR\fsecretKeySet\x12,\n" +
 	"\x12webhook_secret_set\x18\x04 \x01(\bR\x10webhookSecretSet\x12@\n" +
-	"\x06source\x18\x05 \x01(\x0e2(.landing_page_react_vite.v1.ConfigSourceR\x06source\"\xf6\x01\n" +
+	"\x06source\x18\x05 \x01(\x0e2(.landing_page_react_vite.v1.ConfigSourceR\x06source\"\xc5\x03\n" +
 	"\x0eStripeSettings\x12'\n" +
 	"\x0fpublishable_key\x18\x01 \x01(\tR\x0epublishableKey\x12\x1d\n" +
 	"\n" +
@@ -517,22 +591,32 @@ const file_landing_page_react_vite_v1_settings_proto_rawDesc = "" +
 	"\x0ewebhook_secret\x18\x03 \x01(\tR\rwebhookSecret\x12(\n" +
 	"\rdashboard_url\x18\x04 \x01(\tH\x00R\fdashboardUrl\x88\x01\x01\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x10\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12.\n" +
+	"\x13anomaly_webhook_url\x18\x06 \x01(\tR\x11anomalyWebhookUrl\x126\n" +
+	"\x17anomaly_webhook_enabled\x18\a \x01(\bR\x15anomalyWebhookEnabled\x12.\n" +
+	"\x13anomaly_rate_limits\x18\b \x01(\tR\x11anomalyRateLimits\x125\n" +
+	"\x17anomaly_webhook_url_set\x18\t \x01(\bR\x14anomalyWebhookUrlSetB\x10\n" +
 	"\x0e_dashboard_url\"\x1a\n" +
 	"\x18GetStripeSettingsRequest\"\xb1\x01\n" +
 	"\x19GetStripeSettingsResponse\x12F\n" +
 	"\bsettings\x18\x01 \x01(\v2*.landing_page_react_vite.v1.StripeSettingsR\bsettings\x12L\n" +
-	"\bsnapshot\x18\x02 \x01(\v20.landing_page_react_vite.v1.StripeConfigSnapshotR\bsnapshot\"\x8d\x02\n" +
+	"\bsnapshot\x18\x02 \x01(\v20.landing_page_react_vite.v1.StripeConfigSnapshotR\bsnapshot\"\x80\x04\n" +
 	"\x1bUpdateStripeSettingsRequest\x12,\n" +
 	"\x0fpublishable_key\x18\x01 \x01(\tH\x00R\x0epublishableKey\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"secret_key\x18\x02 \x01(\tH\x01R\tsecretKey\x88\x01\x01\x12*\n" +
 	"\x0ewebhook_secret\x18\x03 \x01(\tH\x02R\rwebhookSecret\x88\x01\x01\x12(\n" +
-	"\rdashboard_url\x18\x04 \x01(\tH\x03R\fdashboardUrl\x88\x01\x01B\x12\n" +
+	"\rdashboard_url\x18\x04 \x01(\tH\x03R\fdashboardUrl\x88\x01\x01\x123\n" +
+	"\x13anomaly_webhook_url\x18\x05 \x01(\tH\x04R\x11anomalyWebhookUrl\x88\x01\x01\x12;\n" +
+	"\x17anomaly_webhook_enabled\x18\x06 \x01(\bH\x05R\x15anomalyWebhookEnabled\x88\x01\x01\x123\n" +
+	"\x13anomaly_rate_limits\x18\a \x01(\tH\x06R\x11anomalyRateLimits\x88\x01\x01B\x12\n" +
 	"\x10_publishable_keyB\r\n" +
 	"\v_secret_keyB\x11\n" +
 	"\x0f_webhook_secretB\x10\n" +
-	"\x0e_dashboard_url\"\xb4\x01\n" +
+	"\x0e_dashboard_urlB\x16\n" +
+	"\x14_anomaly_webhook_urlB\x1a\n" +
+	"\x18_anomaly_webhook_enabledB\x16\n" +
+	"\x14_anomaly_rate_limits\"\xb4\x01\n" +
 	"\x1cUpdateStripeSettingsResponse\x12F\n" +
 	"\bsettings\x18\x01 \x01(\v2*.landing_page_react_vite.v1.StripeSettingsR\bsettings\x12L\n" +
 	"\bsnapshot\x18\x02 \x01(\v20.landing_page_react_vite.v1.StripeConfigSnapshotR\bsnapshot*`\n" +

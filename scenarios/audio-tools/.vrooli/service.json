@@ -1,0 +1,346 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "branding": {
+    "brand": "pan",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/audio-tools/SKILL.md",
+      "programs": [
+        "audio-tools.setpoint-read"
+      ]
+    },
+    "improve": {
+      "source": "skills/audio-tools-improve/SKILL.md",
+      "programs": [
+        "audio-tools.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "waivers": {}
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "soak_evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "soak-evidence",
+        "regenerable": false,
+        "rationale": "Soak and reliability measurements are historical evidence, not reproducible outputs; 1090744 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The dated evidence cohort measured 1090744 bytes on 2026-08-27; 256 MiB is an alarm-only ceiling for durable measurements."
+        }
+    },
+    "retention_receipt": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "state",
+      "subpath": "retention/enforcement-receipt.json",
+      "format": "json",
+      "regenerable": false,
+      "agent_removal": "deny",
+      "rationale": "api-core retention records the last enforcement outcome in the scenario state namespace; retain it as operational evidence across restarts."
+      }
+    },
+    "rationale": "Storage surfaces include durable scenario data and separately named long-form qualification evidence."
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "version": "credential-descriptor/v1",
+        "logical_id": "vrooli/openai-gpt-live",
+        "field": "api-key",
+        "label": "OpenAI GPT-Live API key",
+        "description": "Optional operator key resolved in-process from Vrooli credential authority. The GPT-Live provider stays disabled until production duplex and billing evidence gates pass.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://platform.openai.com/api-keys"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/openai-gpt-live",
+        "field": "api-key",
+        "kind": "authority",
+        "consumer": "GPT-Live duplex session key resolver",
+        "source_ref": "api/internal/duplex/key_resolver.go:AuthorityKeyResolver.ResolveOpenAIKey",
+        "required": false,
+        "reason": "The provider is a planned candidate until production duplex composition and trustworthy provider billing evidence are complete."
+      }
+    ]
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "audio-tools",
+    "displayName": "Pan",
+    "description": "Shared audio capabilities: STT, TTS, summarization, audio processing, provider routing (BYOK/LPBS/Local)",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "capabilities": [
+      "ai"
+    ],
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-05-16T17:00:03Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "65a572a83cb605354b7482b2e2eacc02fbe131f2ea8a058878f9a5692fa84325"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "audio-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "audio-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Transcode arbitrary audio uploads into Whisper-friendly formats during STT processing",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Audio transcoding falls back to passing raw audio when ffmpeg is unavailable"
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "output": "api/audio-tools-api-{variant}",
+        "source_identity_symbol": "audio-tools/internal/buildidentity.SourceIdentity"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui",
+        "output": "ui/dist-{variant}/index.html"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "ui/server.js"
+        ],
+        "env": {
+          "AUDIO_TOOLS_UI_DIST_DIR": "dist-live"
+        },
+        "port": "ui"
+      }
+    },
+    "lab-ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui",
+        "output": "ui/lab-dist-{variant}/index.html"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "ui/server.js"
+        ],
+        "env": {
+          "AUDIO_TOOLS_UI_DIST_DIR": "lab-dist-lab"
+        },
+        "port": "ui"
+      }
+    },
+    "lab-api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "output": "api/audio-tools-lab-api-{variant}",
+        "tags": ["audio_lab"],
+        "source_identity_symbol": "audio-tools/internal/buildidentity.SourceIdentity"
+      },
+      "run": {
+        "argv": [
+          "{{bin.lab-api}}"
+        ],
+        "env": {
+          "VROOLI_VARIANT": "lab"
+        },
+        "port": "api"
+      }
+    }
+  },
+  "profiles": {
+    "default": {
+      "components": ["api", "ui"],
+      "ports": ["api", "ui"]
+    },
+    "lab": {
+      "components": ["lab-api", "lab-ui"],
+      "ports": ["api", "ui"]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "whisper": {
+        "description": "Local STT tier (faster-whisper engine)",
+        "required": false,
+        "startup_policy": "ignore"
+      },
+      "kyutai-stt": {
+        "description": "Optional Linux/CUDA streaming STT accelerator",
+        "required": false,
+        "startup_policy": "ignore"
+      },
+      "kokoro": {
+        "degraded_behavior": "Audio Tools remains available; if Kale is unavailable, Kokoro is started on demand with a bounded, single-flight start and cooldown, and the TTS chain falls through to later provider tiers if startup fails.",
+        "description": "Fallback text-to-speech resource started only when an auto TTS request needs Kokoro",
+        "required": false,
+        "startup_policy": "ignore"
+      },
+      "ollama": {
+        "description": "Optional local model administration and evaluation; production summaries use AI Gateway",
+        "required": false,
+        "startup_policy": "ignore"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "required": false,
+        "model_roles": [
+          "summarize.default"
+        ],
+        "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
+        "startup_policy": "try_start"
+      },
+      "kale-tts": {
+        "degraded_behavior": "When the healthy Kale Nano runtime is unavailable, auto TTS starts Kokoro on demand and then falls through to later tiers if startup fails; explicit Kale selection requires the runtime.",
+        "description": "CPU-only Kale Nano TTS candidate, conditionally selected by auto when its runtime is healthy",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore"
+      }
+    },
+    "scenarios": {
+      "landing-page-business-suite": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests.",
+        "bundle_policy": "discover"
+    },
+    "ai-gateway": {
+      "required": false,
+      "startup_policy": "try_start",
+      "degraded_behavior": "Gateway-backed summarize is unavailable while ai-gateway is stopped; locally configured and BYOK provider tiers remain available."
+      }
+    }
+  },
+  "environment": {
+    "GOWORK": "off",
+    "AUDIO_WHISPER_URL": "http://localhost:8090",
+    "AUDIO_KYUTAI_URL": "http://localhost:8094",
+    "AUDIO_SHERPA_URL": "http://localhost:8881",
+    "AUDIO_TTS_BACKEND": "auto",
+    "AUDIO_OLLAMA_URL": "http://localhost:11434",
+    "AUDIO_AI_ENABLE_BYOK": "true",
+    "AUDIO_AI_ENABLE_VROOLI": "false",
+    "AUDIO_AI_ENABLE_LOCAL": "true",
+    "AUDIO_TOOLS_ENABLE_STREAM_TEST_FAULTS": "false",
+    "AUDIO_AVAIL_TTL_BYOK": "5m",
+    "AUDIO_AVAIL_TTL_VROOLI": "30s"
+  }
+}

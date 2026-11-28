@@ -1,0 +1,14 @@
+# RF071: exact reviewed historical source-digest lines, not credentials.
+# Preserve every default rule and do not exclude any file or directory.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed immutable source SHA-256 evidence (2026-09-22)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"api/automation/driver/client\.go":\s*"9cadae6081ea1f40c9f28a1bd980136763a61d7728f2069322b68daabb4beb14",?\s*$''',
+  '''^\s*"api/automation/driver/client\.go":\s*"d218106d23aee1b2a34d09b07a74168a81f08b898409e0a870e0e5261b97e756",?\s*$''',
+  '''^\s*"api/handlers/ai/ollama_client\.go":\s*"0519bc3824223bfc0db326825c06cefcbff830c769c05422948876f5ab376fe2",?\s*$''',
+  '''^\s*"playwright\-driver/src/handlers/keyboard\.ts":\s*"79823f7ce8506bf5f002f11aa161d253e46f1aa1eaf172e879b72249404e5374",?\s*$''',
+]

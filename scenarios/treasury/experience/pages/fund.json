@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "fund",
+    "title": "Fund and withdraw",
+    "routes": [
+      "/fund"
+    ],
+    "purpose": "Create a receive intent, inspect its exact Base payment request, and allocate only after Treasury confirms a matching transfer; withdrawals require an allowlisted destination and preview.",
+    "prd_refs": [
+      "OT-P1-008"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The page states that its funding flow is for a disposable local fork and does not authorize customer deposits"
+    },
+    {
+      "statement": "The receive intent keeps exact token atoms separate from operator-declared valuation"
+    },
+    {
+      "statement": "The payment request is shown as a scannable QR and exact copyable or openable URI"
+    },
+    {
+      "statement": "Receipt confirmation is described as the condition for budget allocation"
+    },
+    {
+      "statement": "Withdrawals require an allowlisted destination and expose fee and execution-mode details before execution"
+    }
+  ]
+}

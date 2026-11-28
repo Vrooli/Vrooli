@@ -1,0 +1,228 @@
+{
+  "metadata": {
+    "name": "ex8-decision-links-phone",
+    "description": "Given the leased disposable decision with an attached brief, when the owner reviews it at phone width, then the brief opens inside Notification Hub and the answer can be recorded there.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "decision-links-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844,
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "open-disposable-decision",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/asks/ask-e1-disposable?vrooli_test_mode=1&e4_fixture=decision-links-phone",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the phone decision with the leased link fixture"
+        }
+      }
+    },
+    {
+      "id": "assert-link-text",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "phone-ready project brief"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The disposable phone decision renders its linked brief"
+        },
+        "metadata": {
+          "label": "Read the visible linked brief on the decision"
+        }
+      }
+    },
+    {
+      "id": "verify-internal-attachment-link",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const a=[...document.querySelectorAll('button')].find(node=>node.textContent.trim()==='phone-ready project brief');if(!a)throw new Error('decision attachment button is missing');const rect=a.getBoundingClientRect(),style=getComputedStyle(a);if(a.hasAttribute('href'))throw new Error('attached artifact must stay inside Notification Hub');if(rect.width<44||rect.height<44)throw new Error(`decision link is too small to tap: ${rect.width}x${rect.height}`);if(style.pointerEvents==='none')throw new Error('decision link cannot receive taps');if(document.querySelector('a[title*=\\\"Web Console\\\"]'))throw new Error('decision handed the artifact to Web Console');return {kind:'hub-attachment',width:rect.width,height:rect.height,pointerEvents:style.pointerEvents}})()",
+          "store_result": "ex8DecisionLink"
+        },
+        "metadata": {
+          "label": "Check the artifact is a tappable in-hub control"
+        }
+      }
+    },
+    {
+      "id": "capture-phone-decision",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the decision and its review context at 390 pixel phone width"
+        }
+      }
+    },
+    {
+      "id": "open-attached-brief",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/packet.textLink"
+        },
+        "metadata": {
+          "label": "Open the attached brief inside Notification Hub"
+        }
+      }
+    },
+    {
+      "id": "assert-brief-in-hub",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/packet.viewer",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "The short review is ready."
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The attached brief opens and is readable inside Notification Hub"
+        },
+        "metadata": {
+          "label": "Read the brief in the Hub's own viewer"
+        }
+      }
+    },
+    {
+      "id": "close-brief",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/packet.viewerClose"
+        },
+        "metadata": {
+          "label": "Return to the decision without leaving the Hub"
+        }
+      }
+    },
+    {
+      "id": "choose-approved-option",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/asks.option"
+        },
+        "metadata": {
+          "label": "Choose the recommended answer"
+        }
+      }
+    },
+    {
+      "id": "submit-answer-in-hub",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/packet.send"
+        },
+        "metadata": {
+          "label": "Finish the decision in Notification Hub"
+        }
+      }
+    },
+    {
+      "id": "assert-answer-recorded",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/packet.answerRecorded",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Answer recorded: Approve the brief"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The decision is answered without leaving Notification Hub"
+        },
+        "metadata": {
+          "label": "Confirm the answer is recorded in the Hub"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "link-visible",
+      "source": "open-disposable-decision",
+      "target": "assert-link-text",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "tap-check",
+      "source": "assert-link-text",
+      "target": "verify-internal-attachment-link",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "capture",
+      "source": "verify-internal-attachment-link",
+      "target": "capture-phone-decision",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "tap-destination",
+      "source": "capture-phone-decision",
+      "target": "open-attached-brief",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "brief-readable",
+      "source": "open-attached-brief",
+      "target": "assert-brief-in-hub",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "return-to-decision",
+      "source": "assert-brief-in-hub",
+      "target": "close-brief",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "choose-answer",
+      "source": "close-brief",
+      "target": "choose-approved-option",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "send-answer",
+      "source": "choose-approved-option",
+      "target": "submit-answer-in-hub",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "answer-recorded",
+      "source": "submit-answer-in-hub",
+      "target": "assert-answer-recorded",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

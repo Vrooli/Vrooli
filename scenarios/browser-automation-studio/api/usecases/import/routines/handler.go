@@ -3,10 +3,12 @@ package routines
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/projectid"
 )
 
 // Handler handles HTTP requests for routine import operations.
@@ -29,11 +31,19 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/projects/{projectID}/routines/import", h.ImportRoutine)
 }
 
+func parseProjectID(raw string) (uuid.UUID, error) {
+	// These routes historically reject path IDs with surrounding whitespace.
+	if strings.TrimSpace(raw) != raw {
+		return uuid.Nil, projectid.ErrInvalid
+	}
+	return projectid.Parse(raw)
+}
+
 // InspectRoutine handles POST /projects/{projectID}/routines/inspect
 func (h *Handler) InspectRoutine(w http.ResponseWriter, r *http.Request) {
 	// Parse project ID
 	projectIDStr := chi.URLParam(r, "projectID")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseProjectID(projectIDStr)
 	if err != nil {
 		h.respondError(w, http.StatusBadRequest, "invalid project ID")
 		return
@@ -70,7 +80,7 @@ func (h *Handler) InspectRoutine(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ImportRoutine(w http.ResponseWriter, r *http.Request) {
 	// Parse project ID
 	projectIDStr := chi.URLParam(r, "projectID")
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := parseProjectID(projectIDStr)
 	if err != nil {
 		h.respondError(w, http.StatusBadRequest, "invalid project ID")
 		return

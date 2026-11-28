@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/doclogs"
 )
 
 func TestValidateScenario(t *testing.T) {
@@ -42,7 +42,7 @@ func TestResetScenarioDoc(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(scenario, "docs", "internal"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	content := "# Problems\n\n## 2025-01-01: Old\n"
+	content := "# Problems\n\n## Entries\n\n### 2025-01-01 - Old\n"
 	writeFile(t, filepath.Join(scenario, "docs", "internal", "PROBLEMS.md"), content)
 
 	service, err := NewService(root)
@@ -50,8 +50,8 @@ func TestResetScenarioDoc(t *testing.T) {
 		t.Fatalf("NewService: %v", err)
 	}
 
-	config := docschema.ResetConfig{DocType: docschema.DocTypeProblems, MaxAgeDays: 1, PreviewMode: true}
-	result, err := service.ResetScenarioDoc(context.Background(), "alpha", config)
+	config := doclogs.ResetConfig{MaxAgeDays: 1, PreviewMode: true}
+	result, _, err := service.ResetScenarioDoc(context.Background(), "alpha", "problems", config)
 	if err != nil {
 		t.Fatalf("ResetScenarioDoc: %v", err)
 	}

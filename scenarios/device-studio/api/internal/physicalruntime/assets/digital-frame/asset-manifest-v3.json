@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "source": {
+    "name": "Innerscene Frame Stand - Picture Frame",
+    "path": "scenarios/device-studio/assets/sources/innerscene-picture-frame/picture-frame.glb",
+    "sha256": "7c9f5cf3e63c7f01cc911b1db9eea2c95b5e1bdadd9b75c3076b10dca70cef10",
+    "license": "CC0-1.0",
+    "rights_record": "scenarios/device-studio/assets/sources/innerscene-picture-frame/README.md",
+    "authored_source_geometry": "The source is a generic blank picture frame with glazing, an insert, rear strut, and easel cord; its embedded description reports units meters and geometry-derived source dimensions."
+  },
+  "adaptation": {
+    "creator": "Vrooli",
+    "license": "CC0-1.0 for retained CC0 source portions; AGPL-3.0-only for Vrooli-authored wall cleat and candidate integration",
+    "screen": "Replace only mesh 7 material 4 with an appended neutral display material; append and reference a private TEXCOORD_0 accessor normalizing only screen-mesh-7 referenced UVs to [0,1]. The original binary chunk remains an exact prefix. The previous source UV accessor remains intact. The wall v3 hierarchy compacts only nodes made unreachable by removing the easel.",
+    "tabletop": {
+      "artifact_id": "innerscene-frame-digital-neutral-tabletop-v2",
+      "path": "scenarios/device-studio/api/internal/physicalruntime/assets/digital-frame/innerscene-frame-tabletop-v2.glb",
+      "sha256": "bc6b22fb722672b0601dc2ea4424517e6bed589e3ebf40de9ecd0257d20fb4f4",
+      "size_bytes": 789152,
+      "pose": "Retain the source rear easel strut and limiting cord; candidate tabletop use only."
+    },
+    "wall": {
+      "artifact_id": "innerscene-frame-digital-neutral-wall-v3",
+      "path": "scenarios/device-studio/api/internal/physicalruntime/assets/digital-frame/innerscene-frame-wall-v3.glb",
+      "sha256": "86c216e9bc574ac076bc78231107cb53b4c178bdea4121239df43ca8963e17bf",
+      "size_bytes": 790472,
+      "pose": "Remove the source easel cord/strut nodes from the active hierarchy, compact remaining reachable node indices, and add a generic Vrooli-authored rear cleat. All source mesh/material records and original BIN bytes remain; candidate wall-supported use only. No wall fastener or load rating is represented."
+    }
+  },
+  "reproduction": {
+    "command": "python3 scenarios/device-studio/assets/sources/screen-device-concepts-20261021/derive_candidates.py",
+    "script_sha256": "c0453fe54996c795d63aa96b3a359622a11bdfefa3385441eac15eef61367b09"
+  },
+  "qualification_limits": [
+    "This adapts a generic picture frame into an electronic-display concept; it is not an Innerscene electronic product or measured digital frame.",
+    "The source preview and GLB dimensions are not independent physical measurements. Exact contact, stability, wall anchoring, active pixels, and product fit remain unqualified."
+  ]
+}

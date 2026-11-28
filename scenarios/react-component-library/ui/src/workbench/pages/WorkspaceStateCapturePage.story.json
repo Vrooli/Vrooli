@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Workspace state capture",
+  "route": "/workspace-capture/demo",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "selected-state",
+      "name": "Selected workspace state",
+      "role": "anatomy",
+      "route": "/workspace-capture/demo?revision=1&page=page-1&display=display-1&state=state-1"
+    }
+  ]
+}

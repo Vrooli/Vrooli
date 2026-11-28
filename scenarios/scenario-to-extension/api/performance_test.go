@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -89,7 +90,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Path:    "/api/v1/extension/status/" + buildID,
 				URLVars: map[string]string{"build_id": buildID},
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to check status: %v", err)
 			}
@@ -126,7 +126,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 					Path:   "/api/v1/extension/generate",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Errorf("Failed to generate extension %d: %v", index, err)
 					done <- false
@@ -225,7 +224,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Method: "GET",
 				Path:   "/api/v1/extension/templates",
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to list templates: %v", err)
 			}
@@ -247,7 +245,7 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 		t.Logf("Average template listing time over %d iterations: %v", iterations, avgDuration)
 	})
 
-	t.Run("ExtensionTestingPerformance", func(t *testing.T) {
+	t.Run("ExtensionPathRejectionPerformance", func(t *testing.T) {
 		req := TestData.GenerateTestRequest("/tmp/perf-test", []string{
 			"https://example.com",
 		})
@@ -266,17 +264,17 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 			t.Fatalf("Failed to test extension: %v", err)
 		}
 
-		if w.Code != 200 {
-			t.Fatalf("Expected status 200, got %d", w.Code)
+		if w.Code != http.StatusGone {
+			t.Fatalf("Expected retired-path status %d, got %d", http.StatusGone, w.Code)
 		}
 
-		// Extension testing should be reasonably fast for simulated tests
+		// This is a synthetic handler rejection check, not a browser timing budget.
 		maxDuration := 100 * time.Millisecond
 		if duration > maxDuration {
 			t.Errorf("Extension testing took too long: %v (max: %v)", duration, maxDuration)
 		}
 
-		t.Logf("Extension testing completed in %v", duration)
+		t.Logf("Legacy extension-path request rejected in %v", duration)
 	})
 
 	t.Run("HealthCheckPerformance", func(t *testing.T) {
@@ -290,7 +288,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Method: "GET",
 				Path:   "/api/v1/health",
 			})
-
 			if err != nil {
 				t.Fatalf("Failed health check: %v", err)
 			}
@@ -328,7 +325,6 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 				Path:   "/api/v1/extension/generate",
 				Body:   req,
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to create build %d: %v", i, err)
 			}
@@ -373,7 +369,10 @@ func TestPerformanceBuildIDGeneration(t *testing.T) {
 		}
 
 		avgDuration := duration / iterations
-		maxAvgDuration := 1 * time.Microsecond
+		// Keep this as a coarse regression guard. Randomness and the race
+		// detector add scheduler overhead that makes a one-microsecond ceiling
+		// fail on otherwise healthy hosts.
+		maxAvgDuration := 5 * time.Microsecond
 
 		if avgDuration > maxAvgDuration {
 			t.Errorf("Average build ID generation too slow: %v (max: %v)", avgDuration, maxAvgDuration)
@@ -393,10 +392,9 @@ func BenchmarkGenerateExtension(b *testing.B) {
 	}
 
 	cfg := &Config{
-		Port:           3201,
-		TemplatesPath:  env.TempDir + "/templates",
-		OutputPath:     env.TempDir + "/output",
-		BrowserlessURL: "http://localhost:3000",
+		Port:          3201,
+		TemplatesPath: env.TempDir + "/templates",
+		OutputPath:    env.TempDir + "/output",
 	}
 
 	config = cfg
@@ -428,10 +426,9 @@ func BenchmarkHealthCheck(b *testing.B) {
 	}
 
 	cfg := &Config{
-		Port:           3201,
-		TemplatesPath:  env.TempDir + "/templates",
-		OutputPath:     env.TempDir + "/output",
-		BrowserlessURL: "http://localhost:3000",
+		Port:          3201,
+		TemplatesPath: env.TempDir + "/templates",
+		OutputPath:    env.TempDir + "/output",
 	}
 
 	config = cfg
@@ -479,7 +476,7 @@ func BenchmarkCountBuildsByStatus(b *testing.B) {
 		} else if i%3 == 1 {
 			status = "failed"
 		}
-		buildManager.Add(&ExtensionBuild{BuildID: fmt.Sprintf("build-%d", i), Status: status})
+		buildManager.Add(&ExtensionBuild{BuildID: fmt.Sprintf("build-%d", i), Status: ExtensionBuildStatus(status)})
 	}
 
 	b.ResetTimer()

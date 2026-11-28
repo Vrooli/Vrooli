@@ -33,7 +33,7 @@ Or navigate to `http://localhost:${UI_PORT}` in your browser (default port assig
 ## Common CLI Commands
 
 ```bash
-system-monitor metrics          # Current CPU/memory/TCP metrics
+system-monitor metrics current --json  # Current CPU/memory/TCP metrics
 system-monitor status           # HEALTHY / WARNING / CRITICAL / OFFLINE
 system-monitor alerts           # Active threshold alerts
 system-monitor investigate      # Latest investigation results

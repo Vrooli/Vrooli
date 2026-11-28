@@ -1,0 +1,52 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "tidiness",
+  "name": "Tidiness",
+  "description": "Maintainability cleanup, long-file and complexity debt, issue queues, and cleanup campaigns",
+  "modes": [
+    "steer",
+    "tidiness",
+    "audits"
+  ],
+  "tags": [
+    "skill",
+    "audit-technique",
+    "maintainability"
+  ],
+  "icon": "list-checks",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetToolId": "run-agent",
+  "targetDimensions": [
+    "tidiness"
+  ],
+  "requires": {
+    "scenarios": [
+      "prompt-manager",
+      "test-genie"
+    ],
+    "commands": [
+      "prompt-manager",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "test-genie execute"
+    ]
+  },
+  "origin": {
+    "kind": "authored",
+    "sourceUrl": "",
+    "commit": "",
+    "license": "",
+    "checksum": "",
+    "importedBy": "",
+    "importedAt": "",
+    "review": {
+      "verdict": ""
+    }
+  },
+  "programmaticHome": "test-genie:tidiness",
+  "revision": 7,
+  "createdAt": "2026-06-15T00:00:00Z",
+  "updatedAt": "2026-11-20T23:30:49Z"
+}

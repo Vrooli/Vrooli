@@ -1,4 +1,4 @@
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 export function RunControls({
   disabled,

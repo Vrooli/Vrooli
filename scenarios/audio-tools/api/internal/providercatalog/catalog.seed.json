@@ -1,0 +1,818 @@
+{
+  "schema_version": "1.0.0",
+  "providers": [
+    {
+      "id": "audio-tools",
+      "name": "Audio Tools",
+      "description": "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI",
+      "kind": "scenario",
+      "tier": "none",
+      "status": "active",
+      "capabilities": [
+        "stt",
+        "tts",
+        "summarize",
+        "transcode"
+      ],
+      "features": [
+        "voice-input",
+        "voice-streaming",
+        "voice-speaker-verification",
+        "voice-enrollment",
+        "voice-output",
+        "tts-summarization",
+        "tts-cache",
+        "tts-paragraph-split",
+        "audio-provider-routing"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "degraded",
+        "reason": "audio capability depends on the selected provider and host media path"
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/concepts/ARCHITECTURE.md",
+      "operator_command": "vrooli scenario start audio-tools",
+      "criticality": "optional",
+      "def_action_kind": "scenario_start",
+      "presentation": {
+        "label_key": "providers.audio-tools.label",
+        "description_key": "providers.audio-tools.description"
+      }
+    },
+    {
+      "id": "whisper-stt",
+      "name": "Whisper STT",
+      "description": "Local batch speech-to-text provider",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "active",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-input"
+      ],
+      "engine_ids": [
+        "whisper-local"
+      ],
+      "stt_eval_adapter_id": "whisper-local",
+      "resource_slug": "whisper",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "actions": [
+        "start",
+        "stop",
+        "restart",
+        "view_logs"
+      ],
+      "checker_kind": "http_json",
+      "docs_url": "docs/domains/stt/streaming-pipeline.md",
+      "operator_command": "vrooli resource start whisper",
+      "criticality": "optional",
+      "def_action_kind": "operator_command",
+      "presentation": {
+        "label_key": "providers.whisper-stt.label",
+        "description_key": "providers.whisper-stt.description"
+      },
+      "health_profile": "whisper-silent",
+      "readiness_aggregate": true,
+      "liveness_aggregate": true
+    },
+    {
+      "id": "kyutai-stt",
+      "name": "Kyutai STT",
+      "description": "Local streaming speech-to-text provider",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "active",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-streaming"
+      ],
+      "engine_ids": [
+        "kyutai"
+      ],
+      "stt_eval_adapter_id": "vrooli-stream",
+      "resource_slug": "kyutai-stt",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "degraded",
+        "reason": "Requires Linux with an NVIDIA CUDA GPU for real-time streaming; the host resource manifest owns the final verdict."
+      },
+      "actions": [
+        "start",
+        "stop",
+        "restart",
+        "view_logs"
+      ],
+      "checker_kind": "http_json",
+      "docs_url": "docs/reference/engine-selection.md",
+      "operator_command": "vrooli resource start kyutai-stt",
+      "criticality": "optional",
+      "def_action_kind": "operator_command",
+      "presentation": {
+        "label_key": "providers.kyutai-stt.label",
+        "description_key": "providers.kyutai-stt.description"
+      },
+      "health_profile": "http",
+      "health_probe": {
+        "base_url_field": "KyutaiURL",
+        "readiness_path": "/ready",
+        "liveness_path": "/ready"
+      },
+      "readiness_aggregate": false,
+      "liveness_aggregate": false
+    },
+    {
+      "id": "kokoro-tts",
+      "name": "Kokoro TTS",
+      "description": "Local text-to-speech provider",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "active",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "runtime_aliases": [
+        "kokoro-local"
+      ],
+      "resource_slug": "kokoro",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "actions": [
+        "start",
+        "stop",
+        "restart",
+        "view_logs"
+      ],
+      "checker_kind": "http_json",
+      "docs_url": "docs/concepts/DOMAINS.md",
+      "operator_command": "vrooli resource start kokoro",
+      "criticality": "optional",
+      "def_action_kind": "operator_command",
+      "adapter_id": "local:kokoro",
+      "tts_runtime": {
+        "backend_id": "kokoro",
+        "url_field": "KokoroURL",
+        "health_path": "/v1/audio/voices",
+        "readiness_kind": "synthesize",
+        "model_role": "default",
+        "cache_backend": "kokoro",
+        "speed_mode": "native",
+        "auto_priority": 20,
+        "shared_runtime": {
+          "backend_id": "sherpa-onnx",
+          "url_field": "SherpaURL",
+          "health_path": "/healthz/tts",
+          "cache_prefix": "sherpa-onnx:",
+          "model_role": "fast",
+          "speed_mode": "native"
+        }
+      },
+      "presentation": {
+        "label_key": "providers.kokoro-tts.label",
+        "description_key": "providers.kokoro-tts.description"
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "af_bella",
+        "voice.feminine.neutral": "af_sarah",
+        "voice.masculine.warm": "am_adam",
+        "voice.masculine.neutral": "am_michael",
+        "voice.neutral.default": "af_nicole"
+      }
+    },
+    {
+      "id": "speaker-verification",
+      "name": "Speaker Verification",
+      "description": "Local speaker enrollment and verification provider",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "active",
+      "capabilities": [
+        "speaker"
+      ],
+      "features": [
+        "voice-speaker-verification",
+        "voice-enrollment"
+      ],
+      "resource_slug": "sherpa-onnx",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "actions": [
+        "start",
+        "stop",
+        "restart",
+        "view_logs"
+      ],
+      "checker_kind": "http_json",
+      "docs_url": "docs/domains/stt/streaming-pipeline.md",
+      "operator_command": "vrooli resource status sherpa-onnx --json",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "presentation": {
+        "label_key": "providers.speaker-verification.label",
+        "description_key": "providers.speaker-verification.description"
+      },
+      "health_profile": "http",
+      "health_probe": {
+        "base_url_field": "SherpaURL",
+        "readiness_path": "/ready",
+        "liveness_path": "/ready"
+      },
+      "readiness_aggregate": true,
+      "liveness_aggregate": false
+    },
+    {
+      "id": "sherpa-stt",
+      "name": "Sherpa STT",
+      "description": "Local streaming speech-to-text provider backed by the native sherpa-onnx Zipformer engine",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "active",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-streaming"
+      ],
+      "engine_ids": [
+        "sherpa-streaming"
+      ],
+      "stt_eval_adapter_id": "sherpa-stream",
+      "resource_slug": "sherpa-onnx",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "actions": [
+        "start",
+        "stop",
+        "restart",
+        "view_logs"
+      ],
+      "checker_kind": "http_json",
+      "health_profile": "http",
+      "health_probe": {
+        "base_url_field": "SherpaURL",
+        "readiness_path": "/healthz/stt",
+        "liveness_path": "/healthz/stt",
+        "aggregate_liveness_path": "/healthz"
+      },
+      "liveness_aggregate": true,
+      "docs_url": "docs/domains/stt/streaming-pipeline.md",
+      "operator_command": "vrooli resource start sherpa-onnx",
+      "criticality": "optional",
+      "def_action_kind": "operator_command",
+      "presentation": {
+        "label_key": "providers.sherpa-stt.label",
+        "description_key": "providers.sherpa-stt.description"
+      },
+      "readiness_aggregate": false
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama Summarize",
+      "description": "Local language-model summarization provider",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "active",
+      "capabilities": [
+        "summarize"
+      ],
+      "features": [
+        "ai-command-generation"
+      ],
+      "runtime_aliases": [
+        "ollama-local"
+      ],
+      "resource_slug": "ollama",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "actions": [
+        "start",
+        "stop",
+        "restart",
+        "pull_model",
+        "view_logs"
+      ],
+      "checker_kind": "http_json",
+      "docs_url": "docs/concepts/DOMAINS.md",
+      "operator_command": "vrooli resource start ollama",
+      "criticality": "optional",
+      "def_action_kind": "operator_command",
+      "presentation": {
+        "label_key": "providers.ollama.label",
+        "description_key": "providers.ollama.description"
+      },
+      "health_profile": "ollama-model-aware",
+      "readiness_aggregate": true,
+      "liveness_aggregate": true
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "description": "BYOK cloud language-model provider",
+      "kind": "byok_api",
+      "tier": "byok",
+      "status": "active",
+      "capabilities": [
+        "summarize"
+      ],
+      "features": [
+        "ai-command-generation"
+      ],
+      "dependency_kind": "resource",
+      "dependency_slug": "openrouter",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "none",
+      "probe_absent_reason": "No resource-owned read-only probe accepts the per-request BYOK key; generation remains available through the resource-openrouter CLI.",
+      "docs_url": "docs/reference/configuration.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "presentation": {
+        "label_key": "providers.openrouter.label",
+        "description_key": "providers.openrouter.description"
+      },
+      "health_profile": "request-scoped",
+      "readiness_aggregate": false,
+      "liveness_aggregate": false,
+      "byok_adapter_id": "summarize.openrouter-cli-v1"
+    },
+    {
+      "id": "openai-whisper",
+      "name": "OpenAI Whisper (BYOK)",
+      "description": "BYOK cloud speech-to-text provider",
+      "kind": "byok_api",
+      "tier": "byok",
+      "status": "active",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-input"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "http_json",
+      "probe": {
+        "url": "https://api.openai.com/v1/models",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "docs_url": "docs/reference/configuration.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "presentation": {
+        "label_key": "providers.openai-whisper.label",
+        "description_key": "providers.openai-whisper.description"
+      },
+      "byok_adapter_id": "stt.openai-whisper-v1"
+    },
+    {
+      "id": "deepgram",
+      "name": "Deepgram (BYOK)",
+      "description": "BYOK cloud streaming speech-to-text provider",
+      "kind": "byok_api",
+      "tier": "byok",
+      "status": "active",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-streaming"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "http_json",
+      "probe": {
+        "url": "https://api.deepgram.com/v1/projects",
+        "header": "Authorization",
+        "value_prefix": "Token "
+      },
+      "docs_url": "docs/reference/configuration.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "presentation": {
+        "label_key": "providers.deepgram.label",
+        "description_key": "providers.deepgram.description"
+      },
+      "byok_adapter_id": "stt.deepgram-v1"
+    },
+    {
+      "id": "openai-tts",
+      "name": "OpenAI TTS (BYOK)",
+      "description": "BYOK cloud text-to-speech provider",
+      "kind": "byok_api",
+      "tier": "byok",
+      "status": "active",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "http_json",
+      "probe": {
+        "url": "https://api.openai.com/v1/models",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "docs_url": "docs/reference/configuration.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "adapter_id": "byok:openai-tts",
+      "presentation": {
+        "label_key": "providers.openai-tts.label",
+        "description_key": "providers.openai-tts.description"
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "shimmer",
+        "voice.feminine.neutral": "nova",
+        "voice.masculine.warm": "onyx",
+        "voice.masculine.neutral": "echo",
+        "voice.neutral.default": "alloy"
+      },
+      "byok_adapter_id": "tts.openai-speech-v1"
+    },
+    {
+      "id": "elevenlabs",
+      "name": "ElevenLabs (BYOK)",
+      "description": "BYOK cloud text-to-speech provider",
+      "kind": "byok_api",
+      "tier": "byok",
+      "status": "active",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "http_json",
+      "probe": {
+        "url": "https://api.elevenlabs.io/v1/user",
+        "header": "xi-api-key"
+      },
+      "docs_url": "docs/reference/configuration.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "adapter_id": "byok:elevenlabs",
+      "presentation": {
+        "label_key": "providers.elevenlabs.label",
+        "description_key": "providers.elevenlabs.description"
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "EXAVITQu4vr4xnSDxMaL",
+        "voice.feminine.neutral": "21m00Tcm4TlvDq8ikWAM",
+        "voice.masculine.warm": "ErXwobaYiN019PkySvjV",
+        "voice.masculine.neutral": "29vD33N1CtxCmqQRPOHJ",
+        "voice.neutral.default": "21m00Tcm4TlvDq8ikWAM"
+      },
+      "byok_adapter_id": "tts.elevenlabs-v1"
+    },
+    {
+      "id": "openai-gpt-live",
+      "name": "OpenAI GPT-Live 1.1",
+      "description": "Planned hosted full-duplex audio provider; runtime composition is not yet available",
+      "kind": "full_duplex",
+      "tier": "byok",
+      "status": "planned",
+      "capabilities": [
+        "duplex"
+      ],
+      "features": [],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/internal/MATURATION-PROGRAM.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "consent_requirement": {
+        "source": "audio-tools-openai-gpt-live",
+        "revalidate_active_sessions": true
+      },
+      "presentation": {
+        "label_key": "providers.openai-gpt-live.label",
+        "description_key": "providers.openai-gpt-live.description"
+      }
+    },
+    {
+      "id": "browser-stt",
+      "name": "Browser Speech Input",
+      "description": "Browser Web Speech API last-resort speech-to-text; server transcript quality stages do not apply",
+      "kind": "browser",
+      "tier": "browser",
+      "status": "active",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-input",
+        "voice-streaming"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported",
+        "reason": "Depends on the browser Web Speech API; recognition quality varies by browser."
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/concepts/DOMAINS.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "presentation": {
+        "label_key": "providers.browser-stt.label",
+        "description_key": "providers.browser-stt.description"
+      }
+    },
+    {
+      "id": "browser-tts",
+      "name": "Browser Speech Output",
+      "description": "Browser speech synthesis last-resort text-to-speech; voice quality is browser-dependent",
+      "kind": "browser",
+      "tier": "browser",
+      "status": "active",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported",
+        "reason": "Depends on the browser speech synthesis voice catalogue."
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/concepts/DOMAINS.md",
+      "operator_command": "audio-tools settings providers",
+      "criticality": "optional",
+      "def_action_kind": "owner_guidance",
+      "presentation": {
+        "label_key": "providers.browser-tts.label",
+        "description_key": "providers.browser-tts.description"
+      }
+    },
+    {
+      "id": "audio-transcode",
+      "name": "Audio Transcode",
+      "description": "In-process audio format conversion capability",
+      "kind": "scenario",
+      "tier": "none",
+      "status": "active",
+      "capabilities": [
+        "transcode"
+      ],
+      "features": [
+        "transcode"
+      ],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "command",
+      "docs_url": "docs/concepts/DOMAINS.md",
+      "operator_command": "audio-tools health show",
+      "criticality": "required",
+      "def_action_kind": "operator_command",
+      "presentation": {
+        "label_key": "providers.audio-transcode.label",
+        "description_key": "providers.audio-transcode.description"
+      },
+      "health_profile": "transcode",
+      "readiness_aggregate": false,
+      "liveness_aggregate": false
+    },
+    {
+      "id": "rumble-stt",
+      "name": "Rumble STT",
+      "description": "Opt-in local batch speech-to-text route requiring an operator-configured vLLM endpoint",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "stt"
+      ],
+      "features": [
+        "voice-input"
+      ],
+      "resource_slug": "rumble-stt",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/reference/engine-selection.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.rumble-stt.label",
+        "description_key": "providers.rumble-stt.description"
+      },
+      "engine_ids": []
+    },
+    {
+      "id": "kale-tts",
+      "name": "Kale TTS",
+      "description": "Experimental low-footprint English TTS using an isolated Kale ONNX runtime; separate from sherpa's Kokoro model path",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "dependency_kind": "resource",
+      "dependency_slug": "kale-tts",
+      "resource_slug": "kale-tts",
+      "platform": {
+        "support": "degraded",
+        "reason": "Nano weights at the pinned Hugging Face revision are public, non-gated, and declare Apache-2.0; provider remains planned pending joined model-quality and lifecycle qualification, and Kale's ONNX graph is not compatible with the current sherpa Kokoro adapter."
+      },
+      "checker_kind": "none",
+      "adapter_id": "local:kale-tts",
+      "tts_runtime": {
+        "backend_id": "kale-onnx",
+        "url_field": "KaleURL",
+        "health_path": "/healthz",
+        "model_role": "fast",
+        "cache_backend": "kale-tts-1-nano",
+        "speed_mode": "postprocess",
+        "auto_priority": 10,
+        "conditional_auto": true
+      },
+      "docs_url": "docs/reference/engine-selection.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.kale-tts.label",
+        "description_key": "providers.kale-tts.description"
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "kenzie",
+        "voice.feminine.neutral": "simone",
+        "voice.masculine.warm": "earl",
+        "voice.masculine.neutral": "owen",
+        "voice.neutral.default": "kenzie"
+      }
+    },
+    {
+      "id": "qwen3-tts",
+      "name": "Qwen3-TTS Voice Cloning",
+      "description": "Planned local voice-cloning provider; 0.6B Base candidate awaits a bounded managed runtime and consented product path",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output",
+        "voice-cloning"
+      ],
+      "resource_slug": "qwen3-tts",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "degraded",
+        "reason": "No Audio Tools resource or adapter exists; upstream vLLM-Omni memory evidence is GPU-heavy and is not a Base-cloning receipt."
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/reference/models.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.qwen3-tts.label",
+        "description_key": "providers.qwen3-tts.description"
+      }
+    },
+    {
+      "id": "sopro-tts",
+      "name": "Sopro Voice Cloning",
+      "description": "Planned compact local voice-cloning provider; the pinned 120M Apache-2.0 model has no Audio Tools runtime or consented route",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output",
+        "voice-cloning"
+      ],
+      "resource_slug": "sopro-tts",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "degraded",
+        "reason": "No Audio Tools resource or adapter exists; runtime dependency licenses, source-bound voice authorization, ephemeral reference handling, bounded deletion, and product quality remain unqualified."
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/reference/models.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.sopro-tts.label",
+        "description_key": "providers.sopro-tts.description"
+      }
+    },
+    {
+      "id": "reverb-tts",
+      "name": "Reverb TTS",
+      "description": "Planned local text-to-speech model adapter",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "resource_slug": "reverb-tts",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "none",
+      "license": "CC BY-NC 4.0",
+      "docs_url": "docs/reference/engine-selection.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.reverb-tts.label",
+        "description_key": "providers.reverb-tts.description"
+      }
+    },
+    {
+      "id": "verba-tts",
+      "name": "Verba TTS",
+      "description": "Watched Indic-language text-to-speech model adapter",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "watch",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output"
+      ],
+      "resource_slug": "verba-tts",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/reference/engine-selection.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.verba-tts.label",
+        "description_key": "providers.verba-tts.description"
+      }
+    }
+  ]
+}

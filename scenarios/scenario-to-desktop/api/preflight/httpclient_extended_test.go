@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	bundleruntime "scenario-to-desktop-runtime"
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestHTTPRuntimeClient_Validate(t *testing.T) {
@@ -101,57 +102,39 @@ func TestHTTPRuntimeClient_Ready(t *testing.T) {
 }
 
 func TestHTTPRuntimeClient_fetchText(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("log content here"))
-		}))
-		defer server.Close()
+	tests := []struct {
+		name, token, body, wantText, wantAuth string
+		status                                int
+		wantError                             bool
+	}{
+		{name: "success", token: "test-token", body: "log content here", wantText: "log content here", wantAuth: "Bearer test-token", status: http.StatusOK},
+		{name: "error status", body: "not found", wantText: "not found", status: http.StatusNotFound, wantError: true},
+		{name: "empty error body uses status", wantText: "404 Not Found", status: http.StatusNotFound, wantError: true},
+		{name: "sends auth header", token: "my-token", wantAuth: "Bearer my-token", status: http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/logs" {
+					t.Errorf("request path = %q, want /logs", r.URL.Path)
+				}
+				if got := r.Header.Get("Authorization"); got != tt.wantAuth {
+					t.Errorf("Authorization = %q, want %q", got, tt.wantAuth)
+				}
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer server.Close()
 
-		client := NewHTTPRuntimeClient(server.URL, "test-token", nil)
-		text, status, err := client.fetchText("/logs")
-		if err != nil {
-			t.Fatalf("fetchText() error: %v", err)
-		}
-		if text != "log content here" {
-			t.Errorf("expected 'log content here', got %q", text)
-		}
-		if status != http.StatusOK {
-			t.Errorf("expected status 200, got %d", status)
-		}
-	})
-
-	t.Run("error status", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("not found"))
-		}))
-		defer server.Close()
-
-		client := NewHTTPRuntimeClient(server.URL, "", nil)
-		_, status, err := client.fetchText("/logs")
-		if err == nil {
-			t.Fatalf("expected error for 404 status")
-		}
-		if status != http.StatusNotFound {
-			t.Errorf("expected status 404, got %d", status)
-		}
-	})
-
-	t.Run("sends auth header", func(t *testing.T) {
-		var receivedAuth string
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			receivedAuth = r.Header.Get("Authorization")
-			w.WriteHeader(http.StatusOK)
-		}))
-		defer server.Close()
-
-		client := NewHTTPRuntimeClient(server.URL, "my-token", nil)
-		_, _, _ = client.fetchText("/logs")
-		if receivedAuth != "Bearer my-token" {
-			t.Errorf("expected 'Bearer my-token', got %q", receivedAuth)
-		}
-	})
+			text, status, err := NewHTTPRuntimeClient(server.URL, tt.token, nil).fetchText("/logs")
+			if (err != nil) != tt.wantError {
+				t.Fatalf("fetchText() error = %v, want error %v", err, tt.wantError)
+			}
+			if status != tt.status || text != tt.wantText {
+				t.Errorf("fetchText() = (%q, %d), want (%q, %d)", text, status, tt.wantText, tt.status)
+			}
+		})
+	}
 }
 
 func TestHTTPRuntimeClient_maxReadinessTimeout(t *testing.T) {
@@ -182,15 +165,6 @@ func TestHTTPRuntimeClient_collectLogTails(t *testing.T) {
 	})
 }
 
-func TestValidationStepStateActual(t *testing.T) {
-	t.Run("nil returns skipped", func(t *testing.T) {
-		result := validationStepState(nil)
-		if result != "skipped" {
-			t.Errorf("expected 'skipped', got %q", result)
-		}
-	})
-}
-
 func TestWithRuntimeFactory(t *testing.T) {
 	service := NewService(WithRuntimeFactory(func(manifest *bundlemanifest.Manifest, bundleRoot string, timeout time.Duration) (*RuntimeHandle, error) {
 		return &RuntimeHandle{}, nil
@@ -201,98 +175,55 @@ func TestWithRuntimeFactory(t *testing.T) {
 	}
 }
 
-func TestValidationStepStateWithValidationResult(t *testing.T) {
-	t.Run("valid returns pass", func(t *testing.T) {
-		// Import runtimeapi for the actual type if needed
-		// Since we're in the same package, we can test directly
-		result := validationStepState(nil)
-		if result != "skipped" {
-			t.Errorf("expected 'skipped', got %q", result)
-		}
-	})
-}
-
-func TestHTTPRuntimeClient_PortsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	_, err := client.Ports()
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
+func TestValidationStepStateBranchContract(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *runtimeapi.BundleValidationResult
+		want  string
+	}{
+		{name: "nil is skipped", want: "skipped"},
+		{name: "valid passes", input: &runtimeapi.BundleValidationResult{Valid: true}, want: "pass"},
+		{name: "invalid fails", input: &runtimeapi.BundleValidationResult{Valid: false}, want: "fail"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validationStepState(tt.input); got != tt.want {
+				t.Errorf("validationStepState() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
-func TestHTTPRuntimeClient_TelemetryError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	_, err := client.Telemetry()
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
+func TestHTTPRuntimeClient_ServerErrorResponses(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		call func(*HTTPRuntimeClient) error
+	}{
+		{"status", "/status", func(c *HTTPRuntimeClient) error { _, err := c.Status(); return err }},
+		{"ports", "/ports", func(c *HTTPRuntimeClient) error { _, err := c.Ports(); return err }},
+		{"telemetry", "/telemetry", func(c *HTTPRuntimeClient) error { _, err := c.Telemetry(); return err }},
+		{"secrets", "/secrets", func(c *HTTPRuntimeClient) error { _, err := c.Secrets(); return err }},
+		{"apply secrets", "/secrets", func(c *HTTPRuntimeClient) error { return c.ApplySecrets(map[string]string{"key": "value"}) }},
+		{"validate", "/validate", func(c *HTTPRuntimeClient) error { _, err := c.Validate(); return err }},
+		{"ready", "/readyz", func(c *HTTPRuntimeClient) error { _, _, err := c.Ready(Request{}, time.Second); return err }},
 	}
-}
 
-func TestHTTPRuntimeClient_SecretsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != tt.path {
+					t.Errorf("request path = %q, want %q", r.URL.Path, tt.path)
+				}
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("internal error"))
+			}))
+			defer server.Close()
 
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	_, err := client.Secrets()
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
-	}
-}
-
-func TestHTTPRuntimeClient_ApplySecretsError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	err := client.ApplySecrets(map[string]string{"key": "value"})
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
-	}
-}
-
-func TestHTTPRuntimeClient_ValidateError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	_, err := client.Validate()
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
-	}
-}
-
-func TestHTTPRuntimeClient_ReadyError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	_, _, err := client.Ready(Request{}, 1*time.Second)
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
+			if err := tt.call(NewHTTPRuntimeClient(server.URL, "", nil)); err == nil {
+				t.Fatal("expected error for 500 status")
+			}
+		})
 	}
 }
 
@@ -322,73 +253,44 @@ func TestHTTPRuntimeClient_fetchJSONWithPayload(t *testing.T) {
 	}
 }
 
-func TestHTTPRuntimeClient_fetchJSONDecodeError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("invalid json"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	var out map[string]string
-	_, err := client.fetchJSON("/test", http.MethodGet, nil, &out, nil)
-	if err == nil {
-		t.Fatalf("expected decode error")
+func TestHTTPRuntimeClient_FetchJSONStatusAndDecodeContracts(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		call   func(*HTTPRuntimeClient) (int, error)
+		want   int
+		isErr  bool
+	}{
+		{"success-status malformed JSON fails", http.StatusOK, "invalid json", func(c *HTTPRuntimeClient) (int, error) {
+			var out map[string]string
+			return c.fetchJSON("/test", http.MethodGet, nil, &out, nil)
+		}, http.StatusOK, true},
+		{"allowed error status malformed JSON fails", http.StatusUnprocessableEntity, "invalid json", func(c *HTTPRuntimeClient) (int, error) {
+			var out map[string]string
+			return c.fetchJSON("/test", http.MethodGet, nil, &out, map[int]bool{http.StatusUnprocessableEntity: true})
+		}, http.StatusUnprocessableEntity, true},
+		{"allowed error status needs no output", http.StatusUnprocessableEntity, "error message", func(c *HTTPRuntimeClient) (int, error) {
+			return c.fetchJSON("/test", http.MethodGet, nil, nil, map[int]bool{http.StatusUnprocessableEntity: true})
+		}, http.StatusUnprocessableEntity, false},
 	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/test" {
+					t.Errorf("request path = %q, want /test", r.URL.Path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer server.Close()
 
-func TestHTTPRuntimeClient_fetchJSONAllowedStatusDecodeError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write([]byte("invalid json"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	var out map[string]string
-	allow := map[int]bool{http.StatusUnprocessableEntity: true}
-	_, err := client.fetchJSON("/test", http.MethodGet, nil, &out, allow)
-	if err == nil {
-		t.Fatalf("expected decode error for allowed status with bad JSON")
-	}
-}
-
-func TestHTTPRuntimeClient_fetchJSONAllowedStatusNoOutput(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write([]byte("error message"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	allow := map[int]bool{http.StatusUnprocessableEntity: true}
-	status, err := client.fetchJSON("/test", http.MethodGet, nil, nil, allow)
-	if err != nil {
-		t.Fatalf("expected no error for allowed status, got %v", err)
-	}
-	if status != http.StatusUnprocessableEntity {
-		t.Errorf("expected status 422, got %d", status)
-	}
-}
-
-func TestHTTPRuntimeClient_fetchTextEmptyError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		// Empty body
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	body, _, err := client.fetchText("/test")
-	if err == nil {
-		t.Fatalf("expected error for 404 status")
-	}
-	// Body should contain the status text since body was empty
-	if body == "" {
-		// The function returns resp.Status when body is empty
-		t.Logf("body was empty as expected")
+			status, err := tt.call(NewHTTPRuntimeClient(server.URL, "", nil))
+			if (err != nil) != tt.isErr || status != tt.want {
+				t.Errorf("fetchJSON() = (%d, %v), want status %d, error=%v", status, err, tt.want, tt.isErr)
+			}
+		})
 	}
 }
 
@@ -594,15 +496,6 @@ func TestDefaultWaitForHealth(t *testing.T) {
 		err := defaultWaitForHealth(client, server.URL, 1*time.Second)
 		if err != nil {
 			t.Errorf("expected nil error, got %v", err)
-		}
-	})
-}
-
-func TestValidationStepStateComprehensive(t *testing.T) {
-	t.Run("nil validation returns skipped", func(t *testing.T) {
-		result := validationStepState(nil)
-		if result != "skipped" {
-			t.Errorf("expected 'skipped', got %q", result)
 		}
 	})
 }

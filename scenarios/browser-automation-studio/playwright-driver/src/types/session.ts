@@ -3,8 +3,49 @@ import type { RecordingContextInitializer, RecordingPipelineManager } from '../r
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
+import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
+import type { AudioStrategy, HostAudioCapability } from '../session/audio';
+import type { BrowserCaptureDeviceEvidence } from '../session/audio/device-evidence';
+import type { DriverPageBindings } from '../session/page-bindings';
+import type { EffectiveIdentityEvidence } from '../session/identity-evidence';
+import type { AppMonitorTraceCapture } from '../tracing/app-monitor-capture';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
+export type BrowserBackend = 'managed' | 'installed';
+
+/** API-resolved browser permission subset enforced again inside the driver. */
+export interface BrowserPermissionProfile {
+  /** Persisted Agent Manager profile identity copied by the BAS session owner. */
+  profile_id?: string;
+  profile_mode?: 'fresh' | 'isolated' | 'reuse' | 'user_attached' | 'remote';
+  effect: 'observe' | 'act' | 'unrestricted';
+  approval: 'none' | 'safety_pass' | 'every_action';
+  url_allow?: string[];
+  url_deny?: string[];
+  control?: boolean;
+  view?: boolean;
+  /** Explicit authority for reading browser history. */
+  history_read?: boolean;
+  /** True only for a managed session admitted to install scenario-built extensions. */
+  extension_install?: boolean;
+  /** True only for a managed session admitted to load an allowlisted extension. */
+  extension_load?: boolean;
+  /** True only for a managed session admitted to inspect extension metadata. */
+  extension_access?: boolean;
+  /** Explicit, narrow permission for App Monitor's fixed scalar metrics. */
+  app_monitor_metrics?: boolean;
+  /** Explicit, bounded permission for App Monitor's fixed sanitized trace. */
+  app_monitor_trace?: boolean;
+  app_monitor_trace_max_duration_ms?: number;
+  app_monitor_trace_max_bytes?: number;
+  /** Explicit extension IDs and permission/host match patterns approved for this lease. */
+  extension_permissions?: Record<string, string[]>;
+  /** Explicit Agent Manager run grant for microphone qualification. */
+  audio_mode?: 'fake_microphone' | 'pipewire_qualification';
+  /** Go time.Duration is encoded as integer nanoseconds. */
+  max_duration?: number;
+  max_actions?: number;
+}
 
 export interface SessionSpec {
   execution_id: string;
@@ -14,6 +55,20 @@ export interface SessionSpec {
     height: number;
   };
   reuse_mode: ReuseMode;
+  /** Trusted BAS-selected launch backend; installed requires configured executable path. */
+  browser_backend?: BrowserBackend;
+  /** Stable BAS session-profile identity/revision; prevents cross-profile pooling. */
+  session_profile_version?: string;
+  /** Immutable permission contract admitted for this session lease. */
+  permission_profile?: BrowserPermissionProfile;
+  /** Preview bitmap scale, retained for this admitted lease. Defaults to CSS pixels. */
+  frame_scale?: 'css' | 'device';
+  /** Resolved preview stream configuration admitted with the current lease. */
+  frame_streaming?: {
+    url: string;
+    quality?: number;
+    fps?: number;
+  };
   base_url?: string;
   labels?: Record<string, string>;
   required_capabilities?: {
@@ -24,6 +79,10 @@ export interface SessionSpec {
     har?: boolean;
     video?: boolean;
     tracing?: boolean;
+    /** CDP performance trace + web-vitals capture (Tier 0). */
+    performance_trace?: boolean;
+    /** CDP accessibility-tree snapshot capture. */
+    accessibility?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -32,6 +91,10 @@ export interface SessionSpec {
     video_dir?: string;
     har_path?: string;
     trace_path?: string;
+    /** Directory the perf trace + web-vitals JSON are written to. */
+    perf_dir?: string;
+    /** Directory the accessibility.json snapshot is written to. */
+    accessibility_dir?: string;
   };
   // Browser context configuration
   user_agent?: string;
@@ -43,30 +106,68 @@ export interface SessionSpec {
     accuracy?: number;
   };
   permissions?: string[];
-  storage_state?: {
-    cookies: Array<{
-      name: string;
-      value: string;
-      domain: string;
-      path: string;
-      expires: number;
-      httpOnly: boolean;
-      secure: boolean;
-      sameSite: 'Strict' | 'Lax' | 'None';
-    }>;
-    origins: Array<{
-      origin: string;
-      localStorage: Array<{ name: string; value: string }>;
-    }>;
+  /**
+   * Deterministic fake media devices for this session.
+   * Chromium serves fake capture devices process-wide, so the driver pools a
+   * dedicated browser instance per distinct microphone WAV path.
+   */
+  fake_media?: {
+    /** Absolute WAV path used as the fake microphone capture source. */
+    microphone_wav?: string;
   };
+  /** Optional inter-clip pause for host-device qualification playback. */
+  audio_playback_pause_ms?: number;
+  /** Optional delay before host-device qualification playback begins. */
+  audio_playback_start_delay_ms?: number;
+  /** Create host playback control without emitting audio until restart is called. */
+  audio_playback_defer_start?: boolean;
+  /** Opt this session into the user-owned PipeWire capture qualification device. */
+  audio_device_evidence?: boolean;
+  storage_state?: Awaited<ReturnType<BrowserContext['storageState']>>;
   /**
    * Service worker control configuration.
    * Controls how service workers are managed during the session.
    * Defaults to 'allow' mode if not specified.
    */
   service_worker_control?: ServiceWorkerControl;
-  // Anti-detection and human-like behavior configuration
+  // Legacy signal-adjustment and interaction-timing configuration. No
+  // site-specific detection or access outcome is implied.
   browser_profile?: BrowserProfile;
+  /**
+   * Optional controlled Electron target supplied by scenario-to-desktop.
+   * Target-backed sessions attach to the existing renderer and never launch
+   * or terminate the desktop application.
+   */
+  app_target?: AppTargetSpec;
+  /** Run-bound identity used to prove the Electron session belongs to one cell. */
+  validation_context?: ValidationContextSpec;
+}
+
+export interface ValidationContextSpec {
+  context_id: string;
+  scenario_name: string;
+  artifact_digest: string;
+  target_id: string;
+  workflow_id: string;
+  profile_id: string;
+  isolation_lease_id: string;
+}
+
+export type AppTargetKind = 'electron' | 'android-webview';
+
+export interface AppTargetSpec {
+  target_kind?: AppTargetKind;
+  target_id: string;
+  cdp_endpoint: string;
+  renderer_id: string;
+  renderer_url: string;
+  renderer_title?: string;
+  scenario_name: string;
+  artifact_digest: string;
+  context_id: string;
+  cdp_transport: 'loopback-authenticated' | 'bridge-authenticated';
+  download_path?: string;
+  test_database_root?: string;
 }
 
 /**
@@ -170,12 +271,51 @@ export interface SessionSpec {
  * - 'resetting': Session state is being reset (clearing cookies, storage, etc.)
  * - 'closing': Session is being torn down, resources being freed
  */
-export type SessionPhase = 'initializing' | 'ready' | 'executing' | 'recording' | 'resetting' | 'closing';
+export type SessionPhase =
+  | 'initializing'
+  | 'ready'
+  | 'executing'
+  | 'recording'
+  | 'resetting'
+  | 'closing';
 
 export interface SessionState {
   id: string;
+  /** An admitted instruction remains reserved until its promise settles, even
+   * if reset/close changes the lifecycle phase in the meantime. */
+  instructionInFlight?: boolean;
+  /** Serializes extension lifecycle operations with browser instructions. */
+  extensionOperationInFlight?: boolean;
+  /** Lifecycle teardown joins this before mutating or disposing browser state. */
+  instructionSettlement?: Promise<void>;
+  /** True when close interrupted an admitted operation; its effect is uncertain. */
+  instructionInterrupted?: boolean;
+  /** Successful teardown stages survive a failed close for explicit retry. */
+  closeProgress?: { completed: Set<string>; videoPaths: Map<number, string> };
+  /** Immutable execution that acquired the current lease. Never rewrite this
+   * while the lease is active; a later execution receives a new lease. */
+  ownerExecutionId: string;
+  leaseId: string;
+  leaseReleasedAt?: Date;
   browser: Browser;
+  /** Identity facts captured by the owner before target navigation. */
+  identityEvidence?: EffectiveIdentityEvidence;
+  /** True only for a session attached to a controlled external target. */
+  externalTarget?: boolean;
+  /** Audio delivery evidence selected for this session. */
+  audioStrategy?: AudioStrategy;
+  audioCapability?: HostAudioCapability;
+  /** Metadata-only host-device qualification returned at session start. */
+  audioDeviceEvidence?: BrowserCaptureDeviceEvidence;
+  /** Stops the session-owned host-device corpus playback loop. */
+  audioPlaybackStop?: () => Promise<void>;
+  /** Restarts the session-owned host-device corpus playback loop. */
+  audioPlaybackRestart?: () => Promise<void>;
+  /** Returns a playback failure observed after session creation, if any. */
+  audioPlaybackFailure?: () => string | undefined;
   context: BrowserContext;
+  /** Imported and visited origins whose browser state an explicit reset must clear. */
+  storageOrigins: Set<string>;
   page: Page;
   spec: SessionSpec;
   createdAt: Date;
@@ -201,21 +341,20 @@ export interface SessionState {
   // Frame navigation stack (for frame-switch)
   frameStack: Frame[];
 
-  // Tab/page stack (for multi-tab support)
-  pages: Page[];
-  currentPageIndex: number;
-
-  /**
-   * Map from driver page ID (UUID) to Playwright Page object.
-   * Enables efficient lookup when switching pages by ID.
-   */
-  pageIdMap: Map<string, Page>;
-
-  /**
-   * Reverse map from Playwright Page object to driver page ID.
-   * Used to find the ID when a page emits events.
-   */
-  pageToIdMap: WeakMap<Page, string>;
+  /** SessionManager-owned runtime page stack and driver identity bindings. */
+  pageBindings: DriverPageBindings;
+  /** Short-lived, current-page targets emitted only by the Broker accessibility observer. */
+  accessibilityReferenceTargets?: Map<
+    string,
+    {
+      selector: string;
+      pageId: string;
+      url: string;
+      expiresAt: number;
+      role?: string;
+      name?: string;
+    }
+  >;
 
   // Network mocking state
   activeMocks: Map<string, MockRoute>;
@@ -245,11 +384,14 @@ export interface SessionState {
   pageLifecycleCleanup?: () => void;
 
   /**
-   * Instruction idempotency tracking.
-   * Maps instruction key (node_id:index) to last execution result.
-   * Enables replay-safe instruction execution.
+   * Lifecycle owner for background AI navigation. Reset and close must invoke
+   * and await this hook before mutating or disposing any session page.
    */
-  executedInstructions?: Map<string, ExecutedInstructionRecord>;
+  aiNavigationCleanup?: () => Promise<void>;
+
+  /** Bounded receipts and monotonic highwater owned by this lease. */
+  instructionReceipts?: Map<number, InstructionReceipt>;
+  lastInstructionSequence: number;
 
   /**
    * Service worker controller for this session.
@@ -263,6 +405,27 @@ export interface SessionState {
    * Shared across all recording sessions in this browser context.
    */
   recordingInitializer?: RecordingContextInitializer;
+
+  /**
+   * Performance tracer for this session, present only when the session was
+   * started with required_capabilities.performance_trace. Started after the
+   * page is created (before navigation) and stopped at session close, where
+   * it writes the CDP trace + web-vitals JSON into the perf artifact dir.
+   */
+  perfTracer?: PerformanceTracer;
+  /** One-shot, caller-authorized App Monitor trace capture. */
+  appMonitorTraceCapture?: AppMonitorTraceCapture;
+  appMonitorTraceCaptureId?: string;
+
+  /**
+   * Accessibility snapshotter for this session, present only when the session
+   * was started with required_capabilities.accessibility. Unlike the perf
+   * tracer it holds no session-spanning state — it is stored at start so its
+   * output dir + the capability gate are available at close, where it captures
+   * the AX tree from the final settled page (the same point the final
+   * screenshot fires) and writes accessibility.json.
+   */
+  accessibilitySnapshotter?: AccessibilitySnapshotter;
 }
 
 export interface SessionCloseResult {
@@ -271,19 +434,10 @@ export interface SessionCloseResult {
   harPath?: string;
 }
 
-/**
- * Record of an executed instruction for idempotency tracking.
- * Stores enough information to return the same result on replay.
- */
-export interface ExecutedInstructionRecord {
-  /** Composite key: node_id:index */
-  key: string;
-  /** When the instruction was executed */
-  executedAt: Date;
-  /** Whether execution succeeded */
-  success: boolean;
-  /** Cached outcome for replay (optional, may be large) */
-  cachedOutcome?: unknown;
+/** A serialized response is immutable and safe to return without re-decoration. */
+export interface InstructionReceipt {
+  fingerprint: string;
+  response: string;
 }
 
 export interface MockRoute {
@@ -300,53 +454,23 @@ export interface SessionMetrics {
   peakSessions: number;
 }
 
+/** API-resolved session configuration bound to the lease admitted for a start. */
+export type SessionOptions = Omit<
+  SessionSpec,
+  'execution_id' | 'workflow_id' | 'frame_scale' | 'frame_streaming'
+> & {
+  frame_scale: 'css' | 'device';
+  frame_streaming?: {
+    url: string;
+    quality?: number;
+    fps?: number;
+  };
+};
+
 export interface StartSessionRequest {
   execution_id: string;
   workflow_id: string;
-  viewport: {
-    width: number;
-    height: number;
-  };
-  reuse_mode: string;
-  base_url?: string;
-  labels?: Record<string, string>;
-  required_capabilities?: {
-    tabs?: boolean;
-    iframes?: boolean;
-    uploads?: boolean;
-    downloads?: boolean;
-    har?: boolean;
-    video?: boolean;
-    tracing?: boolean;
-    viewport_width?: number;
-    viewport_height?: number;
-  };
-  artifact_paths?: {
-    root?: string;
-    video_dir?: string;
-    har_path?: string;
-    trace_path?: string;
-  };
-  storage_state?: SessionSpec['storage_state'];
-  /**
-   * Optional: Enable live frame streaming immediately when session is created.
-   * This allows viewing the browser before starting action recording.
-   */
-  frame_streaming?: {
-    /** Callback URL for frame delivery (API constructs WebSocket URL from this) */
-    callback_url: string;
-    /** JPEG quality 1-100 (default: 55 from API config) */
-    quality?: number;
-    /** Target FPS 1-60 (default: 30 from API config) */
-    /** Note: For CDP screencast, Chrome controls actual FPS. This is a target/hint. */
-    fps?: number;
-    /** Screenshot scale: 'css' for 1x scale (default), 'device' for device pixel ratio */
-    scale?: 'css' | 'device';
-  };
-  /**
-   * Optional: Browser profile for anti-detection and human-like behavior.
-   */
-  browser_profile?: BrowserProfile;
+  session_options: SessionOptions;
 }
 
 /**
@@ -354,10 +478,10 @@ export interface StartSessionRequest {
  * This attribution helps users understand why dimensions may differ from requested.
  */
 export type ViewportSource =
-  | 'requested'           // Used the UI-requested dimensions
-  | 'fingerprint'         // Browser profile fingerprint override
+  | 'requested' // Used the UI-requested dimensions
+  | 'fingerprint' // Browser profile fingerprint override
   | 'fingerprint_partial' // Fingerprint set one dimension, requested used for other
-  | 'default';            // Fallback defaults used
+  | 'default'; // Fallback defaults used
 
 /**
  * Actual viewport with source attribution.
@@ -373,7 +497,12 @@ export interface ActualViewportResponse {
 }
 
 export interface StartSessionResponse {
+  /** Registered browser page selected at session admission. */
+  active_page_id: string;
+  last_instruction_sequence: number;
   session_id: string;
+  /** Opaque token required to release or close this execution's lease. */
+  lease_id: string;
   /** Session phase after creation (always 'ready' for new sessions) */
   phase: SessionPhase;
   /** ISO 8601 timestamp when session was created */
@@ -385,6 +514,15 @@ export interface StartSessionResponse {
    * May differ from requested dimensions due to browser profile fingerprint overrides.
    */
   actual_viewport?: ActualViewportResponse;
+  /** Owner-observed identity properties from the fresh, pre-navigation context. */
+  identity_evidence?: EffectiveIdentityEvidence;
+  /** Present only for the opt-in PipeWire host-device qualification lane. */
+  audio_device_evidence?: BrowserCaptureDeviceEvidence;
+}
+
+export interface CloseSessionRequest {
+  execution_id: string;
+  lease_id: string;
 }
 
 /**
@@ -432,11 +570,21 @@ export interface HealthResponse {
   sessions: number;
   /** Number of sessions with active recording */
   active_recordings?: number;
-  /** Driver version */
-  version?: string;
+  /** Playwright driver release, distinct from the Chromium version. */
+  driver_version?: string;
+  /** Immutable lifecycle runtime artifact identity when selected. */
+  runtime_release_id?: string;
+  runtime_release_operation_id?: string;
+  /** Lifecycle start operation whose selected runtime this process serves. */
+  start_operation_id?: string;
+  /** Lifecycle build identity injected into this process. */
+  build_identity?: string;
   /** Browser subsystem health */
   browser?: {
     healthy: boolean;
+    /** `reported` means version/family came from a currently connected browser. */
+    runtime_identity_status?: 'reported' | 'unavailable';
+    family?: 'chromium';
     version?: string;
     error?: string;
   };

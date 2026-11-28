@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Searching the library — three options</title>
+<style>
+  :root{
+    --bg:#0b0a0f; --bg2:#0d0c12; --panel:#141219; --panel2:#1a1721; --panel3:#211c27;
+    --line:#2b2531; --line2:#3a3340; --line3:#4a4150;
+    --ink:#f7f1e8; --ink2:#ded4c8; --muted:#a79b92; --muted2:#8f8580;
+    --signal:#ffb35c; --signal2:#ffc785; --signal-soft:rgba(255,179,92,.13);
+    --signal-line:rgba(255,179,92,.28); --signal-ink:#1a1108;
+    --ice:#8fd8ff; --ice-soft:rgba(143,216,255,.10); --ice-line:rgba(143,216,255,.26);
+    --green:#82e0b0; --green-soft:rgba(130,224,176,.11);
+    --amber:#ffcc80; --amber-soft:rgba(255,204,128,.11);
+    --red:#ff8e8e; --red-soft:rgba(255,142,142,.11);
+    --violet:#b9a7ff; --violet-soft:rgba(185,167,255,.12);
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --r:14px; --r-sm:10px; --r-xs:8px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.55;
+    background:
+      radial-gradient(1000px 560px at 82% -8%, rgba(255,179,92,.07), transparent 62%),
+      radial-gradient(820px 480px at -5% 8%, rgba(143,216,255,.04), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  img{display:block;max-width:100%}
+  .wrap{max-width:1240px;margin:0 auto;padding:56px 32px 96px}
+  .mono{font-family:var(--mono)}
+  .i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .i.sm{width:13px;height:13px}
+  .i.lg{width:20px;height:20px}
+  .muted{color:var(--muted)}
+  .muted2{color:var(--muted2)}
+  .tiny{font-size:12px}
+  .caption{font:10px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted2)}
+  h1,h2,h3,h4{margin:0}
+  h1{font-family:var(--serif);font-size:68px;line-height:.96;letter-spacing:-.035em;font-weight:500}
+  h1 em{font-style:normal;color:var(--signal)}
+  h2{font-family:var(--serif);font-size:40px;line-height:1.05;letter-spacing:-.025em;font-weight:500}
+  h3{font-family:var(--serif);font-size:26px;line-height:1.1;letter-spacing:-.015em;font-weight:500}
+  h4{font-size:14px;font-weight:650;letter-spacing:-.005em}
+  p{margin:0}
+  .lede{font-size:17px;line-height:1.7;color:var(--ink2);max-width:820px}
+  .kicker{display:flex;align-items:center;gap:10px;font:10px/1.4 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--signal);margin-bottom:22px}
+  .kicker:before{content:"";width:26px;height:1px;background:var(--signal);opacity:.7}
+  .head{max-width:980px}
+  .head .lede{margin-top:22px}
+  .stamprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+  .stamp{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#0d0c12;color:var(--muted);font-size:11px}
+  .stamp b{color:var(--ink);font-weight:600}
+  .statstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:42px 0 0}
+  .stat{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,#121017,#0d0c12);padding:14px 16px}
+  .stat .n{font:600 26px/1 var(--mono);letter-spacing:-.04em}
+  .stat .n span{font-size:11px;color:var(--muted2);font-weight:400;letter-spacing:0}
+  .stat .l{font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.35}
+  .recbox{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start;margin-top:36px;padding:20px 22px;border:1px solid var(--signal-line);border-radius:14px;background:linear-gradient(120deg,rgba(255,179,92,.09),rgba(255,179,92,.02) 58%),#110f15}
+  .recbox .mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--signal);color:var(--signal-ink)}
+  .recbox b{color:var(--signal2);font-weight:650}
+  .recbox p{color:var(--ink2);font-size:14px;line-height:1.6}
+  .section{margin-top:88px;padding-top:34px;border-top:1px solid var(--line)}
+  .section-head{display:grid;grid-template-columns:64px 1fr;gap:22px;align-items:start;margin-bottom:34px}
+  .section-no{font:11px/1 var(--mono);color:var(--signal);padding-top:8px;letter-spacing:.14em}
+  .section-head h2{margin-bottom:12px}
+  .section-head .lede{font-size:16px;max-width:900px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#121017,#0e0d13);overflow:hidden}
+  .card-pad{padding:18px 20px}
+  .shot{position:relative;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a090e}
+  .shot img{width:100%;height:auto}
+  .shot .fid{position:absolute;top:10px;left:10px}
+  .fid{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;border:1px solid currentColor;font:9.5px/1.6 var(--mono);letter-spacing:.08em;text-transform:uppercase;background:rgba(10,9,14,.78);backdrop-filter:blur(6px)}
+  .fid.captured{color:var(--green)}
+  .fid.rendered{color:var(--ice)}
+  .fid.composited{color:var(--amber)}
+  .fid.sketch{color:var(--red)}
+  .figcap{padding:11px 2px 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .figcap b{color:var(--ink2);font-weight:600}
+  .findings{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;margin-top:26px}
+  .finding{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:15px 0;border-top:1px solid var(--line)}
+  .finding .n{font:10px/1.4 var(--mono);color:var(--signal);padding-top:3px}
+  .finding b{display:block;font-size:13.5px;font-weight:650;margin-bottom:4px}
+  .finding p{font-size:13px;line-height:1.6;color:var(--muted)}
+  .callout{margin-top:22px;padding:18px 20px;border-left:2px solid var(--ice);background:linear-gradient(90deg,var(--ice-soft),transparent 70%);border-radius:0 12px 12px 0}
+  .callout b{color:var(--ice)}
+  .callout p{font-size:13.5px;color:var(--ink2);line-height:1.65}
+  /* layers */
+  .layers{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:10px}
+  .layer{position:relative;border:1px solid var(--line);border-radius:13px;background:linear-gradient(180deg,#121017,#0d0c12);padding:16px}
+  .layer:after{content:"";position:absolute;top:50%;right:-13px;width:13px;height:1px;background:var(--line2)}
+  .layer:last-child:after{display:none}
+  .layer .tag{display:inline-flex;padding:3px 7px;border-radius:6px;font:9px/1.6 var(--mono);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line2);color:var(--muted)}
+  .layer h4{margin:13px 0 3px;font-family:var(--serif);font-size:19px;font-weight:500}
+  .layer .count{font:10px/1.5 var(--mono);color:var(--signal)}
+  .layer p{font-size:12px;line-height:1.55;color:var(--muted);margin-top:10px}
+  .layer ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+  .layer li{font-size:11.5px;color:var(--ink2);display:flex;gap:6px;align-items:center}
+  .layer li:before{content:"";width:4px;height:4px;border-radius:50%;background:var(--line3);flex:none}
+  .entity-note{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+  .entity-note .card-pad{padding:18px 20px}
+  .entity-note h4{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .entity-note p{font-size:13px;line-height:1.65;color:var(--muted)}
+  .entity-note p + p{margin-top:8px}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+  .dot.g{background:var(--green)} .dot.a{background:var(--amber)} .dot.i{background:var(--ice)} .dot.r{background:var(--red)}
+  /* option chrome */
+  .option{margin-top:36px;border:1px solid var(--line);border-radius:18px;background:#0d0c12;overflow:hidden}
+  .option-head{display:grid;grid-template-columns:54px 1fr auto;gap:16px;align-items:start;padding:24px 26px 20px;border-bottom:1px solid var(--line)}
+  .letter{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;border:1px solid var(--line2);background:#121018;font-family:var(--serif);font-size:22px;color:var(--signal)}
+  .option-head h3{margin-bottom:4px}
+  .option-head .idea{font-size:13.5px;color:var(--muted);line-height:1.6;max-width:720px}
+  .option-tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .tag{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid var(--line2);border-radius:999px;font-size:10.5px;color:var(--muted)}
+  .tag.hot{color:var(--signal);border-color:var(--signal-line);background:var(--signal-soft)}
+  .tag.cool{color:var(--ice);border-color:var(--ice-line);background:var(--ice-soft)}
+  .mockwrap{padding:22px;background:
+    linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+    background-size:32px 32px;}
+  .viewswitch{display:flex;gap:6px;justify-content:flex-end;margin-bottom:12px}
+  .vbtn{padding:5px 10px;border:1px solid var(--line2);border-radius:7px;background:#111018;color:var(--muted);font-size:11px}
+  .vbtn[aria-pressed="true"]{background:var(--signal);border-color:var(--signal);color:var(--signal-ink);font-weight:650}
+  .mock{position:relative;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:var(--bg);box-shadow:0 30px 90px rgba(0,0,0,.5)}
+  .mock .view{display:none}
+  .mock .view.on{display:block}
+  .apprail{width:172px;flex:none;border-right:1px solid var(--line);background:linear-gradient(180deg,#0e0c12,#0a090e);padding:14px 11px;display:flex;flex-direction:column;gap:3px}
+  .appbrand{display:flex;align-items:center;gap:8px;padding:2px 7px 16px;font-size:11px;font-weight:650;letter-spacing:-.01em;min-width:0}
+  .appbrand .mark{width:23px;height:23px;border-radius:7px;flex:none;background:linear-gradient(145deg,var(--signal),#d9862a);display:grid;place-items:center;color:#1a1108;font:700 9px/1 var(--mono)}
+  .appbrand > span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .appbrand small{display:block;font:8px/1.4 var(--mono);color:var(--muted2);letter-spacing:.12em;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .anav{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:11px;color:var(--muted)}
+  .anav.on{background:var(--signal-soft);color:var(--ink);box-shadow:inset 0 0 0 1px var(--signal-line)}
+  .anav .n{margin-left:auto;font:8.5px/1 var(--mono);color:var(--muted2)}
+  .appmain{flex:1;min-width:0}
+  .apptop{display:flex;align-items:center;justify-content:space-between;gap:10px;height:44px;padding:0 16px;border-bottom:1px solid var(--line);background:rgba(11,10,15,.7)}
+  .crumb{font-size:10.5px;color:var(--muted2)}
+  .crumb b{color:var(--ink2);font-weight:600}
+  .topcmd{display:flex;align-items:center;gap:6px;width:198px;height:27px;padding:0 8px;border:1px solid var(--line);border-radius:7px;background:#0d0c12;color:var(--muted2);font-size:10px}
+  .topcmd kbd{margin-left:auto;font:8.5px/1 var(--mono);border:1px solid var(--line2);border-radius:4px;padding:2px 4px;background:#121018}
+  .appbody{padding:20px 22px 26px}
+  .appbody.tight{padding:16px}
+  .pagekicker{font:8.5px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--signal);margin-bottom:10px}
+  .pageh1{font-family:var(--serif);font-size:32px;line-height:1;letter-spacing:-.03em;font-weight:500}
+  .pageh1 em{font-style:normal;color:var(--signal)}
+  .pagelede{font-size:11.5px;color:var(--muted);line-height:1.6;max-width:560px;margin-top:9px}
+  .omni{display:flex;align-items:center;gap:9px;height:44px;padding:0 13px;border:1px solid var(--signal-line);border-radius:10px;background:#0d0c12;box-shadow:0 0 0 3px rgba(255,179,92,.08)}
+  .omni .q{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;color:var(--ink)}
+  .omni .ph{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;color:var(--muted2)}
+  .omni kbd{font:9px/1 var(--mono);border:1px solid var(--line2);border-radius:4px;padding:3px 5px;color:var(--muted2);background:#121018}
+  .modes{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .mode{padding:4px 8px;border:1px solid var(--line);border-radius:999px;background:#0d0c12;font-size:10px;color:var(--muted)}
+  .mode.on{background:var(--signal-soft);border-color:var(--signal-line);color:var(--signal2)}
+  .mode .c{font:8.5px/1 var(--mono);color:var(--muted2);margin-left:4px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .filter{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:#0d0c12;font-size:9.5px;color:var(--muted)}
+  .filter.on{border-color:var(--ice-line);background:var(--ice-soft);color:var(--ice)}
+  .browse-title{display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 10px}
+  .browse-title b{font-size:12px;font-weight:650}
+  .browse-title span{font:9px/1 var(--mono);color:var(--muted2)}
+  .catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .cat{position:relative;padding:11px;border:1px solid var(--line);border-radius:9px;background:linear-gradient(180deg,#121018,#0d0c12);text-align:left;transition:.16s}
+  .cat:hover{border-color:var(--line3);transform:translateY(-1px)}
+  .cat .ico{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--signal-soft);color:var(--signal);border:1px solid var(--signal-line);margin-bottom:8px}
+  .cat b{display:block;font-size:10.5px;font-weight:650}
+  .cat .count{font:8.5px/1.4 var(--mono);color:var(--muted2);margin-top:3px}
+  .cat .ex{font-size:9px;color:var(--muted);line-height:1.45;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .strip{display:flex;gap:8px;margin-top:8px}
+  .recent-card{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:9px;border:1px solid var(--line);border-radius:8px;background:#0d0c12}
+  .recent-card .mini{width:34px;height:26px;border-radius:4px;flex:none;background:#17131c;border:1px solid var(--line2);overflow:hidden}
+  .recent-card b{display:block;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .recent-card small{display:block;font:8px/1.4 var(--mono);color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* results */
+  .results-layout{display:grid;grid-template-columns:136px 1fr;gap:14px;margin-top:16px}
+  .facets{display:grid;gap:12px;align-content:start}
+  .facet{border-top:1px solid var(--line);padding-top:8px}
+  .facet .fcap{font:8px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+  .facet button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:3px 4px;border-radius:4px;font-size:9.5px;color:var(--muted)}
+  .facet button:hover{background:#15121a;color:var(--ink2)}
+  .facet button.on{color:var(--signal2)}
+  .facet .n{font:8px/1 var(--mono);color:var(--muted2)}
+  .resgroup{margin-bottom:12px}
+  .resgroup-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .resgroup-head b{font:8.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+  .resgroup-head .n{font:8.5px/1 var(--mono);color:var(--muted2);border:1px solid var(--line);border-radius:999px;padding:1px 5px}
+  .resgroup-head .line{flex:1;height:1px;background:var(--line)}
+  .resrow{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:1px solid transparent;border-radius:8px;text-align:left}
+  .resrow:hover{background:#15121a;border-color:var(--line)}
+  .resrow.best{background:linear-gradient(90deg,var(--signal-soft),rgba(255,179,92,.02));border-color:var(--signal-line)}
+  .resicon{width:28px;height:28px;flex:none;border-radius:7px;border:1px solid var(--line2);background:#121018;display:grid;place-items:center;color:var(--muted)}
+  .resrow.best .resicon{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+  .resmain{min-width:0;flex:1}
+  .resmain b{display:block;font-size:11px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .resmain small{display:block;font-size:9px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .resmeta{display:flex;align-items:center;gap:5px;flex:none}
+  .pill{display:inline-flex;align-items:center;gap:3px;padding:2px 5px;border:1px solid var(--line2);border-radius:999px;font:8px/1.5 var(--mono);color:var(--muted)}
+  .pill.g{color:var(--green);border-color:rgba(130,224,176,.3);background:var(--green-soft)}
+  .pill.a{color:var(--amber);border-color:rgba(255,204,128,.3);background:var(--amber-soft)}
+  .pill.i{color:var(--ice);border-color:var(--ice-line);background:var(--ice-soft)}
+  .pill.sig{color:var(--signal2);border-color:var(--signal-line);background:var(--signal-soft)}
+  .besttags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .besttags span{font-size:8.5px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .cmdrow kbd{margin-left:auto;font:8px/1 var(--mono);border:1px solid var(--line2);border-radius:4px;padding:2px 4px;color:var(--muted2);background:#121018}
+  /* spotlight overlay */
+  .dimwrap{position:relative}
+  .dimwrap .under{filter:blur(2px) brightness(.5);transform:scale(.995)}
+  .overlay{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding:8px;background:rgba(5,4,8,.62);backdrop-filter:blur(3px)}
+  .sheet{width:min(720px,100%);max-height:calc(100% - 8px);overflow:hidden;border:1px solid var(--line2);border-radius:12px;background:var(--panel);box-shadow:0 40px 120px rgba(0,0,0,.65)}
+  .sheet-top{padding:10px}
+  .sheet .omni{height:38px;border-color:var(--line2);box-shadow:none}
+  .sheet .omni .q{font-size:12px}
+  .sheet-body{display:grid;grid-template-columns:1.25fr .75fr;height:438px;max-height:438px}
+  .sheet-results{padding:0 10px 10px;overflow:auto;border-right:1px solid var(--line);mask-image:linear-gradient(to bottom,black calc(100% - 20px),transparent)}
+  .sheet-preview{padding:12px;background:#0f0d14;overflow:auto}
+  .sheet-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 12px;border-top:1px solid var(--line);font:8.5px/1.4 var(--mono);color:var(--muted2);white-space:nowrap;overflow:hidden}
+  .sheet-foot span{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .prev-thumb{border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:#0b0a0f}
+  .prev-thumb .mini-page{height:120px}
+  .prev-title{font-family:var(--serif);font-size:19px;line-height:1.1;margin:10px 0 3px}
+  .prev-sub{font:8.5px/1.5 var(--mono);color:var(--muted2)}
+  .prev-meta{display:grid;gap:4px;margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font-size:9px;color:var(--muted)}
+  .prev-meta div{display:flex;justify-content:space-between;gap:8px}
+  .prev-meta b{color:var(--ink2);font-weight:600}
+  .prev-actions{display:grid;gap:5px;margin-top:10px}
+  .pbtn{display:flex;align-items:center;justify-content:center;gap:5px;height:26px;border-radius:6px;border:1px solid var(--line2);background:#15121a;font-size:9.5px;color:var(--ink2)}
+  .pbtn.primary{background:var(--signal);border-color:var(--signal);color:var(--signal-ink);font-weight:650}
+  /* mini pages */
+  .mini-page{position:relative;height:100%;min-height:70px;background:#f4efe5;color:#221b16;overflow:hidden}
+  .mini-page .mp-bar{display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(34,27,22,.12)}
+  .mini-page .mp-mark{width:9px;height:9px;border-radius:3px;background:#cf5b32}
+  .mini-page .mp-lines{margin-left:auto;display:flex;gap:3px}
+  .mini-page .mp-lines i{width:10px;height:2px;background:rgba(34,27,22,.28);border-radius:2px}
+  .mini-page .mp-hero{padding:12px 10px 8px}
+  .mini-page .mp-eyebrow{font:6px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#a35a3d}
+  .mini-page .mp-title{font-family:var(--serif);font-size:17px;line-height:.98;letter-spacing:-.04em;margin:4px 0 4px;max-width:80%}
+  .mini-page .mp-sub{font-size:6px;line-height:1.45;color:#6d5c51;max-width:70%}
+  .mini-page .mp-cta{display:inline-block;margin-top:6px;padding:3px 6px;border-radius:3px;background:#221b16;color:#f4efe5;font:5.5px/1.3 var(--mono)}
+  .mini-page .mp-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px 8px}
+  .mini-page .mp-block{height:22px;border-radius:3px;background:#e6d8c8;border:1px solid rgba(34,27,22,.08)}
+  .mini-page.dark{background:#0e1118;color:#eef3fb}
+  .mini-page.dark .mp-bar{border-color:rgba(255,255,255,.1)}
+  .mini-page.dark .mp-mark{background:#d6ff5e}
+  .mini-page.dark .mp-lines i{background:rgba(255,255,255,.25)}
+  .mini-page.dark .mp-eyebrow{color:#d6ff5e}
+  .mini-page.dark .mp-sub{color:#8b94a7}
+  .mini-page.dark .mp-cta{background:#d6ff5e;color:#10140a}
+  .mini-page.dark .mp-block{background:#1b202b;border-color:rgba(255,255,255,.07)}
+  .mini-page.ice{background:#eef3f8}
+  .mini-page.ice .mp-mark{background:#3c6fb5}
+  .mini-page.ice .mp-eyebrow{color:#3c6fb5}
+  .mini-page.ice .mp-block{background:#dbe5ef;border-color:rgba(20,30,50,.08)}
+  .mini-page.ice .mp-title{font-size:14px}
+  /* concierge */
+  .askhero{max-width:780px;margin:6px auto 0;padding:26px 0 0;text-align:center}
+  .askhero .pagekicker{justify-content:center;display:flex}
+  .askhero h3{font-size:34px;margin-bottom:8px}
+  .askhero p{font-size:11.5px;color:var(--muted);max-width:500px;margin:0 auto}
+  .askbox{margin-top:18px;border:1px solid var(--signal-line);border-radius:12px;background:#0d0c12;box-shadow:0 0 0 4px rgba(255,179,92,.06);padding:8px}
+  .askbox .row{display:flex;align-items:center;gap:8px;padding:4px 6px}
+  .askbox .asktext{flex:1;text-align:left;font-size:12px;color:var(--ink)}
+  .askbox .go{width:26px;height:26px;border-radius:7px;background:var(--signal);color:var(--signal-ink);display:grid;place-items:center}
+  .askmodes{display:flex;align-items:center;gap:5px;padding:5px 2px 1px;border-top:1px solid var(--line);margin-top:5px}
+  .askmodes .mode{font-size:9px;padding:3px 7px}
+  .suggest{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  .suggest button{font-size:9.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:#0d0c12}
+  .suggest button:hover{color:var(--ink2);border-color:var(--line2)}
+  .answer{margin-top:14px;border:1px solid var(--ice-line);border-radius:11px;background:linear-gradient(120deg,var(--ice-soft),rgba(143,216,255,.02));padding:13px 14px;text-align:left}
+  .answer .atop{display:flex;align-items:center;gap:6px;font:8.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ice);margin-bottom:7px}
+  .answer p{font-size:11px;line-height:1.65;color:var(--ink2)}
+  .answer .cite{display:inline-flex;align-items:center;padding:0 4px;margin:0 1px;border:1px solid var(--ice-line);border-radius:3px;background:rgba(143,216,255,.08);font:8px/1.5 var(--mono);color:var(--ice);vertical-align:1px}
+  .answer .aactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .answer .aactions .pbtn{height:23px;padding:0 8px;font-size:9px}
+  .why{margin-top:8px;font-size:9px;color:var(--muted2)}
+  .why summary{cursor:pointer;color:var(--ice);font-size:9px}
+  /* option notes */
+  .option-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);background:#0f0d14}
+  .onote{padding:16px 20px;border-right:1px solid var(--line)}
+  .onote:last-child{border-right:0}
+  .onote .caption{margin-bottom:6px}
+  .onote p{font-size:12.5px;line-height:1.6;color:var(--muted)}
+  .onote b{color:var(--ink2)}
+  /* phone */
+  .phones{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .phone{width:340px;height:680px;flex:none;border:1px solid var(--line2);border-radius:26px;background:#08070b;padding:7px;box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative}
+  .phone .screen{position:relative;height:100%;border-radius:20px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
+  .phone .notch{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:80px;height:16px;border-radius:999px;background:#050408;z-index:5}
+  .phone .status{display:flex;justify-content:space-between;padding:9px 14px 3px;font:8px/1.4 var(--mono);color:var(--muted2)}
+  .phone .pbody{padding:10px 14px}
+  .phone .ptitle{font-family:var(--serif);font-size:26px;line-height:1;letter-spacing:-.03em;margin:8px 0 6px}
+  .phone .ptitle em{font-style:normal;color:var(--signal)}
+  .phone .pomni{height:38px;margin-top:10px;border-radius:9px}
+  .phone .pomni .q,.phone .pomni .ph{font-size:10.5px}
+  .phone .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+  .phone .pcat{padding:9px;border:1px solid var(--line);border-radius:8px;background:#0d0c12}
+  .phone .pcat b{display:block;font-size:9.5px}
+  .phone .pcat .count{font:8px/1.4 var(--mono);color:var(--muted2);margin-top:2px}
+  .phone .pcat .ex{font-size:8px;color:var(--muted);margin-top:4px;line-height:1.4}
+  .phone .prow{display:flex;align-items:center;gap:7px;padding:7px 0;border-top:1px solid var(--line)}
+  .phone .prow .resicon{width:24px;height:24px}
+  .phone .prow b{font-size:9.5px;display:block}
+  .phone .prow small{font-size:8px;color:var(--muted2);display:block}
+  .phone .pgroup{font:8px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin:12px 0 4px}
+  .phone .pnav{position:absolute;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 4px 10px;border-top:1px solid var(--line);background:rgba(12,10,16,.92);backdrop-filter:blur(8px)}
+  .phone .pnav div{display:grid;place-items:center;gap:2px;font-size:7px;color:var(--muted2)}
+  .phone .pnav .on{color:var(--signal)}
+  .phone .fab{position:absolute;right:14px;bottom:58px;width:34px;height:34px;border-radius:50%;background:var(--signal);color:var(--signal-ink);display:grid;place-items:center;box-shadow:0 8px 24px rgba(255,179,92,.28)}
+  /* recommendation table */
+  .rectable{width:100%;border-collapse:collapse;margin-top:6px}
+  .rectable th,.rectable td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:top}
+  .rectable th{font:9px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);font-weight:400}
+  .rectable td:first-child{font-weight:600;color:var(--ink2);width:150px}
+  .rectable td{color:var(--muted)}
+  .rectable b{color:var(--ink2)}
+  .plan{display:grid;gap:0;margin-top:18px;border:1px solid var(--line);border-radius:13px;overflow:hidden}
+  .planstep{display:grid;grid-template-columns:64px 1fr auto;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line);background:#0f0d14}
+  .planstep:last-child{border-bottom:0}
+  .planstep .pn{font:10px/1.4 var(--mono);color:var(--signal);padding-top:2px}
+  .planstep b{display:block;font-size:13px;margin-bottom:3px}
+  .planstep p{font-size:12px;color:var(--muted);line-height:1.55}
+  .planstep .when{font:9px/1.5 var(--mono);color:var(--muted2);white-space:nowrap;padding-top:2px}
+  .accept{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:14px}
+  .accept div{display:flex;gap:8px;font-size:12.5px;color:var(--muted);line-height:1.55;padding:8px 0;border-top:1px solid var(--line)}
+  .accept .i{color:var(--green);margin-top:2px}
+  .footer{margin-top:74px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted2);font-size:11.5px;line-height:1.7}
+  .footer b{color:var(--muted)}
+  details.provenance{margin-top:22px;border:1px solid var(--line);border-radius:12px;background:#0f0d14}
+  details.provenance summary{cursor:pointer;padding:14px 18px;font-size:13px;font-weight:600;color:var(--ink2)}
+  details.provenance .card-pad{padding-top:0}
+  details.provenance dl{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;margin:0;font-size:12px}
+  details.provenance dt{color:var(--muted2);font-family:var(--mono);font-size:10.5px}
+  details.provenance dd{margin:0;color:var(--muted);overflow-wrap:anywhere}
+  @media (max-width:1100px){
+    .statstrip{grid-template-columns:repeat(3,1fr)}
+    .layers{grid-template-columns:1fr 1fr}
+    .layer:after{display:none}
+    .catgrid{grid-template-columns:repeat(2,1fr)}
+    .sheet-body{grid-template-columns:1fr}
+    .sheet-preview{display:none}
+  }
+  @media (max-width:800px){
+    .wrap{padding:36px 18px 70px}
+    h1{font-size:44px}
+    h2{font-size:31px}
+    .section-head{grid-template-columns:1fr;gap:8px}
+    .section-no{padding-top:0}
+    .grid3,.grid2,.entity-note,.findings,.option-notes,.accept{grid-template-columns:1fr}
+    .statstrip{grid-template-columns:1fr 1fr}
+    .option-head{grid-template-columns:44px 1fr;gap:10px;padding:18px}
+    .option-tags{grid-column:1 / -1;justify-content:flex-start}
+    .mockwrap{padding:10px}
+    .apprail{display:none}
+    .apptop{height:40px;padding:0 12px}
+    .apptop .topcmd{display:none}
+    .crumb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .results-layout{grid-template-columns:1fr}
+    .facets{display:none}
+    .catgrid{grid-template-columns:1fr 1fr}
+    .strip{flex-direction:column}
+    .recbox{grid-template-columns:1fr}
+    .sheet-foot span:last-child{display:none}
+    .phones{gap:16px}
+    .phone{width:320px;height:640px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 0 0 0-6z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5"/><path d="M12 12v9"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="3.5"/><path d="m10 13 8-8 2 2-3 3 2 2-2 2-2-2-2 2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+  <symbol id="i-arrowup" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="head">
+    <div class="kicker">Experience options · React Component Library · 2026-11-19</div>
+    <h1>Search should know what a <em>landing page</em> is.</h1>
+    <p class="lede">
+      Today the library has four search boxes and no shared idea of what can be found. “Landing page”
+      returns zero results on the components page, and the command palette only finds a scenario name.
+      The fix is not a bigger text field. It is a searchable model of intent, composition, source and
+      evidence — plus an omnibox that makes the model feel obvious.
+    </p>
+    <div class="stamprow">
+      <span class="stamp"><b>19</b> page archetypes</span>
+      <span class="stamp"><b>8</b> studio templates</span>
+      <span class="stamp"><b>2</b> designs · 6 frames</span>
+      <span class="stamp"><b>478</b> desired assets</span>
+      <span class="stamp"><b>275</b> published assets</span>
+      <span class="stamp"><b>0</b> commands indexed</span>
+    </div>
+
+    <div class="statstrip">
+      <div class="stat"><div class="n">4</div><div class="l">search surfaces in the workbench, each with its own scope</div></div>
+      <div class="stat"><div class="n">275</div><div class="l">assets filtered in the browser; the 478-asset server index is unused</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">designs or templates reachable from the global search</div></div>
+      <div class="stat"><div class="n">19<span> / 478</span></div><div class="l">page archetypes the catalog knows and the UI never surfaces</div></div>
+      <div class="stat"><div class="n">2<span> stores</span></div><div class="l">template shelf and design studio persist the same composition twice</div></div>
+    </div>
+
+    <div class="recbox">
+      <div class="mark"><svg class="i lg"><use href="#i-spark"/></svg></div>
+      <div>
+        <p><b>Recommendation.</b> Build one search system with three states, not three products:
+        <b>Atlas</b> is the browse-first front door (empty query), <b>Spotlight</b> is the same engine
+        summoned with ⌘K, and <b>Ask</b> is an explicit AI mode inside it. Underneath, index one
+        typed result model over workspaces, pages, displays, states, page types, assets and commands.
+        Merge the template shelf into designs; keep the catalog page-template as the intent blueprint.</p>
+      </div>
+    </div>
+    <p style="margin-top:12px;font-size:12px;color:var(--muted2)">Follow-up: the workspace → page → display → state model and the rest of the matured workbench are in <a href="workbench-maturation.html" style="color:var(--ice)">workbench-maturation.html</a>.</p>
+  </header>
+
+  <section class="section" id="today">
+    <div class="section-head">
+      <div class="section-no">01 / TODAY</div>
+      <div>
+        <h2>Four searches, none of them a search system.</h2>
+        <p class="lede">
+          Each box is useful in isolation. Together they disagree about what exists. The captured
+          screens below are the running workbench at 1440×900 on 2026-11-19.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <figure style="margin:0">
+        <div class="shot">
+          <img src="{{img:assets/home-1440.png}}" alt="The running RCL home page with a search field and no browse categories.">
+          <span class="fid captured">captured</span>
+        </div>
+        <figcaption class="figcap"><b>Home.</b> A large search box asks for a query before showing what can be found. There are no categories, no templates, no actions.</figcaption>
+      </figure>
+      <figure style="margin:0">
+        <div class="shot">
+          <img src="{{img:assets/components-landing-1440.png}}" alt="The components page searched for landing page, showing zero results.">
+          <span class="fid captured">captured</span>
+        </div>
+        <figcaption class="figcap"><b>Components · “landing page”.</b> Zero results across 275 assets. The empty state says the library is not empty, but offers no way to find the landing page archetype.</figcaption>
+      </figure>
+      <figure style="margin:0">
+        <div class="shot">
+          <img src="{{img:assets/command-landing-1440.png}}" alt="The command palette searched for landing, showing one scenario and no assets.">
+          <span class="fid captured">captured</span>
+        </div>
+        <figcaption class="figcap"><b>⌘K · “landing”.</b> One scenario. No assets, no templates, no commands. The placeholder promises props and evidence the palette never searches.</figcaption>
+      </figure>
+    </div>
+
+    <div class="findings">
+      <div class="finding"><div class="n">01</div><div><b>Four surfaces, four answers.</b><p>The home form navigates to Components with <span class="mono">?q=</span>. Components filters the 275 published assets it loaded in the browser. ⌘K filters two more lists. The design studio has a template dropdown. The API has a fifth, unused search.</p></div></div>
+      <div class="finding"><div class="n">02</div><div><b>The server index is already there — and unused.</b><p><span class="mono">CatalogService.SearchAssets</span> indexes 478 authored catalog assets with kind, domain, regions and availability. <span class="mono">searchDesignAssets()</span> is defined in the UI and called nowhere.</p></div></div>
+      <div class="finding"><div class="n">03</div><div><b>“landing page” is an intent, not a substring.</b><p>Token search returns <span class="mono">LandingPage</span> first, then every other page archetype because they all contain “page”. There is no IDF, phrase boost, AND semantics or type prior.</p></div></div>
+      <div class="finding"><div class="n">04</div><div><b>Templates and designs are invisible to search.</b><p>Two designs, eight templates and nineteen page archetypes exist. None appears in ⌘K. The only path is Design studio → a dropdown of eight names.</p></div></div>
+      <div class="finding"><div class="n">05</div><div><b>Actions have no registry.</b><p>RCL already ships <span class="mono">CommandRegistry</span>, <span class="mono">CommandPalette</span> and <span class="mono">GlobalCommandSystem</span>. The workbench hand-builds a palette and registers no commands.</p></div></div>
+      <div class="finding"><div class="n">06</div><div><b>Two stores for one composition.</b><p><span class="mono">studio_templates</span> stores a single-frame TemplateNode tree with no revision, binding or assets. <span class="mono">studio_designs</span> stores multi-frame, revisioned, conflict-safe compositions. They are the same idea, split.</p></div></div>
+    </div>
+
+    <div class="callout">
+      <p><b>The deeper gap.</b> RCL is organised asset-first, but people ask outcome-first: “landing page”, “onboarding flow”, “pricing page”. There is no first-class searchable object for a page or flow that composes assets. Templates were an attempt to create one, but they live beside the design model instead of inside it.</p>
+    </div>
+  </section>
+
+  <section class="section" id="model">
+    <div class="section-head">
+      <div class="section-no">02 / MODEL</div>
+      <div>
+        <h2>What is missing is not a query box. It is a thing to search.</h2>
+        <p class="lede">
+          Four layers already exist in the repository. They have never been joined into one index or
+          one mental model. A search result should be able to cross all four.
+        </p>
+      </div>
+    </div>
+
+    <div class="layers">
+      <div class="layer">
+        <span class="tag">Intent</span>
+        <h4>Page archetype</h4>
+        <div class="count">19 in catalog/assets/templates</div>
+        <p>What the surface must do. Regions, states, capabilities, required assets. Not a rendering.</p>
+        <ul>
+          <li>LandingPage · hero, proof, sections, conversion</li>
+          <li>OnboardingPage · progress, step, guidance</li>
+          <li>SearchPage · query, facets, results</li>
+        </ul>
+      </div>
+      <div class="layer">
+        <span class="tag">Composition</span>
+        <h4>Design</h4>
+        <div class="count">2 designs · 8 templates</div>
+        <p>What it looks like. Frames, theme, options, revision, scenario/page binding, assets.</p>
+        <ul>
+          <li>Aperture · 3 frames · dark analytics</li>
+          <li>Northwind launch brief · imported · 3 frames</li>
+          <li>Marlow · template role · editorial commerce</li>
+        </ul>
+      </div>
+      <div class="layer">
+        <span class="tag">Source</span>
+        <h4>Asset</h4>
+        <div class="count">275 published · 478 desired</div>
+        <p>What it is built from. Versioned source, stories, usage contracts, dependencies.</p>
+        <ul>
+          <li>Button · 2.2.14 · component</li>
+          <li>OnboardingFlow · pattern</li>
+          <li>CommandRegistry · runtime-service</li>
+        </ul>
+      </div>
+      <div class="layer">
+        <span class="tag">Evidence</span>
+        <h4>Proof</h4>
+        <div class="count">stories · tests · captures</div>
+        <p>Why a result is trustworthy. Story baselines, gate evidence, test rollups, captures.</p>
+        <ul>
+          <li>7/7 checks · verified</li>
+          <li>story: default, loading, empty</li>
+          <li>captured 2026-11-19 · 390 / 1440</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="entity-note">
+      <div class="card">
+        <div class="card-pad">
+          <h4><span class="dot g"></span> Yes: template and workspace should be one entity.</h4>
+          <p>A template is a <b>curated workspace snapshot</b>, not a second document. A workspace holds
+          <span class="mono">pages</span>; each page holds <span class="mono">displays</span> (desktop,
+          tablet, phone); each display holds <span class="mono">states</span> (default, filled, error,
+          loading). Give the workspace <span class="mono">provenance</span>
+          (<span class="mono">authored · curated · imported</span>), tags, summary and preview.</p>
+          <p>“Use template” forks the curated workspace into your own copy and keeps the origin link.
+          That removes the separate <span class="mono">studio_templates</span> store.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <h4><span class="dot a"></span> No: a page type is not a template.</h4>
+          <p>The catalog <b>page type</b> remains the requirement/blueprint: regions, states,
+          capabilities, required assets. It is not a rendered page. A workspace page declares
+          <span class="mono">realizes</span>; the page type exposes the pages and workspaces that realize
+          it.</p>
+          <p>An onboarding flow is one workspace with four pages. A page is one screen; a display is one
+          device frame; a state is a named variant of that display. The canvas may show state copies side
+          by side; the stored object is one display with N states.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="border-left-color:var(--signal);background:linear-gradient(90deg,var(--signal-soft),transparent 70%)">
+      <p><b>The search consequence.</b> “Landing page” should match the <b>page type</b> (intent), the <b>workspaces</b>
+      tagged or bound to it (composition), the <b>assets</b> those workspaces compose (source), and the
+      <b>commands</b> that act on the result (new page, compare, adopt). One query, four
+      kinds of answer, ordered by what the person is trying to do.</p>
+    </div>
+  </section>
+
+  <section class="section" id="options">
+    <div class="section-head">
+      <div class="section-no">03 / OPTIONS</div>
+      <div>
+        <h2>Three ways to make it feel inevitable.</h2>
+        <p class="lede">
+          The mockups below are rendered in the workbench’s Nocturne tokens, not captured from the app.
+          They use real asset, archetype and template names; counts are illustrative where the model
+          does not exist yet. Each option is shown empty and after “landing page”.
+        </p>
+      </div>
+    </div>
+
+    <!-- OPTION A -->
+    <article class="option" id="option-a">
+      <div class="option-head">
+        <div class="letter">A</div>
+        <div>
+          <h3>The Index <span class="muted2" style="font-family:var(--sans);font-size:12px;letter-spacing:0">· browse-first Atlas</span></h3>
+          <p class="idea">A dedicated search front door. With no query it is a visual index of the library by intent, not a blank box. Typing turns the index into ranked, grouped results with facets. Best for newcomers and for “show me what exists”.</p>
+        </div>
+        <div class="option-tags">
+          <span class="tag cool">discoverable</span>
+          <span class="tag">desktop-first</span>
+          <span class="tag">replaces Home search</span>
+        </div>
+      </div>
+      <div class="mockwrap">
+        <div class="viewswitch" data-switch="a">
+          <button class="vbtn" data-view="a-empty" aria-pressed="true">Empty</button>
+          <button class="vbtn" data-view="a-search" aria-pressed="false">“landing page”</button>
+        </div>
+        <div class="mock" data-mock="a">
+          <div class="view on" data-panel="a-empty">
+            <div style="display:flex;min-height:540px">
+              <aside class="apprail">
+                <div class="appbrand"><span class="mark">RCL</span><span>React Component Library<small>BRAND NOT ASSIGNED</small></span></div>
+                <div class="anav on"><svg class="i sm"><use href="#i-grid"/></svg>Home</div>
+                <div class="anav"><svg class="i sm"><use href="#i-box"/></svg>Components<span class="n">275</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-layers"/></svg>Design studio</div>
+                <div class="anav"><svg class="i sm"><use href="#i-check"/></svg>Review<span class="n">251</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-bolt"/></svg>Coverage</div>
+                <div class="anav"><svg class="i sm"><use href="#i-spark"/></svg>Capabilities</div>
+                <div class="anav"><svg class="i sm"><use href="#i-clock"/></svg>Activity</div>
+                <div style="margin-top:auto;padding:8px;border-top:1px solid var(--line)">
+                  <div class="anav" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg>New asset</div>
+                </div>
+              </aside>
+              <div class="appmain">
+                <div class="apptop">
+                  <div class="crumb">React Component Library <span class="muted2">/</span> <b>Search</b></div>
+                  <div class="topcmd"><svg class="i sm"><use href="#i-search"/></svg><span>Search the library</span><kbd>⌘K</kbd></div>
+                </div>
+                <div class="appbody">
+                  <div class="pagekicker">The shared UI layer</div>
+                  <div class="pageh1">Find the surface.</div>
+                  <p class="pagelede">Start from an intent, a template, an asset or a command. Nothing here requires a query.</p>
+                  <div class="omni" style="margin-top:14px">
+                    <svg class="i" style="color:var(--muted2)"><use href="#i-search"/></svg>
+                    <span class="ph">Search pages, templates, assets, commands…</span>
+                    <kbd>⌘K</kbd>
+                  </div>
+                  <div class="modes">
+                    <span class="mode on">All</span><span class="mode">Pages &amp; flows</span><span class="mode">Assets <span class="c">279</span></span><span class="mode">Commands <span class="c">0</span></span>
+                  </div>
+                  <div class="browse-title"><b>Browse by intent</b><span>FROM THE CATALOG · 478</span></div>
+                  <div class="catgrid">
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layout"/></svg></div><b>Landings &amp; marketing</b><div class="count">4 page types · 3 designs</div><div class="ex">LandingPage, PricingPage, DocumentationPage</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layers"/></svg></div><b>Onboarding &amp; flows</b><div class="count">2 page types · 1 pattern</div><div class="ex">OnboardingPage, OnboardingFlow</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-grid"/></svg></div><b>Workspaces &amp; dashboards</b><div class="count">6 page types</div><div class="ex">AnalyticsPage, CommandCenterPage</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-box"/></svg></div><b>Collections &amp; data</b><div class="count">47 data-display assets</div><div class="ex">CollectionPage, DataTable, FacetedFilter</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-file"/></svg></div><b>Forms &amp; auth</b><div class="count">35 forms · 2 page types</div><div class="ex">AuthenticationPage, FormPage</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-compass"/></svg></div><b>Navigation &amp; shell</b><div class="count">23 navigation</div><div class="ex">AppShell, NavigationRail, Tabs</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-bolt"/></svg></div><b>Foundations</b><div class="count">15 foundations</div><div class="ex">BaseStyles, ThemeProvider, IconRegistry</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-key"/></svg></div><b>Hooks &amp; services</b><div class="count">61 runtime assets</div><div class="ex">useAsync, CommandRegistry, ToastManager</div></div>
+                  </div>
+                  <div class="browse-title" style="margin-top:14px"><b>Recently opened</b><span>THIS BROWSER</span></div>
+                  <div class="strip">
+                    <div class="recent-card"><div class="mini"><div class="mini-page dark" style="min-height:26px"><div class="mp-bar" style="padding:4px 5px"><span class="mp-mark" style="width:5px;height:5px"></span><div class="mp-lines"><i style="width:6px"></i><i style="width:6px"></i></div></div></div></div><div style="min-width:0"><b>Northwind launch brief</b><small>design · 3 frames · 2h ago</small></div></div>
+                    <div class="recent-card"><div class="mini"><div class="mini-page" style="min-height:26px"><div class="mp-bar" style="padding:4px 5px"><span class="mp-mark" style="width:5px;height:5px"></span><div class="mp-lines"><i style="width:6px"></i><i style="width:6px"></i></div></div></div></div><div style="min-width:0"><b>Aperture</b><small>design · 3 frames · 1d ago</small></div></div>
+                    <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--signal)"><svg class="i sm"><use href="#i-box"/></svg></div><div style="min-width:0"><b>Button</b><small>asset · 2.2.14 · 3d ago</small></div></div>
+                    <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--ice)"><svg class="i sm"><use href="#i-layers"/></svg></div><div style="min-width:0"><b>OnboardingFlow</b><small>pattern · v1.2.0 · 4d ago</small></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="view" data-panel="a-search">
+            <div style="display:flex;min-height:540px">
+              <aside class="apprail">
+                <div class="appbrand"><span class="mark">RCL</span><span>React Component Library<small>BRAND NOT ASSIGNED</small></span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-grid"/></svg>Home</div>
+                <div class="anav"><svg class="i sm"><use href="#i-box"/></svg>Components<span class="n">275</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-layers"/></svg>Design studio</div>
+                <div class="anav on"><svg class="i sm"><use href="#i-search"/></svg>Search</div>
+                <div class="anav"><svg class="i sm"><use href="#i-check"/></svg>Review<span class="n">251</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-bolt"/></svg>Coverage</div>
+              </aside>
+              <div class="appmain">
+                <div class="apptop">
+                  <div class="crumb">React Component Library <span class="muted2">/</span> <b>Search</b> <span class="muted2">/</span> landing page</div>
+                  <div class="topcmd"><svg class="i sm"><use href="#i-search"/></svg><span>Search the library</span><kbd>⌘K</kbd></div>
+                </div>
+                <div class="appbody tight">
+                  <div class="omni">
+                    <svg class="i" style="color:var(--signal)"><use href="#i-search"/></svg>
+                    <span class="q">landing page</span>
+                    <span class="pill sig">5 groups</span>
+                    <kbd>⌘K</kbd>
+                  </div>
+                  <div class="modes"><span class="mode on">All</span><span class="mode">Pages &amp; flows <span class="c">3</span></span><span class="mode">Assets <span class="c">12</span></span><span class="mode">Commands <span class="c">3</span></span></div>
+                  <div class="filters"><span class="filter on"><svg class="i sm"><use href="#i-check"/></svg>Verified only</span><span class="filter">Domain: all</span><span class="filter">Status: any</span><span class="filter">Kind: all</span></div>
+                  <div class="results-layout">
+                    <aside class="facets">
+                      <div class="facet"><div class="fcap">Type</div><button class="on"><span>Page type</span><span class="n">1</span></button><button><span>Design</span><span class="n">2</span></button><button><span>Template</span><span class="n">1</span></button><button><span>Asset</span><span class="n">12</span></button><button><span>Command</span><span class="n">3</span></button></div>
+                      <div class="facet"><div class="fcap">Domain</div><button><span>templates</span><span class="n">1</span></button><button><span>patterns</span><span class="n">2</span></button><button><span>controls</span><span class="n">4</span></button><button><span>primitives</span><span class="n">3</span></button></div>
+                      <div class="facet"><div class="fcap">Availability</div><button><span>Built</span><span class="n">9</span></button><button><span>Blueprint</span><span class="n">1</span></button><button><span>Unresolved</span><span class="n">2</span></button></div>
+                    </aside>
+                    <div>
+                      <div class="resgroup">
+                        <div class="resgroup-head"><b>Best match</b><span class="line"></span></div>
+                        <div class="resrow best">
+                          <div class="resicon"><svg class="i sm"><use href="#i-layout"/></svg></div>
+                          <div class="resmain"><b>LandingPage</b><small>Page type · templates.landing-page · configurable product-marketing surface</small>
+                            <div class="besttags"><span>hero</span><span>proof</span><span>sections</span><span>conversion</span><span class="pill a">blueprint</span></div>
+                          </div>
+                          <div class="resmeta"><span class="pill">19 page types</span><svg class="i sm"><use href="#i-chevron"/></svg></div>
+                        </div>
+                      </div>
+                      <div class="resgroup">
+                        <div class="resgroup-head"><b>Templates &amp; designs</b><span class="n">3</span><span class="line"></span><button style="font-size:8.5px;color:var(--signal2)">See all</button></div>
+                        <div class="resrow"><div class="resicon" style="background:#241b14;color:var(--signal)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Marlow</b><small>Template · editorial commerce · “Objects for the quiet home”</small></div><div class="resmeta"><span class="pill sig">template</span><span class="pill g">verified</span></div></div>
+                        <div class="resrow"><div class="resicon" style="background:#141d26;color:var(--ice)"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Northwind launch brief</b><small>Design · imported · 3 frames · unbound</small></div><div class="resmeta"><span class="pill i">design</span><span class="pill">2h</span></div></div>
+                        <div class="resrow"><div class="resicon" style="background:#1b1722;color:var(--violet)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Aperture</b><small>Design · analytics workspace · 3 frames</small></div><div class="resmeta"><span class="pill i">design</span><span class="pill">1d</span></div></div>
+                      </div>
+                      <div class="resgroup">
+                        <div class="resgroup-head"><b>Assets used in landing pages</b><span class="n">12</span><span class="line"></span></div>
+                        <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Page</b><small>Component · navigation.page · route boundary and metadata</small></div><div class="resmeta"><span class="pill g">built</span></div></div>
+                        <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Section</b><small>Primitive · primitives.section · rhythm, width, heading relationships</small></div><div class="resmeta"><span class="pill g">built</span></div></div>
+                        <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>ScrollReveal</b><small>Motion · motion.scroll-reveal · restrained entrance</small></div><div class="resmeta"><span class="pill g">built</span></div></div>
+                        <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Button</b><small>Component · controls.button · 2.2.14</small></div><div class="resmeta"><span class="pill g">verified</span></div></div>
+                      </div>
+                      <div class="resgroup">
+                        <div class="resgroup-head"><b>Commands</b><span class="n">3</span><span class="line"></span></div>
+                        <div class="resrow cmdrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div class="resmain"><b>New page from Landing template</b><small>Creates a design bound to a scenario page</small></div><kbd>⌘N</kbd></div>
+                        <div class="resrow cmdrow"><div class="resicon"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Open design studio</b><small>Continue the closest design</small></div><kbd>⌘⇧D</kbd></div>
+                        <div class="resrow cmdrow"><div class="resicon"><svg class="i sm"><use href="#i-bolt"/></svg></div><div class="resmain"><b>Reindex catalog search</b><small>Rebuild the index from authored declarations</small></div><kbd>⌘⇧R</kbd></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <div class="onote"><div class="caption">What it does</div><p>Answers “what is in here?” before a query. Categories come from catalog domains and page archetypes, so the index cannot drift from the library. Typing keeps the same page and turns it into grouped results.</p></div>
+        <div class="onote"><div class="caption">Cost</div><p>Needs a real search route and URL state. The empty state needs curation (or a good derived taxonomy). Desktop-biased unless the phone composition is designed deliberately.</p></div>
+        <div class="onote"><div class="caption">Best for</div><p>New users, the Home front door, and the “I don’t know the name” case. It makes the library feel larger and more organised than a grid of 275 cards.</p></div>
+      </div>
+    </article>
+
+    <!-- OPTION B -->
+    <article class="option" id="option-b">
+      <div class="option-head">
+        <div class="letter">B</div>
+        <div>
+          <h3>Spotlight <span class="muted2" style="font-family:var(--sans);font-size:12px;letter-spacing:0">· command-sheet overlay</span></h3>
+          <p class="idea">One global invocation, available everywhere. ⌘K opens a two-pane command sheet: ranked results on the left, a live preview and the next action on the right. Recent designs and quick commands fill the empty state. Best for people who already know roughly what they want.</p>
+        </div>
+        <div class="option-tags">
+          <span class="tag hot">fast</span>
+          <span class="tag">keyboard-first</span>
+          <span class="tag">same engine everywhere</span>
+        </div>
+      </div>
+      <div class="mockwrap">
+        <div class="viewswitch" data-switch="b">
+          <button class="vbtn" data-view="b-empty" aria-pressed="true">Empty</button>
+          <button class="vbtn" data-view="b-search" aria-pressed="false">“landing page”</button>
+        </div>
+        <div class="mock dimwrap" data-mock="b">
+          <div class="under">
+            <div style="display:flex;min-height:540px">
+              <aside class="apprail">
+                <div class="appbrand"><span class="mark">RCL</span><span>React Component Library<small>BRAND NOT ASSIGNED</small></span></div>
+                <div class="anav on"><svg class="i sm"><use href="#i-grid"/></svg>Home</div>
+                <div class="anav"><svg class="i sm"><use href="#i-box"/></svg>Components<span class="n">275</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-layers"/></svg>Design studio</div>
+                <div class="anav"><svg class="i sm"><use href="#i-check"/></svg>Review<span class="n">251</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-bolt"/></svg>Coverage</div>
+              </aside>
+              <div class="appmain"><div class="apptop"><div class="crumb">React Component Library <span class="muted2">/</span> <b>Home</b></div><div class="topcmd"><svg class="i sm"><use href="#i-search"/></svg><span>Search the workbench</span><kbd>⌘K</kbd></div></div><div class="appbody"><div class="pagekicker">The shared UI layer · 275 assets</div><div class="pageh1">Make every surface <em>feel inevitable.</em></div><p class="pagelede">A living library of versioned React assets, authored stories, usage contracts and captured evidence.</p><div class="catgrid" style="grid-template-columns:repeat(3,1fr);margin-top:18px"><div class="cat" style="height:78px"><b>Recently touched</b><div class="ex" style="margin-top:8px">Selection Store · Selection Store · createScopedStore</div></div><div class="cat" style="height:78px"><b>Library health</b><div class="ex" style="margin-top:8px">0% production coverage · 251 findings</div></div><div class="cat" style="height:78px"><b>Continue</b><div class="ex" style="margin-top:8px">Northwind launch brief · Aperture</div></div></div></div></div>
+            </div>
+          </div>
+          <div class="overlay">
+            <div class="sheet">
+              <div class="sheet-top">
+                <div class="omni"><svg class="i" style="color:var(--signal)"><use href="#i-search"/></svg><span class="q" data-q>Search or jump to…</span><kbd>esc</kbd></div>
+              </div>
+              <div class="sheet-body">
+                <div class="sheet-results">
+                  <div class="view on" data-panel="b-empty">
+                    <div class="resgroup" style="margin-top:8px"><div class="resgroup-head"><b>Recent</b><span class="line"></span></div>
+                      <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Northwind launch brief</b><small>Design · 3 frames · 2h ago</small></div><span class="pill i">design</span></div>
+                      <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Aperture</b><small>Design · 3 frames · 1d ago</small></div><span class="pill i">design</span></div>
+                    </div>
+                    <div class="resgroup"><div class="resgroup-head"><b>Start from a template</b><span class="line"></span></div>
+                      <div class="resrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Marlow</b><small>Editorial commerce · landing</small></div><span class="pill sig">template</span></div>
+                      <div class="resrow"><div class="resicon" style="color:var(--ice)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Harbor</b><small>Onboarding · single page</small></div><span class="pill sig">template</span></div>
+                    </div>
+                    <div class="resgroup"><div class="resgroup-head"><b>Commands</b><span class="line"></span></div>
+                      <div class="resrow cmdrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div class="resmain"><b>New design</b><small>Start from a blank page</small></div><kbd>⌘N</kbd></div>
+                    </div>
+                  </div>
+                  <div class="view" data-panel="b-search">
+                    <div class="resgroup" style="margin-top:8px"><div class="resgroup-head"><b>Best match</b><span class="line"></span></div>
+                      <div class="resrow best"><div class="resicon"><svg class="i sm"><use href="#i-layout"/></svg></div><div class="resmain"><b>LandingPage</b><small>Page type · hero, proof, sections, conversion</small><div class="besttags"><span>1 page type</span><span>3 designs</span><span>12 assets</span></div></div><svg class="i sm"><use href="#i-chevron"/></svg></div>
+                    </div>
+                    <div class="resgroup"><div class="resgroup-head"><b>Templates &amp; designs</b><span class="n">2</span><span class="line"></span></div>
+                      <div class="resrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Marlow</b><small>Template · editorial commerce</small></div><span class="pill sig">template</span></div>
+                      <div class="resrow"><div class="resicon" style="color:var(--ice)"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Northwind launch brief</b><small>Design · imported · 3 frames</small></div><span class="pill i">design</span></div>
+                    </div>
+                    <div class="resgroup"><div class="resgroup-head"><b>Assets used</b><span class="n">12</span><span class="line"></span></div>
+                      <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Section</b><small>Primitive · page rhythm</small></div><span class="pill g">built</span></div>
+                      <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Button</b><small>Component · 2.2.14</small></div><span class="pill g">verified</span></div>
+                    </div>
+                    <div class="resgroup"><div class="resgroup-head"><b>Commands</b><span class="n">1</span><span class="line"></span></div>
+                      <div class="resrow cmdrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div class="resmain"><b>New page from Marlow</b><small>Fork template into a design</small></div><kbd>⌘N</kbd></div>
+                    </div>
+                  </div>
+                </div>
+                <aside class="sheet-preview">
+                  <div class="prev-thumb">
+                    <div class="mini-page">
+                      <div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i><i></i></div></div>
+                      <div class="mp-hero"><div class="mp-eyebrow">The quiet collection</div><div class="mp-title">Objects for the quiet home.</div><div class="mp-sub">A slower kind of commerce. Made in small runs, repaired forever.</div><div class="mp-cta">Explore the collection →</div></div>
+                      <div class="mp-foot"><div class="mp-block"></div><div class="mp-block"></div><div class="mp-block"></div></div>
+                    </div>
+                  </div>
+                  <div class="prev-title">Marlow</div>
+                  <div class="prev-sub">Template · editorial commerce · landing</div>
+                  <div class="prev-meta">
+                    <div><span>Frames</span><b>3 · desktop, tablet, phone</b></div>
+                    <div><span>Realizes</span><b>LandingPage</b></div>
+                    <div><span>Composes</span><b>14 assets · 2 unverified</b></div>
+                    <div><span>Updated</span><b>3 days ago</b></div>
+                  </div>
+                  <div class="prev-actions">
+                    <button class="pbtn primary"><svg class="i sm"><use href="#i-plus"/></svg>Use template</button>
+                    <button class="pbtn"><svg class="i sm"><use href="#i-layers"/></svg>Open in studio</button>
+                    <button class="pbtn"><svg class="i sm"><use href="#i-arrow"/></svg>See assets</button>
+                  </div>
+                </aside>
+              </div>
+              <div class="sheet-foot"><span><svg class="i sm"><use href="#i-arrowup"/></svg>↑↓ navigate · ↵ open · tab filter</span><span data-foot data-empty="Recent · templates · commands" data-search="5 groups · 18 results">Recent · templates · commands</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <div class="onote"><div class="caption">What it does</div><p>Makes search one gesture away from every surface. The preview pane turns a list of names into a decision: what it is, what it composes, and what to do next. Commands sit beside content.</p></div>
+        <div class="onote"><div class="caption">Cost</div><p>Discoverability is poor for people who do not know ⌘K. The two-pane sheet needs a phone equivalent (a full-screen sheet, not a squeezed preview). The result model still has to exist.</p></div>
+        <div class="onote"><div class="caption">Best for</div><p>Returning users, power users, and the “I know the name or the action” case. This is the right shape for the global shortcut.</p></div>
+      </div>
+    </article>
+
+    <!-- OPTION C -->
+    <article class="option" id="option-c">
+      <div class="option-head">
+        <div class="letter">C</div>
+        <div>
+          <h3>Concierge <span class="muted2" style="font-family:var(--sans);font-size:12px;letter-spacing:0">· AI-first, cited</span></h3>
+          <p class="idea">The omnibox accepts a job, not a keyword. “Landing page for a fintech” returns a cited recommendation, a composed result set, and the next action. Search remains a mode; AI is an explicit, labelled layer with sources — never a replacement for the index.</p>
+        </div>
+        <div class="option-tags">
+          <span class="tag cool">natural language</span>
+          <span class="tag">cited</span>
+          <span class="tag">higher cost / latency</span>
+        </div>
+      </div>
+      <div class="mockwrap">
+        <div class="viewswitch" data-switch="c">
+          <button class="vbtn" data-view="c-empty" aria-pressed="true">Empty</button>
+          <button class="vbtn" data-view="c-search" aria-pressed="false">“landing page for a fintech”</button>
+        </div>
+        <div class="mock" data-mock="c">
+          <div class="view on" data-panel="c-empty">
+            <div style="display:flex;min-height:540px">
+              <aside class="apprail">
+                <div class="appbrand"><span class="mark">RCL</span><span>React Component Library<small>BRAND NOT ASSIGNED</small></span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-grid"/></svg>Home</div>
+                <div class="anav on"><svg class="i sm"><use href="#i-spark"/></svg>Ask</div>
+                <div class="anav"><svg class="i sm"><use href="#i-box"/></svg>Components<span class="n">275</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-layers"/></svg>Design studio</div>
+                <div class="anav"><svg class="i sm"><use href="#i-check"/></svg>Review<span class="n">251</span></div>
+              </aside>
+              <div class="appmain">
+                <div class="apptop"><div class="crumb">React Component Library <span class="muted2">/</span> <b>Ask</b></div><div class="topcmd"><svg class="i sm"><use href="#i-search"/></svg><span>Search the library</span><kbd>⌘K</kbd></div></div>
+                <div class="appbody">
+                  <div class="askhero">
+                    <div class="pagekicker">Ask the library</div>
+                    <h3>What are you making?</h3>
+                    <p>Describe the page or flow. The answer cites the archetype, design and assets it used — or say “search” to browse exact matches.</p>
+                    <div class="askbox">
+                      <div class="row"><svg class="i" style="color:var(--signal)"><use href="#i-spark"/></svg><span class="asktext ph">A landing page for a fintech, editorial but trustworthy…</span><span class="go"><svg class="i sm"><use href="#i-arrow"/></svg></span></div>
+                      <div class="askmodes"><span class="mode on"><svg class="i sm"><use href="#i-spark"/></svg>Ask</span><span class="mode"><svg class="i sm"><use href="#i-search"/></svg>Search</span><span class="mode" style="margin-left:auto">Local model · cited</span></div>
+                    </div>
+                    <div class="suggest"><button>landing page for a fintech</button><button>onboarding flow with 4 steps</button><button>pricing page with annual toggle</button><button>a settings page that matches Aperture</button></div>
+                  </div>
+                  <div class="browse-title" style="margin-top:24px"><b>Or browse the curated shelf</b><span>8 TEMPLATES</span></div>
+                  <div class="catgrid" style="grid-template-columns:repeat(4,1fr)">
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layers"/></svg></div><b>Marlow</b><div class="count">Editorial commerce · landing</div><div class="ex">Warm, serif, product-led.</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layers"/></svg></div><b>Harbor</b><div class="count">Onboarding · calm, guided</div><div class="ex">Calm, guided, resumable.</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layers"/></svg></div><b>Solstice</b><div class="count">AI workspace</div><div class="ex">Quiet, dense, streaming.</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layers"/></svg></div><b>Nocturne Ops</b><div class="count">Command center</div><div class="ex">Signal-first operations.</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="view" data-panel="c-search">
+            <div style="display:flex;min-height:540px">
+              <aside class="apprail">
+                <div class="appbrand"><span class="mark">RCL</span><span>React Component Library<small>BRAND NOT ASSIGNED</small></span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-grid"/></svg>Home</div>
+                <div class="anav on"><svg class="i sm"><use href="#i-spark"/></svg>Ask</div>
+                <div class="anav"><svg class="i sm"><use href="#i-box"/></svg>Components<span class="n">275</span></div>
+                <div class="anav"><svg class="i sm"><use href="#i-layers"/></svg>Design studio</div>
+                <div class="anav"><svg class="i sm"><use href="#i-check"/></svg>Review<span class="n">251</span></div>
+              </aside>
+              <div class="appmain">
+                <div class="apptop"><div class="crumb">React Component Library <span class="muted2">/</span> <b>Ask</b> <span class="muted2">/</span> landing page for a fintech</div><div class="topcmd"><svg class="i sm"><use href="#i-search"/></svg><span>Search the library</span><kbd>⌘K</kbd></div></div>
+                <div class="appbody">
+                  <div class="omni" style="height:42px"><svg class="i" style="color:var(--signal)"><use href="#i-spark"/></svg><span class="q">landing page for a fintech</span><span class="mode on" style="font-size:9px">Ask</span><kbd>⌘↵</kbd></div>
+                  <div class="answer">
+                    <div class="atop"><svg class="i sm"><use href="#i-spark"/></svg>Answer · 3 sources</div>
+                    <p><b>Marlow</b> is the closest fit: an editorial commerce template with a product-led hero, warm serif type and restrained proof sections.<span class="cite">Marlow</span><span class="cite">LandingPage</span><span class="cite">14 assets</span> It reads as trustworthy rather than playful, which suits a fintech. Two of its assets are unverified; the composition is a starting point, not a release.</p>
+                    <div class="aactions"><button class="pbtn primary"><svg class="i sm"><use href="#i-plus"/></svg>Fork Marlow</button><button class="pbtn">See the 14 assets</button><button class="pbtn">Compare with Northwind</button></div>
+                    <details class="why"><summary>Why this answer</summary>Matched intent “landing page”; style “editorial, trustworthy”; template tag “landing”; verified availability preferred; recency. 3 candidate designs, 1 excluded for missing hero region.</details>
+                  </div>
+                  <div class="resgroup" style="margin-top:12px"><div class="resgroup-head"><b>Curated matches</b><span class="n">3</span><span class="line"></span></div>
+                    <div class="resrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Marlow</b><small>Template · editorial commerce · 14 assets · 2 unverified</small></div><span class="pill sig">best fit</span></div>
+                    <div class="resrow"><div class="resicon" style="color:var(--ice)"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Northwind launch brief</b><small>Design · imported · 3 frames · unbound</small></div><span class="pill i">design</span></div>
+                    <div class="resrow"><div class="resicon" style="color:var(--violet)"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Aperture</b><small>Design · analytics workspace · darker, denser</small></div><span class="pill i">design</span></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>What it would use</b><span class="n">14</span><span class="line"></span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Page · Section · ScrollReveal</b><small>Structure and entrance</small></div><span class="pill g">built</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Button · Card · Stat · Avatar</b><small>Conversion and proof</small></div><span class="pill a">2 unverified</span></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Commands</b><span class="line"></span></div>
+                    <div class="resrow cmdrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div class="resmain"><b>Fork Marlow into a design</b><small>Keeps the origin link; no template is changed</small></div><kbd>⌘N</kbd></div>
+                    <div class="resrow cmdrow"><div class="resicon"><svg class="i sm"><use href="#i-search"/></svg></div><div class="resmain"><b>Search instead of asking</b><small>Switch to exact results</small></div><kbd>/</kbd></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="option-notes">
+        <div class="onote"><div class="caption">What it does</div><p>Turns a fuzzy job into a cited shortlist and a next action. The AI sees only indexed documents and returns citations; every claim is clickable back to an archetype, design or asset.</p></div>
+        <div class="onote"><div class="caption">Cost</div><p>Latency, cost and trust. Needs a local model path, a strict citation contract, and a hard fallback to lexical results. It cannot be the only way in, and it must never invent a design.</p></div>
+        <div class="onote"><div class="caption">Best for</div><p>The “I don’t know the vocabulary” case and composition advice. It is a mode inside search, not a separate product or the default landing surface.</p></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="section" id="phone">
+    <div class="section-head">
+      <div class="section-no">04 / PHONE</div>
+      <div>
+        <h2>The phone composition is a different medium.</h2>
+        <p class="lede">
+          The recommended system on a 390×844 phone: Atlas is the empty state, results are a
+          full-screen sheet with grouped sections, and the primary action stays in the thumb zone.
+          No hover, no side-by-side preview; tap a row to open, long-press for actions.
+        </p>
+      </div>
+    </div>
+    <div class="phones">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>5G · 100</span></div>
+          <div class="pbody">
+            <div class="pagekicker" style="margin-top:6px">The shared UI layer</div>
+            <div class="ptitle">Find the <em>surface.</em></div>
+            <div class="pomni omni" style="box-shadow:none"><svg class="i sm" style="color:var(--muted2)"><use href="#i-search"/></svg><span class="ph">Search pages, assets, commands…</span></div>
+            <div class="modes" style="margin-top:8px"><span class="mode on">All</span><span class="mode">Pages</span><span class="mode">Assets</span><span class="mode">Actions</span></div>
+            <div class="pgroup">Browse by intent</div>
+            <div class="pgrid">
+              <div class="pcat"><b>Landings</b><div class="count">4 page types</div><div class="ex">Landing, Pricing, Docs</div></div>
+              <div class="pcat"><b>Onboarding</b><div class="count">2 page types</div><div class="ex">Onboarding flow</div></div>
+              <div class="pcat"><b>Workspaces</b><div class="count">6 page types</div><div class="ex">Analytics, Ops</div></div>
+              <div class="pcat"><b>Components</b><div class="count">275 assets</div><div class="ex">Button, Card, Table</div></div>
+              <div class="pcat"><b>Templates</b><div class="count">8 curated</div><div class="ex">Marlow, Harbor</div></div>
+              <div class="pcat"><b>Commands</b><div class="count">12 actions</div><div class="ex">New, Reindex</div></div>
+            </div>
+            <div class="pgroup">Recently opened</div>
+            <div class="prow"><div class="resicon"><svg class="i sm"><use href="#i-file"/></svg></div><div><b>Northwind launch brief</b><small>Design · 3 frames · 2h ago</small></div></div>
+            <div class="prow"><div class="resicon"><svg class="i sm"><use href="#i-layers"/></svg></div><div><b>Aperture</b><small>Design · 3 frames · 1d ago</small></div></div>
+            <div class="prow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div><b>Button</b><small>Asset · 2.2.14 · verified</small></div></div>
+          </div>
+          <div class="pnav"><div class="on"><svg class="i sm"><use href="#i-grid"/></svg>Home</div><div><svg class="i sm"><use href="#i-search"/></svg>Search</div><div><svg class="i sm"><use href="#i-layers"/></svg>Design</div><div><svg class="i sm"><use href="#i-check"/></svg>Review</div><div><svg class="i sm"><use href="#i-bolt"/></svg>More</div></div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>5G · 100</span></div>
+          <div class="pbody" style="padding-top:8px">
+            <div class="pomni omni" style="margin-top:2px;height:36px;box-shadow:none"><svg class="i sm" style="color:var(--signal)"><use href="#i-search"/></svg><span class="q">landing page</span><span class="pill sig" style="font-size:7px">18</span></div>
+            <div class="modes" style="margin-top:7px"><span class="mode on">All</span><span class="mode">Pages 3</span><span class="mode">Assets 12</span><span class="mode">Actions 3</span></div>
+            <div class="pgroup" style="margin-top:9px">Best match</div>
+            <div style="border:1px solid var(--signal-line);background:linear-gradient(90deg,var(--signal-soft),transparent);border-radius:8px;padding:8px">
+              <div style="display:flex;align-items:center;gap:6px"><span class="pill sig" style="font-size:7px">PAGE TYPE</span><span class="tiny muted2" style="font-size:7px">templates.landing-page</span></div>
+              <div style="font-family:var(--serif);font-size:17px;margin-top:3px">LandingPage</div>
+              <div style="font-size:8px;color:var(--muted);line-height:1.45;margin-top:2px">Hero, proof, sections, conversion. 3 designs · 12 assets.</div>
+              <div class="besttags" style="margin-top:5px"><span style="font-size:7px">hero</span><span style="font-size:7px">proof</span><span style="font-size:7px">conversion</span></div>
+            </div>
+            <div class="pgroup">Templates &amp; designs</div>
+            <div class="prow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-layers"/></svg></div><div><b>Marlow</b><small>Template · editorial commerce</small></div><span class="pill sig" style="font-size:7px">template</span></div>
+            <div class="prow"><div class="resicon" style="color:var(--ice)"><svg class="i sm"><use href="#i-file"/></svg></div><div><b>Northwind launch brief</b><small>Design · imported · 3 frames</small></div><span class="pill i" style="font-size:7px">design</span></div>
+            <div class="prow"><div class="resicon" style="color:var(--violet)"><svg class="i sm"><use href="#i-layers"/></svg></div><div><b>Aperture</b><small>Design · analytics workspace</small></div><span class="pill i" style="font-size:7px">design</span></div>
+            <div class="pgroup">Assets used</div>
+            <div class="prow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div><b>Section · ScrollReveal · Button</b><small>3 of 12 · 1 unverified</small></div><svg class="i sm"><use href="#i-chevron"/></svg></div>
+            <div class="pgroup">Actions</div>
+            <div class="prow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div><b>New page from Marlow</b><small>⌘N · fork into a design</small></div></div>
+          </div>
+          <div class="fab"><svg class="i sm"><use href="#i-plus"/></svg></div>
+          <div class="pnav"><div><svg class="i sm"><use href="#i-grid"/></svg>Home</div><div class="on"><svg class="i sm"><use href="#i-search"/></svg>Search</div><div><svg class="i sm"><use href="#i-layers"/></svg>Design</div><div><svg class="i sm"><use href="#i-check"/></svg>Review</div><div><svg class="i sm"><use href="#i-bolt"/></svg>More</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:22px">
+      <p><b>Why this exact phone shape.</b> The search field is pinned at the top because it is the
+      task. Categories become a two-column grid, not a 4×2 desktop mosaic. Results are one scroll,
+      with the best match expanded and the rest as rows. The primary action moves to a FAB in the
+      thumb zone; there is no preview pane and no hover-only affordance.</p>
+    </div>
+  </section>
+
+  <section class="section" id="recommend">
+    <div class="section-head">
+      <div class="section-no">05 / RECOMMENDATION</div>
+      <div>
+        <h2>One system, three states, one model.</h2>
+        <p class="lede">
+          Do not choose between Atlas, Spotlight and Concierge. They are the empty, invoked and
+          AI-assisted states of the same omnibox. The order matters: index first, commands second,
+          AI third.
+        </p>
+      </div>
+    </div>
+
+    <table class="rectable">
+      <thead><tr><th>Layer</th><th>What it is</th><th>Why this order</th></tr></thead>
+      <tbody>
+        <tr><td>Atlas</td><td>The <b>Home</b> front door and the empty query state. Categories, recent designs, curated templates, commands.</td><td>Answers “what exists?” without a query and teaches the vocabulary the search engine uses.</td></tr>
+        <tr><td>Spotlight</td><td>The <b>⌘K</b> overlay on every surface. Same index, same groups, plus a preview pane on desktop.</td><td>Makes search one gesture away; the preview turns results into decisions.</td></tr>
+        <tr><td>Ask</td><td>An explicit mode inside the omnibox. Natural language in, a cited shortlist and next action out.</td><td>Handles the “I don’t know the name” case without making every query pay for a model.</td></tr>
+        <tr><td>Commands</td><td>A declarative registry of actions with labels, shortcuts, scopes, availability and handlers.</td><td>Turns the palette into a real command surface and makes shortcuts discoverable.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="grid2" style="margin-top:26px">
+      <div class="card">
+        <div class="card-pad">
+          <h4 style="margin-bottom:10px">What ships first (no migration)</h4>
+          <div class="planstep" style="border:0;padding:10px 0;background:none"><div class="pn">0.1</div><div><b>One typed result model.</b><p>Design, template, page archetype, asset, page, command, evidence. Common fields: id, kind, title, subtitle, score, highlights, relations, preview, badges, route.</p></div><div class="when">week 1</div></div>
+          <div class="planstep" style="border:0;padding:10px 0;background:none"><div class="pn">0.2</div><div><b>One index, one endpoint.</b><p>Index the component registry, catalog assets, workspaces, pages, displays, states, experience pages and a command registry. Replace the capped client filters and the unused <span class="mono">searchDesignAssets</span>.</p></div><div class="when">week 1–2</div></div>
+          <div class="planstep" style="border:0;padding:10px 0;background:none"><div class="pn">0.3</div><div><b>Atlas + Spotlight.</b><p>Use the library’s own <span class="mono">SearchFilterResults</span>, <span class="mono">SearchResults</span>, <span class="mono">SearchInput</span> and <span class="mono">CommandPalette</span> assets. Add URL state, abort, loading/stale/no-match/index-empty/error.</p></div><div class="when">week 2–3</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <h4 style="margin-bottom:10px">What fixes the model (after search works)</h4>
+          <div class="planstep" style="border:0;padding:10px 0;background:none"><div class="pn">1</div><div><b>Merge the template shelf into designs.</b><p>Add provenance, tags, summary, preview, <span class="mono">realizes</span>. Migrate existing rows into single-frame designs. Curated templates are immutable; “use” forks.</p></div><div class="when">phase 2</div></div>
+          <div class="planstep" style="border:0;padding:10px 0;background:none"><div class="pn">2</div><div><b>Add flow semantics.</b><p>Introduce a <span class="mono">Workspace</span> (ordered designs) or <span class="mono">frame.role = screen</span>. A template can then be a flow snapshot, not just one page.</p></div><div class="when">phase 3</div></div>
+          <div class="planstep" style="border:0;padding:10px 0;background:none"><div class="pn">3</div><div><b>Link intent to composition.</b><p>Designs declare <span class="mono">realizes</span>; archetypes project <span class="mono">designs[]</span>. Search can then answer “show me every landing page and what it composes” honestly.</p></div><div class="when">phase 3</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:34px;font-size:24px">Acceptance evidence</h3>
+    <div class="accept">
+      <div><svg class="i sm"><use href="#i-check"/></svg><span><b>“landing page”</b> returns <b>LandingPage</b> first, then workspaces tagged or bound to it, then composed assets — never every page type.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>The empty state shows categories with counts derived from the catalog; every category opens a real filtered result set.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>Commands are searchable, show their shortcuts and context, and execute from the palette.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>Search survives a 478-asset corpus and a 390 px phone; no capped client list, no hidden overflow.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>Loading, stale, index-empty, no-match, partial and request-error are distinct states with recovery.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>Every AI answer cites an indexed design, archetype or asset; unanswerable queries fall back to lexical results.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>The workbench consumes its own search and command assets; no fifth hand-rolled search implementation remains.</span></div>
+      <div><svg class="i sm"><use href="#i-check"/></svg><span>“Use template” forks a design; the curated shelf cannot be edited in place; provenance survives the fork.</span></div>
+    </div>
+
+    <h3 style="margin-top:34px;font-size:24px">Open questions for you</h3>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card"><div class="card-pad"><h4>1. Is a template a page or a flow?</h4><p class="tiny muted">If onboarding flows are in scope, we need a workspace/screen model. If templates stay single-page, we can merge them into designs without that work. I recommend supporting both, but shipping the single-page merge first.</p></div></div>
+      <div class="card"><div class="card-pad"><h4>2. Should curated templates be immutable?</h4><p class="tiny muted">Fork-on-use preserves a trustworthy shelf and the studio’s current copy behaviour. Direct editing is faster but lets a showcase drift. I recommend immutable + fork.</p></div></div>
+      <div class="card"><div class="card-pad"><h4>3. What is the default ranking?</h4><p class="tiny muted">Outcome-first (page/flow, then design/template, then asset) or asset-first with types as filters? I recommend outcome-first for plain queries and asset-first for explicit asset queries.</p></div></div>
+      <div class="card"><div class="card-pad"><h4>4. How local must Ask be?</h4><p class="tiny muted">The experience-engineering programme bans paid vision APIs; the same constraint should apply here. I recommend a local model through AI Gateway, with a lexical fallback when it is unavailable.</p></div></div>
+    </div>
+  </section>
+
+  <details class="provenance">
+    <summary>Where these pictures and numbers come from</summary>
+    <div class="card-pad">
+      <dl>
+        <dt>Captured</dt><dd>Home, Components?q=landing page, and ⌘K?q=landing at 1440×900 from <span class="mono">http://localhost:23906</span>, 2026-11-19, scenario healthy. The phone capture is 390×844.</dd>
+        <dt>Rendered</dt><dd>All three option mockups and the phone composition are static HTML/CSS rebuilt in the workbench’s Nocturne tokens and type stack. They are not the running app, not wired to the API, and not composited captures.</dd>
+        <dt>Counts</dt><dd>19 catalog page archetypes, 478 catalog assets, 275 published manifests, 8 code-defined studio templates, 2 designs with 3 frames each, 14 experience pages, 54 experience components. Template/design result counts inside the mockups are illustrative where the model does not exist yet.</dd>
+        <dt>Sources</dt><dd><span class="mono">catalog/assets/templates/*.json</span>, <span class="mono">api/internal/catalogsearch/index.go</span>, <span class="mono">ui/src/workbench/WorkbenchShell.tsx</span>, <span class="mono">ui/src/workbench/pages/ComponentsPage.tsx</span>, <span class="mono">ui/src/workbench/designs.ts</span>, <span class="mono">api/internal/templates/types.go</span>, <span class="mono">experience/pages/*.json</span>.</dd>
+        <dt>Limits</dt><dd>No test suite or product code changed. The mockups do not prove performance, accessibility or API behaviour. The recommendation is a design judgement, not an operator decision. The workbench currently serves Nocturne dark; this page and the options are dark-only on purpose, with no light or high-contrast variant drawn.</dd>
+      </dl>
+    </div>
+  </details>
+
+  <div class="footer">
+    <b>Method.</b> Experience-engineering decision page: show today beside the change, one picture per option,
+    name the costs, recommend one, and state what remains unproven. The search system is not a skin on the
+    existing box; it is the missing index of intent, composition, source and evidence.
+  </div>
+</div>
+
+<script>
+  // Toggle the empty / queried state of each option mockup.
+  document.querySelectorAll("[data-switch]").forEach(function (group) {
+    var key = group.getAttribute("data-switch");
+    var mock = document.querySelector('[data-mock="' + key + '"]');
+    group.querySelectorAll("[data-view]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var target = button.getAttribute("data-view");
+        group.querySelectorAll("[data-view]").forEach(function (other) {
+          other.setAttribute("aria-pressed", other === button ? "true" : "false");
+        });
+        mock.querySelectorAll("[data-panel]").forEach(function (panel) {
+          panel.classList.toggle("on", panel.getAttribute("data-panel") === target);
+        });
+        var q = mock.querySelector("[data-q]");
+        if (q) {
+          q.textContent = target.indexOf("search") !== -1
+            ? (key === "c" ? "landing page for a fintech" : "landing page")
+            : "Search or jump to\u2026";
+        }
+        var foot = mock.querySelector("[data-foot]");
+        if (foot) {
+          var isSearch = target.indexOf("search") !== -1;
+          foot.textContent = isSearch ? foot.getAttribute("data-search") : foot.getAttribute("data-empty");
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

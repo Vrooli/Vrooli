@@ -1,0 +1,108 @@
+package federation
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/proto"
+)
+
+func TestStatusReportNamesStuckProviderInRecoverySummary(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		Providers: []*routingv1.ProviderHealth{{
+			ProviderId:    "provider.one",
+			Reachable:     true,
+			RecoveryState: "stuck",
+			Stuck:         proto.Bool(true),
+		}},
+	})
+	require.True(t, strings.Contains(strings.Join(report.Summary, "\n"), "provider.one"))
+	require.Contains(t, report.Results[0], "zero-yield lifecycle: stuck")
+}
+
+func TestProviderStatusReportIsScopedAndDoesNotClaimSearchSuccess(t *testing.T) {
+	message := &routingv1.ProviderStatusResponse{
+		ProviderId: "skills.owner",
+		Health:     &routingv1.ProviderHealth{ProviderId: "skills.owner", Reachable: true, Degraded: true, DegradedStages: []string{"provider_status_unavailable"}, IndexAge: "unreported: status probe failed", FreshnessBudget: "24h"},
+	}
+	payload, err := providerStatusCLIResponse(message, nil)
+	require.NoError(t, err)
+	report := (&handlers{}).providerStatusReport(nil, payload)
+	joined := strings.Join(append(report.Summary, report.Results...), "\n")
+	require.Contains(t, joined, "Selected provider skills.owner")
+	require.Contains(t, joined, "it did not execute a search")
+	require.Contains(t, joined, "Source freshness: age=unreported: status probe failed budget=24h")
+	require.Contains(t, report.Results[0], "! skills.owner")
+	require.Contains(t, report.Results[0], "index age: unreported: status probe failed")
+	require.Contains(t, report.Results[0], "degraded: provider_status_unavailable")
+	require.NotContains(t, joined, "active provider(s) reachable")
+}
+
+func TestStatusReportDistinguishesTransportCircuitFromYieldDemotion(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		Providers: []*routingv1.ProviderHealth{{
+			ProviderId:    "provider.one",
+			Reachable:     false,
+			Reachability:  "circuit_open",
+			CircuitState:  "open",
+			RecoveryState: "healthy",
+		}},
+	})
+	line := report.Results[0]
+	require.Contains(t, line, "reachability: circuit_open")
+	require.Contains(t, line, "zero-yield lifecycle: healthy")
+	require.NotContains(t, line, "recovery: healthy")
+}
+
+func TestStatusReportRendersIncubatingProvidersSeparately(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		Providers: []*routingv1.ProviderHealth{{
+			ProviderId: "production.one",
+			Lifecycle:  "production",
+		}},
+		Incubating: []*registryv1.IncubatingProvider{{
+			ProviderId: "experimental.one",
+			DeclaredAt: "2026-08-13T20:38:00Z",
+			NextAction: "run a recent passing evaluation",
+		}},
+	})
+	joined := strings.Join(append(report.Summary, report.Results...), "\n")
+	require.Contains(t, joined, "Incubating providers")
+	require.Contains(t, joined, "experimental.one")
+	require.Contains(t, joined, "run a recent passing evaluation")
+	require.NotContains(t, joined, "production.one — declared=")
+}
+
+func TestStatusReportKeepsUnregisteredAccountingRowsInAuditView(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		Providers: []*routingv1.ProviderHealth{{ProviderId: "registered.one", Reachable: true}},
+		AuditProviders: []*routingv1.ProviderHealth{{
+			ProviderId:  "stale.accounting.key",
+			TimesRouted: 4,
+			TotalHits:   1,
+		}},
+	})
+	joined := strings.Join(append(report.Summary, report.Results...), "\n")
+	require.Contains(t, joined, "Audit-only accounting rows: 1")
+	require.Contains(t, joined, "Audit: stale.accounting.key")
+	require.NotContains(t, report.Results[0], "stale.accounting.key")
+}
+
+// The retired LLM classifier is not an outage: status must never print
+// "unavailable" for it, and must name the strategy that actually routes.
+func TestStatusReportDoesNotPresentRetiredClassifierAsFault(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		ActiveStrategy:      "lexical-cross-encoder",
+		RerankerAvailable:   true,
+		ClassifierAvailable: false,
+	})
+	joined := strings.Join(report.Summary, "\n")
+	require.NotContains(t, joined, "Classifier")
+	require.Contains(t, joined, "strategy lexical-cross-encoder")
+	require.NotContains(t, joined, "lexical + cross-encoder selection")
+	require.Contains(t, joined, "retired, not down")
+	require.Contains(t, strings.Join(report.RetrievalHints, "\n"), "--explain")
+}

@@ -55,31 +55,30 @@ if err := verifier.EnsureAssets(service); err != nil {
 
 ## Playwright Conventions
 
-Services using Playwright need browser binaries. The package:
-
-1. Detects Playwright usage via `service.playwright_browsers`
-2. Sets `PLAYWRIGHT_BROWSERS_PATH` to bundle's browser directory
-3. Allocates debug port if needed
-4. Falls back to system Chromium if bundled browsers missing
+Services using Playwright declare a package-local browser closure with
+`PLAYWRIGHT_BROWSERS_PATH`. A staged `browser-closure.json` carries the shared
+`runtime_identity` (engine, browser version, driver/version, deterministic
+bundle version and whole-payload SHA-256) plus platform and executable binding.
+The runtime validates the identity, required installed receipt and digest,
+resolves the executable only within the packaged closure, and sets the single
+`BROWSER_EXECUTABLE_PATH` consumed by BAS. Missing, floating, stale, mismatched
+or conflicting closure data fails before the service process is created. There
+is no user-cache, system-browser or Electron fallback.
 
 ### Environment Variables Set
 
 | Variable | Description |
 |----------|-------------|
 | `PLAYWRIGHT_BROWSERS_PATH` | Path to browser binaries |
-| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | Fallback Chromium path |
+| `BROWSER_EXECUTABLE_PATH` | Exact browser executable override consumed by BAS |
 | `PWDEBUG_PORT` | Debug protocol port (if allocated) |
 
-### Fallback Detection
-
-If bundled browsers aren't found, the package searches for system Chromium:
-
-```
-/usr/bin/chromium-browser
-/usr/bin/chromium
-/snap/bin/chromium
-/Applications/Chromium.app/Contents/MacOS/Chromium
-```
+Browser acquisition is outside this runtime helper. BAS's
+`bundle/stage-browser-closure.mjs` consumes an explicit artifact tree after it
+has been provisioned through the governed dependency/artifact owner. It stages
+the exact `browsers.json` revisions and emits the closure manifest before
+scenario-to-desktop copies the declared `asset_dirs`. The helper never
+downloads or looks in a developer cache.
 
 ## Usage
 

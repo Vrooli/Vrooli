@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "description": "Sanctioned repairs to published release bytes. released-version-hashes.json records what was published; this file records a reviewed correction when a later commit edited a released file without re-publishing it. Every repair names both digests and a reason so the change is reviewable. The indexer accepts the repaired digest for that exact path and refuses any later drift.",
+  "repairs": [
+    {
+      "path": "components/AppShell/versions/2.1.5/AppShell.tsx",
+      "publishedSha256": "c0844b3747ad473494fa4e85fa5e360a8e45654617bd21ad88003024d8a19d65",
+      "repairedSha256": "200fc4d1f8190d1f21b4d3510c681067c0d11d8640ee1330348aa4e5f29214b6",
+      "reason": "The released file was edited by a later commit that did not update the tracked digest. 2.1.6 and 2.1.7 were published from this content, so the current bytes are the ones every consumer builds against. Repaired rather than re-hashed silently; the original published digest is preserved here.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.5/story.tsx",
+      "publishedSha256": "35b9ef7249c27471dc52df6868ad8fa4e83135b7097fed2184418564f6f6b3bf",
+      "repairedSha256": "9d42415a5029dbf5a1cf97746a606257fe4367956343788eeec124a4c475e047",
+      "reason": "Story companion edited in the same later commit as AppShell.tsx; it describes the bytes that shipped in 2.1.6 and 2.1.7.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/BottomNav/versions/1.5.7/BottomNav.tsx",
+      "publishedSha256": "ba24732f9627994af4be2de3cd791a40b4d80f410ac82219508f2097d2637582",
+      "repairedSha256": "9681c2ef99674cff56f80ca9079c8eeef912a1d238974443d97005a780527ac6",
+      "reason": "The released file was edited by a later commit without a tracked digest update. The current bytes are what 1.5.8 and every consumer build against.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/CollectionList/versions/1.3.6/CollectionList.tsx",
+      "publishedSha256": "015283b48bc99f4309a3c7a40ba7e0bc80e46a7e05b03f7d5a454bba1c293ee4",
+      "repairedSha256": "3a05d7dbbb112b23cdc520e511bdc8282c2c59a09b65ff5f0a6325a6022cef6f",
+      "reason": "The released file was edited by a later commit without a tracked digest update. The current bytes are what 1.3.7 and every consumer build against.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/OverlayActionBar/versions/1.0.0/OverlayActionBar.tsx",
+      "publishedSha256": "b5bd59929939272394092ec3cdf8332e4663eabd656d5d09903ec1023e731141",
+      "repairedSha256": "1ede36b76509ca39bb2473d2a6e0c02d8b0f8c97d40d6714134b29b64a1917a0",
+      "reason": "The released file was edited by a later commit without a tracked digest update. 1.0.1 and 1.0.2 were published from this content.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/OverlayActionBar/versions/1.0.1/OverlayActionBar.tsx",
+      "publishedSha256": "655190b7bbd0f9035c647381fef3815157e7b72d83d9354f781a89b65de5c9c2",
+      "repairedSha256": "108faf673693fe86a9553f8dc261f0ee5165d05f59595d477b8c4bd136c9608b",
+      "reason": "The released file was edited by a later commit without a tracked digest update. 1.0.2 continues from these bytes.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/OverlayActionBar/versions/1.0.1/story.tsx",
+      "publishedSha256": "e8f68eb5cab99d3e5dd67ed0c4a806e2041e8bddc02d943c7a95e3798065a959",
+      "repairedSha256": "9654f9de4c8d480eb472933c2f73b8ad0adef05a8e666eb4a93b8ee25253eec8",
+      "reason": "Story companion edited with OverlayActionBar.tsx; it describes the bytes that shipped later.",
+      "recordedAt": "2026-11-19"
+    },
+    {
+      "path": "components/region-correction-provider/versions/0.1.0-draft.1/RegionCorrectionProvider.tsx",
+      "publishedSha256": "82475451d9a6d5be001668ac9dcf9ffdba1a844f7aeb3fc632cd167377a152f2",
+      "repairedSha256": "593f121074c559855b067a39cee8461648b1ca4cc1f0120a9aab89141b3e4cc8",
+      "reason": "Reviewed correction: the provider now treats host evidence as untrusted input, rejects evidence captured against a stale page build, and verifies the durable private-queue receipt before reporting submission success. Component tests cover malformed evidence, stale evidence, and receipt identity/payload. Preserve the original published digest and authorize only this exact corrected file.",
+      "recordedAt": "2026-11-21"
+    }
+  ]
+}

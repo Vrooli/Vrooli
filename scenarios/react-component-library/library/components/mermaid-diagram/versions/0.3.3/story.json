@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "code": "graph TD; A-->B;"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Diagram",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Source",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Copy",
+          "role": "button"
+        }
+      ],
+      "id": "diagram-and-source-controls",
+      "mode": "pinned",
+      "name": "Diagram controls",
+      "role": "anatomy"
+    }
+    ,
+    {"id":"empty","name":"Empty diagram","args":{"code":""},"expect":[{"kind":"role","name":"Diagram","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading diagram","args":{"state":"loading"},"expect":[{"kind":"role","name":"Diagram","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Diagram error","args":{"state":"error"},"expect":[{"kind":"role","name":"Diagram","role":"button"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long diagram source","args":{"code":"graph TD; A[Start]-->B[An intentionally long diagram node label that must remain readable];"},"expect":[{"kind":"role","name":"Diagram","role":"button"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "Mermaid Diagram"
+}

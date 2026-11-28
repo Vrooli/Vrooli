@@ -1,0 +1,90 @@
+// Package server wires the production HTTP handler stack: cross-cutting
+// middleware + a slice of domain modules. Each domain returns a
+// module.Module from its handlers package; main.go passes them in.
+// There is no central routes.go and no per-domain field on Deps —
+// adding a feature means creating files, not modifying this package.
+//
+// Constructed once in main.go and exposed via Handler() for both the
+// production listener and the httpx test harness
+// (internal/testutil/httpx.NewLiveServer).
+package server
+
+import (
+	"log"
+	"net/http"
+
+	"money-ledger/internal/middleware"
+	"money-ledger/internal/module"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+)
+
+// Deps holds the cross-cutting interfaces the Server depends on
+// regardless of which modules are mounted. Production wires concrete
+// implementations (schedule.System(), log.Default()) in main.go; tests
+// wire fakes from internal/testutil/mocks.
+//
+// Per-domain dependencies (database handle, repository services,
+// pingers) live inside each module's constructor — Deps is intentionally
+// limited to what the middleware stack reads.
+type Deps struct {
+	Clock  schedule.Clock
+	Logger *log.Logger
+	// Gate authenticates every request and applies the access policy before
+	// any module route runs. Required: the server has no unguarded mode.
+	Gate Gate
+}
+
+// Gate is the request guard the server installs in front of every route.
+// Production passes *access.Gate.
+type Gate interface {
+	Middleware(http.Handler) http.Handler
+}
+
+// Server is the wired HTTP application: cross-cutting deps + router
+// with all module routes mounted. After New, every module's Mount has
+// already been called and Handler() returns the production-ready
+// http.Handler.
+type Server struct {
+	deps   Deps
+	router *mux.Router
+}
+
+// New builds a Server with logging middleware and the access gate applied and
+// every module's Mount invoked. Logger defaults to log.Default() if nil; Clock
+// and Gate have no default: the logging middleware never hides its time seam,
+// and no route is served without the gate.
+//
+// The handler test in handlers/health/handler_test.go reproduces a
+// stripped-down version of the middleware composition; if you add
+// cross-cutting middleware here, mirror it in the test or move the
+// composition into a shared helper.
+func New(d Deps, modules ...module.Module) *Server {
+	if d.Logger == nil {
+		d.Logger = log.Default()
+	}
+	if d.Clock == nil {
+		panic("server.New requires Deps.Clock")
+	}
+	if d.Gate == nil {
+		panic("server.New requires Deps.Gate")
+	}
+	s := &Server{deps: d, router: mux.NewRouter()}
+	s.router.Use(middleware.NewSecurityHeadersMiddleware())
+	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
+	s.router.Use(d.Gate.Middleware)
+	for _, m := range modules {
+		m.Mount(s.router)
+	}
+	return s
+}
+
+// Handler returns the production HTTP handler wrapped with the recovery
+// middleware. This is what main.go listens on and what
+// internal/testutil/httpx.NewLiveServer wraps for handler tests.
+func (s *Server) Handler() http.Handler {
+	return handlers.RecoveryHandler()(s.router)
+}

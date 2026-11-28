@@ -1,0 +1,312 @@
+# Device Studio: reference-based device domain
+
+Design expansion, 2026-10-18. This specifies the broader target; it is not a claim that a scenario, generalized renderer or qualified asset library exists. The current `shot.schema.json` remains the narrow laptop experiment. The operator requires free models and tools and a representative set broad enough to expose generalization errors.
+
+## Outcome and research inventory
+
+A reusable shot resolves a measured device assembly, a scene, compatible attachments, motion and genuine screen media. An imported asset and an original model follow the same qualification process. A free listing is a lead until its actual geometry, rights, textures and rig are inspected.
+
+Research inventories live in `../model-sourcing/large-devices.json`, `mobile-devices.json` and `embedded-devices.json`. The [searchable catalog](../model-sourcing/device-catalog.html) and [machine-readable index](../model-sourcing/device-catalog.json) link those records without silently merging conflicting dimensions. The current research contains 25 representatives across 23 family labels; coverage is not asset qualification. Each family needs a representative, a physical evidence source or explicit unknown, a free-asset search result or gap, and the implications for scenes and screens. Specific products exemplify the domain; they do not limit supported families.
+
+| Family | Structural differences the contract must support |
+|---|---|
+| Laptop / convertible / detachable | Hinged lid, optional reverse fold, keyboard/base, detachable display, open and closed envelopes |
+| Slab phone / tablet / e-reader | Rounded display boundary, cutouts, portrait/landscape, camera protrusion, optional cover or stylus |
+| Book fold / flip fold / multi-fold | Multiple parts and joints, external and internal displays, bending screen, crease, state-dependent visibility |
+| Dual-screen hinged device | Two rigid displays and a physical gap; spanning content is distinct from one continuous panel |
+| Watch / fitness band | Round or rounded display, curved glass, crown, strap articulation and wrist attachment |
+| Monitor / all-in-one / TV | Optional stand, tilt/pivot/swivel, display curvature, wall or arm mounting on a specific variant |
+| Smart display / digital frame | Fixed wedge or movable stand, speaker base, landscape/portrait support, possible wall hardware |
+| Automotive / marine / cockpit | Screen is a component of a host assembly; trim, dashboard occlusion, attachment and input controls matter |
+| Handheld console / POS / kiosk | Integrated controls, grip, pedestal/counter installation, unusual aspect ratios and reach |
+| Appliance / thermostat / industrial panel | Device embedded in host enclosure; door/drawer articulation, recess, wall/panel mounts |
+| Projector / HUD / AR / VR | Presentation surface may be projected or virtual; physical housing and perceived display are different entities |
+
+Google Home is also an ecosystem name and includes screenless products; select an exact screen-bearing host such as a Nest Hub. CarPlay and Android Auto identify software experiences, not universal display dimensions. [Apple’s iPhone Duo specifications](https://www.apple.com/iphone-duo/specs/) now establish that product’s identity and open/closed dimensions. It belongs in the documented-product catalog; an older artist asset with the same name is still unqualified until compared against the official device. Keep this identity check for every ambiguous listing.
+
+## Entities and boundaries
+
+**Product reference** identifies manufacturer, model, generation, size, regional/SKU variant and finish. Its status is `documented-product`, `concept`, `generic-design` or `identity-unresolved`. Evidence attaches to each fact. Never promote an artist's listing title into a manufacturer fact.
+
+**Device definition** describes the physical assembly independently of the file that renders it: parts, joints, display surfaces, attachment interfaces, named configurations and measurements. Definitions may describe a measured product or an explicitly original generic design. Category tags help browsing; they do not determine compatibility.
+
+**Model asset** realizes a definition in a pinned file/dependency closure. It records source, author, file digest, format, rights, native units, transforms, material mapping and qualification results. Several assets may realize one definition. A model of a different generation is an adaptation starting point, with mismatches retained; a filename is not identity evidence.
+
+**Device instance** selects a definition/asset/finish/configuration and supplies its world transform and joint tracks. A multi-device scene contains several instances, with stable IDs.
+
+**Display surface** belongs to a part or evaluated deforming mesh. It declares physical active area, native raster if known, shape/mask, cutouts, UV mapping and orientation. Shape alternatives include planar rectangle, rounded rectangle, circle, curved surface and deforming surface. Outer glass, bezel, active pixels and the manufacturer's nominal diagonal are separate facts. A multi-panel logical display names each surface and the physical gaps; content never paints the hinge.
+
+Projected and virtual presentations require a separate **presentation target** rather than a fake physical panel. A projected target binds a projector optical frame to receiver geometry and a projection mapping; a HUD binds combiner geometry, optical mapping and viewer pose/eye box; an AR/VR target binds a viewer coordinate frame and per-eye projection. Physical projector/headset dimensions cannot specify the apparent image size. These are explicit boundary requirements for the domain, unsupported by the initial physical-display shot compiler until those optical/viewer contracts are implemented and qualified.
+
+**Content binding** maps a captured source or source sequence to a surface/logical display, with fit/crop, independent timeline and orientation. A layout transition specifies which capture applies before and after fold or rotation. It never invents a responsive reflow by stretching a desktop capture. A cover screen and inner screen can use different sources/clocks. A scene can show a device while a particular screen is off.
+
+**Scene definition** owns surroundings, lights, camera regions and typed placement slots. **Attachment asset** realizes a stand, bracket, arm, dock, wrist fixture or host opening. **Shot recipe** binds these entities, sources, motion and output settings into one immutable render request. Hardware presence does not prove the app runs on that hardware; product-availability evidence stays a separate launch-video obligation.
+
+## Physical measurements and reference provenance
+
+Store original values/units and normalized SI values. Transforms use meters and a declared right-handed frame; the import adapter records source axes and conversion. Every part has its own local frame. Do not reinterpret a manufacturer's width/height/depth according to the current camera view.
+
+A measurement record needs: feature path; value or interval; unit; measurement meaning (chassis, maximum including camera bump, active area, with stand, without stand, folded/unfolded); configuration; evidence URL/document/page; retrieval date; and method (`manufacturer`, `measured`, `derived`, `image-estimated`, `design-assumption`, `unknown`). Record source precision and uncertainty where available; do not manufacture tolerances from decimal places. Conflicting sources remain separate until resolved.
+
+The asset import report compares its evaluated bounds against the physical reference. First correct unit/axis/origin errors and use uniform scaling when justified. If width, height and thickness ratios disagree, repair or reject the geometry; arbitrary nonuniform scaling is not proof of matching. Re-measure the body without optional stand/strap, then with them, in the configurations for which dimensions are published. Preserve exclusions such as rounded-corner nominal diagonals and camera bumps.
+
+Diagonal plus aspect ratio can estimate the enclosing rectangular active area: width = diagonal × aspect_width / sqrt(aspect_width² + aspect_height²), with the corresponding height. Mark this derived, retain assumptions and uncertainty, and never use it as the chassis size or exact rounded/circular active area. Unknown weight or mount pattern stays unknown even if the overall dimensions are known.
+
+Reference records distinguish technical drawings, official photographs, official marketing renders, independent photographs and concept artwork. Attach model/finish/state, image dimensions, crop history, source and permitted use. A photograph is appearance evidence under its camera and lighting; a marketing render can be retouched. Multiple consistent views and dimensions provide stronger evidence than one attractive image. Generated images are art-direction references, not physical ground truth.
+
+Reference-use rights and permission to publish/bundle the source image are separate. Record links or permitted snapshots for review; do not assume manufacturer images are redistributable default assets.
+
+## Acquisition and reference-fitting loop
+
+1. **Resolve identity and evidence.** Pick the exact variant. Gather dimensioned specifications and front/rear/side/three-quarter references, plus open/closed views for articulated devices. Mark blind spots. A concept starts with an explicit design brief and assumed dimensions; it cannot pass as a verified real product.
+2. **Search free authored assets first.** Record exact listing, author, price/access conditions, license, supported files and model match. Distinguish zero-cost account requirements from a paid plan. Inspect the actual downloaded asset without executing embedded scripts. Check external dependencies, scale, normals, separated parts, material response and screen topology. Preserve original bytes and import changes.
+3. **Select import, adaptation or original modeling.** Prefer the best measured silhouette and editable geometry over a polished vendor preview. If no suitable free file exists, use a similar device only as a declared starting point. Model the body from dimensions and orthographic references, then add the specific bevels, seams, ports, buttons, keys, camera lenses and mount hardware. A low-detail blockout is never silently promoted to the final model.
+4. **Fit reference cameras before changing geometry.** Use known physical lengths, visible parallel lines, EXIF where available, camera field of view and principal point. Record crop/shift and lens assumptions. Lock verified dimensions while solving the camera. Use separate cameras per reference; do not bend the device to compensate for perspective. If calibration is underconstrained, mark the view qualitative. [fSpy](https://fspy.io/) is a free camera-matching option with a Blender importer; adoption/install is separate governed dependency work. Its [documented assumptions](https://fspy.io/basics/) require approximately pinhole perspective and perpendicular direction cues; orthographic drawings, severe lens distortion and perspective-retouched images need a different fitting method. Near-parallel image lines also make the camera estimate unstable.
+5. **Compare geometry in neutral renders.** Match pose and framing, render silhouettes and a neutral material, then inspect front/side/rear and detail crops. Save reference/render/overlay and differences. Annotate landmarks such as chassis corners, bezel boundary, hinge endpoints, ports and lens centers. Keep at least one available view out of fitting and use it to catch overfitting.
+6. **Refine one error class at a time.** Correct global proportions, local silhouette and part placement before shading. Then refine edge profiles, normals and small geometry. Only after geometry holds across views, adjust material roughness, metal response, glass and lighting. Record hypothesis, changed parameters, comparison and result per iteration; retain rejected candidates.
+7. **Qualify final-profile appearance.** Use a controlled neutral studio plus the intended scene. Keep lens, exposure, environment and color transform fixed for A/B comparisons. Inspect reflections at grazing angles, contact shadows, glass thickness, screen borders, fine detail and dark finishes. More samples or denoising address noise, not incorrect geometry or light placement. Compare appearance qualitatively when reference lighting is unknown rather than claiming pixel equality.
+8. **Qualify surfaces and motion.** Render checkerboards, pixel borders and color charts on every surface; inspect masking and source orientation. Exercise joint endpoints and intermediate configurations, crease deformation and screen handoff. Check collisions and mount clearances through motion, not just the start frame. Render a short final-profile motion sample for flicker, aliasing and moving reflections before a full film.
+9. **Freeze an accepted package.** Bind the review to exact model/reference/recipe/render hashes. Record technical checks, craft judgment and operator acceptance separately. Replacing geometry, shader, renderer or reference invalidates affected qualification. Unknown hidden details remain explicit restrictions on usable shot angles.
+
+## Comparison evidence and stop conditions
+
+There is no single universal “looks real” score. The review packet separates physical, geometric, appearance and presentation evidence:
+
+| Check | Measurement | Interpretation |
+|---|---|---|
+| Physical bounds | Per-axis error in mm against a named configuration and component | Use source precision/uncertainty; do not adopt a made-up universal manufacturing tolerance |
+| Silhouette | Mask intersection-over-union and symmetric boundary distance, in pixels and normalized by reference device size | Requires matched camera/pose and reviewed segmentation; image alignment is not allowed to hide physical scale errors |
+| Features | Named landmark errors and crops for bezel, hinge, lenses, ports and buttons | Report missing/occluded landmarks instead of dropping difficult features |
+| Multi-view consistency | Results from fit views and a held-out view where available | A good front view cannot certify thickness or rear detail |
+| Appearance | Side-by-side neutral and scene renders at final resolution | Lighting/material ambiguity prevents a raw RGB difference from proving physical accuracy |
+| Screen fidelity | Mask/UV/border/color tests, source clock and final projected text footprint | Treat each surface and each critical interval independently |
+| Motion/installation | Joint limits, mesh clearance, mounting fit and temporal review | Static bounds are insufficient for an opening laptop or folding phone |
+
+Set per-feature thresholds before iterating, based on the intended largest on-screen footprint and evidence uncertainty. Label these production acceptance budgets, not manufacturer accuracy claims. A macro hardware shot needs stronger evidence than a distant scene prop. Passing numeric checks does not replace craft review. Stop only when required checks pass, no material visual mismatch remains in review, and known unknowns do not affect the proposed shot. If progress stalls, reconsider the reference camera or asset rather than indefinitely raising samples.
+
+### Executable comparison instrument
+
+`reference-compare.py` implements silhouette overlap, symmetric boundary distances and named landmark error for already calibrated views. It writes a diagnostic overlay, a provenance report, the exact mask bytes measured and a local replay input. It refuses empty masks, different raster sizes, nonbinary masks, edge-touching/clipped silhouettes and an unreviewed calibration status. A full-object view needs background margin; interior occlusion needs separate review and cannot certify the complete contour. Input bytes are loaded once, decoded and hashed from the same buffers. It does not perform camera fitting or infer physical accuracy. Synthetic checks verify the instrument, not any device model:
+
+```sh
+python3 reference-compare.py --self-test
+python3 reference-compare.py comparison-input.json comparison-output
+```
+
+An input has this shape (mask paths resolve relative to the JSON file; output must be a new directory):
+
+```json
+{
+  "schema_version": 1,
+  "reference_identity": "product/variant/view/reference-digest",
+  "candidate_identity": "asset-digest/render-recipe-digest",
+  "reference_mask": "reference-mask.png",
+  "candidate_mask": "render-mask.png",
+  "calibration": {"status": "reviewed", "record": "camera-and-pose-review.json"},
+  "landmarks": [
+    {"id": "example-corner", "reference_xy": [120, 80], "candidate_xy": [122, 81]},
+    {"id": "occluded-port", "reference_xy": null, "candidate_xy": null}
+  ]
+}
+```
+
+These illustrative coordinates are not device measurements. The supplied calibration status is a caller claim; the instrument does not verify the external review record. White in the overlay means shared silhouette, cyan means reference-only and red means candidate-only. Missing landmarks remain unknown. The next real asset experiment must supply calibrated images and actual review evidence before these metrics can inform a craft decision.
+
+## Articulation and display topology
+
+Use a part graph with validated joint references and limits. Rigid joints cover lid, hinge, tilt, swivel, watch crown and stand. Flexible screens and straps need a declared deformation representation and renderer support. Named configurations such as `closed`, `open`, `tent`, `flat` and `wrist-worn` resolve to joint states and surface visibility, never merely a display label. Three-part folding devices naturally add parts and joints.
+
+Each content binding targets a stable surface ID. For a dual-screen device, spanning content uses two explicitly defined viewports with a gap policy. For a continuous foldable display, use a continuous UV domain on the deformed surface. A four-corner homography is valid only for a planar screen in a suitable projection. Curved, folding and lens-distorted surfaces need per-pixel UV/depth or direct surface rendering. A screen-entry preset must reject unsupported geometry or choose an explicitly declared local surface target; it cannot pretend the whole curved display is one plane.
+
+App layout states are independent of hinge angles: the physical pose may change continuously while actual app state switches at a captured transition. Store synchronization events and capture provenance. Background rendering must not imply nonexistent native support, unavailable multiwindow behavior or fabricated CarPlay/watch functionality.
+
+## Scene compatibility and installation
+
+Do not use `wall_mountable: true` as a sufficient condition. A scene slot specifies its coordinate frame, attachment kind, dimensions, permitted orientation, available clearance and required interfaces. A device or accessory exposes mating interfaces with source-backed parameters. An attachment chain can be `wall → bracket → monitor`, `desk → arm → adapter → monitor`, `wrist → strap → watch`, or `dashboard → fascia → head unit`.
+
+For example, a TV wall slot checks the exact mounting pattern and variant, bracket interface, device mass against supported load when documented, depth/cable clearance and the evaluated pose. Unknown information yields `needs-review`; a known mismatch yields `incompatible`. A stand-only monitor must not be accepted because another SKU has VESA. A custom mount can be a modeled design assumption, but it must be visibly labeled as such rather than advertised as a verified physical installation.
+
+Compatibility produces three outcomes with reasons: `compatible`, `incompatible`, `needs-review`. Checks include interface mating, dimensions, attachment orientation, active configuration, motion sweep, collisions/occlusion, environment/scene intent, content surface support and renderer capability. These are visual-scene checks, not engineering certification of a real-world installation. Physical load, heat and waterproofing claims require their own evidence.
+
+Rendering a stylized floating device is an explicit presentation mode with no physical mounting claim. It must not override physical constraints in a realistic scene. A phone shown on a wall needs an explicit holder; a wall TV can omit a bracket from the camera's view only if the assembly still represents its offset and clearance.
+
+Representative behavioral fixtures for the future compiler:
+
+- Accept a documented TV/bracket pattern match with adequate known clearance; reject a known pattern mismatch; request review when the mount pattern is unknown.
+- Reject a stand-only display in a bare VESA slot; accept only after resolving a compatible adapter variant.
+- Reject a fold animation whose swept volume hits a desk even though the starting pose fits.
+- Keep dual-screen hinge gaps empty; reject a planar homography for a bending display.
+- Map a circular watch through its active mask; reject a rectangular crop that paints the bezel.
+- Resolve the host-specific raster and capture for CarPlay/Android Auto; reject a generic software-platform “physical size.”
+- Keep a concept device available for concept shots while preventing verified-product claims.
+
+## Proposed implementation seams
+
+AI-assisted device creation is a first-class scenario capability, explicitly requested by the operator. The workflow below is part of the target product, not temporary prompt glue to discard after the experiment. The current v3 work is an agent-operated prototype of it; no autonomous modeling API is implemented yet.
+
+### AI model-creation and refinement job
+
+A creation request selects an exact product or an original generic design, intended use/maximum shot footprint, references and dimensions, required parts/screens/configurations, asset rights policy, and compute/iteration budget. It can ask to import an existing free model, adapt a related one, or construct original geometry. The decision record states why a branch was chosen. Similarity search must consider physical form, rig topology and rights in addition to title keywords.
+
+The job owns these durable stages: `collecting-references → resolving-measurements → choosing-source → constructing → fitting → reviewing → refining → packaging`. It can finish as `candidate-ready`, `needs-input`, `budget-exhausted`, `failed` or `cancelled`. These are creation statuses, separate from the existing render-job states. A ready candidate is not automatically a released asset. If a free download needs an account, retain the acquisition gate and continue a viable original-model branch rather than hiding the missing file behind vendor screenshots.
+
+Each creation iteration retains:
+
+- Input asset/reference digests, exact product identity and a parameter ledger with value, unit, evidence and uncertainty.
+- Agent/model identity and prompts where available, generated source code or geometry edits, tool versions, execution budgets and owned-process receipts. Unknown invocation metadata stays unknown.
+- Hypothesis and intended correction, the changed parameters/parts, before/after geometry checks and final-profile comparison images.
+- Numeric comparison results only for calibrated views; qualitative image review, unmet criteria and rejected candidates remain visible.
+- Per-surface screen binding, joint/mount checks, model/texture dependencies, rights/attribution and explicit limitations.
+
+The deterministic geometry/render layer executes changes; the AI proposes and critiques them. Known dimensions and immutable source captures are constraints, not freely adjustable optimization variables. The agent must not improve an image score by changing ground truth, removing difficult landmarks, stretching reference images, changing the evaluation camera without a recorded recalibration, hiding unmodeled geometry or replacing the device with a generated photograph. Artistic framing can change, but that creates a different comparison task and cannot inherit the old fit verdict.
+
+Use a small number of controlled candidates per iteration. A supervisor compares geometry before material changes, checks a held-out view when available, and diagnoses stagnation. Stop when evidence supports the intended use and the remaining mismatch list is empty for that scope, or when the budget ends with a truthful partial candidate. A user can select a candidate, pin parameters, annotate mismatches and resume from its immutable checkpoint. Human acceptance and asset release follow the established owner boundary rather than a new AI self-approval path.
+
+Generated Blender/Python files are untrusted executable work products. The future scenario executes them through the control-plane tool adapter in an isolated workspace with bounded CPU/memory/time, restricted file scope and network policy, disabled automatic execution of imported scripts, captured logs and owned cancellation. It must not give a generated script access to credentials, arbitrary host maintenance or the model-download session. Dependency acquisition remains a separate governed operation. These isolation requirements are target behavior; the experiment's transient resource scopes alone do not establish complete sandbox isolation.
+
+Package geometry separately from camera/light/scene presets, while pinning a qualified combination. Preserve native files for editing and a portable export only when its materials, topology, masks and articulation survive conversion. A metadata-only GLB export is not enough: inspect it after reimport. Authored assets need the same physical and visual checks as downloaded models. AI-produced topology from an external model service is an optional construction backend with separate cost/provenance; it is not required for the zero-purchase local workflow.
+
+### Experiment-to-scenario evidence handoff
+
+The v3 experiment records imported phone, imported laptop and original-model branches separately under `../v3/imported`, `../v3/imported-laptop` and `../v3/authored`; `../v3/free-previews` holds attributed vendor previews. Each final artifact must be identifiable as vendor preview, original render, reference photograph or diagnostic comparison. A user-facing gallery must not confuse these classes.
+
+Use a manifest to connect brief → source evidence → acquired/original geometry → iterations → final renders → review → delivered files. Retain failures such as account gates, misleading free listings, material conversion errors and unusable preview links; they become recovery and acceptance cases for the scenario. Preserve original records rather than updating historical `file_inspected=false` research to imply that every listed model was later tested. New acquisition records link to the specific catalog entry they supersede.
+
+HTML is supplemental delivery. The operator reported that links within the research HTML do not work in their environment, despite local browser checks. Therefore the delivery contract also needs directly accessible PNG/video previews, direct downloadable model/native files, readable attribution, and standalone comparison/contact sheets. Local HTML navigation tests do not prove accessibility in the user's artifact viewer. Native 3D preview capability must be verified in that environment or labeled unverified.
+
+### Observed v3 cases that the scenario must retain
+
+These are concrete prototype observations, not implemented production guarantees:
+
+| Observation | Required import/creation behavior |
+|---|---|
+| The downloaded phone's named screen was an annulus, leaving no active display face. | Inspect topology and coverage; fit a separate surface to the actual inner boundary, record its depth and mask, and preserve the bezel. A material name alone cannot identify a usable display. |
+| Replacing a lens material hid the artist's embedded optical texture and made cameras look like blank disks. | Inspect existing image/UV connections before overriding materials. Preserve artist detail or explicitly record replacement. A textured lens can qualify for a beauty angle without qualifying physical lens internals or macro shots. |
+| The laptop required Draco expansion and WebP-to-PNG conversion for the installed Blender importer. | Preflight asset extensions against backend capabilities, retain original bytes, use governed existing adapters, hash derived files, and verify post-conversion geometry/texture closure. Format conversion is not a geometry-quality improvement. |
+| The portable screen could not preserve arbitrary Blender UV math and CLIP behavior. | Bake deterministic source placement into a portable texture or represent it in a supported shader, then inspect the exported asset in a second renderer. Keep the untouched capture and its fit recipe. |
+| The laptop mixed lid/base components in material-group meshes and arrived only in an open state. | Do not advertise lid animation from a static open preview. Partition and qualify the assembly/joint first; verify closed envelope and swept clearance separately. |
+| Source title said M3 “2024,” while Apple's product record identifies the M3 16-inch model as November 2023. | Preserve the creator's title as source metadata, but normalize product identity using primary evidence. Do not manufacture a model-year fact from listing text. |
+| Early original-model renders clipped the silhouette, exposed a backdrop horizon and produced flat blue lens targets. | Treat image review as a required iteration. Record framing changes, continuous-background correction, optical-geometry changes and the remaining mismatch list. More samples cannot repair wrong geometry. |
+| The installed Blender lacks OpenImageDenoiser, and Python/GLB support needed a process-local environment adjustment. | Preflight renderer features and Python/import dependencies before the render budget is spent. A missing optional denoiser selects a supported sampling recipe, not an unrecorded host install. |
+| A self-contained viewer still encountered software-rendering load and an initial timeout. | Render on demand while idle, fit the camera to the full bounds, retain the failed receipt, and test model switching with external network disabled. Embedded assets remove relative-file navigation but do not prove host artifact-viewer support. |
+| A reference comparison exposed an invented flower-shaped flash diffuser after an otherwise improved hero render. | Review small anatomy against primary close-ups; correct the geometry before spending more samples. Keep the rejected and corrected versions and an explicit mismatch list. |
+| A corrected flash and higher-sample camera region were composited over an unchanged full-frame render to bound cost. | Retain the native scene, exact camera/light continuity, raw region renders, pixel bounds and hashes. Mark the output as a region composite; do not claim equivalence to a full rerender when nonlocal light transport outside the patch was not retraced. |
+| A generic authored GLB filename was overwritten; its prior exact bytes were recovered from the previously built embedded viewer. | Store immutable content-addressed candidate artifacts. A movable `latest` alias must never be the only retained copy or identity used by a review. Recovery is evidence of a versioning requirement, not an acceptable default storage strategy. |
+
+The interactive v3 inspector embeds all model bytes and its renderer code in one HTML file. It is an inspection aid, not a substitute for the native render recipe or proof of rendering parity. The future UI should expose this difference without burdening the ordinary launch-video flow with backend details.
+
+These names describe future responsibilities, not callable operations today:
+
+| Seam | Input → retained output |
+|---|---|
+| Reference collection | Product identity and sources → field-level measurements, images, uncertainty and rights |
+| Asset import | Pinned free file → dependency closure, normalized assembly, diagnostics and adaptation record |
+| AI device creation | Reference-backed request + budget → versioned construction/fit/refinement iterations and an inspectable candidate package |
+| Reference fitting | Asset + annotated views → cameras, landmarks, masks and calibrated comparison packet |
+| Asset qualification | Comparison packet + intended shot class → supported angles/configurations/profile and review status |
+| Scene compatibility | Instances + attachment graph + motion → compatible/incompatible/needs-review with actionable paths |
+| Shot compilation | Assemblies + surfaces + source bindings + tracks → evaluated transforms, UV/depth, source clocks and visibility |
+| Render/review | Compiled immutable shot → bounded job, previews, final media and evidence |
+
+Prioritize a reference-backed free laptop and phone for appearance, while exercising the data contract with a foldable, dual-screen device, round watch, wall-mounted TV, smart display, digital frame and vehicle host. Broad design coverage and production-qualified model count are separate measures. Add models only after their metadata and quality survive this process.
+
+
+## Content presentation profiles (v4 operator feedback)
+
+Direct GLB viewing works in the operator environment; the embedded HTML inspector does not. Direct models and standalone media are the delivery contract for this experiment. Browser-local success cannot close that environment gap.
+
+A display surface binds a presentation profile before it binds a capture. Separate the physical surface/mask and hardware occlusions, the app viewport, simulated system chrome, and an optional simulated desktop/browser environment. A capture that already includes OS/browser chrome declares that provenance so the compiler does not add it twice. Native-app, browser-on-desktop, and bare-capture modes are explicit alternatives.
+
+Phone profiles reserve status and gesture/home regions outside the captured-app viewport. Their background can sample robust top/bottom edge colors or use explicit overrides; stretching live content into those regions is forbidden. Clock, connectivity, battery and home indicator are independently configurable simulated layers. Device-specific presets define insets and occlusion avoidance, while retaining caller overrides and the profile source/estimate status. Physical Dynamic Island/camera geometry stays separate from the screen raster and must remain visually dark under varied lighting. A material fix must not accidentally alter a shared frame/camera material.
+
+Desktop profiles compose wallpaper, menu/status bar, dock and browser chrome around a named app viewport. Browser bounds, title/URL/tabs, theme, wallpaper and system indicators are configuration, not hard-coded screenshot paint. Capture fit preserves aspect and source identity. These layers are visual simulations; they do not prove that the app ran in that OS/browser or on that hardware. Source time and simulated-clock time are separate.
+
+Video composition evaluates the same profile on every frame. Color sampling must define whether it is fixed, per-frame, temporally filtered, or keyed; any background interpolation affects simulated padding only. Validate that moving app pixels never enter reserved system regions, screen masks prevent bezel painting, and the same configuration drives portable stills and video. Portable GLBs may contain a representative static frame; video requires a separately supported animation/texture delivery path rather than pretending a still GLB contains the recording.
+
+### v4 qualification evidence and portability lessons
+
+The active display extends above, beside and below the Dynamic Island. Only the pill is a hardware occlusion; the surrounding top region is usable display with simulated status indicators. The v4 light-background diagnostic makes this boundary visible instead of letting a dark app conceal a coverage error. Apple’s retained illustration is a Live Activity state, so it establishes surrounding-display behavior but is not an idle-pill dimension reference.
+
+V4 clones only the island/front-sensor materials before changing their lighting response. The portable unlit material must omit incompatible lighting extensions, including zero-valued ones. Qualification runs the actual Web Console admission and stage code with embedded model bytes, then inspects front/angled views under studio and soft lighting. It records the viewer source hashes and version. This is local renderer compatibility evidence, not a claim that the operator’s mobile browser was remotely tested.
+
+The test harness must use an HTTP origin: file-origin blob URLs fail the viewer’s external-resource guard and can silently produce textureless geometry in the underlying glTF loader. Initial file-origin screenshots are invalid appearance evidence. Production delivery remains direct GLB and standalone PNG/MP4; the test harness is internal tooling.
+
+The current phone insets and icons are configurable visual approximations, not extracted OS metrics. Contain mode preserves all captured pixels and may leave narrow side padding. A future native profile should prefer recording at its declared app-viewport aspect when edge-to-edge presentation is wanted. The desktop experiment uses simplified simulated dock/menu/browser graphics and preserves any partial content already present in the real capture. Neither profile proves device execution. V4 short movies demonstrate composited screen motion, while the delivered GLBs embed a static representative frame.
+
+## Scene placement experiment (v5)
+
+A reusable environment exposes named support surfaces with dimensions in meters, local frames, support normals, allowed device/mount classes, and exclusion regions for props. Placement solves contact using the full device envelope, including feet and camera protrusions, then records world transforms and clearance. The chosen pose may require more than an axis-aligned bounds check: a face-up phone rests on its rear-camera housing and body edge. A cosmetic gap must not hide an unsupported pose.
+
+Keep environment geometry/materials, device instances, screen profiles, props, lighting and cameras independently configurable. Device replacement must preserve physical scale rather than resizing to a scene silhouette. Material texture scale is physical and recorded. Window light, shadows, exposure and depth of field are reviewed together; attractive source assets do not independently establish a realistic scene. Native packed scenes retain full rendering behavior. Portable scene GLBs receive separate budget/material/texture-closure checks and must not claim the native render’s lighting, depth of field or procedural shader fidelity.
+
+V5 first exercises a laptop on a desk and a face-up phone on a table using the qualifiedv4 device/screen variants. Deliver standalone renders and reusable source/configuration with provenance; do not make HTML navigation a prerequisite.
+
+### Observed v5 scene qualification cases
+
+Texture scale and texture resolution are separate controls. The photographed wood spans about1.5m per tile; a2K image then provides only about200texels across a150mm phone. The native phone close-up therefore uses an8K diffuse texture without shrinking the physical tile. A reduced1K portable material is separately qualified for scene inspection.
+
+The phone support experiment uses a lower-envelope facet spanning the rear camera and opposite body edge, with an explicitly assumed body-center mass projection. It records a support polygon, pose and penetration check. This proves a geometric support candidate under that assumption, not the device’s measured mass distribution or dynamic stability.
+
+A standalone device can pass its viewer check yet fail inside a larger scene. In v5 the native phone render remained clean while the portable table scene exposed screen-layer depth fighting. A portable-only screen/island separation adjustment is retained as a named adaptation; native geometry and contact stay unchanged. Qualification must therefore include intended scene bounds, scale and view angles, and visually inspect the displayed screen after export. Successful file admission alone is insufficient.
+
+Blender duplicated texture descriptors in the desk export, exceeding the viewer’s32-texture-entry limit even though image memory stayed below budget. Deduplicate semantically identical texture records and remap every reference without changing image/sampler semantics, then rerun actual target admission. Retain the rejected export and exact transformation. Native shaders/lighting, portable PBR materials and the original source asset remain separate artifact identities.
+
+## Visual quality correction (v6 operator feedback)
+
+The operator rejected the v5 scene finish as below the earlier photographic “after.” V5 remains useful evidence for support placement, configuration, portability and geometry editing, but is not an accepted final-video appearance benchmark. The v2/photographic output is the selected visual benchmark. It was an image-generated stationary photographic plate with the authentic recording composited into a manually calibrated display, not an improved 3D scene. Record this operator judgment separately from the earlier technical checks.
+
+A shot declares a rendering strategy and supported motion envelope. The interactive editor’s proxy representation can be simpler than the final image, but an approved final-look frame from the actual output strategy is required before video rendering. Quality does not emerge automatically from placing a simple model inside a larger room.
+
+Photographic-plate strategy: retain a generated or licensed photographed device/environment image, display corners and masks, source frame clock and presentation profile. This can deliver convincing stationary scenes with changing app content and a 2D editorial crop. It does not provide arbitrary camera parallax, reliable articulation, geometry-preserving device replacement or physical relighting. Generated device appearance is not proof that a qualified 3D asset’s geometry was preserved. Plate generation is nondeterministic; replay from the pinned plate and composition recipe can be deterministic.
+
+Full 3D strategy: retain measured assets, environment geometry/materials, support frames, lights, cameras and evaluated motion. This is appropriate for orbits, lid articulation and device motion, but requires a separately approved photographic-quality environment/look. Current v5 scenes have not passed that visual gate. Better scene assets, lighting, surface detail and composition need visual review against the benchmark; more render samples alone are insufficient.
+
+A reference-guided generative finish driven by 3D layout is an experimental third adapter. It must report geometry/camera drift and temporal consistency evidence rather than imply pixel/mesh invariance. Do not regenerate every video frame independently and assume stable objects. For every strategy, keep generated scene imagery separate from authentic app pixels and retain all evidence labels.
+
+
+### Configuration-driven strategy selection (post-v6 discussion)
+
+Choose the rendering strategy from shot requirements, not from whether the output is a still or a video. A fixed photographic plate supports video when only the real screen content changes. Record requested motion, camera movement, hardware fidelity, environmental interactions and output framing before selecting an eligible strategy. Preserve an explicit override, but reject unsupported combinations with a concrete explanation rather than silently downgrading motion or hardware fidelity.
+
+| Shot requirement | Preferred starting strategy | Qualification condition |
+|---|---|---|
+| Stationary device; still image or changing app content; crop-based push-in | Generated device and environment plate plus authentic screen composition | Approve device appearance, screen calibration and available resolution; generated hardware is approximate |
+| Exact hardware geometry or precisely constrained physical placement, including a still | Qualified 3D device render | Validate the imported or authored asset and physical placement; attractive generation alone cannot establish dimensional fidelity |
+| Device rotation, lid articulation or other controlled physical motion | 3D device with a configured scene and animation | Validate rig, screen mapping, contact, shadows, reflections and temporal stability |
+| Camera orbit or translation that reveals room depth and hidden surfaces | Full 3D environment, or separately qualified environment reconstruction | A single flat background cannot supply unseen geometry or correct parallax |
+| Fixed camera, moving 3D device, photographic room backdrop | Optional hybrid experiment | Match camera, lighting, support geometry, shadows, reflections and foreground occlusion for the whole motion |
+
+The v6 images did not place the GLB into an image-generated room. Image generation supplied both the visible device and environment, followed by real screen replacement. A 3D render supplied as an image-generation reference is another possible way to guide composition, but the generated result still needs review and does not inherit exact geometry guarantees.
+
+A hybrid shot can retain a generated empty-room background and render an actual 3D device over it. It usually needs a proxy desk/table surface to receive contact shadows, lighting and reflection inputs consistent with the photograph, camera calibration, and masks or proxy geometry for objects that occlude the device. A visible RGB photograph alone does not specify the complete lighting environment. Device motion can work with a stationary camera when these interactions are modeled; camera movement increases the environment reconstruction requirement. A complete modeled room is therefore not mandatory for every device animation.
+
+Prioritize the photographic strategy for eligible shots because it already meets the selected appearance benchmark with low setup effort. Preserve full 3D as the controlled-motion and exact-geometry route. Keep the hybrid optional until a bounded comparison demonstrates a practical advantage: the same fixed-camera device motion rendered against a simple 3D environment and a photographic backdrop, judged on appearance, contact/reflections, temporal consistency, setup time and repeatability. No hybrid result is claimed by v6.
+
+
+## Scenario creation readiness (2026-10-19)
+
+Assessment: enough is known to start a Device Studio scenario with an end-to-end photographic-shot workflow and a separately gated 3D motion track. This is not a claim that the broad device catalog, production render service, provider integration or animated 3D appearance is qualified. The remaining high-risk work should become explicit early acceptance experiments rather than an indefinite prerequisite research phase. The operator's positive v6 feedback establishes direction for photographic scenes, not blanket acceptance of every device or render strategy.
+
+### Decisions to record before implementation
+
+- **Boundary:** Device Studio owns physical device definitions, asset adaptations and qualification, display mappings and presentation profiles, physical scene compatibility, device/camera motion, shot compilation, and device-specific creation/refinement workflows. Capture stays with its current owners, including Browser Automation Studio; campaign direction and final-film assembly stay outside this scenario. Backdrop Studio supplies ambient assets where appropriate. Reuse Image Tools operations and shared storage/execution infrastructure. Resolve the precise Asset Studio adapter before creating a competing generic asset identity, release, or provenance system.
+- **Evidence versus dependencies:** Asset Studio's domain document says designed-only, while api/internal/studio contains identity/spec/render-related code. Consequently neither its document nor the presence of code proves the integration is usable: exercise the actual needed contract. Image Tools documents generation, but the chat's built-in image generation success is not an unattended service capability test. Do not make an unverified integration a hidden hard prerequisite.
+- **First complete user flow:** choose or import a scene/device, attach authentic screen media, configure presentation and output, obtain a final-look preview, render, and reopen the saved shot. Start with the v6 photographic route; direct PNG/MP4 delivery and pinned source replay are acceptance conditions. Include a bounded, inspectable AI model-creation/refinement job in the target design from the outset; broad autonomous authoring quality can mature separately.
+- **Asset representation:** use a backend-neutral definition/part/joint/display contract, with immutable source and derived artifacts. GLB is the portable inspection/delivery candidate; native Blender data retains rig/material/render behavior that GLB may not preserve. Neither backend's file format is the domain model. The existing laptop-only shot schema is experimental and must not silently become the generalized public contract.
+- **User control:** default to a shot builder with presets and meaningful controls, plus an advanced calibration/inspection surface. Expose rendering limitations before submission. Avoid requiring a general-purpose 3D editor or node graph for ordinary work. Preserve explicit selection of existing assets versus import/create jobs.
+- **Quality and operating budget:** define per-shot resolution, frame rate, maximum screen footprint, motion coverage, preview/final compute limits and review requirements. Free assets remain the sourcing constraint; record rights for actual downloaded bytes, including adaptation and redistribution. Free model acquisition does not imply free generation or rendering. Keep provider costs explicit and avoid prescribing pricing or bundle membership here.
+
+### Early research gates
+
+1. **Controlled-motion appearance and articulation:** qualify a phone rotation and a laptop open-to-closed sequence in one carefully art-directed 3D setup. Inspect first/middle/last frames and continuous playback for geometry, hinge clearance, screen masks, moving reflections, aliasing and flicker. The acquired laptop's mixed lid/base meshes are a known articulation risk. Measure preview/final render time on intended hardware before promising interactive latency.
+2. **Generation integration:** reproduce one acceptable photographic plate through a supported callable provider path, retaining prompt, result, actual cost when available, and failure/cancellation behavior. Permit importing a pinned plate so composition can proceed independently. Do not assume a chat tool is callable by the future service.
+3. **Domain generalization:** exercise the contract with a laptop, slab phone, multi-screen foldable, round watch, wall-mounted display and embedded automotive host. Test configuration-dependent screens, mounting and occlusion. These fixtures validate the model; they do not claim production-qualified visual assets for every family.
+4. **AI creation execution:** demonstrate one bounded reference-to-candidate refinement run through the supported execution owner, with immutable revisions, before/after comparisons, resource limits, cancellation and the documented isolation boundary. The experiment's resource-limited process scopes are not proof of complete execution isolation.
+
+Hybrid photographic backgrounds with moving 3D devices remain optional research. Automatic reconstruction, fully automatic calibration, every device family at production quality, arbitrary room editing, and a universal 3D engine are not prerequisites to the first useful scenario.
+
+### Ecosystem fit for the proposed scenario
+
+Role: interface enabler for visual product presentation, exposed through direct UI, agent tools and a reusable CLI/Connect contract. Done includes usable loading/error/empty and render-progress states, discoverable tools, and a saved shot that another scenario can render without browser interaction. Shared immutable shot/device/presentation contracts are the compounding seam; deterministic screen composition and compatibility checks should become code rather than repeated agent prose. This advances T1 through marketing-crew (supporting) and monetization (primary), and I1 through director-swarm/scenario-qa, according to the live objective graph read during this assessment. These are objective relationships, not a new operational ownership assignment.
+
+Nothing retires yet: preserve experiment evidence and skill judgment. Retirement can be assessed only after replacement operations are implemented and their consumers migrated. No SKU or price decision is made here; local/BYOK capability stays available and any hosted metering follows the existing monetization contracts.

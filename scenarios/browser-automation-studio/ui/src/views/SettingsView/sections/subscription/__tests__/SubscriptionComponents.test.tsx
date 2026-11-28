@@ -1,458 +1,94 @@
-/**
- * Subscription Components Test Suite
- *
- * Tests subscription UI components including:
- * - UpgradePromptSection URL generation
- * - SubscriptionStatusCard "Get Subscription" button
- * - EmailInputSection "Get Subscription" link
- *
- * Requirements validated:
- * - Correct vrooli.com checkout URLs
- * - URL includes plan and email parameters
- * - Get Subscription buttons appear for inactive status
- */
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { fireEvent, render, screen } from '@/test-utils';
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-
-// Mock the entitlement store
-const mockEntitlementStore = {
-  status: null as null | {
-    status: string;
-    tier: string;
-    is_active: boolean;
-  },
+const state = {
+  status: null as { tier: string; status: 'active' | 'inactive'; monthly_remaining: number; ai_credits_limit: number; ai_credits_remaining: number } | null,
   userEmail: '',
   isLoading: false,
-  isOffline: false,
-  lastFetched: null,
+  error: null as string | null,
+  getUserEmail: vi.fn(async () => ''),
+  fetchStatus: vi.fn(async () => undefined),
   refreshEntitlement: vi.fn(),
+  setUserEmail: vi.fn(),
 };
+const auth = { isAuthenticated: false, isLoading: false, user: null as { email: string } | null, error: null as string | null, signIn: vi.fn(), signOut: vi.fn() };
 
 vi.mock('@stores/entitlementStore', () => ({
-  useEntitlementStore: vi.fn((selector) => {
-    if (typeof selector === 'function') {
-      return selector(mockEntitlementStore);
-    }
-    return mockEntitlementStore;
-  }),
-  TIER_CONFIG: {
-    free: { label: 'Free', color: 'text-gray-400', bgColor: 'bg-gray-700/50', borderColor: 'border-gray-600' },
-    solo: { label: 'Solo', color: 'text-blue-400', bgColor: 'bg-blue-900/30', borderColor: 'border-blue-600' },
-    pro: { label: 'Pro', color: 'text-purple-400', bgColor: 'bg-purple-900/30', borderColor: 'border-purple-600' },
-    studio: { label: 'Studio', color: 'text-amber-400', bgColor: 'bg-amber-900/30', borderColor: 'border-amber-600' },
-    business: { label: 'Business', color: 'text-emerald-400', bgColor: 'bg-gradient-to-r from-emerald-900/30 to-teal-900/30', borderColor: 'border-emerald-600' },
-  },
-  STATUS_CONFIG: {
-    active: { label: 'Active', color: 'text-green-400', icon: 'check' },
-    trialing: { label: 'Trial', color: 'text-blue-400', icon: 'clock' },
-    past_due: { label: 'Past Due', color: 'text-amber-400', icon: 'alert' },
-    canceled: { label: 'Canceled', color: 'text-red-400', icon: 'x' },
-    inactive: { label: 'Inactive', color: 'text-gray-400', icon: 'x' },
-  },
+  useEntitlementStore: (selector?: (value: typeof state) => unknown) => selector ? selector(state) : state,
 }));
-
-vi.mock('@shared/ui', () => ({
-  TierBadge: ({ tier, size }: { tier: string; size?: string }) => (
-    <span data-testid="tier-badge" data-tier={tier} data-size={size}>
-      {tier}
-    </span>
-  ),
-  LoadingSpinner: ({ size }: { size?: number }) => (
-    <div data-testid="loading-spinner" data-size={size} />
+vi.mock('@stores/authStore', () => ({
+  useAuthStore: () => auth,
+}));
+vi.mock('@vrooli/react-component-library/MonetizationAccount/2.0.2', () => ({
+  MonetizationAccountPanel: ({ configured, plan, statusLabel, creditsLabel, onSignIn, onSignOut, onRefresh, onManageAccount, onComparePlans }: {
+    configured: boolean; plan: string; statusLabel: string; creditsLabel: string;
+    onSignIn: () => void; onSignOut: () => void; onRefresh: () => void;
+    onManageAccount: () => void; onComparePlans: () => void;
+  }) => (
+    <section data-testid="account-panel" data-configured={configured}>
+      <span>{plan}:{statusLabel}:{creditsLabel}</span>
+      <button type="button" onClick={onSignIn}>Sign in</button>
+      <button type="button" onClick={onSignOut}>Sign out</button>
+      <button type="button" onClick={onRefresh}>Refresh</button>
+      <button type="button" onClick={onManageAccount}>Manage billing</button>
+      <button type="button" onClick={onComparePlans}>Compare plans</button>
+    </section>
   ),
 }));
-
-vi.mock('date-fns', () => ({
-  formatDistanceToNow: () => '5 minutes ago',
+vi.mock('../UnifiedUsageSection', () => ({ UnifiedUsageSection: () => null }));
+vi.mock('../UsageHistorySection', () => ({ UsageHistorySection: () => null }));
+vi.mock('../OperationLogModal', () => ({ OperationLogModal: () => null }));
+vi.mock('../FeatureAccessList', () => ({ FeatureAccessList: () => null }));
+vi.mock('@shared/ui', () => ({ LoadingSpinner: () => null }));
+vi.mock('@shared/upgradeDestination', () => ({ LANDING_PAGE_URL: 'https://vrooli.com', resolveUpgradeDestination: (path: string) => new URL(path, 'https://vrooli.com').toString() }));
+vi.mock('@components/MonetizationAccount', () => ({
+  UpgradePrompt: ({ feature, requiredPlan, href }: { feature: string; requiredPlan: string; href: string }) => (
+    <a href={href}>{feature} requires {requiredPlan}</a>
+  ),
 }));
 
-// Import components after mocks
+import { SubscriptionTab } from '../SubscriptionTab';
 import { UpgradePromptSection } from '../UpgradePromptSection';
-import { SubscriptionStatusCard } from '../SubscriptionStatusCard';
-import { EmailInputSection } from '../EmailInputSection';
 
-describe('UpgradePromptSection', () => {
+describe('shared monetization account adapters', () => {
   beforeEach(() => {
+    state.status = null;
+    state.userEmail = '';
+    auth.isAuthenticated = false;
+    auth.isLoading = false;
+    auth.user = null;
+    auth.error = null;
     vi.clearAllMocks();
-    mockEntitlementStore.status = null;
-    mockEntitlementStore.userEmail = '';
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  it('uses the shared account panel while preserving BAS auth and hosted billing actions', () => {
+    state.status = { tier: 'pro', status: 'active', monthly_remaining: 95, ai_credits_limit: 100, ai_credits_remaining: 75 };
+    auth.isAuthenticated = true;
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    render(<SubscriptionTab />);
+    expect(screen.getByTestId('account-panel')).toHaveAttribute('data-configured', 'true');
+    expect(screen.getByText('pro:Active:75 remaining')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(auth.signIn).toHaveBeenCalledOnce();
+    expect(auth.signOut).toHaveBeenCalledOnce();
+    expect(state.refreshEntitlement).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Manage billing' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Compare plans' }));
+    expect(open).toHaveBeenNthCalledWith(1, 'https://vrooli.com/account', '_blank', 'noopener,noreferrer');
+    expect(open).toHaveBeenNthCalledWith(2, 'https://vrooli.com/pricing', '_blank', 'noopener,noreferrer');
+    open.mockRestore();
   });
 
-  it('renders for free tier users', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-
+  it('uses the shared upgrade prompt and hides it for the highest plans', () => {
+    state.status = { tier: 'free', status: 'inactive', monthly_remaining: 0, ai_credits_limit: 100, ai_credits_remaining: 0 };
+    state.userEmail = 'buyer@example.com';
     render(<UpgradePromptSection />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', expect.stringContaining('email=buyer%40example.com'));
 
-    expect(screen.getByText('Upgrade Your Plan')).toBeInTheDocument();
-    expect(screen.getByText('Upgrade Now')).toBeInTheDocument();
-  });
-
-  it('does not render for studio tier users', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'studio',
-      is_active: true,
-    };
-
+    state.status = { tier: 'business', status: 'active', monthly_remaining: 100, ai_credits_limit: 100, ai_credits_remaining: 100 };
     const { container } = render(<UpgradePromptSection />);
-
     expect(container.firstChild).toBeNull();
-  });
-
-  it('does not render for business tier users', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'business',
-      is_active: true,
-    };
-
-    const { container } = render(<UpgradePromptSection />);
-
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('generates correct checkout URL with plan parameter', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink).toHaveAttribute('href', expect.stringContaining('https://vrooli.com/checkout'));
-    expect(upgradeLink).toHaveAttribute('href', expect.stringContaining('plan=pro'));
-  });
-
-  it('includes email in checkout URL when user email is set', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-    mockEntitlementStore.userEmail = 'test@example.com';
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink).toHaveAttribute('href', expect.stringContaining('email=test%40example.com'));
-  });
-
-  it('recommends pro tier for free users', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink).toHaveAttribute('href', expect.stringContaining('plan=pro'));
-  });
-
-  it('recommends pro tier for solo users', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'solo',
-      is_active: true,
-    };
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink).toHaveAttribute('href', expect.stringContaining('plan=pro'));
-  });
-
-  it('recommends studio tier for pro users', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink).toHaveAttribute('href', expect.stringContaining('plan=studio'));
-  });
-
-  it('opens upgrade link in new tab', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink).toHaveAttribute('target', '_blank');
-    expect(upgradeLink).toHaveAttribute('rel', 'noopener noreferrer');
-  });
-
-  it('shows tier comparison cards', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-
-    render(<UpgradePromptSection />);
-
-    expect(screen.getByText('Solo')).toBeInTheDocument();
-    expect(screen.getByText('Pro')).toBeInTheDocument();
-    expect(screen.getByText('Studio')).toBeInTheDocument();
-    expect(screen.getByText('Popular')).toBeInTheDocument();
-  });
-});
-
-describe('SubscriptionStatusCard', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockEntitlementStore.status = null;
-    mockEntitlementStore.userEmail = '';
-    mockEntitlementStore.isLoading = false;
-    mockEntitlementStore.isOffline = false;
-    mockEntitlementStore.lastFetched = new Date();
-  });
-
-  it('shows "Get Subscription" button for inactive status', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-
-    render(<SubscriptionStatusCard />);
-
-    expect(screen.getByText('Get Subscription')).toBeInTheDocument();
-  });
-
-  it('shows "Get Subscription" button for canceled status', () => {
-    mockEntitlementStore.status = {
-      status: 'canceled',
-      tier: 'free',
-      is_active: false,
-    };
-
-    render(<SubscriptionStatusCard />);
-
-    expect(screen.getByText('Get Subscription')).toBeInTheDocument();
-  });
-
-  it('does not show "Get Subscription" for active status', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-
-    render(<SubscriptionStatusCard />);
-
-    expect(screen.queryByText('Get Subscription')).not.toBeInTheDocument();
-  });
-
-  it('generates correct checkout URL for Get Subscription button', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-    mockEntitlementStore.userEmail = 'user@example.com';
-
-    render(<SubscriptionStatusCard />);
-
-    const getSubLink = screen.getByText('Get Subscription').closest('a');
-    expect(getSubLink).toHaveAttribute('href', expect.stringContaining('https://vrooli.com/checkout'));
-    expect(getSubLink).toHaveAttribute('href', expect.stringContaining('plan=pro'));
-    expect(getSubLink).toHaveAttribute('href', expect.stringContaining('email=user%40example.com'));
-  });
-
-  it('shows placeholder when no status', () => {
-    mockEntitlementStore.status = null;
-
-    render(<SubscriptionStatusCard />);
-
-    expect(screen.getByText('No subscription status available.')).toBeInTheDocument();
-  });
-
-  it('shows tier badge when status exists', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-
-    render(<SubscriptionStatusCard />);
-
-    expect(screen.getByTestId('tier-badge')).toBeInTheDocument();
-  });
-
-  it('shows last fetched time', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-    mockEntitlementStore.lastFetched = new Date();
-
-    render(<SubscriptionStatusCard />);
-
-    expect(screen.getByText(/Last updated/)).toBeInTheDocument();
-  });
-});
-
-describe('EmailInputSection', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockEntitlementStore.status = null;
-    mockEntitlementStore.userEmail = '';
-    mockEntitlementStore.isLoading = false;
-  });
-
-  it('renders email input', () => {
-    render(<EmailInputSection />);
-
-    expect(screen.getByPlaceholderText('you@example.com')).toBeInTheDocument();
-  });
-
-  it('shows "Get Subscription" link for inactive status when email is entered', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-    mockEntitlementStore.userEmail = 'user@example.com';
-
-    render(<EmailInputSection />);
-
-    expect(screen.getByText('Get Subscription')).toBeInTheDocument();
-    expect(screen.getByText('No active subscription found for this email.')).toBeInTheDocument();
-  });
-
-  it('shows "Get Subscription" link for canceled status', () => {
-    mockEntitlementStore.status = {
-      status: 'canceled',
-      tier: 'free',
-      is_active: false,
-    };
-    mockEntitlementStore.userEmail = 'user@example.com';
-
-    render(<EmailInputSection />);
-
-    expect(screen.getByText('Get Subscription')).toBeInTheDocument();
-  });
-
-  it('does not show "Get Subscription" for active status', () => {
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-    mockEntitlementStore.userEmail = 'user@example.com';
-
-    render(<EmailInputSection />);
-
-    expect(screen.queryByText('Get Subscription')).not.toBeInTheDocument();
-    expect(screen.queryByText('No active subscription found')).not.toBeInTheDocument();
-  });
-
-  it('generates correct checkout URL in Get Subscription link', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-    mockEntitlementStore.userEmail = 'test@example.com';
-
-    render(<EmailInputSection />);
-
-    const getSubLink = screen.getByText('Get Subscription').closest('a');
-    expect(getSubLink).toHaveAttribute('href', expect.stringContaining('https://vrooli.com/checkout'));
-    expect(getSubLink).toHaveAttribute('href', expect.stringContaining('plan=pro'));
-    expect(getSubLink).toHaveAttribute('href', expect.stringContaining('email=test%40example.com'));
-  });
-
-  it('does not show inactive message without email stored', () => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-    mockEntitlementStore.userEmail = ''; // No email stored
-
-    render(<EmailInputSection />);
-
-    // The inactive message should only show when there's a stored email
-    expect(screen.queryByText('No active subscription found for this email.')).not.toBeInTheDocument();
-  });
-
-  it('shows verify subscription button', () => {
-    render(<EmailInputSection />);
-
-    expect(screen.getByText('Verify Subscription')).toBeInTheDocument();
-  });
-
-  it('shows update email button when email is already set', () => {
-    mockEntitlementStore.userEmail = 'existing@example.com';
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-
-    render(<EmailInputSection />);
-
-    expect(screen.getByText('Update Email')).toBeInTheDocument();
-  });
-
-  it('shows clear email button when email is set', () => {
-    mockEntitlementStore.userEmail = 'existing@example.com';
-    mockEntitlementStore.status = {
-      status: 'active',
-      tier: 'pro',
-      is_active: true,
-    };
-
-    render(<EmailInputSection />);
-
-    expect(screen.getByText('Clear Email')).toBeInTheDocument();
-  });
-});
-
-describe('URL Generation', () => {
-  beforeEach(() => {
-    mockEntitlementStore.status = {
-      status: 'inactive',
-      tier: 'free',
-      is_active: false,
-    };
-  });
-
-  it('uses vrooli.com as default landing page URL', () => {
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink?.getAttribute('href')).toMatch(/^https:\/\/vrooli\.com/);
-  });
-
-  it('properly encodes special characters in email', () => {
-    mockEntitlementStore.userEmail = 'test+tag@example.com';
-
-    render(<UpgradePromptSection />);
-
-    const upgradeLink = screen.getByText('Upgrade Now').closest('a');
-    expect(upgradeLink?.getAttribute('href')).toContain('email=test%2Btag%40example.com');
   });
 });

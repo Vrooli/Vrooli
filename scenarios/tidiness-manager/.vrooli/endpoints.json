@@ -26,6 +26,40 @@
       "cli_mapping": {
         "command": "tidiness-manager status"
       }
+    },
+    {
+      "id": "scenario-validation",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario tidiness",
+      "description": "Runs maintainability checks through the shared ScenarioValidationService contract and packs tidiness-native detail into native_detail",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "path": "string",
+          "include_execution": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus",
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<tidiness_manager.v1.validation.TidinessScanResponse>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Validate tidiness",
+          "curl": "curl -X POST http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "tidiness-manager scan <scenario> --type tidiness"
+      }
     }
   ],
   "cli_commands": [
@@ -36,8 +70,8 @@
     },
     {
       "name": "scan",
-      "description": "Trigger light or smart scan for a scenario",
-      "usage": "tidiness-manager scan <scenario> [--type light|smart] [--wait]"
+      "description": "Trigger tidiness, light, or smart scan for a scenario",
+      "usage": "tidiness-manager scan <scenario> [--type tidiness|light|smart] [--wait]"
     },
     {
       "name": "issues",

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.code-block",
+  "deprecatedVersions": [
+    "0.3.2",
+    "0.3.3"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.3.2",
+    "0.3.3"
+  ],
+  "latest": "0.3.4",
+  "libraryId": "react-component-library:code-block"
+}

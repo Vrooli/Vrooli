@@ -1,0 +1,37 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "harness-lifecycle",
+    "display_name": "github.com/vrooli/vrooli/packages/harness-lifecycle",
+    "description": "Shared coding-harness lifecycle boundary: verified native acquisition of declared compressed artifacts without installer scripts.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": [
+      "github.com/vrooli/vrooli/packages/harness-lifecycle"
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "scenario_api",
+        "internal_platform"
+      ],
+      "adoption_modes": [
+        "go_module_replace"
+      ]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "Imports root internal packages (artifactlock, cliinstall, config, hostreqspec, resources, shell, tuning); it stays in the repository module until those seams are public."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": [
+      "packages/harness-lifecycle/README.md",
+      "docs/package-governance.md"
+    ]
+  }
+}

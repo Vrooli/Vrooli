@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "compute-manager",
+  "description": "Experience contract for Compute Manager. Every page below is status draft: the intent is authored ahead of the build, so reconciliation runs advisory and no claim gates CI. Claims are tier aspirational until the UI exists and has stable selectors. The operator surface has one job, which is to make cost and expiry impossible to miss, because both are irreversible once missed.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Inventory",
+      "status": "draft"
+    },
+    {
+      "id": "instance-detail",
+      "path": "pages/instance-detail.json",
+      "title": "Instance",
+      "status": "draft"
+    },
+    {
+      "id": "request-capacity",
+      "path": "pages/request-capacity.json",
+      "title": "Request capacity",
+      "status": "draft"
+    },
+    {
+      "id": "findings",
+      "path": "pages/findings.json",
+      "title": "Findings",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "acquire-capacity",
+      "path": "journeys/acquire-capacity.json",
+      "title": "Acquire capacity and watch it cost money",
+      "status": "draft"
+    },
+    {
+      "id": "account-for-a-surprise",
+      "path": "journeys/account-for-a-surprise.json",
+      "title": "Account for something the reconciler found",
+      "status": "draft"
+    }
+  ]
+}

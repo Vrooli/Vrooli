@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "article-to-safe-outcome",
+    "title": "Existing article to safe outcome",
+    "purpose": "Demonstrate the accepted existing article to safe outcome outcome with exact identities, authority and adverse branches.",
+    "prd_refs": [
+      "OT-P0-019",
+      "OT-P0-020",
+      "OT-P0-021",
+      "OT-P0-022",
+      "OT-P0-028",
+      "OT-P0-031"
+    ]
+  },
+  "steps": [
+    {
+      "page": "intake",
+      "state": "source-preview",
+      "intent": "Inspect the actual pinned private article, permitted originals and method without regeneration."
+    },
+    {
+      "page": "intake",
+      "state": "partial-admission",
+      "intent": "Admit allowed text and candidates, retain every per-item receipt and resolve missing media only."
+    },
+    {
+      "page": "create",
+      "state": "article",
+      "intent": "Reopen native identity after restart and edit with source/media/method lineage intact."
+    },
+    {
+      "page": "review",
+      "state": "read-final",
+      "intent": "Read and assess the exact package under proportionate native obligations."
+    },
+    {
+      "page": "plan",
+      "state": "publication",
+      "intent": "Optionally save one intention without implying a schedule."
+    },
+    {
+      "page": "review",
+      "state": "release-preflight",
+      "intent": "Authorize only the qualified exact route and reconcile a safe fixture or manual outcome."
+    },
+    {
+      "page": "learn",
+      "state": "incomplete-observation",
+      "intent": "Retain genuine observation limits without inventing success."
+    }
+  ],
+  "x-i16-source": "package/documents/dossier-accepted-basis/document-text.md chapter 13 and package/documents/commission-accepted-basis/document-text.md implementation acceptance."
+}

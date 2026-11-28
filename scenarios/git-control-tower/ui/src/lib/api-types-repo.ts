@@ -1,3 +1,4 @@
+import type { ProposalTrailer } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 // ============================================================================
 // Core Repo & Branch Type Definitions
 // ============================================================================
@@ -74,6 +75,8 @@ export interface RepoFilesStatus {
   binary?: string[];
   ignored?: string[];
   statuses?: Record<string, string>;
+  /** Renamed or copied file's current path mapped to the path it came from. */
+  renames?: Record<string, string>;
 }
 
 export interface RepoFileStats {
@@ -171,6 +174,12 @@ export interface RepoStatus {
   branch: RepoBranchStatus;
   files: RepoFilesStatus;
   file_stats?: RepoFileStats;
+  /** Metrics are loaded separately so line counting cannot block file status. */
+  file_stats_state?: "loading" | "refreshing" | "ready" | "unavailable";
+  /** Last successful metrics snapshot, used only for collapsed-group preview while current metrics refresh. */
+  file_stats_preview?: RepoFileStats;
+  /** Opaque path/status identity used to reject late or stale metrics. */
+  status_snapshot_id?: string;
   file_hotspots?: Record<string, number>;
   scopes?: Record<string, string[]>;
   summary: RepoStatusSummary;
@@ -190,11 +199,31 @@ export interface RepoHistoryResponse {
 }
 
 export interface RepoHistoryEntry {
+ full_message?: string;
+ body?: string;
+ trailers?: ProposalTrailer[];
+ continuation_message?: string;
   hash: string;
   author?: string;
   date?: string;
   subject: string;
   files: string[];
+  checks?: CommitCheckRun[];
+}
+
+export type CommitCheckKind = "precommit";
+export type CommitCheckStatus = "passed" | "failed" | "timeout" | "skipped";
+
+export interface CommitCheckRun {
+  kind: CommitCheckKind;
+  status: CommitCheckStatus;
+  command: string;
+  exit_code: number;
+  summary: string;
+  stdout?: string;
+  stderr?: string;
+  duration_ms: number;
+  timestamp: string;
 }
 
 export interface DiffHunk {

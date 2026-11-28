@@ -1,6 +1,7 @@
 package generation
 
 import (
+	"fmt"
 	"time"
 
 	signingtypes "scenario-to-desktop-api/signing/types"
@@ -36,8 +37,15 @@ type DesktopConfig struct {
 	ExternalAPIURL    string `json:"external_api_url"`
 
 	// Template configuration
-	Framework    string `json:"framework" validate:"required,oneof=electron tauri neutralino"`
-	TemplateType string `json:"template_type" validate:"required,oneof=basic advanced multi_window kiosk"`
+	// Framework remains as a compatibility field for historical callers; new
+	// selection is expressed through StrategyID and checked against the registry.
+	Framework           string                       `json:"framework,omitempty"`
+	StrategyID          string                       `json:"strategy_id,omitempty"`
+	OptimizationProfile *ElectronOptimizationProfile `json:"optimization_profile,omitempty"`
+	Selection           *PackagingSelectionRecord    `json:"selection,omitempty"`
+	TemplateType        string                       `json:"template_type" validate:"required,oneof=basic advanced multi_window kiosk"`
+
+	NativeExtension *NativeExtension `json:"native_extension,omitempty"`
 
 	// Features
 	Features map[string]interface{} `json:"features"`
@@ -72,6 +80,23 @@ type DesktopConfig struct {
 	// Ports maps port keys to their configuration for template generation.
 	// Used to inject all port env vars into the bundled runtime.
 	Ports map[string]PortConfig `json:"ports,omitempty"`
+}
+
+// ElectronOptimizationProfile makes every E3 optimization independently
+// selectable and keeps the selected combination in the generated build record.
+type ElectronOptimizationProfile struct {
+	SharedRuntimeReadiness bool `json:"shared_runtime_readiness"`
+	SecureCustomSchemeUI   bool `json:"secure_custom_scheme_ui"`
+	V8SnapshotCodeCache    bool `json:"v8_snapshot_code_cache"`
+	ElectronFuses          bool `json:"electron_fuses"`
+}
+
+func (p ElectronOptimizationProfile) Empty() bool {
+	return !p.SharedRuntimeReadiness && !p.SecureCustomSchemeUI && !p.V8SnapshotCodeCache && !p.ElectronFuses
+}
+
+func (p ElectronOptimizationProfile) Identity() string {
+	return fmt.Sprintf("readiness=%t;custom_scheme=%t;v8_cache=%t;fuses=%t", p.SharedRuntimeReadiness, p.SecureCustomSchemeUI, p.V8SnapshotCodeCache, p.ElectronFuses)
 }
 
 // UpdateConfig configures auto-updates for the desktop application.
@@ -208,7 +233,7 @@ type GenerateResponse struct {
 	// Deprecated: Use PipelineID instead. Will be removed in a future release.
 	BuildID string `json:"build_id"`
 	// PipelineID is the canonical identifier for tracking this build.
-	// Use this with /api/v1/pipeline/{id} endpoints for status and task spawning.
+	// Use PipelineService.Get with PipelineID for status and task spawning.
 	PipelineID          string            `json:"pipeline_id"`
 	Status              string            `json:"status"`
 	ScenarioName        string            `json:"scenario_name,omitempty"`

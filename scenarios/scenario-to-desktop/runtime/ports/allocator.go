@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // Range defines a range of port numbers for allocation.
@@ -50,6 +50,12 @@ func NewManager(m *manifest.Manifest, dialer infra.NetworkDialer) *Manager {
 // Ports are allocated sequentially within the specified or default range,
 // skipping reserved ports and ports already in use.
 func (p *Manager) Allocate() error {
+	return p.AllocateServices(p.manifest.Services)
+}
+
+// AllocateServices adds missing service ports while preserving every existing
+// binding, including ports already serving the host during component rollback.
+func (p *Manager) AllocateServices(services []manifest.Service) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -62,9 +68,16 @@ func (p *Manager) Allocate() error {
 	}
 
 	reserved := p.buildReservedSet()
-	nextPort := defaultRange.Min
+	if p.manifest.IPC.Port > 0 {
+		reserved[p.manifest.IPC.Port] = true
+	}
+	for _, ports := range p.portMap {
+		for _, port := range ports {
+			reserved[port] = true
+		}
+	}
 
-	for _, svc := range p.manifest.Services {
+	for _, svc := range services {
 		if p.portMap[svc.ID] == nil {
 			p.portMap[svc.ID] = make(map[string]int)
 		}
@@ -73,16 +86,32 @@ func (p *Manager) Allocate() error {
 		}
 
 		for _, req := range svc.Ports.Requested {
+			if p.portMap[svc.ID][req.Name] > 0 {
+				continue
+			}
 			rng := defaultRange
 			if req.Range.Min != 0 && req.Range.Max != 0 {
 				rng = Range{Min: req.Range.Min, Max: req.Range.Max}
 			}
-			port, err := p.pickPort(rng, reserved, &nextPort)
+			port, err := p.pickPort(rng, reserved)
 			if err != nil {
 				return fmt.Errorf("allocate port for %s:%s: %w", svc.ID, req.Name, err)
 			}
 			p.portMap[svc.ID][req.Name] = port
+			reserved[port] = true
 		}
+	}
+
+	// Port zero is an allocator request, not a fixed well-known port. Allocate
+	// the authenticated control API from the same namespace as service ports so
+	// independently installed bundles cannot collide with each other or with a
+	// declared service.
+	if p.manifest.IPC.Port == 0 && p.manifest.IPC.Host != "" {
+		ipcPort, err := p.pickPort(defaultRange, reserved)
+		if err != nil {
+			return fmt.Errorf("allocate IPC port: %w", err)
+		}
+		p.manifest.IPC.Port = ipcPort
 	}
 
 	return nil
@@ -140,7 +169,7 @@ func (p *Manager) buildReservedSet() map[int]bool {
 // pickPort finds an available port within the given range.
 // It skips reserved ports and verifies the port is actually available
 // by attempting to bind to it.
-func (p *Manager) pickPort(rng Range, reserved map[int]bool, next *int) (int, error) {
+func (p *Manager) pickPort(rng Range, reserved map[int]bool) (int, error) {
 	if rng.Min == 0 || rng.Max == 0 || rng.Max < rng.Min {
 		return 0, fmt.Errorf("invalid range %d-%d", rng.Min, rng.Max)
 	}
@@ -149,13 +178,9 @@ func (p *Manager) pickPort(rng Range, reserved map[int]bool, next *int) (int, er
 		if reserved[port] {
 			continue
 		}
-		if port < *next {
-			continue
-		}
 		if !p.isPortAvailable(port) {
 			continue
 		}
-		*next = port + 1
 		return port, nil
 	}
 	return 0, fmt.Errorf("no free port in %d-%d", rng.Min, rng.Max)

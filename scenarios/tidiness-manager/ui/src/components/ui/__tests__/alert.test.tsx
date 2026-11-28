@@ -1,53 +1,54 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import { Alert, AlertTitle, AlertDescription } from '../alert';
 
 describe('Alert', () => {
   it('renders with default variant', () => {
-    render(<Alert>Default alert</Alert>);
+    renderWithProviders(<Alert>Default alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toBeInTheDocument();
     expect(alert).toHaveClass('bg-white/5', 'border-white/10', 'text-slate-200');
   });
 
   it('renders with destructive variant', () => {
-    render(<Alert variant="destructive">Destructive alert</Alert>);
+    renderWithProviders(<Alert variant="destructive">Destructive alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveClass('bg-red-950/50', 'border-red-900', 'text-red-100');
   });
 
   it('renders with warning variant', () => {
-    render(<Alert variant="warning">Warning alert</Alert>);
+    renderWithProviders(<Alert variant="warning">Warning alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveClass('bg-yellow-950/50', 'border-yellow-900', 'text-yellow-100');
   });
 
   it('renders with success variant', () => {
-    render(<Alert variant="success">Success alert</Alert>);
+    renderWithProviders(<Alert variant="success">Success alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveClass('bg-green-950/50', 'border-green-900', 'text-green-100');
   });
 
   it('renders with info variant', () => {
-    render(<Alert variant="info">Info alert</Alert>);
+    renderWithProviders(<Alert variant="info">Info alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveClass('bg-blue-950/50', 'border-blue-900', 'text-blue-100');
   });
 
   it('applies custom className', () => {
-    render(<Alert className="custom-class">Custom alert</Alert>);
+    renderWithProviders(<Alert className="custom-class">Custom alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveClass('custom-class');
   });
 
   it('includes role="alert"', () => {
-    render(<Alert>Alert message</Alert>);
+    renderWithProviders(<Alert>Alert message</Alert>);
     const alert = screen.getByText('Alert message');
     expect(alert).toHaveAttribute('role', 'alert');
   });
 
   it('includes base styling classes', () => {
-    render(<Alert>Styled alert</Alert>);
+    renderWithProviders(<Alert>Styled alert</Alert>);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveClass('relative', 'w-full', 'rounded-lg', 'border', 'p-4');
   });
@@ -55,7 +56,7 @@ describe('Alert', () => {
 
 describe('AlertTitle', () => {
   it('renders title correctly', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertTitle>Alert Title</AlertTitle>
       </Alert>
@@ -64,7 +65,7 @@ describe('AlertTitle', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertTitle>Styled Title</AlertTitle>
       </Alert>
@@ -74,7 +75,7 @@ describe('AlertTitle', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertTitle className="custom-title">Custom Title</AlertTitle>
       </Alert>
@@ -84,7 +85,7 @@ describe('AlertTitle', () => {
   });
 
   it('includes aria-level attribute', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertTitle>Accessible Title</AlertTitle>
       </Alert>
@@ -94,7 +95,7 @@ describe('AlertTitle', () => {
   });
 
   it('renders as h5 element', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertTitle>Heading</AlertTitle>
       </Alert>
@@ -106,7 +107,7 @@ describe('AlertTitle', () => {
 
 describe('AlertDescription', () => {
   it('renders description correctly', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertDescription>Alert description text</AlertDescription>
       </Alert>
@@ -115,7 +116,7 @@ describe('AlertDescription', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertDescription>Styled description</AlertDescription>
       </Alert>
@@ -125,7 +126,7 @@ describe('AlertDescription', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertDescription className="custom-description">Custom description</AlertDescription>
       </Alert>
@@ -137,7 +138,7 @@ describe('AlertDescription', () => {
 
 describe('Alert composition', () => {
   it('renders complete alert with title and description', () => {
-    render(
+    renderWithProviders(
       <Alert variant="warning">
         <AlertTitle>Warning</AlertTitle>
         <AlertDescription>This is a warning message.</AlertDescription>
@@ -150,7 +151,7 @@ describe('Alert composition', () => {
   });
 
   it('supports multiple descriptions', () => {
-    render(
+    renderWithProviders(
       <Alert>
         <AlertTitle>Title</AlertTitle>
         <AlertDescription>First paragraph</AlertDescription>
@@ -163,7 +164,7 @@ describe('Alert composition', () => {
   });
 
   it('works with icon and text content', () => {
-    render(
+    renderWithProviders(
       <Alert variant="success">
         <div className="flex gap-2">
           <span>✓</span>

@@ -11,6 +11,7 @@ import {
   validateNewLimitForm,
   buildCreateLimitPayload,
   collectLimitKeys,
+  getAppMeterKind,
   fetchAppLimits,
   saveTierLimit,
   createNewTierLimit,
@@ -104,7 +105,7 @@ export function useAppLimitsForm(): UseAppLimitsFormReturn {
   const clearEditedValue = useCallback((editKey: string) => {
     setEditedValues((prev) => {
       const next = { ...prev };
-      delete next[editKey];
+      Reflect.deleteProperty(next, editKey);
       return next;
     });
   }, []);
@@ -135,7 +136,10 @@ export function useAppLimitsForm(): UseAppLimitsFormReturn {
       if (isUnlimited) {
         return 'unlimited';
       }
-      return limit.display_dollars?.toFixed(2) ?? '0';
+      const kind = getAppMeterKind(limit);
+      if (kind === 'count_based') return String(limit.limit_value);
+      if (kind === null) return '';
+      return (limit.display_dollars ?? limit.limit_value / limit.cost_multiplier / 100).toFixed(2);
     },
     [editedValues]
   );
@@ -162,14 +166,20 @@ export function useAppLimitsForm(): UseAppLimitsFormReturn {
         return { success: false, message: 'No changes to save' };
       }
 
+      const kind = getAppMeterKind(limit);
+      if (kind === null) return { success: false, message: 'This limit needs an explicit meter kind before editing' };
       const parsedValue = parseEditedValue(editedValue);
       if (parsedValue === null) {
-        return { success: false, message: 'Please enter a valid dollar amount' };
+        return { success: false, message: kind === 'count_based' ? 'Please enter a non-negative whole count' : 'Please enter a valid dollar amount' };
+      }
+      const numeric = Number(editedValue.trim());
+      if (kind === 'count_based' && !('isUnlimited' in parsedValue) && (!Number.isSafeInteger(numeric) || numeric < 0)) {
+        return { success: false, message: 'Please enter a non-negative whole count' };
       }
 
       try {
         setSaving(editKey);
-        const update = buildTierLimitUpdate(parsedValue);
+        const update = 'isUnlimited' in parsedValue ? { is_unlimited: true } : kind === 'count_based' ? { limit_value: numeric } : buildTierLimitUpdate(parsedValue);
         await saveTierLimit(tierID, limit.limit_key, update, selectedApp);
 
         clearEditedValue(editKey);

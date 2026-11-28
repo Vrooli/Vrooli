@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vrooli browser bridge</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; width: 340px; margin: 0; padding: 16px; color: #17212b; }
+    h1 { font-size: 17px; margin: 0 0 12px; }
+    label { display: block; font-weight: 600; margin: 12px 0 5px; }
+    input { box-sizing: border-box; width: 100%; padding: 8px; }
+    button { width: 100%; margin-top: 12px; padding: 9px; }
+    #status { margin-top: 12px; white-space: pre-wrap; }
+    #inventory { max-height: 160px; overflow: auto; font-size: 12px; }
+    .muted { color: #52616f; }
+  </style>
+</head>
+<body>
+  <h1>Share one selected tab</h1>
+  <p class="muted">Vrooli can see and act only in the tab you choose. Other tabs, sign-ins, cookies, history and extension data stay in this browser.</p>
+  <label for="origin">Vrooli browser bridge origin</label>
+  <input id="origin" type="url" placeholder="http://127.0.0.1:8080" autocomplete="url">
+  <label for="pairing-code">One-time pairing code</label>
+  <input id="pairing-code" type="password" autocomplete="one-time-code">
+  <button id="share">Review and share this tab</button>
+  <button id="revoke">Revoke current tab share</button>
+  <p id="status" role="status" aria-live="polite"></p>
+  <h2>Installed extension permissions</h2>
+  <div id="inventory" class="muted">Inventory is read only and requires the extension management permission.</div>
+  <script src="popup.js"></script>
+</body>
+</html>

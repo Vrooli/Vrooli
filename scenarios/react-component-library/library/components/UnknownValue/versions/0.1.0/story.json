@@ -1,0 +1,29 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Unknown · The file has no timestamp."
+        },
+        {
+          "attribute": "title",
+          "kind": "attribute",
+          "selector": "[data-rcl-unknown-value]",
+          "value": "The file has no timestamp."
+        }
+      ],
+      "id": "default",
+      "name": "Inline unknown with reason"
+    }
+  ]
+}

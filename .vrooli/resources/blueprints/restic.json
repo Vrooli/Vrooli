@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "restic",
+  "display_name": "Restic",
+  "category": "backup",
+  "summary": "Encrypted backup tool for filesystem and repository snapshots across local and remote storage targets.",
+  "why_it_matters": "Restic is strategically useful for backup-oriented scenarios and operator workflows, but current project-level usage does not justify keeping a bespoke resource implementation alive.",
+  "when_to_use": [
+    "A scenario needs encrypted backups as a first-class requirement.",
+    "Operators need snapshotting to object storage or remote repositories.",
+    "You want a backup capability that is external-tool oriented rather than a long-running service."
+  ],
+  "example_scenarios": [
+    "Backup orchestration services",
+    "Disaster recovery workflows",
+    "Scheduled repository snapshot management"
+  ],
+  "integration_kind": "external-cli",
+  "platform_support": {
+    "notes": "Restic has good multi-platform potential, but the right support model is likely a generic external-cli driver rather than custom shell-heavy code.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "A storage backend and credential strategy",
+    "Backup retention requirements",
+    "Restore verification expectations"
+  ],
+  "dependencies": [],
+  "suggested_template": "external-cli",
+  "implementation_notes": [
+    "Future implementation should focus on install detection, config, and validation instead of wrapping every restic command.",
+    "Expose common repository setup and health checks through typed config.",
+    "Treat restore validation as part of the support contract."
+  ],
+  "operational_notes": [
+    "Credential management matters more than process lifecycle.",
+    "Scheduled backups need log visibility and failure alerting.",
+    "Restore drills should be documented, not assumed."
+  ],
+  "risks": [
+    "A thin wrapper can become noisy if it tries to mirror the whole CLI.",
+    "Support claims are weak without restore validation."
+  ],
+  "status": "prioritized",
+  "replacement_for": [
+    "restic"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/restic"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

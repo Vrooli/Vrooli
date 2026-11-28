@@ -1,0 +1,387 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.compute_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.compute_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "Returns each dependency this scenario declares in .vrooli/service.json together with a liveness verdict. An available verdict means the dependency scenario is running, never that this scenario can successfully call it.",
+      "category": "capabilities",
+      "examples": [
+        {
+          "name": "Describe capabilities",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/capabilities/describe"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Read by lifecycle and setup tooling before a generated Connect client exists; reports declared-dependency liveness, not product state.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.compute_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.compute_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "instance_request",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/RequestInstance",
+      "method": "POST",
+      "summary": "Request compute capacity",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_managed_acquire",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/AcquireInstance",
+      "method": "POST",
+      "summary": "Acquire approved deployment compute without Bridge enrollment",
+      "description": "",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "idempotency_key": "string (required; stable across retry)",
+          "lifetime_seconds": "int64 (optional; defaults to 24 hours)",
+          "profile_id": "string (web-console/staging)",
+          "region": "string (nbg1 or fsn1)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "instance": "Persisted exact Compute Manager instance",
+          "spend_receipt": "Persisted quote and admission receipt bound to the instance"
+        }
+      }
+    },
+    {
+      "id": "instance_managed_acquire_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetAcquireReceipt",
+      "method": "POST",
+      "summary": "Read the persisted deployment acquisition receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_managed_enroll",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/EnrollInstance",
+      "method": "POST",
+      "summary": "Idempotently enroll an acquired instance with Bridge",
+      "description": "",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "acquisition_idempotency_key": "string (required)",
+          "idempotency_key": "string (required; stable across retry)",
+          "instance_id": "string (required; exact persisted Compute Manager instance)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "instance": "Persisted exact Compute Manager instance",
+          "receipt": "Persisted Bridge enrollment state and read-back identity"
+        }
+      }
+    },
+    {
+      "id": "instance_managed_enrollment_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetEnrollmentReceipt",
+      "method": "POST",
+      "summary": "Read Bridge enrollment state by stable idempotency key",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_spend_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetSpendReceipt",
+      "method": "POST",
+      "summary": "Read persisted spend quote and admission receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_list",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/ListInstances",
+      "method": "POST",
+      "summary": "List compute instances",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_get",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetInstance",
+      "method": "POST",
+      "summary": "Get a compute instance",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_extend",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/ExtendInstance",
+      "method": "POST",
+      "summary": "Extend instance lifetime",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_destroy",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/DestroyInstance",
+      "method": "POST",
+      "summary": "Destroy a compute instance",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_destroy_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetDestroyReceipt",
+      "method": "POST",
+      "summary": "Read the exact persisted Compute Manager release receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_request_renewal",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/RequestRenewal",
+      "method": "POST",
+      "summary": "Record an idempotent lease renewal request and exact receipt; unsupported providers are durably refused without an effect",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_renewal_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetRenewalReceipt",
+      "method": "POST",
+      "summary": "Read an exact persisted Compute Manager renewal receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_snapshot",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/SnapshotInstance",
+      "method": "POST",
+      "summary": "Snapshot an instance for test recovery",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_reset",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/ResetInstance",
+      "method": "POST",
+      "summary": "Reset an instance to a test snapshot",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_adopt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/AdoptInstance",
+      "method": "POST",
+      "summary": "Prepare an operator-owned VPS adoption",
+      "description": "Stores a non-secret target record and an explicit declared monthly quote through shared spend admission. Region, offer identity and owner identity are server-derived from the verified human caller. This call never accepts the SSH credential and remains pending until the secure Onboarding and Bridge first-touch evidence is verified.",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "currency": "string (required; ISO 4217 alpha code)",
+          "display_name": "string (optional)",
+          "host": "string (required; hostname or IP)",
+          "idempotency_key": "string (required; stable across retry)",
+          "monthly_cost_minor": "int64 (required; explicitly operator-declared monthly total in minor units)",
+          "tax_basis": "string (required; pre-tax or tax-inclusive)",
+          "user": "string (required; SSH user)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "instance": "Instance; adoption_state remains awaiting_secret until verified",
+          "spend_receipt": "Persisted line items, source, freshness and cap decision"
+        }
+      }
+    },
+    {
+      "id": "instance_adoption_first_touch",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/SubmitAdoptionCredential",
+      "method": "POST",
+      "summary": "Submit a one-time adopted-VPS credential through Onboarding",
+      "description": "Restricted to the dedicated Compute Manager adopted-VPS first-touch service principal. Forwards the request-scoped SSH password to Bridge and returns only persisted lifecycle and read-back evidence. The credential is never persisted or included in a response.",
+      "category": "instance",
+      "request": {
+        "type": "object",
+        "properties": {
+          "idempotency_key": "string (required; independent random key, not derived from the credential)",
+          "instance_id": "string (required)",
+          "ssh_password": "bytes (write-only, transient)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "evidence_verified": "boolean; true only after exact Bridge success read-back",
+          "instance": "Persisted adoption record and Bridge evidence status"
+        }
+      }
+    },
+    {
+      "id": "intent_list",
+      "path": "/vrooli.compute_manager.v1.intent.IntentService/ListIntents",
+      "method": "POST",
+      "summary": "List provisioning intents",
+      "description": "",
+      "category": "intent"
+    },
+    {
+      "id": "intent_get",
+      "path": "/vrooli.compute_manager.v1.intent.IntentService/GetIntent",
+      "method": "POST",
+      "summary": "Get a provisioning intent",
+      "description": "",
+      "category": "intent"
+    },
+    {
+      "id": "meter_usage",
+      "path": "/vrooli.compute_manager.v1.meter.MeterService/Usage",
+      "method": "POST",
+      "summary": "List compute usage",
+      "description": "",
+      "category": "meter"
+    },
+    {
+      "id": "meter_reservations",
+      "path": "/vrooli.compute_manager.v1.meter.MeterService/Reservations",
+      "method": "POST",
+      "summary": "List compute reservations",
+      "description": "",
+      "category": "meter"
+    },
+    {
+      "id": "meter_ceiling",
+      "path": "/vrooli.compute_manager.v1.meter.MeterService/Ceiling",
+      "method": "POST",
+      "summary": "Get compute ceiling",
+      "description": "",
+      "category": "meter"
+    },
+    {
+      "id": "reconcile_run",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/RunReconciliation",
+      "method": "POST",
+      "summary": "Run reconciliation",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "reconcile_list",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/ListFindings",
+      "method": "POST",
+      "summary": "List reconciliation findings",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "reconcile_get",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/GetFinding",
+      "method": "POST",
+      "summary": "Get a reconciliation finding",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "reconcile_quarantine",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/QuarantineFinding",
+      "method": "POST",
+      "summary": "Quarantine a reconciliation finding",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "setup_list_providers",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/ListProviders",
+      "method": "POST",
+      "summary": "List provider setup catalogue",
+      "description": "",
+      "category": "setup"
+    },
+    {
+      "id": "setup_begin_step",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/BeginSetupStep",
+      "method": "POST",
+      "summary": "Ask the operator to confirm a provider setup step",
+      "description": "",
+      "category": "setup"
+    },
+    {
+      "id": "setup_readiness",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/GetReadiness",
+      "method": "POST",
+      "summary": "Read provider setup readiness and evidence",
+      "description": "",
+      "category": "setup"
+    },
+    {
+      "id": "setup_verify",
+      "path": "/vrooli.compute_manager.v1.setup.SetupService/VerifyProvider",
+      "method": "POST",
+      "summary": "Run read-only provider verification probes",
+      "description": "",
+      "category": "setup"
+    }
+  ]
+}

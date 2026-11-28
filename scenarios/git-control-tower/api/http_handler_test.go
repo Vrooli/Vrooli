@@ -51,7 +51,7 @@ func TestRepoWrite_AcquiresLock(t *testing.T) {
 
 	// RepoWrite with a short timeout should fail because the lock is held.
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/repo/stage", nil)
+	r := httptest.NewRequest("POST", "/repo/write-lock", nil)
 	hctx := RepoWrite(w, r, git, nil, rl, 100*time.Millisecond)
 	if hctx != nil {
 		hctx.Cancel()
@@ -67,7 +67,7 @@ func TestRepoWrite_AcquiresLock(t *testing.T) {
 	unlock()
 
 	w2 := httptest.NewRecorder()
-	r2 := httptest.NewRequest("POST", "/repo/stage", nil)
+	r2 := httptest.NewRequest("POST", "/repo/write-lock", nil)
 	hctx2 := RepoWrite(w2, r2, git, nil, rl, 1*time.Second)
 	if hctx2 == nil {
 		t.Fatal("RepoWrite should succeed after lock is released")
@@ -129,7 +129,7 @@ func TestRepoWrite_SerializesWrites(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest("POST", "/repo/stage", nil)
+			r := httptest.NewRequest("POST", "/repo/write-lock", nil)
 			hctx := RepoWrite(w, r, git, nil, rl, 5*time.Second)
 			if hctx == nil {
 				t.Errorf("writer %d: RepoWrite returned nil", id)
@@ -177,7 +177,7 @@ func TestRepoWrite_InvalidRepo(t *testing.T) {
 	git.RepoRoot = ""
 
 	w := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/repo/stage", nil)
+	r := httptest.NewRequest("POST", "/repo/write-lock", nil)
 	hctx := RepoWrite(w, r, git, nil, rl, 1*time.Second)
 	if hctx != nil {
 		hctx.Cancel()

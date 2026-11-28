@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Own every preference: availability, appearance (Auto/Day/Night and transition hours), focus preferences, integrations, sharing management, notifications, data/portability, learning controls, and standard theme/font-scale/locale/accessibility options.",
+    "prd_refs": ["OT-P0-006", "OT-P1-006", "OT-P1-007", "OT-P1-009", "OT-P1-010"]
+  },
+  "priorities": [
+    { "statement": "Availability and protected time are explicit and never inferred from waking hours; changes preview their capacity effect before applying.", "notes": "Plan §5.2, §10, §20.2." },
+    { "statement": "Appearance settings (Auto policy, editable Day/Night transition hours, reduced scenery, art-free, subdued night) are visible with their defaults and never alter scheduling data.", "notes": "Plan §6.5, §28.1." },
+    { "statement": "Learning controls show which data informs insights, accepted adjustments, and reset/exclusion; confidence language matches available evidence.", "notes": "Plan §14.5." },
+    { "statement": "Integration and sharing management show connection health, granted scopes, and revocation with the real capacity/privacy effect explained.", "notes": "Plan §16.6, §17." }
+  ],
+  "states": [
+    { "id": "loading", "description": "Current preference values resolve from the profile." },
+    { "id": "success", "description": "Grouped settings rows render with current values." },
+    { "id": "empty", "description": "An optional section (e.g. integrations, sharing) has nothing configured yet: explain what connecting adds and offer the action." },
+    { "id": "partial", "description": "A section is partly configured (e.g. availability set but no reserve): show what remains and its planning effect." },
+    { "id": "stale", "description": "A connection's health is stale: show last successful sync and a reconnect action." },
+    { "id": "saving", "description": "A preference change is committing; the control shows a busy state and prevents duplicate submit." },
+    { "id": "validation-error", "description": "An invalid value (e.g. overlapping availability rule) is rejected inline with the entered value preserved." },
+    { "id": "request-error", "description": "A save failed: input is preserved with a retry; the app never claims saved." }
+  ]
+}

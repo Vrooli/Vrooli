@@ -9,6 +9,7 @@ interface ResourcesStoreState {
   resources: Resource[];
   loading: boolean;
   error: string | null;
+  loadError: string | null;
   hasInitialized: boolean;
   loadResources: (options?: { force?: boolean }) => Promise<void>;
   setResourcesState: (updater: ResourceUpdater) => void;
@@ -58,6 +59,7 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
   resources: [],
   loading: false,
   error: null,
+  loadError: null,
   hasInitialized: false,
 
   loadResources: async ({ force = false } = {}): Promise<void> => {
@@ -66,22 +68,27 @@ export const useResourcesStore = create<ResourcesStoreState>((set, get) => ({
       return;
     }
 
-    set({ loading: true, error: null });
+    set({ loading: true });
     let resourcesLoaded = false;
 
     try {
       const fetched = await resourceService.getResources();
       if (Array.isArray(fetched)) {
-        set({ resources: fetched });
+        set({ resources: fetched, loadError: null });
         resourcesLoaded = true;
-      } else if (force) {
-        set({ resources: [] });
+      } else {
+        throw new Error('Resource inventory response must be an array.');
       }
     } catch (error) {
       logger.warn('[resourcesStore] Failed to fetch resources', error);
-      if (!get().hasInitialized) {
-        set({ error: 'Unable to load resources.' });
-      }
+      const state = get();
+      const detail = error instanceof Error ? ` ${error.message}` : '';
+      const message = state.hasInitialized
+        ? state.resources.length > 0
+          ? `Unable to refresh resources. Showing last known data.${detail}`
+          : `Unable to refresh resources.${detail}`
+        : `Unable to load resources.${detail}`;
+      set({ loadError: message });
     } finally {
       set((state) => ({
         loading: false,

@@ -12,7 +12,7 @@ func TestRepoService_OpenSetsActive(t *testing.T) {
 	git := NewFakeGitRunner()
 	service := NewRepoService(store, git)
 
-	repo, err := service.Open(context.Background(), "/demo")
+	repo, err := service.Open(authorizedHumanContext(), "/demo")
 	if err != nil {
 		t.Fatalf("open repo: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestRepoService_ResolveWithRepoID(t *testing.T) {
 	git := NewFakeGitRunner()
 	service := NewRepoService(store, git)
 
-	repo, err := service.Open(context.Background(), "/demo")
+	repo, err := service.Open(authorizedHumanContext(), "/demo")
 	if err != nil {
 		t.Fatalf("open repo: %v", err)
 	}
@@ -54,7 +54,27 @@ func TestRepoService_ResolveWithRepoID(t *testing.T) {
 	}
 }
 
-func TestRepoService_ResolveFallbackRegistersRepo(t *testing.T) {
+func TestRepoService_ResolveIDMatchesExplicitAndDefaultSelection(t *testing.T) {
+	store := newTestRepoStore(t)
+	git := NewFakeGitRunner()
+	git.RepoRoot = "/fallback"
+	service := NewRepoService(store, git)
+
+	opened, err := service.Open(authorizedHumanContext(), "/demo")
+	if err != nil {
+		t.Fatalf("open repo: %v", err)
+	}
+	explicit, err := service.ResolveID(context.Background(), opened.ID)
+	if err != nil || explicit.ID != opened.ID || explicit.Path != opened.Path || explicit.Source != "explicit" {
+		t.Fatalf("ResolveID explicit = %#v, %v", explicit, err)
+	}
+	active, err := service.ResolveID(context.Background(), 0)
+	if err != nil || active.ID != opened.ID || active.Path != opened.Path || active.Source != "active" {
+		t.Fatalf("ResolveID active = %#v, %v", active, err)
+	}
+}
+
+func TestRepoService_ResolveFallbackDoesNotMutateRegistry(t *testing.T) {
 	store := newTestRepoStore(t)
 	git := NewFakeGitRunner()
 	git.RepoRoot = "/fallback"
@@ -73,8 +93,17 @@ func TestRepoService_ResolveFallbackRegistersRepo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get active: %v", err)
 	}
-	if active == nil || active.Path != "/fallback" {
-		t.Fatalf("expected active fallback repo, got %#v", active)
+	if active != nil {
+		t.Fatalf("read-only fallback resolution mutated registry: %#v", active)
+	}
+}
+
+func TestRepoService_SetActiveRequiresHumanAuthority(t *testing.T) {
+	store := newTestRepoStore(t)
+	git := NewFakeGitRunner()
+	service := NewRepoService(store, git)
+	if _, err := service.SetActive(context.Background(), 1); err == nil {
+		t.Fatal("expected unauthenticated repository selection to be refused")
 	}
 }
 
@@ -83,7 +112,7 @@ func TestRepoService_CloneCallsGitClone(t *testing.T) {
 	git := NewFakeGitRunner()
 	service := NewRepoService(store, git)
 
-	repo, err := service.Clone(context.Background(), "https://example.com/repo.git", "/clone")
+	repo, err := service.Clone(authorizedHumanContext(), "https://example.com/repo.git", "/clone")
 	if err != nil {
 		t.Fatalf("clone repo: %v", err)
 	}

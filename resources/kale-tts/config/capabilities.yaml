@@ -1,0 +1,42 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: kale-tts
+  category: resource
+  description: "Lifecycle and CPU capacity contract for experimental Kale TTS Nano."
+  maturity: M1
+spec:
+  commands:
+    - name: info
+      implementation: cli-core-standard-lifecycle
+      test: resource.json
+    - name: status
+      implementation: cli-core-standard-lifecycle
+      test: resource.json
+    - name: install
+      implementation: internal/resources/control
+      test: resource.json
+    - name: start
+      implementation: internal/resources/control
+      test: resource.json
+    - name: stop
+      implementation: internal/resources/control
+      test: resource.json
+    - name: restart
+      implementation: cli-core-standard-lifecycle
+      test: resource.json
+    - name: logs
+      implementation: internal/resources/control
+      test: resource.json
+    - name: uninstall
+      implementation: internal/resources/control
+      test: resource.json
+  interfaces:
+    - name: primary-health
+      endpoint: resource.json health_checks[0]
+      test: tests/test_server.py
+    - name: openai-speech
+      endpoint: POST /v1/audio/speech
+      test: tests/test_server.py
+  testing:
+    unit_test: tests/test_server.py

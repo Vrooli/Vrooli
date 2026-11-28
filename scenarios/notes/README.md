@@ -1,36 +1,35 @@
 # SmartNotes
 
 ## Purpose
-Local AI-enabled note-taking system with intelligent organization, semantic search, and real-time suggestions. Acts as a foundational knowledge management tool that other scenarios can leverage for persistent memory and context.
+Local note-taking system with intelligent organization and real-time suggestions. It provides persistent storage for scenarios that need to retain notes or documentation.
 
 ## Usefulness to Vrooli
 - **Knowledge Base**: Provides persistent storage for any scenario needing to maintain notes or documentation
-- **Semantic Search**: Offers vector-based search that other scenarios can query via API
+- **Search**: Offers tenant-scoped text search across notes
 - **AI Processing**: Automatic tagging, summarization, and linking that enhances stored knowledge
 - **Cross-Scenario Memory**: Other scenarios can store and retrieve contextual information through the notes API
 
 ## Dependencies
 ### Required Resources
 - **PostgreSQL**: Primary storage for notes, folders, and metadata
-- **Qdrant**: Vector database for semantic search capabilities
 - **Ollama**: AI model for note analysis and suggestions
 
-Automation flows (processing, embedding, and inference) are orchestrated directly by the API, so no external workflow engine is required.
+AI processing is orchestrated directly by the API, so no external workflow engine is required. Semantic embedding is not currently served.
 
 ### Automation Modules Used
 - AI text generation and analysis pipelines (previously defined as `ollama.json`)
-- Vector embedding creation processes (formerly `embedding-generator.json`)
-- Vector similarity search orchestration (formerly `semantic-search.json`)
 - Structured data extraction routines (formerly `structured-data-extractor.json`)
 - Chain-of-thought coordination for reasoning (formerly `chain-of-thought-orchestrator.json`)
 - Iterative AI processing control loops (formerly `react-loop-engine.json`)
-- Enhanced context-aware search helpers (formerly `smart-semantic-search.json`)
+
+Vector semantic search is currently removed from the API and CLI. The prior endpoint returned 503 because no admitted vector-store and embedding owner was wired. The durable semantic write feed and owner integration contract remain for a future qualified serving path.
 
 ## Architecture
 ### API (Go)
 - RESTful endpoints for CRUD operations
 - Integration with internal automation modules for AI processing
-- Direct connections to PostgreSQL and Qdrant
+- PostgreSQL-backed storage and tenant-scoped text search
+- Semantic-vector serving is removed until its embedding, collection, and admission owners are wired
 
 ### CLI
 - Command-line interface for quick note operations

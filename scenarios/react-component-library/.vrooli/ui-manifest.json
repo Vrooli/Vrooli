@@ -1,0 +1,27 @@
+{
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "react-vite"
+  },
+  "slots": {
+    "page": {
+      "dir": "ui/src/workbench/pages",
+      "description": "Routed workbench pages mounted beneath the AppShell adapter.",
+      "pathPattern": "{dir}/{ComponentName}.tsx"
+    },
+    "feature": {
+      "dir": "ui/src/workbench/{feature}",
+      "description": "A workbench feature directory, such as component, studio, or search.",
+      "pathPattern": "{dir}",
+      "multiFile": true,
+      "requiresFeature": true
+    },
+    "feature-component": {
+      "dir": "ui/src/workbench",
+      "description": "A component module directly inside the selected workbench feature directory.",
+      "pathPattern": "{dir}/{feature}/{ComponentName}.tsx",
+      "requiresFeature": true
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -63,7 +64,7 @@ function renderScenarioDetail(scenarioName = 'test-scenario') {
     },
   });
 
-  return render(
+  return renderWithProviders(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/scenario/${scenarioName}`]}>
         <ToastProvider>
@@ -72,7 +73,8 @@ function renderScenarioDetail(scenarioName = 'test-scenario') {
           </Routes>
         </ToastProvider>
       </MemoryRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
+    { withoutRouter: true },
   );
 }
 
@@ -192,6 +194,61 @@ describe('ScenarioDetail', () => {
     });
   });
 
+  describe('Light Scan', () => {
+    it('runs through the API and shows the shared JavaScript graph metrics', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.fetchScenarioDetail).mockResolvedValue(mockScenarioDetail);
+      vi.mocked(api.lightScan).mockResolvedValue({
+        scenario: 'test-scenario',
+        started_at: '2026-11-10T17:00:00Z',
+        completed_at: '2026-11-10T17:00:01Z',
+        duration_ms: 1000,
+        lint_output: { command: 'make lint', exit_code: 0, stdout: '', stderr: '', duration_ms: 10, success: true, skipped: false },
+        type_output: { command: 'make type', exit_code: 0, stdout: '', stderr: '', duration_ms: 10, success: true, skipped: false },
+        file_metrics: [],
+        long_files: [],
+        total_files: 0,
+        total_lines: 0,
+        incremental: true,
+        has_makefile: true,
+        lint_issues: 0,
+        type_issues: 0,
+        long_files_count: 0,
+        language_metrics: {
+          javascript: {
+            language: 'javascript',
+            file_count: 2,
+            total_lines: 80,
+            duplicates: { total_duplicates: 2, duplicate_blocks: [], total_lines: 17, skipped: false, tool: 'code-facts' },
+          },
+        },
+      });
+
+      renderScenarioDetail();
+      await screen.findByText(/Code tidiness overview for test-scenario/i);
+      await user.click(screen.getByTestId('run-light-scan-button'));
+
+      expect(api.lightScan).toHaveBeenCalledWith('test-scenario', 120);
+      const results = await screen.findByTestId('light-scan-results');
+      expect(within(results).getByText('Code Quality Metrics by Language')).toBeInTheDocument();
+      expect(within(results).getByText('javascript')).toBeInTheDocument();
+      expect(within(results).getByText('17')).toBeInTheDocument();
+      expect(within(results).getByText(/0 changed files · 0 changed-file lines/)).toBeInTheDocument();
+    });
+
+    it('shows a useful error if the light scan fails', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.fetchScenarioDetail).mockResolvedValue(mockScenarioDetail);
+      vi.mocked(api.lightScan).mockRejectedValue(new Error('source provider unavailable'));
+
+      renderScenarioDetail();
+      await screen.findByText(/Code tidiness overview for test-scenario/i);
+      await user.click(screen.getByTestId('run-light-scan-button'));
+
+      expect(await screen.findByTestId('light-scan-error')).toHaveTextContent('source provider unavailable');
+    });
+  });
+
   describe('[REQ:TM-UI-004] Interactive Sorting', () => {
     it('sorts by path when path header is clicked', async () => {
       const user = userEvent.setup();
@@ -211,9 +268,9 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const dataRows = screen.getAllByTestId('file-table-row');
         // First row should contain utils.ts (src/lib)
-        expect(dataRows[0].textContent).toContain('utils.ts');
+        expect(dataRows[0]?.textContent).toContain('utils.ts');
         // Last row should contain handlers.go (src/api)
-        expect(dataRows[2].textContent).toContain('handlers.go');
+        expect(dataRows[2]?.textContent).toContain('handlers.go');
       });
 
       // Click again to reverse to asc
@@ -222,9 +279,9 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const dataRowsAsc = screen.getAllByTestId('file-table-row');
         // First row should contain handlers.go (alphabetically first: api < components < lib)
-        expect(dataRowsAsc[0].textContent).toContain('handlers.go');
+        expect(dataRowsAsc[0]?.textContent).toContain('handlers.go');
         // Last row should contain utils.ts
-        expect(dataRowsAsc[2].textContent).toContain('utils.ts');
+        expect(dataRowsAsc[2]?.textContent).toContain('utils.ts');
       });
     });
 
@@ -244,6 +301,9 @@ describe('ScenarioDetail', () => {
 
       // Files sorted by lines desc: 850, 250, 120
       const dataRows = screen.getAllByTestId('file-table-row');
+      expect(dataRows[0]).toBeDefined();
+      expect(dataRows[1]).toBeDefined();
+      expect(dataRows[2]).toBeDefined();
       expect(dataRows[0]).toHaveTextContent('src/api/handlers.go');
       expect(dataRows[1]).toHaveTextContent('src/components/App.tsx');
       expect(dataRows[2]).toHaveTextContent('src/lib/utils.ts');
@@ -258,6 +318,9 @@ describe('ScenarioDetail', () => {
         const dataRows = screen.getAllByTestId('file-table-row');
 
         // Default sort is totalIssues desc: handlers (10) > App (3) > utils (0)
+        expect(dataRows[0]).toBeDefined();
+        expect(dataRows[1]).toBeDefined();
+        expect(dataRows[2]).toBeDefined();
         expect(dataRows[0]).toHaveTextContent('src/api/handlers.go');
         expect(dataRows[1]).toHaveTextContent('src/components/App.tsx');
         expect(dataRows[2]).toHaveTextContent('src/lib/utils.ts');
@@ -280,6 +343,9 @@ describe('ScenarioDetail', () => {
 
       // Files by visit count desc: utils (5) > App (3) > handlers (1)
       const dataRows = screen.getAllByTestId('file-table-row');
+      expect(dataRows[0]).toBeDefined();
+      expect(dataRows[1]).toBeDefined();
+      expect(dataRows[2]).toBeDefined();
       expect(dataRows[0]).toHaveTextContent('src/lib/utils.ts');
       expect(dataRows[1]).toHaveTextContent('src/components/App.tsx');
       expect(dataRows[2]).toHaveTextContent('src/api/handlers.go');
@@ -299,7 +365,12 @@ describe('ScenarioDetail', () => {
 
       // Default is desc: handlers (10) > App (3) > utils (0)
       let dataRows = screen.getAllByTestId('file-table-row');
-      expect(within(dataRows[0]).getByText('src/api/handlers.go')).toBeInTheDocument();
+      const firstDataRow = dataRows[0];
+      expect(firstDataRow).toBeDefined();
+      if (!firstDataRow) {
+        throw new Error('Expected at least one file-table row');
+      }
+      expect(within(firstDataRow).getByText('src/api/handlers.go')).toBeInTheDocument();
 
       // Click once to toggle from desc to asc (since already on totalIssues)
       await user.click(issuesHeader);
@@ -307,8 +378,8 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const ascRows = screen.getAllByTestId('file-table-row');
         // After first click: asc order - utils (0) < App (3) < handlers (10)
-        expect(ascRows[0].textContent).toContain('utils.ts');
-        expect(ascRows[2].textContent).toContain('handlers.go');
+        expect(ascRows[0]?.textContent).toContain('utils.ts');
+        expect(ascRows[2]?.textContent).toContain('handlers.go');
       });
 
       // Click again to toggle back to desc
@@ -317,8 +388,8 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const descRows = screen.getAllByTestId('file-table-row');
         // After second click: back to desc order - handlers (10) > App (3) > utils (0)
-        expect(descRows[0].textContent).toContain('handlers.go');
-        expect(descRows[2].textContent).toContain('utils.ts');
+        expect(descRows[0]?.textContent).toContain('handlers.go');
+        expect(descRows[2]?.textContent).toContain('utils.ts');
       });
     });
 
@@ -452,7 +523,7 @@ describe('ScenarioDetail', () => {
           ai_issues: 0,
           long_files: 0,
           visit_percent: 0,
-          campaign_status: 'inactive' as const,
+          campaign_status: 'none' as const,
         },
         files: [
           {

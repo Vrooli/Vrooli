@@ -9,10 +9,16 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
+
+	adminhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/logx"
+	"landing-page-business-suite-api/internal/securevalue"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -23,6 +29,14 @@ type mockHTTPDoer struct {
 	body       string
 	err        error
 	requests   []*http.Request
+}
+
+func apiKeyHandlerDependencies(service *administration.APIKeyService) adminhttp.APIKeyDependencies {
+	return adminhttp.APIKeyDependencies{
+		Service:    service,
+		WriteError: writeJSONError,
+		LogError:   logx.Error,
+	}
 }
 
 func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
@@ -76,7 +90,7 @@ func createTestAPIKeysDB(t *testing.T) *sql.DB {
 }
 
 // createTestAPIKeyService creates an API key service for testing without encryption.
-func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService, *sql.DB) {
+func createTestAPIKeyService(t *testing.T, httpClient administration.APIKeyHTTPDoer) (*administration.APIKeyService, *sql.DB) {
 	t.Helper()
 
 	db := createTestAPIKeysDB(t)
@@ -84,19 +98,15 @@ func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService,
 		httpClient = &mockHTTPDoer{statusCode: 200}
 	}
 
-	// Service without encryption key (development mode) with SQLite dialect
-	svc := &APIKeyService{
-		db:            db,
-		encryptionKey: nil,
-		httpClient:    httpClient,
-		dialects:      NewDialectHelper("sqlite"),
-	}
+	// Service without encryption key (development mode) with SQLite dialect.
+	// Construct through the Account domain rather than reaching into its fields.
+	svc := newAPIKeyServiceForTest(db, httpClient, "sqlite", nil)
 
 	return svc, db
 }
 
 // createTestAPIKeyServiceWithEncryption creates an API key service with encryption enabled.
-func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*APIKeyService, *sql.DB) {
+func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient administration.APIKeyHTTPDoer) (*administration.APIKeyService, *sql.DB) {
 	t.Helper()
 
 	db := createTestAPIKeysDB(t)
@@ -110,12 +120,7 @@ func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*
 		encryptionKey[i] = byte(i)
 	}
 
-	svc := &APIKeyService{
-		db:            db,
-		encryptionKey: encryptionKey,
-		httpClient:    httpClient,
-		dialects:      NewDialectHelper("sqlite"),
-	}
+	svc := newAPIKeyServiceForTest(db, httpClient, "sqlite", encryptionKey)
 
 	return svc, db
 }
@@ -164,7 +169,7 @@ func TestAPIKeyService_Store_EncryptsKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	plainKey := "sk-or-test-key-12345678"
+	plainKey := "test-openrouter-key-12345678"
 
 	// Store a key
 	_, err := svc.Store(ctx, "openrouter", plainKey)
@@ -257,27 +262,23 @@ func TestAPIKeyService_Store_DuplicateProvider_Updates(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_Store_InvalidProvider_ReturnsError(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	_, err := svc.Store(ctx, "invalid-provider", "some-key")
-	if err == nil {
-		t.Error("Expected error for invalid provider, got nil")
+func TestAPIKeyService_Store_RejectsInvalidInputs(t *testing.T) {
+	cases := []struct{ name, provider, key, wantError string }{
+		{name: "unknown provider", provider: "invalid-provider", key: "some-key", wantError: "invalid provider"},
+		{name: "empty provider", provider: "", key: "some-key", wantError: "provider and key are required"},
+		{name: "whitespace provider", provider: " \t ", key: "some-key", wantError: "provider and key are required"},
+		{name: "empty key", provider: "openrouter", key: "", wantError: "provider and key are required"},
+		{name: "whitespace key", provider: "openrouter", key: "  \t ", wantError: "provider and key are required"},
 	}
-}
-
-func TestAPIKeyService_Store_EmptyKey_ReturnsError(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	_, err := svc.Store(ctx, "openrouter", "")
-	if err == nil {
-		t.Error("Expected error for empty key, got nil")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			_, err := svc.Store(context.Background(), tc.provider, tc.key)
+			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("Store(%q, %q) error = %v, want text %q", tc.provider, tc.key, err, tc.wantError)
+			}
+		})
 	}
 }
 
@@ -290,7 +291,7 @@ func TestAPIKeyService_Get_ReturnsDecryptedKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	plainKey := "sk-or-test-key-12345678"
+	plainKey := "test-openrouter-key-12345678"
 
 	// Store a key
 	_, err := svc.Store(ctx, "openrouter", plainKey)
@@ -310,44 +311,33 @@ func TestAPIKeyService_Get_ReturnsDecryptedKey(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_Get_NonExistentProvider_ReturnsEmpty(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	key, err := svc.Get(ctx, "nonexistent")
-	if err != nil {
-		t.Fatalf("Get() returned error: %v", err)
+func TestAPIKeyService_Get_ReturnsEmptyForUnavailableKeys(t *testing.T) {
+	cases := []struct {
+		name, provider, storeKey string
+		deactivate               bool
+	}{
+		{name: "provider does not exist", provider: "nonexistent"},
+		{name: "key is inactive", provider: "openrouter", storeKey: "some-key", deactivate: true},
 	}
-	if key != "" {
-		t.Errorf("Expected empty string for nonexistent provider, got '%s'", key)
-	}
-}
-
-func TestAPIKeyService_Get_InactiveKey_ReturnsEmpty(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	// Store and deactivate a key
-	_, err := svc.Store(ctx, "openrouter", "some-key")
-	if err != nil {
-		t.Fatalf("Store() returned error: %v", err)
-	}
-	err = svc.SetActive(ctx, "openrouter", false)
-	if err != nil {
-		t.Fatalf("SetActive() returned error: %v", err)
-	}
-
-	// Try to get the inactive key
-	key, err := svc.Get(ctx, "openrouter")
-	if err != nil {
-		t.Fatalf("Get() returned error: %v", err)
-	}
-	if key != "" {
-		t.Errorf("Expected empty string for inactive key, got '%s'", key)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			if tc.storeKey != "" {
+				if _, err := svc.Store(context.Background(), tc.provider, tc.storeKey); err != nil {
+					t.Fatalf("store key: %v", err)
+				}
+				if tc.deactivate {
+					if err := svc.SetActive(context.Background(), tc.provider, false); err != nil {
+						t.Fatalf("deactivate key: %v", err)
+					}
+				}
+			}
+			got, err := svc.Get(context.Background(), tc.provider)
+			if err != nil || got != "" {
+				t.Fatalf("Get(%q) = %q, %v; want empty key and no error", tc.provider, got, err)
+			}
+		})
 	}
 }
 
@@ -355,49 +345,43 @@ func TestAPIKeyService_Get_InactiveKey_ReturnsEmpty(t *testing.T) {
 // List Tests
 // ============================================================================
 
-func TestAPIKeyService_List_ReturnsAllKeys(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	// Store multiple keys
-	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
-	_, _ = svc.Store(ctx, "openai", "sk-openai-test")
-	_, _ = svc.Store(ctx, "anthropic", "sk-ant-test")
-
-	// List all keys
-	keys, err := svc.List(ctx)
-	if err != nil {
-		t.Fatalf("List() returned error: %v", err)
+func TestAPIKeyService_List_ReturnsStoredPublicMetadata(t *testing.T) {
+	cases := []struct {
+		name string
+		keys []struct{ provider, value, hint string }
+	}{
+		{name: "empty table"},
+		{name: "all providers", keys: []struct{ provider, value, hint string }{
+			{provider: "openrouter", value: "sk-or-test", hint: "****test"},
+			{provider: "openai", value: "sk-openai-test", hint: "****test"},
+			{provider: "anthropic", value: "sk-ant-test", hint: "****test"},
+		}},
 	}
-
-	if len(keys) != 3 {
-		t.Errorf("Expected 3 keys, got %d", len(keys))
-	}
-
-	// Verify keys don't contain actual values
-	for _, key := range keys {
-		if !strings.HasPrefix(key.KeyHint, "****") {
-			t.Errorf("Key hint doesn't start with ****: %s", key.KeyHint)
-		}
-	}
-}
-
-func TestAPIKeyService_List_EmptyTable_ReturnsEmptyOrNil(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	keys, err := svc.List(ctx)
-	if err != nil {
-		t.Fatalf("List() returned error: %v", err)
-	}
-
-	// In Go, returning nil for an empty slice is valid and common
-	if len(keys) != 0 {
-		t.Errorf("Expected 0 keys, got %d", len(keys))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			expected := make(map[string]string, len(tc.keys))
+			for _, key := range tc.keys {
+				if _, err := svc.Store(context.Background(), key.provider, key.value); err != nil {
+					t.Fatalf("store %s: %v", key.provider, err)
+				}
+				expected[key.provider] = key.hint
+			}
+			got, err := svc.List(context.Background())
+			if err != nil {
+				t.Fatalf("List() error: %v", err)
+			}
+			if len(got) != len(expected) {
+				t.Fatalf("List() returned %d keys, want %d", len(got), len(expected))
+			}
+			for _, key := range got {
+				wantHint, exists := expected[key.Provider]
+				if !exists || key.KeyHint != wantHint || !strings.HasPrefix(key.KeyHint, "****") {
+					t.Errorf("listed key = %+v; want masked metadata for a requested provider", key)
+				}
+			}
+		})
 	}
 }
 
@@ -405,44 +389,38 @@ func TestAPIKeyService_List_EmptyTable_ReturnsEmptyOrNil(t *testing.T) {
 // Delete Tests
 // ============================================================================
 
-func TestAPIKeyService_Delete_RemovesKey(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	// Store a key
-	_, err := svc.Store(ctx, "openrouter", "some-key")
-	if err != nil {
-		t.Fatalf("Store() returned error: %v", err)
+func TestAPIKeyService_Delete_ExistingOrMissing(t *testing.T) {
+	cases := []struct{ name, provider, storeKey, wantError string }{
+		{name: "existing key", provider: "openrouter", storeKey: "some-key"},
+		{name: "missing key", provider: "nonexistent", wantError: "api key not found: nonexistent"},
 	}
-
-	// Delete the key
-	err = svc.Delete(ctx, "openrouter")
-	if err != nil {
-		t.Fatalf("Delete() returned error: %v", err)
-	}
-
-	// Verify it's gone
-	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM api_keys WHERE provider = ?", "openrouter").Scan(&count)
-	if err != nil {
-		t.Fatalf("Failed to count keys: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("Expected 0 keys after delete, got %d", count)
-	}
-}
-
-func TestAPIKeyService_Delete_NonExistent_ReturnsError(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	err := svc.Delete(ctx, "nonexistent")
-	if err == nil {
-		t.Error("Expected error for deleting nonexistent key, got nil")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			if tc.storeKey != "" {
+				if _, err := svc.Store(context.Background(), tc.provider, tc.storeKey); err != nil {
+					t.Fatalf("store key: %v", err)
+				}
+			}
+			err := svc.Delete(context.Background(), tc.provider)
+			if tc.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+					t.Fatalf("Delete() error = %v, want %q", err, tc.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Delete() error: %v", err)
+			}
+			var count int
+			if err := db.QueryRow("SELECT COUNT(*) FROM api_keys WHERE provider = ?", tc.provider).Scan(&count); err != nil {
+				t.Fatalf("count remaining keys: %v", err)
+			}
+			if count != 0 {
+				t.Fatalf("remaining keys = %d, want 0", count)
+			}
+		})
 	}
 }
 
@@ -450,59 +428,50 @@ func TestAPIKeyService_Delete_NonExistent_ReturnsError(t *testing.T) {
 // SetActive Tests
 // ============================================================================
 
-func TestAPIKeyService_SetActive_TogglesStatus(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	// Store a key
-	_, err := svc.Store(ctx, "openrouter", "some-key")
-	if err != nil {
-		t.Fatalf("Store() returned error: %v", err)
+func TestAPIKeyService_SetActive_ExistingOrMissing(t *testing.T) {
+	cases := []struct {
+		name, provider, storeKey string
+		wantError                bool
+	}{
+		{name: "existing key", provider: "openrouter", storeKey: "some-key"},
+		{name: "missing key", provider: "nonexistent", wantError: true},
 	}
-
-	// Deactivate
-	err = svc.SetActive(ctx, "openrouter", false)
-	if err != nil {
-		t.Fatalf("SetActive(false) returned error: %v", err)
-	}
-
-	// Verify deactivated
-	var isActive bool
-	err = db.QueryRow("SELECT is_active FROM api_keys WHERE provider = ?", "openrouter").Scan(&isActive)
-	if err != nil {
-		t.Fatalf("Failed to query: %v", err)
-	}
-	if isActive {
-		t.Error("Expected IsActive to be false after deactivation")
-	}
-
-	// Reactivate
-	err = svc.SetActive(ctx, "openrouter", true)
-	if err != nil {
-		t.Fatalf("SetActive(true) returned error: %v", err)
-	}
-
-	// Verify reactivated
-	err = db.QueryRow("SELECT is_active FROM api_keys WHERE provider = ?", "openrouter").Scan(&isActive)
-	if err != nil {
-		t.Fatalf("Failed to query: %v", err)
-	}
-	if !isActive {
-		t.Error("Expected IsActive to be true after reactivation")
-	}
-}
-
-func TestAPIKeyService_SetActive_NonExistent_ReturnsError(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	ctx := context.Background()
-
-	err := svc.SetActive(ctx, "nonexistent", true)
-	if err == nil {
-		t.Error("Expected error for nonexistent key, got nil")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			if tc.storeKey != "" {
+				if _, err := svc.Store(context.Background(), tc.provider, tc.storeKey); err != nil {
+					t.Fatalf("store key: %v", err)
+				}
+			}
+			err := svc.SetActive(context.Background(), tc.provider, false)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("SetActive() succeeded for missing provider")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("SetActive(false): %v", err)
+			}
+			var active bool
+			if err := db.QueryRow("SELECT is_active FROM api_keys WHERE provider = ?", tc.provider).Scan(&active); err != nil {
+				t.Fatalf("read inactive state: %v", err)
+			}
+			if active {
+				t.Fatal("key remained active after deactivation")
+			}
+			if err := svc.SetActive(context.Background(), tc.provider, true); err != nil {
+				t.Fatalf("SetActive(true): %v", err)
+			}
+			if err := db.QueryRow("SELECT is_active FROM api_keys WHERE provider = ?", tc.provider).Scan(&active); err != nil {
+				t.Fatalf("read active state: %v", err)
+			}
+			if !active {
+				t.Fatal("key remained inactive after reactivation")
+			}
+		})
 	}
 }
 
@@ -535,7 +504,17 @@ func TestAPIKeyService_Test_OpenRouter_Success(t *testing.T) {
 
 	// Verify the request was made
 	if len(mockHTTP.requests) != 1 {
-		t.Errorf("Expected 1 request, got %d", len(mockHTTP.requests))
+		t.Fatalf("Expected 1 request, got %d", len(mockHTTP.requests))
+	}
+	req := mockHTTP.requests[0]
+	if req.Method != http.MethodGet {
+		t.Errorf("Expected GET probe, got '%s'", req.Method)
+	}
+	if req.URL.String() != "https://openrouter.ai/api/v1/auth/key" {
+		t.Errorf("Expected OpenRouter auth URL, got '%s'", req.URL.String())
+	}
+	if req.Header.Get("Authorization") != "Bearer sk-or-test" {
+		t.Errorf("Expected OpenRouter bearer token, got '%s'", req.Header.Get("Authorization"))
 	}
 }
 
@@ -563,6 +542,38 @@ func TestAPIKeyService_Test_OpenRouter_InvalidKey(t *testing.T) {
 	}
 	if !strings.Contains(message, "Invalid") {
 		t.Errorf("Expected message to contain 'Invalid', got: %s", message)
+	}
+}
+
+func TestAPIKeyService_Test_OpenRouter_UnexpectedStatus(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: http.StatusServiceUnavailable}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+	if _, err := svc.Store(context.Background(), "openrouter", "sk-or-synthetic"); err != nil {
+		t.Fatalf("Store() returned error: %v", err)
+	}
+
+	success, message, err := svc.Test(context.Background(), "openrouter")
+	if err != nil || success || message != "Unexpected status: 503" {
+		t.Fatalf("Test() = (%v, %q, %v), want (false, unexpected status, nil)", success, message, err)
+	}
+}
+
+func TestAPIKeyService_Test_OpenRouter_NetworkErrorDoesNotExposeKey(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{err: fmt.Errorf("synthetic network down")}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+	const syntheticKey = "sk-or-synthetic-secret"
+	if _, err := svc.Store(context.Background(), "openrouter", syntheticKey); err != nil {
+		t.Fatalf("Store() returned error: %v", err)
+	}
+
+	success, message, err := svc.Test(context.Background(), "openrouter")
+	if err != nil || success || !strings.Contains(message, "Connection error: synthetic network down") {
+		t.Fatalf("Test() = (%v, %q, %v), want connection error, nil", success, message, err)
+	}
+	if strings.Contains(message, syntheticKey) {
+		t.Fatalf("Test() exposed the synthetic API key: %q", message)
 	}
 }
 
@@ -655,27 +666,23 @@ func TestAPIKeyService_NoEncryptionKey_StoresPlaintext(t *testing.T) {
 // ============================================================================
 
 func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
-	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
-
-	// Set production mode without encryption key
-	os.Setenv("LPBS_ENVIRONMENT", "production")
-	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	// The package test harness enables fallback credentials for ordinary unit
+	// tests; this test explicitly injects an unconfigured authority result and
+	// verifies the production refusal path without depending on host state.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "")
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
 
-	// Attempting to create service without encryption key in production should fail
-	_, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	// Attempting to create the service without an authority value in
+	// production should fail.
+	_, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) {
+			return "", fmt.Errorf("%w: api-key-encryption-key", credentialauthority.ErrUnconfigured)
+		},
+		func() bool { return true }, nil, nil,
+	)
 	if err == nil {
 		t.Error("Expected error when creating API key service in production without encryption key")
 	}
@@ -689,24 +696,28 @@ func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
-	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
+func TestAPIKeyService_ControlPlaneProductionOverridesLocalDevelopment(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	t.Setenv("VROOLI_ENVIRONMENT", "production")
+	t.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", "")
+	// Keep credential resolution hermetic; production must still refuse the
+	// unconfigured result when the unit harness normally permits fallback.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "1")
 
-	// Set production mode with valid encryption key
-	os.Setenv("LPBS_ENVIRONMENT", "production")
-	// Generate a valid 32-byte key encoded as base64
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	_, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	if err == nil || !strings.Contains(err.Error(), "required in production") {
+		t.Fatalf("NewAPIKeyServiceWithOptions() error = %v, want production encryption refusal", err)
+	}
+}
+
+func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
+	// Isolate both environment sources so the control-plane setting cannot leak in.
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("VROOLI_ENVIRONMENT", "")
 	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
-	os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", testKey)
+	t.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", testKey)
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
@@ -721,32 +732,80 @@ func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
-	// Save current environment
-	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
-	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		if oldEnv != "" {
-			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		} else {
-			os.Unsetenv("LPBS_ENVIRONMENT")
-		}
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
+func TestAPIKeyService_MigrateEncryptionResealsLegacyRows(t *testing.T) {
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	legacyKey := make([]byte, 32)
+	for i := range legacyKey {
+		legacyKey[i] = byte(i + 1)
+	}
+	legacyCiphertext, err := securevalue.Encrypt(legacyKey, "legacy-api-key")
+	if err != nil {
+		t.Fatalf("encrypt legacy key: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO api_keys (provider, encrypted_key, key_hint) VALUES ('openrouter', ?, '****key')`, legacyCiphertext); err != nil {
+		t.Fatalf("insert legacy key: %v", err)
+	}
+	ring := securevalue.Ring{Active: 1, Keys: []securevalue.VersionedKey{{Version: 1, Key: base64.StdEncoding.EncodeToString(legacyKey)}}}
+	ring, err = ring.Rotate()
+	if err != nil {
+		t.Fatalf("rotate ring: %v", err)
+	}
+	serialized, err := ring.Marshal()
+	if err != nil {
+		t.Fatalf("marshal ring: %v", err)
+	}
+	svc, err := administration.NewAPIKeyServiceWithRuntime(db, nil, "sqlite", func(string) string { return serialized }, func() bool { return false }, nil, nil)
+	if err != nil {
+		t.Fatalf("construct ring service: %v", err)
+	}
+	count, err := svc.MigrateEncryption(context.Background())
+	if err != nil || count != 1 {
+		t.Fatalf("migration count=%d err=%v, want 1", count, err)
+	}
+	got, err := svc.Get(context.Background(), "openrouter")
+	if err != nil || got != "legacy-api-key" {
+		t.Fatalf("migrated key=%q err=%v", got, err)
+	}
+	var state string
+	if err := db.QueryRow(`SELECT encryption_state FROM api_keys WHERE provider = 'openrouter'`).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "v2" {
+		t.Fatalf("encryption state=%q, want v2", state)
+	}
+}
 
-	// Set development mode (or empty, which defaults to dev)
-	os.Setenv("LPBS_ENVIRONMENT", "development")
-	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+func TestAPIKeyService_PropagatesCredentialProviderFailure(t *testing.T) {
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	providerErr := fmt.Errorf("provider unavailable: %w", credentialauthority.ErrProviderUnavailable)
+
+	_, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) { return "", providerErr },
+		func() bool { return false }, nil, nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "resolve API key encryption credential") {
+		t.Fatalf("expected provider failure to propagate, got %v", err)
+	}
+}
+
+func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
+	// Keep this test independent of the host authority store.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "")
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
 
-	// Should succeed in development without encryption key (with warning)
-	svc, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	// Should succeed in development without an encryption key.
+	svc, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) {
+			return "", fmt.Errorf("%w: api-key-encryption-key", credentialauthority.ErrUnconfigured)
+		},
+		func() bool { return false }, nil, nil,
+	)
 	if err != nil {
 		t.Fatalf("Expected success in development without encryption key, got error: %v", err)
 	}
@@ -763,7 +822,7 @@ func TestHandleListAPIKeys_Empty(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleListAPIKeys(svc)
+	handler := adminhttp.ListAPIKeys(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -797,7 +856,7 @@ func TestHandleListAPIKeys_MultipleKeys(t *testing.T) {
 	_, _ = svc.Store(ctx, "openai", "sk-openai-test")
 	_, _ = svc.Store(ctx, "anthropic", "sk-ant-test")
 
-	handler := handleListAPIKeys(svc)
+	handler := adminhttp.ListAPIKeys(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -826,9 +885,9 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
-	body := `{"provider": "openrouter", "key": "sk-or-test-12345678"}`
+	body := `{"provider": "openai", "key": "test-openai-key-12345678"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -839,69 +898,57 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 
-	var resp APIKey
+	var resp administration.APIKey
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if resp.Provider != "openrouter" {
-		t.Errorf("Expected provider 'openrouter', got '%s'", resp.Provider)
+	if resp.Provider != "openai" {
+		t.Errorf("Expected provider 'openai', got '%s'", resp.Provider)
 	}
 	if resp.KeyHint != "****5678" {
 		t.Errorf("Expected key hint '****5678', got '%s'", resp.KeyHint)
 	}
 }
 
-func TestHandleCreateAPIKey_InvalidProvider(t *testing.T) {
+func TestHandleCreateAPIKey_RejectsSharedOpenRouterCredential(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
-
-	body := `{"provider": "invalid-provider", "key": "some-key"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(`{"provider":"openrouter","key":"sk-or-managed"}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for invalid provider, got %d", http.StatusBadRequest, w.Code)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d: %s", w.Code, http.StatusConflict, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "shared credential authority") {
+		t.Fatalf("response = %q, want shared-authority guidance", w.Body.String())
 	}
 }
 
-func TestHandleCreateAPIKey_EmptyKey(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	handler := handleCreateAPIKey(svc)
-
-	body := `{"provider": "openrouter", "key": ""}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for empty key, got %d", http.StatusBadRequest, w.Code)
+func TestHandleCreateAPIKey_RejectsInvalidRequests(t *testing.T) {
+	cases := []struct{ name, body, wantError string }{
+		{name: "unknown provider", body: `{"provider":"invalid-provider","key":"some-key"}`, wantError: "invalid provider"},
+		{name: "empty key", body: `{"provider":"openai","key":""}`, wantError: "provider and key are required"},
+		{name: "malformed JSON", body: "{invalid", wantError: "Invalid request body"},
 	}
-}
-
-func TestHandleCreateAPIKey_InvalidJSON(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	handler := handleCreateAPIKey(svc)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader("{invalid"))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			handler(w, req)
+			if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), tc.wantError) {
+				t.Fatalf("response = %d %q, want HTTP 400 containing %q", w.Code, w.Body.String(), tc.wantError)
+			}
+		})
 	}
 }
 
@@ -912,7 +959,7 @@ func TestHandleDeleteAPIKey_Success(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -930,96 +977,75 @@ func TestHandleDeleteAPIKey_Success(t *testing.T) {
 	}
 }
 
-func TestHandleDeleteAPIKey_MissingProvider(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	handler := handleDeleteAPIKey(svc)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for missing provider, got %d", http.StatusBadRequest, w.Code)
+func TestHandleDeleteAPIKey_RejectsInvalidRequests(t *testing.T) {
+	cases := []struct {
+		name, path, wantError string
+		wantStatus            int
+	}{
+		{name: "missing provider", path: "/api/v1/api-keys", wantStatus: http.StatusBadRequest, wantError: "Provider is required"},
+		{name: "unknown provider", path: "/api/v1/api-keys?provider=nonexistent", wantStatus: http.StatusNotFound, wantError: "api key not found: nonexistent"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, nil)
+			defer db.Close()
+			handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
+			req := httptest.NewRequest(http.MethodDelete, tc.path, nil)
+			w := httptest.NewRecorder()
+			handler(w, req)
+			if w.Code != tc.wantStatus || !strings.Contains(w.Body.String(), tc.wantError) {
+				t.Fatalf("response = %d %q, want HTTP %d containing %q", w.Code, w.Body.String(), tc.wantStatus, tc.wantError)
+			}
+		})
 	}
 }
 
-func TestHandleDeleteAPIKey_NotFound(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	handler := handleDeleteAPIKey(svc)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=nonexistent", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d for not found, got %d", http.StatusNotFound, w.Code)
+func TestHandleTestAPIKey_ReportsProviderResult(t *testing.T) {
+	cases := []struct {
+		name, key, wantMessage string
+		upstreamStatus         int
+		wantSuccess            bool
+	}{
+		{name: "valid key", key: "sk-or-test", upstreamStatus: http.StatusOK, wantSuccess: true, wantMessage: "valid"},
+		{name: "invalid key", key: "invalid-key", upstreamStatus: http.StatusUnauthorized, wantMessage: "Invalid"},
+		{name: "no key configured", wantMessage: "No API key"},
 	}
-}
-
-func TestHandleTestAPIKey_ValidKey(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{statusCode: 200}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
-
-	handler := handleTestAPIKey(svc)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp["success"] != true {
-		t.Errorf("Expected success=true, got %v", resp["success"])
-	}
-	if resp["provider"] != "openrouter" {
-		t.Errorf("Expected provider 'openrouter', got %v", resp["provider"])
-	}
-}
-
-func TestHandleTestAPIKey_InvalidKey(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{statusCode: 401}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	_, _ = svc.Store(ctx, "openrouter", "invalid-key")
-
-	handler := handleTestAPIKey(svc)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp["success"] != false {
-		t.Errorf("Expected success=false for invalid key, got %v", resp["success"])
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockHTTP := &mockHTTPDoer{statusCode: tc.upstreamStatus}
+			svc, db := createTestAPIKeyService(t, mockHTTP)
+			defer db.Close()
+			if tc.key != "" {
+				if _, err := svc.Store(context.Background(), "openrouter", tc.key); err != nil {
+					t.Fatalf("store test key: %v", err)
+				}
+			}
+			handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
+			w := httptest.NewRecorder()
+			handler(w, req)
+			if w.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+			}
+			var response struct {
+				Success  bool   `json:"success"`
+				Message  string `json:"message"`
+				Provider string `json:"provider"`
+			}
+			if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if response.Success != tc.wantSuccess || response.Provider != "openrouter" || !strings.Contains(response.Message, tc.wantMessage) {
+				t.Fatalf("response = %+v, want success=%t provider=openrouter message containing %q", response, tc.wantSuccess, tc.wantMessage)
+			}
+			wantRequests := 1
+			if tc.key == "" {
+				wantRequests = 0
+			}
+			if len(mockHTTP.requests) != wantRequests {
+				t.Fatalf("upstream requests = %d, want %d", len(mockHTTP.requests), wantRequests)
+			}
+		})
 	}
 }
 
@@ -1027,7 +1053,7 @@ func TestHandleTestAPIKey_MissingProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test", nil)
 	w := httptest.NewRecorder()
@@ -1039,35 +1065,6 @@ func TestHandleTestAPIKey_MissingProvider(t *testing.T) {
 	}
 }
 
-func TestHandleTestAPIKey_NoKeyConfigured(t *testing.T) {
-	svc, db := createTestAPIKeyService(t, nil)
-	defer db.Close()
-
-	handler := handleTestAPIKey(svc)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp["success"] != false {
-		t.Errorf("Expected success=false when no key configured, got %v", resp["success"])
-	}
-	message, ok := resp["message"].(string)
-	if !ok || !strings.Contains(message, "No API key") {
-		t.Errorf("Expected message about no key configured, got %v", resp["message"])
-	}
-}
-
 func TestHandleToggleAPIKey_Success(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
@@ -1075,7 +1072,7 @@ func TestHandleToggleAPIKey_Success(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleToggleAPIKey(svc)
+	handler := adminhttp.ToggleAPIKey(apiKeyHandlerDependencies(svc))
 
 	// Toggle off
 	body := `{"provider": "openrouter", "active": false}`
@@ -1100,7 +1097,7 @@ func TestHandleToggleAPIKey_InvalidJSON(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleToggleAPIKey(svc)
+	handler := adminhttp.ToggleAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/api-keys/toggle", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -1117,63 +1114,34 @@ func TestHandleToggleAPIKey_InvalidJSON(t *testing.T) {
 // Provider Test Function Tests
 // ============================================================================
 
-func TestTestOpenAI_Success(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{statusCode: 200}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "sk-openai-test")
-
-	if !success {
-		t.Errorf("Expected success=true, got false with message: %s", message)
+func TestTestOpenAI_ProviderResponses(t *testing.T) {
+	cases := []struct {
+		name, key, wantMessage string
+		statusCode             int
+		requestError           error
+		wantSuccess            bool
+	}{
+		{name: "success", key: "sk-openai-test", statusCode: http.StatusOK, wantSuccess: true, wantMessage: "valid"},
+		{name: "invalid key", key: "invalid-key", statusCode: http.StatusUnauthorized, wantMessage: "Invalid"},
+		{name: "connection error", key: "sk-test", requestError: fmt.Errorf("connection refused"), wantMessage: "Connection error"},
 	}
-	if !strings.Contains(message, "valid") {
-		t.Errorf("Expected message to contain 'valid', got: %s", message)
-	}
-
-	// Verify request was made correctly
-	if len(mockHTTP.requests) != 1 {
-		t.Fatalf("Expected 1 request, got %d", len(mockHTTP.requests))
-	}
-	req := mockHTTP.requests[0]
-	if req.URL.String() != "https://api.openai.com/v1/models" {
-		t.Errorf("Expected URL 'https://api.openai.com/v1/models', got '%s'", req.URL.String())
-	}
-	if req.Header.Get("Authorization") != "Bearer sk-openai-test" {
-		t.Errorf("Expected Authorization header 'Bearer sk-openai-test', got '%s'", req.Header.Get("Authorization"))
-	}
-}
-
-func TestTestOpenAI_InvalidKey(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{statusCode: 401}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "invalid-key")
-
-	if success {
-		t.Error("Expected success=false for 401 response")
-	}
-	if !strings.Contains(message, "Invalid") {
-		t.Errorf("Expected message to contain 'Invalid', got: %s", message)
-	}
-}
-
-func TestTestOpenAI_ConnectionError(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{err: fmt.Errorf("connection refused")}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "sk-test")
-
-	if success {
-		t.Error("Expected success=false for connection error")
-	}
-	if !strings.Contains(message, "Connection error") {
-		t.Errorf("Expected message to contain 'Connection error', got: %s", message)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockHTTP := &mockHTTPDoer{statusCode: tc.statusCode, err: tc.requestError}
+			svc, db := createTestAPIKeyService(t, mockHTTP)
+			defer db.Close()
+			success, message := svc.TestOpenAIProvider(context.Background(), tc.key)
+			if success != tc.wantSuccess || !strings.Contains(message, tc.wantMessage) {
+				t.Fatalf("TestOpenAIProvider() = %t, %q; want success=%t and message containing %q", success, message, tc.wantSuccess, tc.wantMessage)
+			}
+			if len(mockHTTP.requests) != 1 {
+				t.Fatalf("requests = %d, want 1", len(mockHTTP.requests))
+			}
+			req := mockHTTP.requests[0]
+			if req.URL.String() != "https://api.openai.com/v1/models" || req.Header.Get("Authorization") != "Bearer "+tc.key {
+				t.Fatalf("request URL/auth = %q/%q, want OpenAI models and caller key", req.URL, req.Header.Get("Authorization"))
+			}
+		})
 	}
 }
 
@@ -1183,7 +1151,7 @@ func TestTestAnthropic_Success(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	if !success {
 		t.Errorf("Expected success=true, got false with message: %s", message)
@@ -1205,34 +1173,23 @@ func TestTestAnthropic_Success(t *testing.T) {
 	}
 }
 
-func TestTestAnthropic_RateLimited(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{statusCode: 429}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
-
-	// 429 should still indicate the key is valid (just rate limited)
-	if !success {
-		t.Errorf("Expected success=true for 429 (rate limited), got false with message: %s", message)
+func TestTestAnthropic_AcceptsKeyDespiteValidationStatuses(t *testing.T) {
+	cases := []struct {
+		name       string
+		statusCode int
+	}{
+		{name: "rate limited", statusCode: http.StatusTooManyRequests},
+		{name: "validation error", statusCode: http.StatusBadRequest},
 	}
-}
-
-func TestTestAnthropic_BadRequest(t *testing.T) {
-	mockHTTP := &mockHTTPDoer{statusCode: 400}
-	svc, db := createTestAPIKeyService(t, mockHTTP)
-	defer db.Close()
-
-	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
-
-	// 400 should still indicate the key is valid (just validation error)
-	if !success {
-		t.Errorf("Expected success=true for 400 (validation error), got false with message: %s", message)
-	}
-	if !strings.Contains(message, "valid") {
-		t.Errorf("Expected message to contain 'valid', got: %s", message)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, db := createTestAPIKeyService(t, &mockHTTPDoer{statusCode: tc.statusCode})
+			defer db.Close()
+			success, message := svc.TestAnthropicProvider(context.Background(), "sk-ant-test")
+			if !success || message != "API key is valid (rate limited or validation error)" {
+				t.Fatalf("TestAnthropicProvider() = %t, %q; want valid-key result for status %d", success, message, tc.statusCode)
+			}
+		})
 	}
 }
 

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "features": [
+    {
+      "scenario": "audio-tools",
+      "feature": {
+        "id": "audio-tools.summarize",
+        "role": "chat",
+        "profile": "balanced",
+        "max_input_bytes": 65536,
+        "max_output_bytes": 32768,
+        "max_user_turns": 1,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "pinned_instruction_digest": "00abc0e51f9a30cceec6de63577e62a1bdeb9856b46e863fc79cd9420b0e9bf7"
+      }
+    }
+  ]
+}

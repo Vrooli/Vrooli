@@ -1,0 +1,17 @@
+{
+  "id": "vrooli-conversion-landing",
+  "name": "Vrooli Conversion Landing",
+  "privateTokens": ["--color-accent-tertiary", "--section-spacing", "--container-max-width", "--radius-card", "--radius-panel", "--shadow-card", "--shadow-panel"],
+  "privateTokenPrefixes": ["landing-"],
+  "version": "0.2.0",
+  "inherits": "_base",
+  "default": false,
+  "description": "Vrooli design language for high-converting landing pages that sell, validate, or capture demand for scenarios, bundles, apps, downloads, demos, and waitlists.",
+  "tags": ["vrooli", "landing-page", "conversion", "saas", "b2b", "growth", "ab-testing", "responsive"],
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind",
+      "supports": ["templates/scenarios/landing-page-react-vite"]
+    }
+  }
+}

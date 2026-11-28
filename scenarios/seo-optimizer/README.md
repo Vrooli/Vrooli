@@ -21,7 +21,7 @@ This scenario provides businesses and content creators with professional-grade S
 ## Dependencies
 This scenario relies on:
 - **Ollama**: For AI-powered SEO analysis and content generation
-- **Browserless**: For web scraping and screenshot capture
+- **browser-automation-studio**: For web scraping and screenshot capture
 - **PostgreSQL**: For storing audit history and keyword data
 - **Redis**: For caching analysis results
 - **Qdrant**: For semantic content analysis (optional)

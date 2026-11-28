@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./dialog";
-import { Button } from "./button";
 import { AlertCircle } from "lucide-react";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -51,21 +51,10 @@ export function ConfirmDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            type="button"
-            variant={destructive ? "destructive" : "default"}
-            onClick={handleConfirm}
-            autoFocus
-          >
-            {confirmLabel}
-          </Button>
+          <OverlayActionBar style={destructive ? { "--color-primary": "#dc2626", "--color-primary-foreground": "#ffffff" } as CSSProperties : undefined} actions={[
+            { id: "cancel", label: cancelLabel, onSelect: () => onOpenChange(false) },
+            { id: "confirm", label: confirmLabel, onSelect: handleConfirm, primary: true },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

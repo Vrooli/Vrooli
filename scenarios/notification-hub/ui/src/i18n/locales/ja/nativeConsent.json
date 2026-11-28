@@ -1,0 +1,12 @@
+{
+  "title": "権限リクエスト",
+  "authority": "この権限は Agent Manager が管理します。元の承認ページでのみ確認・承認してください。リンクを開くだけでは権限は付与されません。",
+  "unavailable": "権限リクエストを確認できませんでした。一覧が完全でない可能性があります。",
+  "pending": "Agent Manager での確認待ちです。",
+  "unverified": "現在の状態は未確認です。操作する前に元の Agent Manager ページを確認してください。",
+  "checked": "{{time}} に確認 · {{expiry}} に締め切り",
+  "open": "Agent Manager で確認",
+  "more": "以前の権限リクエストを確認",
+  "authorityShort": "承認は Agent Manager で行います。ここでは承認できません。",
+  "authorityWhy": "ここで承認できない理由"
+}

@@ -6,8 +6,8 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // sha256Sum computes the SHA256 hash of data.
@@ -53,14 +53,62 @@ func (s *Supervisor) ValidateBundle() *api.BundleValidationResult {
 		})
 		return result
 	}
+	for _, catalogError := range validateCatalogRequirements(s.opts.BundlePath, s.fs, s.opts.Manifest.CatalogRequirements) {
+		result.Valid = false
+		result.Errors = append(result.Errors, catalogError)
+	}
 
 	// Check all service binaries exist.
 	for _, svc := range s.opts.Manifest.Services {
 		s.validateServiceBinaries(svc, targetOS, targetArch, result)
 		s.validateServiceAssets(svc, result)
+		s.validateServiceAssetDirs(svc, result)
 	}
 
 	return result
+}
+
+func (s *Supervisor) validateServiceAssetDirs(svc manifest.Service, result *api.BundleValidationResult) {
+	for _, assetDir := range svc.AssetDirs {
+		path := manifest.ResolvePath(s.opts.BundlePath, assetDir)
+		info, err := s.fs.Stat(path)
+		if err != nil {
+			result.Valid = false
+			result.MissingAssets = append(result.MissingAssets, api.MissingAsset{ServiceID: svc.ID, Path: assetDir})
+			result.Errors = append(result.Errors, api.BundleError{
+				Code:    "asset_directory_missing",
+				Service: svc.ID,
+				Path:    assetDir,
+				Message: fmt.Sprintf("asset directory not found for service %s: %s", svc.ID, assetDir),
+			})
+			continue
+		}
+		if !info.IsDir() {
+			result.Valid = false
+			result.Errors = append(result.Errors, api.BundleError{
+				Code:    "asset_directory_not_directory",
+				Service: svc.ID,
+				Path:    assetDir,
+				Message: fmt.Sprintf("asset directory path is not a directory for service %s: %s", svc.ID, assetDir),
+			})
+		}
+	}
+}
+
+func validateCatalogRequirements(bundlePath string, fs FileSystem, requirements []string) []api.BundleError {
+	var errors []api.BundleError
+	for _, required := range requirements {
+		required = strings.TrimSpace(required)
+		if required == "" {
+			continue
+		}
+		path := manifest.ResolvePath(bundlePath, required)
+		info, err := fs.Stat(path)
+		if err != nil || !info.IsDir() {
+			errors = append(errors, api.BundleError{Code: "catalog_missing", Path: required, Message: fmt.Sprintf("declared catalog path missing from bundle: %s", required)})
+		}
+	}
+	return errors
 }
 
 // validateServiceBinaries checks that the binary for a service exists.

@@ -1,185 +1,155 @@
 package main
 
-import "encoding/json"
+import (
+	"time"
 
-// ============================================================================
-// Conversion functions: wire → API
-// ============================================================================
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
 
-func wireRunSummaryToAPI(w *wireRunSummary) *AgentRunSummary {
-	if w == nil {
+func agentRunSummaryToAPI(summary *ampb.RunSummary) *AgentRunSummary {
+	if summary == nil {
 		return nil
 	}
 	return &AgentRunSummary{
-		FilesModified: w.FilesModified,
-		FilesCreated:  w.FilesCreated,
-		FilesDeleted:  w.FilesDeleted,
-		TokensUsed:    w.TokensUsed,
-		TurnsUsed:     w.TurnsUsed,
-		CostEstimate:  w.CostEstimate,
+		FilesModified: summary.GetFilesModified(), FilesCreated: summary.GetFilesCreated(),
+		FilesDeleted: summary.GetFilesDeleted(), TokensUsed: summary.GetTokensUsed(),
+		TurnsUsed: int(summary.GetTurnsUsed()), CostEstimate: summary.GetCostEstimate(),
 	}
 }
 
-func wireRunActionsToAPI(w *wireRunActions) *AgentRunActions {
-	if w == nil {
+func agentRunActionsToAPI(actions *ampb.RunActions) *AgentRunActions {
+	if actions == nil {
 		return nil
 	}
 	return &AgentRunActions{
-		CanInvestigate:               w.CanInvestigate,
-		CanApplyInvestigation:        w.CanApplyInvestigation,
-		CanDelete:                    w.CanDelete,
-		CanStop:                      w.CanStop,
-		CanRetry:                     w.CanRetry,
-		CanContinue:                  w.CanContinue,
-		CanApprove:                   w.CanApprove,
-		CanReject:                    w.CanReject,
-		CanReview:                    w.CanReview,
-		CanExtractRecommendations:    w.CanExtractRecommendations,
-		CanRegenerateRecommendations: w.CanRegenerateRecommendations,
+		CanInvestigate: actions.GetCanInvestigate(), CanApplyInvestigation: actions.GetCanApplyInvestigation(),
+		CanDelete: actions.GetCanDelete(), CanStop: actions.GetCanStop(), CanRetry: actions.GetCanRetry(),
+		CanContinue: actions.GetCanContinue(), CanApprove: actions.GetCanApprove(), CanReject: actions.GetCanReject(),
+		CanReview: actions.GetCanReview(),
 	}
 }
 
-func wireRunToAPI(w *wireRun) AgentRun {
+func agentRunToAPI(run *ampb.Run) AgentRun {
+	if run == nil {
+		return AgentRun{}
+	}
 	return AgentRun{
-		ID:              w.ID,
-		TaskID:          w.TaskID,
-		SessionID:       w.SessionID,
-		Status:          normalizeEnum(w.Status, "RUN_STATUS_"),
-		Phase:           normalizeEnum(w.Phase, "RUN_PHASE_"),
-		ProgressPercent: w.ProgressPercent,
-		ErrorMsg:        w.ErrorMsg,
-		ApprovalState:   normalizeEnum(w.ApprovalState, "APPROVAL_STATE_"),
-		PromptPreview:   w.PromptPreview,
-		SandboxID:       w.SandboxID,
-		Summary:         wireRunSummaryToAPI(w.Summary),
-		Actions:         wireRunActionsToAPI(w.Actions),
-		CreatedAt:       w.CreatedAt,
-		StartedAt:       w.StartedAt,
-		EndedAt:         w.EndedAt,
+		ID: run.GetId(), TaskID: run.GetTaskId(), SessionID: run.GetSessionId(),
+		Status:          normalizeEnum(run.GetStatus().String(), "RUN_STATUS_"),
+		Phase:           normalizeEnum(run.GetPhase().String(), "RUN_PHASE_"),
+		ProgressPercent: int(run.GetProgressPercent()), ErrorMsg: run.GetErrorMsg(),
+		ApprovalState: normalizeEnum(run.GetApprovalState().String(), "APPROVAL_STATE_"),
+		PromptPreview: run.GetPromptPreview(), SandboxID: run.GetSandboxId(), CommitHash: run.GetCommitHash(),
+		Summary: agentRunSummaryToAPI(run.GetSummary()), Actions: agentRunActionsToAPI(run.GetActions()),
+		CreatedAt: timestampString(run.GetCreatedAt()), StartedAt: timestampString(run.GetStartedAt()),
+		EndedAt: timestampString(run.GetEndedAt()),
 	}
 }
 
-func wireRunEventToAPI(w *wireRunEvent) AgentRunEvent {
-	evt := AgentRunEvent{
-		ID:        w.ID,
-		RunID:     w.RunID,
-		Sequence:  w.Sequence,
-		EventType: normalizeEventType(w.EventType),
-		Timestamp: w.Timestamp,
+func timestampString(value *timestamppb.Timestamp) string {
+	if value == nil {
+		return ""
 	}
-
-	if data := flattenEventData(w); len(data) > 0 {
-		evt.Data = data
-	}
-	return evt
+	return value.AsTime().Format(time.RFC3339Nano)
 }
 
-// flattenEventData converts oneof wire event fields into a flat map for the UI.
-func flattenEventData(w *wireRunEvent) map[string]interface{} {
+func agentRunEventToAPI(event *ampb.RunEvent) AgentRunEvent {
+	if event == nil {
+		return AgentRunEvent{}
+	}
+	result := AgentRunEvent{
+		ID: event.GetId(), RunID: event.GetRunId(), Sequence: event.GetSequence(),
+		EventType: normalizeEventType(event.GetEventType().String()), Timestamp: timestampString(event.GetTimestamp()),
+	}
+	if data := agentRunEventDataToAPI(event); len(data) != 0 {
+		result.Data = data
+	}
+	return result
+}
+
+func agentRunEventDataToAPI(event *ampb.RunEvent) map[string]interface{} {
 	data := map[string]interface{}{}
-	flattenMessageData(data, w.Message)
-	flattenToolCallData(data, w.ToolCall)
-	flattenToolResultData(data, w.ToolResult)
-	flattenErrorData(data, w.Error)
-	flattenStatusData(data, w.Status)
-	flattenLogData(data, w.Log)
-	flattenProgressData(data, w.Progress)
+	switch value := event.GetData().(type) {
+	case *ampb.RunEvent_Message:
+		return runEventMessageDataToAPI(value)
+	case *ampb.RunEvent_ToolCall:
+		return runEventToolCallDataToAPI(value)
+	case *ampb.RunEvent_ToolResult:
+		return runEventToolResultDataToAPI(value)
+	case *ampb.RunEvent_Error:
+		return runEventErrorDataToAPI(value)
+	case *ampb.RunEvent_Status:
+		return runEventStatusDataToAPI(value)
+	case *ampb.RunEvent_Log:
+		return runEventLogDataToAPI(value)
+	case *ampb.RunEvent_Progress:
+		return runEventProgressDataToAPI(value)
+	}
 	return data
 }
 
-func flattenMessageData(data map[string]interface{}, m *wireMessageData) {
-	if m == nil {
-		return
-	}
-	data["content"] = m.Content
-	if m.Role != "" {
-		data["role"] = m.Role
-	}
+func runEventMessageDataToAPI(value *ampb.RunEvent_Message) map[string]interface{} {
+	return map[string]interface{}{"content": value.Message.GetContent(), "role": value.Message.GetRole()}
 }
 
-func flattenToolCallData(data map[string]interface{}, tc *wireToolCallData) {
-	if tc == nil {
-		return
+func runEventToolCallDataToAPI(value *ampb.RunEvent_ToolCall) map[string]interface{} {
+	data := map[string]interface{}{"name": value.ToolCall.GetToolName()}
+	if input := value.ToolCall.GetInput(); input != nil {
+		data["input"] = input.AsMap()
 	}
-	data["name"] = tc.ToolName
-	if len(tc.Input) > 0 {
-		var parsed interface{}
-		if json.Unmarshal(tc.Input, &parsed) == nil {
-			data["input"] = parsed
-		}
-	}
+	return data
 }
 
-func flattenToolResultData(data map[string]interface{}, tr *wireToolResultData) {
-	if tr == nil {
-		return
+func runEventToolResultDataToAPI(value *ampb.RunEvent_ToolResult) map[string]interface{} {
+	data := map[string]interface{}{"result": value.ToolResult.GetOutput()}
+	if name := value.ToolResult.GetToolName(); name != "" {
+		data["name"] = name
 	}
-	data["result"] = tr.Output
-	if tr.ToolName != "" {
-		data["name"] = tr.ToolName
-	}
+	return data
 }
 
-func flattenErrorData(data map[string]interface{}, e *wireErrorData) {
-	if e == nil {
-		return
+func runEventErrorDataToAPI(value *ampb.RunEvent_Error) map[string]interface{} {
+	data := map[string]interface{}{"message": value.Error.GetMessage()}
+	if code := value.Error.GetCode(); code != "" {
+		data["code"] = code
 	}
-	data["message"] = e.Message
-	if e.Code != "" {
-		data["code"] = e.Code
-	}
+	return data
 }
 
-func flattenStatusData(data map[string]interface{}, s *wireStatusData) {
-	if s == nil {
-		return
+func runEventStatusDataToAPI(value *ampb.RunEvent_Status) map[string]interface{} {
+	data := map[string]interface{}{}
+	if status := value.Status.GetNewStatus(); status != "" {
+		data["newStatus"] = normalizeEnum(status, "RUN_STATUS_")
 	}
-	if s.NewStatus != "" {
-		data["newStatus"] = normalizeEnum(s.NewStatus, "RUN_STATUS_")
+	if status := value.Status.GetOldStatus(); status != "" {
+		data["oldStatus"] = normalizeEnum(status, "RUN_STATUS_")
 	}
-	if s.OldStatus != "" {
-		data["oldStatus"] = normalizeEnum(s.OldStatus, "RUN_STATUS_")
-	}
+	return data
 }
 
-func flattenLogData(data map[string]interface{}, l *wireLogData) {
-	if l == nil {
-		return
-	}
-	data["message"] = l.Message
-	if l.Level != "" {
-		data["level"] = l.Level
-	}
+func runEventLogDataToAPI(value *ampb.RunEvent_Log) map[string]interface{} {
+	return map[string]interface{}{"message": value.Log.GetMessage(), "level": value.Log.GetLevel()}
 }
 
-func flattenProgressData(data map[string]interface{}, p *wireProgressData) {
-	if p == nil {
-		return
+func runEventProgressDataToAPI(value *ampb.RunEvent_Progress) map[string]interface{} {
+	data := map[string]interface{}{"percent": int(value.Progress.GetPercentComplete())}
+	if message := value.Progress.GetCurrentAction(); message != "" {
+		data["message"] = message
 	}
-	data["percent"] = p.Percent
-	if p.Message != "" {
-		data["message"] = p.Message
-	}
+	return data
 }
 
-func wireFileDiffToAPI(w *wireFileDiff) AgentRunDiffFile {
-	return AgentRunDiffFile{
-		Path:       w.Path,
-		ChangeType: w.ChangeType,
-		Additions:  w.Additions,
-		Deletions:  w.Deletions,
-		IsBinary:   w.IsBinary,
-		Patch:      w.Patch,
+func agentFileDiffToAPI(file *ampb.FileDiff) AgentRunDiffFile {
+	if file == nil {
+		return AgentRunDiffFile{}
 	}
+	return AgentRunDiffFile{Path: file.GetPath(), ChangeType: file.GetChangeType(), Additions: int(file.GetAdditions()), Deletions: int(file.GetDeletions()), IsBinary: file.GetIsBinary(), Patch: file.GetPatch()}
 }
 
-func wireProfileToAPI(w *wireAgentProfile) AgentProfile {
-	return AgentProfile{
-		ID:          w.ID,
-		Key:         w.ProfileKey,
-		Name:        w.Name,
-		Description: w.Description,
-		Model:       w.Model,
-		RunnerType:  runnerTypeToString(w.RunnerType),
+func agentProfileToAPI(profile *ampb.AgentProfile) AgentProfile {
+	if profile == nil {
+		return AgentProfile{}
 	}
+	return AgentProfile{ID: profile.GetId(), Key: profile.GetProfileKey(), Name: profile.GetName(), Description: profile.GetDescription(), RoleRef: profile.GetRoleRef()}
 }

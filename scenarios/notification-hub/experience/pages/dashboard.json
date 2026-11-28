@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "routes": [
+      "/updates"
+    ],
+    "purpose": "Give the operator the first useful view of Notification Hub and make the primary next action clear.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    {
+      "id": "default"
+    },
+    {
+      "id": "loading",
+      "description": "The first read is in flight; placeholder rows hold the place and are announced as loading."
+    },
+    {
+      "id": "empty",
+      "description": "No updates yet."
+    },
+    {
+      "id": "partial",
+      "description": "Updates are shown while the linked decisions could not be read; the links to decisions are left out."
+    },
+    {
+      "id": "request-error",
+      "description": "The read failed: the cause is named with a retry, or the sign-in card when the owner session is missing."
+    },
+    {
+      "id": "stale",
+      "description": "Rows from an earlier read stay on screen while a refresh runs, and the footer says how long ago they were updated."
+    }
+  ]
+}

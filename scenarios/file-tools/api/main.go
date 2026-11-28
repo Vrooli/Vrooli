@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -25,7 +26,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+
+	filesSchema "file-tools/internal/files"
+
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -97,9 +102,11 @@ type MetadataResponse struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("API_PORT", "8080"),
-		DatabaseURL: getEnv("DATABASE_URL", getEnv("POSTGRES_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable")),
-		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
+		Port: getEnv("API_PORT", "8080"),
+		// database.Connect owns Postgres environment resolution; keep this
+		// field only for compatibility with existing test fixtures.
+		DatabaseURL: "",
+		N8NURL:      "",
 		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
 	}
 
@@ -110,6 +117,11 @@ func NewServer() (*Server, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(filesSchema.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
 	}
 
 	server := &Server{
@@ -184,301 +196,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health check and docs
-		if r.URL.Path == "/health" || r.URL.Path == "/docs" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Check authorization header
-		token := r.Header.Get("Authorization")
-		if token == "" || token != "Bearer "+s.config.APIToken {
-			s.sendError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// Handler functions
-func (s *Server) handleListResources(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement based on your scenario needs
-	// Example: List resources from database
-
-	query := `SELECT id, name, description, created_at FROM resources ORDER BY created_at DESC LIMIT 100`
-	rows, err := s.db.Query(query)
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query resources")
-		return
-	}
-	defer rows.Close()
-
-	var resources []map[string]interface{}
-	for rows.Next() {
-		var id, name, description string
-		var createdAt time.Time
-
-		if err := rows.Scan(&id, &name, &description, &createdAt); err != nil {
-			continue
-		}
-
-		resources = append(resources, map[string]interface{}{
-			"id":          id,
-			"name":        name,
-			"description": description,
-			"created_at":  createdAt,
-		})
-	}
-
-	s.sendJSON(w, http.StatusOK, resources)
-}
-
-func (s *Server) handleCreateResource(w http.ResponseWriter, r *http.Request) {
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		s.sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	// Generate ID
-	id := uuid.New().String()
-
-	// TODO: Validate input and insert into database
-	// This is a template - customize for your needs
-
-	query := `INSERT INTO resources (id, name, description, config, created_at) 
-	          VALUES ($1, $2, $3, $4, $5)`
-
-	_, err := s.db.Exec(query,
-		id,
-		input["name"],
-		input["description"],
-		input["config"],
-		time.Now(),
-	)
-
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to create resource")
-		return
-	}
-
-	s.sendJSON(w, http.StatusCreated, map[string]interface{}{
-		"id":         id,
-		"created_at": time.Now(),
-	})
-}
-
-func (s *Server) handleGetResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// TODO: Query resource from database
-	query := `SELECT id, name, description, config, created_at FROM resources WHERE id = $1`
-
-	var resource map[string]interface{}
-	row := s.db.QueryRow(query, id)
-
-	var name, description string
-	var config json.RawMessage
-	var createdAt time.Time
-
-	err := row.Scan(&id, &name, &description, &config, &createdAt)
-	if err == sql.ErrNoRows {
-		s.sendError(w, http.StatusNotFound, "resource not found")
-		return
-	}
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query resource")
-		return
-	}
-
-	resource = map[string]interface{}{
-		"id":          id,
-		"name":        name,
-		"description": description,
-		"config":      config,
-		"created_at":  createdAt,
-	}
-
-	s.sendJSON(w, http.StatusOK, resource)
-}
-
-func (s *Server) handleUpdateResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		s.sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	// TODO: Update resource in database
-	query := `UPDATE resources SET name = $2, description = $3, config = $4, updated_at = $5 
-	          WHERE id = $1`
-
-	result, err := s.db.Exec(query,
-		id,
-		input["name"],
-		input["description"],
-		input["config"],
-		time.Now(),
-	)
-
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to update resource")
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		s.sendError(w, http.StatusNotFound, "resource not found")
-		return
-	}
-
-	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"id":         id,
-		"updated_at": time.Now(),
-	})
-}
-
-func (s *Server) handleDeleteResource(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	query := `DELETE FROM resources WHERE id = $1`
-	result, err := s.db.Exec(query, id)
-
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to delete resource")
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		s.sendError(w, http.StatusNotFound, "resource not found")
-		return
-	}
-
-	s.sendJSON(w, http.StatusOK, map[string]interface{}{
-		"deleted": true,
-		"id":      id,
-	})
-}
-
-func (s *Server) handleExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		s.sendError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	// TODO: Trigger workflow execution via n8n or another orchestration platform
-	// This is a template - customize based on your workflow platform
-
-	executionID := uuid.New().String()
-
-	// Example: Call n8n webhook
-	// webhookURL := fmt.Sprintf("%s/webhook/%s", s.config.N8NURL, input["workflow_id"])
-	// resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-
-	s.sendJSON(w, http.StatusAccepted, map[string]interface{}{
-		"execution_id": executionID,
-		"status":       "pending",
-		"started_at":   time.Now(),
-	})
-}
-
-func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {
-	// TODO: List workflow executions from database
-	query := `SELECT id, workflow_id, status, started_at, completed_at 
-	          FROM executions 
-	          ORDER BY started_at DESC 
-	          LIMIT 100`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query executions")
-		return
-	}
-	defer rows.Close()
-
-	var executions []map[string]interface{}
-	for rows.Next() {
-		var id, workflowID, status string
-		var startedAt time.Time
-		var completedAt sql.NullTime
-
-		if err := rows.Scan(&id, &workflowID, &status, &startedAt, &completedAt); err != nil {
-			continue
-		}
-
-		execution := map[string]interface{}{
-			"id":          id,
-			"workflow_id": workflowID,
-			"status":      status,
-			"started_at":  startedAt,
-		}
-
-		if completedAt.Valid {
-			execution["completed_at"] = completedAt.Time
-		}
-
-		executions = append(executions, execution)
-	}
-
-	s.sendJSON(w, http.StatusOK, executions)
-}
-
-func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// TODO: Get execution details from database
-	query := `SELECT id, workflow_id, status, input_data, output_data, error_message, 
-	                 started_at, completed_at 
-	          FROM executions 
-	          WHERE id = $1`
-
-	row := s.db.QueryRow(query, id)
-
-	var workflowID, status string
-	var inputData, outputData json.RawMessage
-	var errorMessage sql.NullString
-	var startedAt time.Time
-	var completedAt sql.NullTime
-
-	err := row.Scan(&id, &workflowID, &status, &inputData, &outputData,
-		&errorMessage, &startedAt, &completedAt)
-
-	if err == sql.ErrNoRows {
-		s.sendError(w, http.StatusNotFound, "execution not found")
-		return
-	}
-	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, "failed to query execution")
-		return
-	}
-
-	execution := map[string]interface{}{
-		"id":          id,
-		"workflow_id": workflowID,
-		"status":      status,
-		"input_data":  inputData,
-		"output_data": outputData,
-		"started_at":  startedAt,
-	}
-
-	if errorMessage.Valid {
-		execution["error_message"] = errorMessage.String
-	}
-	if completedAt.Valid {
-		execution["completed_at"] = completedAt.Time
-	}
-
-	s.sendJSON(w, http.StatusOK, execution)
+	return apihttp.BearerTokenMiddleware(s.config.APIToken, func(w http.ResponseWriter, _ *http.Request) {
+		s.sendError(w, http.StatusUnauthorized, "unauthorized")
+	}, "/health", "/docs")(next)
 }
 
 // File operations handlers
@@ -613,95 +333,18 @@ func (s *Server) handleExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine archive type by extension
-	ext := strings.ToLower(filepath.Ext(req.ArchivePath))
-
-	var extractedFiles []string
-	var totalSize int64
-
-	switch ext {
-	case ".zip":
-		reader, err := zip.OpenReader(req.ArchivePath)
-		if err != nil {
-			s.sendError(w, http.StatusInternalServerError, "failed to open archive")
-			return
+	extractedFiles, totalSize, err := extractArchive(req.ArchivePath, req.DestinationPath)
+	if err != nil {
+		switch {
+		case errors.Is(err, errArchiveTooLarge):
+			s.sendError(w, http.StatusRequestEntityTooLarge, "archive exceeds extraction limits")
+		case errors.Is(err, errUnsafeArchivePath):
+			s.sendError(w, http.StatusBadRequest, "archive contains an unsafe or unsupported entry")
+		case errors.Is(err, errUnsupportedArchive):
+			s.sendError(w, http.StatusBadRequest, "unsupported archive format")
+		default:
+			s.sendError(w, http.StatusInternalServerError, "archive extraction failed")
 		}
-		defer reader.Close()
-
-		for _, file := range reader.File {
-			path := filepath.Join(req.DestinationPath, file.Name)
-
-			if file.FileInfo().IsDir() {
-				os.MkdirAll(path, file.Mode())
-				continue
-			}
-
-			fileReader, err := file.Open()
-			if err != nil {
-				continue
-			}
-			defer fileReader.Close()
-
-			targetFile, err := os.Create(path)
-			if err != nil {
-				continue
-			}
-			defer targetFile.Close()
-
-			written, _ := io.Copy(targetFile, fileReader)
-			totalSize += written
-			extractedFiles = append(extractedFiles, path)
-		}
-
-	case ".tar", ".gz", ".tgz":
-		file, err := os.Open(req.ArchivePath)
-		if err != nil {
-			s.sendError(w, http.StatusInternalServerError, "failed to open archive")
-			return
-		}
-		defer file.Close()
-
-		var tarReader *tar.Reader
-		if ext == ".gz" || ext == ".tgz" {
-			gzReader, err := gzip.NewReader(file)
-			if err != nil {
-				s.sendError(w, http.StatusInternalServerError, "failed to open gzip")
-				return
-			}
-			defer gzReader.Close()
-			tarReader = tar.NewReader(gzReader)
-		} else {
-			tarReader = tar.NewReader(file)
-		}
-
-		for {
-			header, err := tarReader.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				continue
-			}
-
-			path := filepath.Join(req.DestinationPath, header.Name)
-
-			switch header.Typeflag {
-			case tar.TypeDir:
-				os.MkdirAll(path, os.FileMode(header.Mode))
-			case tar.TypeReg:
-				targetFile, err := os.Create(path)
-				if err != nil {
-					continue
-				}
-				written, _ := io.Copy(targetFile, tarReader)
-				targetFile.Close()
-				totalSize += written
-				extractedFiles = append(extractedFiles, path)
-			}
-		}
-
-	default:
-		s.sendError(w, http.StatusBadRequest, "unsupported archive format")
 		return
 	}
 
@@ -1747,18 +1390,14 @@ func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 func (s *Server) sendJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+	apihttp.WriteJSONResponse(w, status, Response{
 		Success: status < 400,
 		Data:    data,
 	})
 }
 
 func (s *Server) sendError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+	apihttp.WriteJSONResponse(w, status, Response{
 		Success: false,
 		Error:   message,
 	})

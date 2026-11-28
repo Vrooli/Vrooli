@@ -1,0 +1,122 @@
+@import "./design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * `design-tokens.css` is generated: the shared `_base` vocabulary plus the
+ * selected design kit's overlay, written by `template-manager lifecycle
+ * generate`. It owns colours, type, spacing, dark mode, safe-area utilities
+ * and reduced motion. Only rules that belong to this scenario's document
+ * live here.
+ */
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Keep the template's primary health action comfortably tappable on phones. */
+[data-testid="health-refresh-button"] {
+  min-height: 44px;
+}
+
+[data-testid="notes-create-button"] {
+  min-height: 44px;
+}
+
+.range-workbench { display: flex; flex-direction: column; gap: 1rem; max-width: 1680px; margin-inline: auto; }
+.range-header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: .35rem 0 1.15rem; border-bottom: 1px solid var(--color-border); }
+.range-header h1 { margin: .1rem 0 .3rem; font-size: clamp(1.45rem, 2vw, 1.9rem); letter-spacing: -.025em; }
+.range-header > div:first-child > p:last-child { margin: 0; color: var(--color-muted-foreground); font-size: .9rem; }
+.range-eyebrow { margin: 0 0 .35rem; color: var(--color-muted-foreground); font-size: .68rem; font-weight: 750; letter-spacing: .09em; }
+.range-status-dot { display: inline-block; width: .45rem; height: .45rem; margin-inline: .35rem .15rem; border-radius: 50%; background: var(--color-success); }
+.range-header-stats { display: flex; gap: 1.2rem; color: var(--color-muted-foreground); font-size: .78rem; white-space: nowrap; }
+.range-header-stats strong { color: var(--color-foreground); font-family: var(--font-mono); font-size: 1rem; margin-right: .2rem; }
+.range-desktop-grid { display: grid; grid-template-columns: minmax(240px, .8fr) minmax(390px, 1.45fr) minmax(280px, .9fr); align-items: start; gap: .85rem; }
+.range-panel { min-width: 0; border: 1px solid var(--color-border); border-radius: .55rem; background: var(--color-surface); overflow: hidden; }
+.range-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .95rem 1rem; border-bottom: 1px solid var(--color-border); }
+.range-panel-heading h2 { display: flex; align-items: center; gap: .5rem; margin: 0; font-size: 1rem; }
+.range-count { display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.35rem; padding: 0 .35rem; border-radius: 999px; background: var(--color-surface-muted); color: var(--color-muted-foreground); font: 650 .7rem var(--font-mono); }
+.range-filter { display: flex; flex-direction: column; gap: .2rem; color: var(--color-muted-foreground); font-size: .68rem; }
+.range-filter select, .range-tool-field input { min-height: 46px; border: 1px solid var(--color-border); border-radius: .35rem; background: var(--color-background); color: var(--color-foreground); padding: 0 .65rem; font: inherit; }
+.range-filter select { max-width: 150px; }
+.range-level-list, .range-score-list { max-height: min(72vh, 820px); overflow-y: auto; overscroll-behavior: contain; }
+.range-level-row { width: 100%; min-height: 59px; display: flex; align-items: center; gap: .7rem; border: 0; border-bottom: 1px solid var(--color-border); background: transparent; color: var(--color-foreground); text-align: left; padding: .65rem .8rem; cursor: pointer; }
+.range-level-row:hover, .range-level-row.is-selected { background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)); }
+.range-level-row.is-selected { box-shadow: inset 3px 0 var(--color-primary); }
+.range-level-index { color: var(--color-muted-foreground); font: 700 .72rem var(--font-mono); }
+.range-level-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: .15rem; }
+.range-level-copy strong, .range-level-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.range-level-copy strong { font-size: .82rem; font-weight: 650; }
+.range-level-copy small { color: var(--color-muted-foreground); font-size: .69rem; }
+.range-challenge { padding: 1.05rem; }
+.range-challenge-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.range-challenge h2 { margin: 0; font-size: 1.2rem; }
+.range-task { max-width: 62ch; margin: .5rem 0 0; color: var(--color-muted-foreground); line-height: 1.55; font-size: .9rem; }
+.range-open-link { display: inline-flex; flex: none; align-items: center; gap: .35rem; min-height: 42px; color: var(--color-primary); text-decoration: none; font-size: .78rem; font-weight: 650; }
+.range-open-link:hover, .range-link-button:hover { text-decoration: underline; }
+.range-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin: 1rem 0 1.2rem; }
+.range-tags span { max-width: 100%; overflow-wrap: anywhere; padding: .22rem .5rem; border-radius: 999px; background: var(--color-surface-muted); color: var(--color-muted-foreground); font-size: .68rem; }
+.range-submit-head { padding-top: .9rem; border-top: 1px solid var(--color-border); }
+.range-submit-head h3 { margin: 0; font-size: .95rem; }
+.range-submit-head p, .range-help { margin: .25rem 0 .8rem; color: var(--color-muted-foreground); font-size: .76rem; line-height: 1.45; }
+.range-submit-form { display: flex; flex-direction: column; gap: .75rem; }
+.range-tool-field, .range-payload-field { display: flex; flex-direction: column; gap: .35rem; font-size: .76rem; font-weight: 650; }
+.range-tool-field input { width: 100%; box-sizing: border-box; font-size: .88rem; }
+.range-payload-field > span { color: var(--color-muted-foreground); font-size: .67rem; font-weight: 450; }
+.range-payload-field textarea { box-sizing: border-box; width: 100%; min-height: 150px; resize: vertical; border: 1px solid var(--color-border); border-radius: .35rem; background: var(--color-background); color: var(--color-foreground); padding: .75rem; font: .78rem/1.5 var(--font-mono); tab-size: 2; }
+.range-help { margin: -.45rem 0 0; }
+.range-submit { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: .5rem; border: 0; border-radius: .4rem; background: var(--color-primary); color: var(--color-primary-foreground); cursor: pointer; font: 700 .85rem var(--font-sans); }
+.range-submit:disabled { opacity: .65; cursor: wait; }
+.range-inline-error { margin: 0; color: var(--color-danger); font-size: .82rem; overflow-wrap: anywhere; }
+.range-result { display: flex; align-items: center; gap: .5rem; padding: .65rem; border: 1px solid var(--color-border); border-radius: .35rem; font-size: .8rem; }
+.range-result span { margin-left: auto; color: var(--color-muted-foreground); font-family: var(--font-mono); font-size: .73rem; }
+.range-result.is-pass, .range-pass-chip.is-pass { color: var(--color-success); }
+.range-score-summary { display: flex; align-items: baseline; gap: .5rem; padding: .85rem 1rem; border-bottom: 1px solid var(--color-border); }
+.range-score-summary strong { font: 750 1.45rem var(--font-mono); }
+.range-score-summary span { font-size: .8rem; }
+.range-score-summary small { margin-left: auto; color: var(--color-muted-foreground); font-size: .68rem; }
+.range-score-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .7rem; min-height: 62px; padding: .6rem .8rem; border-bottom: 1px solid var(--color-border); }
+.range-score-title { display: flex; min-width: 0; flex-direction: column; gap: .16rem; }
+.range-score-title strong { overflow: hidden; text-overflow: ellipsis; font-size: .77rem; }
+.range-score-title span { color: var(--color-muted-foreground); font-size: .67rem; }
+.range-score-metric { display: flex; flex-direction: column; align-items: end; gap: .1rem; font-family: var(--font-mono); }
+.range-score-metric strong { font-size: .78rem; }
+.range-score-metric span { color: var(--color-muted-foreground); font-size: .6rem; }
+.range-pass-chip { min-width: 2.8rem; text-align: center; color: var(--color-muted-foreground); font-size: .68rem; font-weight: 700; }
+.range-persistence-note { margin: 0; padding: .65rem .9rem; color: var(--color-muted-foreground); font-size: .67rem; }
+.range-state { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; padding: 1rem; color: var(--color-muted-foreground); font-size: .85rem; }
+.range-state-error { color: var(--color-danger); }
+.range-link-button { min-height: 44px; padding: .35rem .5rem; border: 0; border-radius: .3rem; background: transparent; color: var(--color-primary); text-decoration: underline; cursor: pointer; }
+.range-spin { animation: range-spin 1s linear infinite; }
+@keyframes range-spin { to { transform: rotate(360deg); } }
+.range-icon-button { display: grid; place-items: center; min-width: 42px; min-height: 42px; border: 1px solid var(--color-border); border-radius: .35rem; background: var(--color-background); color: var(--color-foreground); cursor: pointer; }
+.range-mobile-switch, .range-back { display: none; }
+@media (max-width: 1279px) {
+  .range-workbench { gap: .75rem; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); }
+  .range-header { align-items: flex-start; flex-direction: column; gap: .65rem; padding: .15rem 0 .8rem; }
+  .range-header h1 { font-size: 1.35rem; }
+  .range-header-stats { width: 100%; justify-content: space-between; gap: .3rem; font-size: .7rem; }
+  .range-header-stats strong { font-size: .88rem; }
+  .range-mobile-switch { position: sticky; z-index: 2; top: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; padding: .25rem; border: 1px solid var(--color-border); border-radius: .5rem; background: var(--color-background); }
+  .range-mobile-switch button { min-height: 44px; border: 0; border-radius: .35rem; background: transparent; color: var(--color-muted-foreground); font: 650 .83rem var(--font-sans); }
+  .range-mobile-switch button[aria-selected="true"] { background: var(--color-surface-muted); color: var(--color-foreground); }
+  .range-mobile-switch span { margin-left: .25rem; font: .7rem var(--font-mono); }
+  .range-mobile-stage { display: flex; flex-direction: column; gap: .65rem; }
+  .range-panel-heading { padding: .8rem; }
+  .range-level-list, .range-score-list { max-height: none; }
+  .range-challenge { padding: .85rem; }
+  .range-challenge-top { flex-direction: column; gap: .5rem; }
+  .range-open-link { min-height: 44px; }
+  .range-back { display: inline-flex; align-items: center; align-self: flex-start; gap: .35rem; min-height: 44px; padding: 0 .35rem; border: 0; background: transparent; color: var(--color-primary); font: 650 .82rem var(--font-sans); }
+  .range-payload-field textarea { min-height: 130px; font-size: 16px; }
+  .range-tool-field input { min-height: 46px; font-size: 16px; }
+}

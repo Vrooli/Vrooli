@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { createElement } from "react";
@@ -46,14 +47,14 @@ function makeEvidence(overrides: Partial<EvidenceItem> = {}): EvidenceItem {
 }
 
 function renderCard(item: EvidenceItem) {
-  return render(
+  return renderWithCanonicalProviders(
     <EvidenceItemCard
       item={item}
       backlogKind="fix"
       backlogName="my-item"
       onVerify={vi.fn()}
     />,
-    { wrapper: createWrapper() },
+    { wrapper: createWrapper() , withoutQueryClient: true },
   );
 }
 
@@ -181,14 +182,14 @@ describe("EvidenceItemCard", () => {
   describe("Review toggle", () => {
     it("calls onVerify when checkbox is clicked on unreviewed item", () => {
       const onVerify = vi.fn();
-      render(
+      renderWithCanonicalProviders(
         <EvidenceItemCard
           item={makeEvidence({ verified: false })}
           backlogKind="fix"
           backlogName="my-item"
           onVerify={onVerify}
         />,
-        { wrapper: createWrapper() },
+        { wrapper: createWrapper() , withoutQueryClient: true },
       );
 
       fireEvent.click(screen.getByTitle("Mark as reviewed"));
@@ -197,14 +198,14 @@ describe("EvidenceItemCard", () => {
 
     it("calls onVerify(false) when checkbox is clicked on reviewed item", () => {
       const onVerify = vi.fn();
-      render(
+      renderWithCanonicalProviders(
         <EvidenceItemCard
           item={makeEvidence({ verified: true })}
           backlogKind="fix"
           backlogName="my-item"
           onVerify={onVerify}
         />,
-        { wrapper: createWrapper() },
+        { wrapper: createWrapper() , withoutQueryClient: true },
       );
 
       fireEvent.click(screen.getByTitle("Mark as unreviewed"));

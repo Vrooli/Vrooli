@@ -1,0 +1,136 @@
+{
+  "connections": {
+    "Start here": {
+      "main": [
+        [
+          {
+            "node": "Your account",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Your account": {
+      "main": [
+        [
+          {
+            "node": "Fetch invoices and payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch invoices and payments": {
+      "main": [
+        [
+          {
+            "node": "Split invoices",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split payments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "id": "c09-starter-start",
+      "name": "Start here",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        80,
+        160
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "c09-starter-settings",
+      "name": "Your account",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        368,
+        160
+      ],
+      "parameters": {
+        "mode": "manual",
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c09-user",
+              "name": "username",
+              "type": "string",
+              "value": "synthetic-user"
+            },
+            {
+              "id": "c09-key",
+              "name": "participantKey",
+              "type": "string",
+              "value": "synthetic-key"
+            }
+          ]
+        },
+        "includeOtherFields": false
+      },
+      "typeVersion": 3.5
+    },
+    {
+      "id": "c09-starter-fetch",
+      "name": "Fetch invoices and payments",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        656,
+        160
+      ],
+      "parameters": {
+        "url": "https://api.synthetic.invalid/v1/invoices-and-payments",
+        "method": "GET",
+        "sendQuery": false,
+        "sendHeaders": false,
+        "authentication": "none"
+      },
+      "retryOnFail": false,
+      "typeVersion": 4.5
+    },
+    {
+      "id": "c09-starter-invoices",
+      "name": "Split invoices",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [
+        992,
+        32
+      ],
+      "parameters": {
+        "include": "noOtherFields",
+        "options": {},
+        "fieldToSplitOut": "assignment.missingInvoices"
+      },
+      "typeVersion": 1.1
+    },
+    {
+      "id": "c09-starter-payments",
+      "name": "Split payments",
+      "type": "n8n-nodes-base.splitOut",
+      "position": [
+        992,
+        320
+      ],
+      "parameters": {
+        "include": "noOtherFields",
+        "options": {},
+        "fieldToSplitOut": "assignment.payments"
+      },
+      "typeVersion": 1.1
+    }
+  ],
+  "name": "CWC 09 - The Balance Check - starter",
+  "active": false
+}

@@ -1,0 +1,19 @@
+{
+  "default": {
+    "ram_bytes": 268435456,
+    "cpu_milli": 1000,
+    "reason": "support work (resize, compare, analysis glue) holds one core while it runs"
+  },
+  "operations": {
+    "model_install": {
+      "ram_bytes": 268435456,
+      "cpu_milli": 250,
+      "reason": "a weight download is network- and disk-bound: it streams into staging and hashes as it goes, which keeps a quarter of one core busy at most. Disk space is admitted separately by the installer before the first byte is written"
+    },
+    "adapter_install": {
+      "ram_bytes": 268435456,
+      "cpu_milli": 250,
+      "reason": "same transfer-and-hash shape as model_install"
+    }
+  }
+}

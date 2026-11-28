@@ -1,0 +1,39 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-crm",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic CRM", "version": "1"},
+        "servers": [{"url": "https://crm.synthetic.invalid/v1"}],
+        "paths": {
+          "/contacts": {
+            "post": {
+              "responses": {
+                "201": {"content": {"application/json": {"example": {"id": "contact-synthetic-01", "status": "active"}}}}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-sheets",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Sheets", "version": "1"},
+        "servers": [{"url": "https://sheets.synthetic.invalid/v1"}],
+        "paths": {
+          "/rows": {
+            "post": {
+              "responses": {
+                "200": {"content": {"application/json": {"example": {"updatedRange": "A2:B2", "status": "appended"}}}}
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

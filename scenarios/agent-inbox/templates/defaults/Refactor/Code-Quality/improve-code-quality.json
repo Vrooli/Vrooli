@@ -28,6 +28,5 @@
       "defaultValue": "All of the above",
       "required": true
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

@@ -1,0 +1,40 @@
+/* ── Preview ──────────────────────────────────────────────────────────────── */
+
+.wb-preview-page {
+  min-height: 100dvh;
+  background: #0b0a0f;
+}
+
+/* The sticky bar paints its own background; the inline title also carries it
+   so contrast tooling does not fall back to the light document body. */
+.wb-preview-bar b {
+  background: #0b0a0f;
+}
+
+.wb-preview-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--wb-line);
+  /* Opaque: a translucent bar composites against the light document body and
+     makes its light text fail contrast calculations in capture tooling. */
+  background: #0b0a0f;
+  backdrop-filter: blur(14px);
+}
+
+.wb-preview-stage {
+  display: grid;
+  /* A grid track defaults to max-content, so a 1180px share frame widened the
+     track and overflowed a phone viewport even though the frame capped itself
+     at 100%. The explicit minmax(0, 1fr) track lets max-width clamp. */
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  min-height: calc(100dvh - 52px);
+  padding: 24px;
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "InProgress",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='run-ladder']"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-busy",
+          "selector": "[data-testid='run-ladder']",
+          "value": "true"
+        },
+        {
+          "kind": "text",
+          "value": "run-2026-10-30"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='run-items'] li",
+          "value": "3"
+        },
+        {
+          "kind": "text",
+          "value": "Port 8020 is already in use."
+        },
+        {
+          "kind": "text",
+          "value": "Resumed after reconnect"
+        }
+      ],
+      "id": "in-progress",
+      "mode": "pinned",
+      "name": "Run in progress",
+      "role": "anatomy"
+    }
+  ],
+  "title": "Run Ladder"
+}

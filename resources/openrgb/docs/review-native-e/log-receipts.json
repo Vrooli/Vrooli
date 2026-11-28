@@ -1,0 +1,2627 @@
+{
+  "environment": {
+    "VROOLI_ROOT": "/home/matthalloran8/Vrooli-native-lighting",
+    "VROOLI_SOURCE_ROOT": "/home/matthalloran8/Vrooli-native-lighting",
+    "VROOLI_PROTO_ARTIFACT_ROOT": "/home/matthalloran8/Vrooli-native-lighting/.vrooli/work/proto-artifacts"
+  },
+  "logs": [
+    {
+      "path": "resource-boundaries.jsonl",
+      "bytes": 348271,
+      "sha256": "c7cdf4c579eef19b0f85775b06ae1bd625a6d86fba2950599a0144bc8370c2be",
+      "command": "go test -race ./internal/resources -run '^(TestOpenRGB|TestNativeOpenRGB|TestNativeD)' -count=1 -json",
+      "packages": [
+        {
+          "Time": "2026-11-11T10:56:13.132386711-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/resources",
+          "Elapsed": 185.726
+        }
+      ],
+      "selected_tests": [
+        {
+          "test": "TestNativeDataArtifactStagesVendoredBytesAndChecksum",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusalDoesNotPublishConfigOrLaunch/missing_frozen_policy",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusalDoesNotPublishConfigOrLaunch/changed_frozen_policy",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusalDoesNotPublishConfigOrLaunch/same-context_observation_fails",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusalDoesNotPublishConfigOrLaunch/selected_device_access_fails",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusalDoesNotPublishConfigOrLaunch/intended_config_changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusalDoesNotPublishConfigOrLaunch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecClaimsFrozenPolicyBeforePublishingConfig",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBAdoptedArtifactInspectionUsesExactNativeProfile",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBAdoptionNeverRunsUnqualifiedProgram",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBAdoptionCopiesExactClosureAndPreservesSource",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationPublishesOnceAndPreservesTheEnvelope",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationRecoversLostPublicationAcknowledgement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationCancellationAndFailedExtractionLeaveNoPublication/cancel",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationCancellationAndFailedExtractionLeaveNoPublication/partial_extraction",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationCancellationAndFailedExtractionLeaveNoPublication/tampered_closure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationCancellationAndFailedExtractionLeaveNoPublication",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationRejectsTamperedPublishedBytesAndSnapshot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagePreparationRecoversPrivateScratchAndRefusesAliasedScratch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPinnedAppImageStageFixture",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBAppDirSealRejectsWritableOrUnownedClosures",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBAppDirVerificationBindsTheCompleteClosure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBStagedServingProofRequiresTheExactRootImageAndFrozenInputs",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBServingConfigPermitsOnlyDisabledDetectorPruning",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateExecUsesStagedImageAfterConfinementAndBeforeClaim",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBAcquisitionNeverCollectsGPUOrOperatorPreference",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBFactIsolationPreservesOtherAcquisitionOwners",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExactDownloadProfileHasClosedByteBound",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupPreservesClaimAndRecoversLostRelease",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRetainsInterruptedBootAcrossAnotherReboot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRejectsForeignManagerAndSameBootRoot/same-boot-root",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRejectsForeignManagerAndSameBootRoot/account",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRejectsForeignManagerAndSameBootRoot/system-label",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRejectsForeignManagerAndSameBootRoot/intent",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRejectsForeignManagerAndSameBootRoot/boot-case",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRejectsForeignManagerAndSameBootRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupRequiresExactQuiescenceReceipt",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootReceiptRefusesLinuxAndUnknownVersion",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeInitialBootRetirementAllowsFreshAdmissionWithoutRewritingOldRef",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootCleanupResumesStoppedManagerWithNoCurrentRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootReceiptFieldCannotWidenLegacyLinuxCodec/null",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootReceiptFieldCannotWidenLegacyLinuxCodec/[]",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootReceiptFieldCannotWidenLegacyLinuxCodec",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeBootDisableRetiresOriginalAndFinishesInOnePass",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExternalSelectionReplacesPriorDetectorThroughConfigWriter",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBFirstLaunchSeedsOnlyResourceOwnedConfig",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigSeedsPinnedPolicyOnFirstLaunch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigEnablesOnlyDetectorsInExplicitMachineLocalPolicy",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigFirstLaunchFailureLeavesNoPartialFileAndCanRecover",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigPreservesUserSettingsAndReappliesPinnedDetectors",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigFailureLeavesExistingBytesUntouched",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigRejectsSymlinkedDirectoryOutsideResourceRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBConfigRejectsResourceRootAliasedToAmbientXDGConfig",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeConstructorsRemainPrivate/linux",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeConstructorsRemainPrivate/darwin",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeConstructorsRemainPrivate/windows",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeConstructorsRemainPrivate",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUsesPinnedIsolatedDetectorAllowlist",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceGenerationRefreshIsOneQuiescedExactReplacement/changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceGenerationRefreshIsOneQuiescedExactReplacement/unsupported-unchanged",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceGenerationRefreshIsOneQuiescedExactReplacement/quiesce-failed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceGenerationRefreshIsOneQuiescedExactReplacement/retire-failed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceGenerationRefreshIsOneQuiescedExactReplacement/second-change",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceGenerationRefreshIsOneQuiescedExactReplacement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeWitnessRequiresCurrentKernelDeviceGeneration",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSelectedPolicyBindsUSBInterfaceAndPCIAdapter",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSelectedPolicyRejectsUnsafeOrUnqualifiedSelectors/ASUS_USB_ID_cannot_fall_back_to_SMBus",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSelectedPolicyRejectsUnsafeOrUnqualifiedSelectors/GPU_cannot_use_dynamic_adapter_number",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSelectedPolicyRejectsUnsafeOrUnqualifiedSelectors/write-capable_ENE_SMBus_detector",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSelectedPolicyRejectsUnsafeOrUnqualifiedSelectors",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPolicyStoreRejectsStaleArtifactDigest",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionNormalIntentApplyCommitAndReopen",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionChildCanonicalWireAndErrorStreams/trailing-error-stdout",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionChildCanonicalWireAndErrorStreams/logical-duplicate-alias",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionChildCanonicalWireAndErrorStreams/unknown-field",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionChildCanonicalWireAndErrorStreams/wrong-plan",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionChildCanonicalWireAndErrorStreams",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceSetupChildPreservesPartialFailure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceSetupStatusIsOneMetadataSnapshot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceSetupKeepsRecoveryUntilPolicyPublication",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceSetupPublishesQualifiedPriorPolicyWithoutCurrentManifest",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeVerifierSeparatesMetadataAdmissionAndConsumedAccess",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDeviceVerifierRequiresPersistentGrantAndNativeLiveWitness",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBELFVersionStringsAreBounded",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRequiresVerifiedAccessAndRetainsOneClaimAfterExecFailure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecUncertainClaimCanOnlyBeRecoveredOrRevoked",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusesMissingPolicyAndChangedOwnership",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusesChangedFrozenConfigAndInvocation/config_enabled_an_extra_detector",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusesChangedFrozenConfigAndInvocation/alternate_config_directory",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusesChangedFrozenConfigAndInvocation/non-loopback_listener",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusesChangedFrozenConfigAndInvocation/AppImage_execution_mode_override",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRefusesChangedFrozenConfigAndInvocation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecRequiresExactKernelDeviceGeneration",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBExecUsesQualifiedRetainedImageAfterSourcePathDisappears",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBGenericManagedServiceStartFailsBeforeEffects/ordinary_resource_start",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBGenericManagedServiceStartFailsBeforeEffects/private_start_helper",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBGenericManagedServiceStartFailsBeforeEffects/private_launch_helper",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBGenericManagedServiceStartFailsBeforeEffects",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBManagedUpdateAndRollbackLaunchesFailClosedBeforeAdmission",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessInspectsOnlyStagedSelection",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessOptOutWithoutMachinePolicyDoesNotVerifyOrProbe",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessRejectsActiveManagedUpdate",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessDisableNeedsExactAbsenceAndPreservesSource",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess/ready",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess/foreign_listener",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess/wide_device_access",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess/SDK_not_ready",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess/listener_changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess/process_changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessPublishesOnlyVerifiedOwnedProcess",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBHeadlessListenerCountsRejectForeignAndWildcardAddresses",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialExecUsesOneClaimWithoutUpdateLedger",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialExecWitnessAndNativeDriftFailBeforeClaim/access",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialExecWitnessAndNativeDriftFailBeforeClaim/native",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialExecWitnessAndNativeDriftFailBeforeClaim/launcher",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialExecWitnessAndNativeDriftFailBeforeClaim",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialAdmissionLostSubmitAcknowledgementNeverRedispatches",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialCleanupRetainsQuiescenceBeforeReleaseAndResumes",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialCleanupCannotTreatUnknownNativeAsAbsent",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialSettingsPreserveOwnedPreferencesWithoutAmbientRead",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyPinsCanonicalGenerationAroundLiveObservation/ready",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyPinsCanonicalGenerationAroundLiveObservation/changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyPinsCanonicalGenerationAroundLiveObservation/witness-failed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyPinsCanonicalGenerationAroundLiveObservation/borrowed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyPinsCanonicalGenerationAroundLiveObservation/policy",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyPinsCanonicalGenerationAroundLiveObservation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialStoppedPublicationDoesNotFollowReusedPID",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialCleanupDrainsLateNativeDeliveryAfterAbsentStop",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBInitialDisableWinsAgainstWitnessInFlight",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateClaimDigestPreservesLegacyWireFraming",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachEveryLoaderFormRequiresQualifiedDependency/c",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachEveryLoaderFormRequiresQualifiedDependency/80000018",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachEveryLoaderFormRequiresQualifiedDependency/8000001f",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachEveryLoaderFormRequiresQualifiedDependency/80000023",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachEveryLoaderFormRequiresQualifiedDependency/20",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachEveryLoaderFormRequiresQualifiedDependency",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/custom-dyld",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/embedded-environment",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/foreign-runpath",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/unknown-required",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/truncated",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/bad-name-offset",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment/unterminated",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachRejectsMalformedLoaderAndEnvironment",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMacRecipeMatchesCanonicalDeclaration",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachForeignRunpathCannotFlowThroughDependencyChain",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMachPrivateRunpathCandidatesMustAgree",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBCompleteMacLoaderOfflineEvidence",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBMacDerivedManagedAndAdoptedRecovery",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBManagedSettingsKeepPreferencesWithoutRemoteControllers/Client{\"clients\":[{\"ip\":\"192.0.2.3\",\"port\":6742}]}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBManagedSettingsKeepPreferencesWithoutRemoteControllers/Client{\"clients\":null}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBManagedSettingsKeepPreferencesWithoutRemoteControllers/Server{\"all_controllers\":true}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBManagedSettingsKeepPreferencesWithoutRemoteControllers/Server{}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBManagedSettingsKeepPreferencesWithoutRemoteControllers/ProfileManager{\"service_startup_profile\":{\"enabled\":true,\"name\":\"other.orp\"}}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBManagedSettingsKeepPreferencesWithoutRemoteControllers",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBRuntimeNormalizationRetainsWitnessedConfigForAdmissionAndStop",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPinnedRuntimeNormalizationFixture",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBAutomaticProfileValidationUsesUpstreamExactKeys",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeResourceActionUsesSameQualifiedOwner/start",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeResourceActionUsesSameQualifiedOwner/restart",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeResourceActionUsesSameQualifiedOwner",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeResourceActionDisabledAndOverridesHaveNoEffects",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeDPreparedUpdateCannotReplaceNewOperatorSource/darwin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeDPreparedUpdateCannotReplaceNewOperatorSource/windows",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeDPreparedUpdateCannotReplaceNewOperatorSource",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeDClaimedWindowsChildAbortsBeforeResumeOnPublicationFailure/false",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeDClaimedWindowsChildAbortsBeforeResumeOnPublicationFailure/true",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeDClaimedWindowsChildAbortsBeforeResumeOnPublicationFailure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/darwin_user",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/windows_user",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/darwin_root",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/elevated_user",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/system",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/unobserved",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/empty_identity",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority/no_native_asset",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeRuntimeRejectsUnobservedOrElevatedAuthority",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleExecRequiresDurableClaimBeforeConfigurationOrExec",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleOwnerDeathOrRevocationNeverExecutes/before-prepare",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleOwnerDeathOrRevocationNeverExecutes/revoked-before-claim",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleOwnerDeathOrRevocationNeverExecutes/after-durable-claim-before-ack",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleOwnerDeathOrRevocationNeverExecutes",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsChangedWrapperAndMaterial/material",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsChangedWrapperAndMaterial/launcher",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsChangedWrapperAndMaterial/root-after-observation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsChangedWrapperAndMaterial",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleWindowsChildIsClaimedBeforeResume",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleWindowsChildAbortedOnUncertainClaim",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleMaterialHashCanPrecedeNativeRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleOwnerMappingAcceptsOnlyActualOperator",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsAmbiguousEnvironmentAndPrivateHomePaths/duplicate-env",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsAmbiguousEnvironmentAndPrivateHomePaths/stage-in-home",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsAmbiguousEnvironmentAndPrivateHomePaths/runtime-in-home",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsAmbiguousEnvironmentAndPrivateHomePaths/empty-token",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleRejectsAmbiguousEnvironmentAndPrivateHomePaths",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeCapsuleCannotObserveDevicesOrExecuteWithoutTransportConfinement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBProcessOnlyKernelFailureRetainsClaimWithoutVendorExec/false",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBProcessOnlyKernelFailureRetainsClaimWithoutVendorExec/true",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBProcessOnlyKernelFailureRetainsClaimWithoutVendorExec",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportClaimIsGlobalAndUncertainIsConsumed/success",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportClaimIsGlobalAndUncertainIsConsumed/uncertain",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportClaimIsGlobalAndUncertainIsConsumed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/principal",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/pid",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/incarnation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/intent",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/inspection",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/changed-during-inspect",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges/changed-after-prepare",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsPeerAndObservationChanges",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportOwnerDeathAndLostAcknowledgment",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportLostACKCannotRetry",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/policy",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/claim",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/incarnation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/context",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/nodes",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/child",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/generation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings/count",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessBindings",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportWitnessRequiresSortedUniqueRoutes",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"prepare\",\"Operation\":\"claim\"}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"Operation\":\"prepare\"}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"claim\",\"ref\":{\"root_pid\":123,\"Root_PID\":456}}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"claim\",\"witness\":{\"policy\":{\"id\":\"a\",\"ID\":\"b\"}}}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"prepare\",\"unknown\":1}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"prepare\",\"operation\":\"claim\"}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"claim\",\"ref\":{\"root_pid\":123,\"root_pid\":456}}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"prepare\"}_{}",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/{\"operation\":\"prepare\"}null",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames/#00",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportStrictFrames",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportRejectsClaimBeforePrepareAndCancellation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportConnectionLimitAndClose",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportCloseRestoresPeerGrantOnce",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportCleanupPreservesSuccessor",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeTransportIdleForeignPeersCannotConsumeSlots",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBFrameFieldsPreserveTaggedDefaultsAndMapData",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBResourceOperationSerializesBeforeDisableFence",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBInitialClaimRejectsNewDisableOrSelection",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBBootFreshCapsuleSelectedBackendAndDisableRetirement",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/exact",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/absent",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/foreign",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/wildcard",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/ipv6",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/mapped",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/port",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners/second-foreign",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRejectsForeignWildcardAndAmbiguousListeners",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBLockNamespaceDoesNotFollowActorHOME",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBMissingLockAuthorityHasNoEffects",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBActorsContendOnTheSamePrivateLock",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBOwnerUsesOperatorOnlyStorageWithoutCrossAccountGrant",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeReplacementAfterPrepareBeforeFirstDispatch/darwin/recover-restoration",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeReplacementAfterPrepareBeforeFirstDispatch/darwin/disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeReplacementAfterPrepareBeforeFirstDispatch/windows/recover-restoration",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeReplacementAfterPrepareBeforeFirstDispatch/windows/disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeReplacementAfterPrepareBeforeFirstDispatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBClaimedHandoffWaitsForOwnedListenerBeforePayloadProof/absent",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBClaimedHandoffWaitsForOwnedListenerBeforePayloadProof/foreign",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBClaimedHandoffWaitsForOwnedListenerBeforePayloadProof/wildcard",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBClaimedHandoffWaitsForOwnedListenerBeforePayloadProof/changed-context",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBClaimedHandoffWaitsForOwnedListenerBeforePayloadProof/owned",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBClaimedHandoffWaitsForOwnedListenerBeforePayloadProof",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRetirementRequiresAuthoritativeRelease/present",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRetirementRequiresAuthoritativeRelease/unknown",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRetirementRequiresAuthoritativeRelease/released",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBRetirementRequiresAuthoritativeRelease",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBGlobalStorageOverrideKeepsAllOwnersInOneNamespace",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBPerClassOverridesCannotSplitPrivateNamespace",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission/darwin/qualification",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission/darwin/target",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission/darwin/restore",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission/windows/qualification",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission/windows/target",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission/windows/restore",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOpenRGBUpdateAndRestoreCapsulesKeepSingleUseAdmission",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeMacBaselineRefusesUnknownAndOlderVersions",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionMutationExcludesConcurrentNativeLifecycle",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionMutationRejectsEnabledResourceBeforeEffects",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionMutationRequiresInitialAdmissionRetirement/pending",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionMutationRequiresInitialAdmissionRetirement/stopped-without-revoked-fence",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionMutationRequiresInitialAdmissionRetirement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyFreezeBindsAccountAndExactDetectorConfig",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeHIDPolicyRequiresOneShotDetection",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativePolicyRecordRoundTripAndLegacyVersionSeparation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeSetupPlanBindsRuntimePrincipalSeparatelyFromOperator",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/darwin/update-rollback-disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/darwin/target-failure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/darwin/interrupted-readiness",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/darwin/lost-start-ack",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/darwin/owner-replaced-before-dispatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/windows/update-rollback-disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/windows/target-failure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/windows/interrupted-readiness",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/windows/lost-start-ack",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys/windows/owner-replaced-before-dispatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNativeUpdateRecoveryJourneys",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicExclusiveUpdateUsesRetainedInitialAndNativeWitness",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicTargetFailureRestoresWithoutRedispatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicUnknownTargetRejectedBeforeOriginalStop",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicUpdateAndExplicitRollbackRebindNewIncarnations",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicInterruptedStartingPhaseResumesWithoutRedispatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicResumeAndExplicitAdvanceCannotBypassOptOut",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBDisableCleanupContinuesAfterRetainedRoleFailure",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicUsesFrozenCatalogAfterCheckoutChanges",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBOrdinaryStartCannotImplicitlyAdvanceAdmission",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNewerLightingChoiceWins",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicDisableAfterInterruptedUpdateLeavesNoModeledService",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicLostPublicationAcknowledgementConvergesAndReplays",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicNewerResourceSourceWins",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPublicFailedNativeDisableFencesPostRunObservation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBARM64OfflineExtraction",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBNativeLinuxPrerequisiteReadiness",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBSystemLibraryResolverRejectsCallerPaths",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMacABIRequiresNativeWordSizeByteOrderAndSubtype/native",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMacABIRequiresNativeWordSizeByteOrderAndSubtype/32-bit-header",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMacABIRequiresNativeWordSizeByteOrderAndSubtype/big-endian",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMacABIRequiresNativeWordSizeByteOrderAndSubtype/unqualified-cpu-subtype",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBMacABIRequiresNativeWordSizeByteOrderAndSubtype",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBWindowsBaselineBindsBundledQtRequirements",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBReleaseProfileMeasurement",
+          "action": "skip"
+        },
+        {
+          "test": "TestOpenRGBNativeProfileMatrixIsClosed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBWindowsStageAcceptsDrivePrefixOnly",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipRefusesEscapesAndAliases/../outside",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipRefusesEscapesAndAliases/OpenRGB.app/../outside",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipRefusesEscapesAndAliases/OtherBundle/file",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipRefusesEscapesAndAliases/OpenRGB.app/C:/outside",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipRefusesEscapesAndAliases/OpenRGB.app/a\\b",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipRefusesEscapesAndAliases",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipNeverTraversesArchiveLinks",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBZipNeverCreatesLinksThroughQueuedLinkParents",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBRetainedNativeLauncherUsesCurrentClaimAndNamespace/darwin",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBRetainedNativeLauncherUsesCurrentClaimAndNamespace/windows",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBRetainedNativeLauncherUsesCurrentClaimAndNamespace",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBNativeLauncherProofOnlyChangesNewSuccessorSpec",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSourceOpenRefusesReplacedFIFOBeforeRead",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBSourceOpenPinsRegularObservedObject",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateDisabledRequiresObservedRetirement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateDisableDoesNotCommitWithForeignRestoredListener",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateDelayedWitnessCannotExecAfterDisableRevocation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateDisabledExecStopsBeforeLedgerOrNativeLookup",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateDisableRevokesAllRolesBeforePartialCleanup",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateDisablePreservesCombinedRetirementFailures",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBRetirementObservationCannotChangeImmutableAdmission",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBOrphanedTerminalRoleUsesSupportedDisableRetirement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUpdateQualifiesThreeRolesAgainstOnePhysicalGrant",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBServingObservationBindsRetainedClaimContextAndListener",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBUnknownEnvelopeAndDirectELFRemainUnqualified",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBRestoringStopUsesTheRetainedOwnerAndFailsBeforeEffects",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBWindowsStartupRequiresNoninteractiveAsInvoker",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "path": "new-regressions.jsonl",
+      "bytes": 4227,
+      "sha256": "f71997bb716f6c82e7dc62ab5999331192a7ad12d459d017e8723bc58404ea9e",
+      "command": "go test -race ./internal/resources -run '^TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry$' -count=1 -json (initial incorrect metadata-as-dispatch oracle)",
+      "packages": [
+        {
+          "Time": "2026-11-11T10:54:14.248485476-05:00",
+          "Action": "fail",
+          "Package": "github.com/vrooli/vrooli/internal/resources",
+          "Elapsed": 7.123
+        }
+      ],
+      "selected_tests": [
+        {
+          "test": "TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry/darwin",
+          "action": "fail"
+        },
+        {
+          "test": "TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry/windows",
+          "action": "fail"
+        },
+        {
+          "test": "TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry",
+          "action": "fail"
+        }
+      ]
+    },
+    {
+      "path": "new-regressions-corrected.jsonl",
+      "bytes": 3614,
+      "sha256": "f61f14596e6f4cb65e621182dee53abb9fc4491c4a1f042bef3108e53fa256e1",
+      "command": "go test -race ./internal/resources -run '^TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry$' -count=1 -json",
+      "packages": [
+        {
+          "Time": "2026-11-11T10:55:22.282123978-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/resources",
+          "Elapsed": 9.536
+        }
+      ],
+      "selected_tests": [
+        {
+          "test": "TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry/darwin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry/windows",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeEInterruptedDisableRetainsRevocationAndConvergesOnRetry",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "path": "runtime-owners.jsonl",
+      "bytes": 181165,
+      "sha256": "9e2a622096f76ca5fe5cc8b94658f2d79f759f8d7f6b841e02efbb5ce16ed167",
+      "command": "VROOLI_OPENRGB_STAGE_FIXTURE=<approved d556c227 AppImage path> go test -race ./internal/lightingruntime ./internal/app/runtime ./internal/operatorstate ./internal/config -count=1 -json",
+      "packages": [
+        {
+          "Time": "2026-11-11T10:55:11.314599139-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/lightingruntime",
+          "Elapsed": 2.947
+        },
+        {
+          "Time": "2026-11-11T10:55:11.494222157-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/config",
+          "Elapsed": 2.779
+        },
+        {
+          "Time": "2026-11-11T10:55:12.446242008-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/operatorstate",
+          "Elapsed": 3.731
+        },
+        {
+          "Time": "2026-11-11T10:55:41.065770994-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/app/runtime",
+          "Elapsed": 32.351
+        }
+      ],
+      "selected_tests": [
+        {
+          "test": "TestHeadlessLightingDefaultIsInactiveAndWritesNothing",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingRequiresSetupAndRestoresFromNativeOwnerRestart",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingFailsClosedWithoutBothOwnersOrLoopbackBinding",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingQuiescesStaleBindingAndRebindsAfterRecovery/owner_failure",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingQuiescesStaleBindingAndRebindsAfterRecovery/invalid_binding",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingQuiescesStaleBindingAndRebindsAfterRecovery/scenario_binding_failure",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingQuiescesStaleBindingAndRebindsAfterRecovery",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingQuiescesAfterCanceledBackendCheck",
+          "action": "pass"
+        },
+        {
+          "test": "TestHomeDirPrefersHOME",
+          "action": "pass"
+        },
+        {
+          "test": "TestTemplateBaseDirDefaultsToRepoTemplates",
+          "action": "pass"
+        },
+        {
+          "test": "TestTemplateBaseDirResolvesRelativeOverride",
+          "action": "pass"
+        },
+        {
+          "test": "TestHomeDirFallsBackToCurrentUserHomeDir",
+          "action": "pass"
+        },
+        {
+          "test": "TestConfigDirectoryHelpers",
+          "action": "pass"
+        },
+        {
+          "test": "TestTemplateBaseDirResolvesAbsoluteOverride",
+          "action": "pass"
+        },
+        {
+          "test": "TestPathRefusesTheLiveOperatorStateUnderTest",
+          "action": "pass"
+        },
+        {
+          "test": "TestLogicalOperatorHomeIgnoresMachineNamespace",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeOperatorMissingLoadHasNoEffects",
+          "action": "skip"
+        },
+        {
+          "test": "TestDurableOwnedWriteConfirmsPhysicalAncestorsBehindDirectoryAlias",
+          "action": "pass"
+        },
+        {
+          "test": "TestDurableOwnedIntentSyncsNewAncestryAfterVisibleCommit",
+          "action": "pass"
+        },
+        {
+          "test": "TestApplyPreservesFieldsThisWriterDoesNotModel",
+          "action": "pass"
+        },
+        {
+          "test": "TestDurableOwnedIntentReportsUnconfirmedRename",
+          "action": "pass"
+        },
+        {
+          "test": "TestDurableOwnedIntentDoesNotAcknowledgeFailedWrite",
+          "action": "pass"
+        },
+        {
+          "test": "TestApplyRejectsInvalidPatchWithoutChangingStoredDocument",
+          "action": "pass"
+        },
+        {
+          "test": "TestHostWorkloadPostureDefaultsAndValidates",
+          "action": "pass"
+        },
+        {
+          "test": "TestCapacityPostureDefaultsAndValidates",
+          "action": "pass"
+        },
+        {
+          "test": "TestAccelerationPreferenceDefaultsFromPostureAndValidates/ordinary_posture",
+          "action": "pass"
+        },
+        {
+          "test": "TestAccelerationPreferenceDefaultsFromPostureAndValidates/minimal_posture",
+          "action": "pass"
+        },
+        {
+          "test": "TestAccelerationPreferenceDefaultsFromPostureAndValidates/explicit_gpu",
+          "action": "pass"
+        },
+        {
+          "test": "TestAccelerationPreferenceDefaultsFromPostureAndValidates",
+          "action": "pass"
+        },
+        {
+          "test": "TestDurableOwnedRetryResyncsVisibleAncestryAfterLostAcknowledgement",
+          "action": "pass"
+        },
+        {
+          "test": "TestDurableOwnedStreamRejectsInvalidPayloadBeforeReplacingExistingFile",
+          "action": "pass"
+        },
+        {
+          "test": "TestCapacityChoicesSurviveLedgerWipe",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingDisableResumesFromDurableFence",
+          "action": "pass"
+        },
+        {
+          "test": "TestDurableOwnedStreamCommitsValidatedExecutableWithOwnedMode",
+          "action": "pass"
+        },
+        {
+          "test": "TestMissingAncestorsComputesCreatedSet",
+          "action": "pass"
+        },
+        {
+          "test": "TestEnsureOwnedDirCreatesWithoutRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestWriteOwnedFileWritesWithoutRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestDisjointConcurrentPatchesBothLand",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeRejectsIncompleteAndOversizedInput",
+          "action": "pass"
+        },
+        {
+          "test": "TestApplyAtRevisionRejectsStaleWriterWithoutChangingState",
+          "action": "pass"
+        },
+        {
+          "test": "TestSaveDraftIsTargetScopedAndDoesNotChangeEffectiveChoices",
+          "action": "pass"
+        },
+        {
+          "test": "TestSaveDraftRejectsSecretLikeChoicesAndStaleClients",
+          "action": "pass"
+        },
+        {
+          "test": "TestHandoffsPersistWithTargetAndRevisionFences",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeWireCapacityRetainsAllManagedHistory/6000",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingSerializesDisableWithStartup",
+          "action": "pass"
+        },
+        {
+          "test": "TestHeadlessLightingCorruptIntentPreventsOwnerEffects",
+          "action": "pass"
+        },
+        {
+          "test": "TestSaveProfileSessionIsBoundedNonSecretAndRevisionChecked",
+          "action": "pass"
+        },
+        {
+          "test": "TestDiscardDraftLeavesCommittedConfigurationUntouched",
+          "action": "pass"
+        },
+        {
+          "test": "TestPruneDraftsUsesControlledClockAndPreservesUnreadableDrafts",
+          "action": "pass"
+        },
+        {
+          "test": "TestExplicitDisableRetiresRetainedBackendWhileDisabled",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeScenarioOwnerUsesExactGenerationAndLostACKRetry",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeScenarioOwnerRejectsReplacementAndDoesNotStartOnQuiesce",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeScenarioOwnerRejectsWrongIdentityBeforeMutation",
+          "action": "pass"
+        },
+        {
+          "test": "TestSelectLightingRecordRejectsAmbiguityAndPreservesUncertainty",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeIntentAuthorityUsesLogicalHomeOwner",
+          "action": "pass"
+        },
+        {
+          "test": "TestMissingIntentDoesNotResolveOrCreateNativeOwnerHome",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdateConvergesVerifiedSelectionDespiteLostAcknowledgement",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdatePreservesDisabledIntentAndMatchingPreparation/disabled",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdatePreservesDisabledIntentAndMatchingPreparation/enabled",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdatePreservesDisabledIntentAndMatchingPreparation",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdateRejectsPendingDisableAndInvalidReceipts",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdateSerializesNewUserChoiceAndResourceLock/new-selection",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdateSerializesNewUserChoiceAndResourceLock/disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdateSerializesNewUserChoiceAndResourceLock",
+          "action": "pass"
+        },
+        {
+          "test": "TestResourceUpdateWaitsForEarlierUserIntentBeforeCallingResource",
+          "action": "pass"
+        },
+        {
+          "test": "TestPreparationRequiresDisabledIntent",
+          "action": "pass"
+        },
+        {
+          "test": "TestEnablePreparationFailureDoesNotAdmitEnabledIntent",
+          "action": "pass"
+        },
+        {
+          "test": "TestPreparationReceiptSurvivesEnableDisableWithoutRuntimeClaims",
+          "action": "pass"
+        },
+        {
+          "test": "TestWriteOwnedFileAtomicCrossProcessSerializesPublishers",
+          "action": "pass"
+        },
+        {
+          "test": "TestVrooliPathResolvesThroughContract",
+          "action": "pass"
+        },
+        {
+          "test": "TestReconcileVrooliOwnershipNoopWithoutSudo",
+          "action": "pass"
+        },
+        {
+          "test": "TestVrooliScopedPathResolvesThroughContract",
+          "action": "pass"
+        },
+        {
+          "test": "TestReconcileHomeOwnershipSkipsNonRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestPrivateWriterPublishesAndPreservesPriorOnProducerFailure",
+          "action": "pass"
+        },
+        {
+          "test": "TestPrivateWriterRejectsAliasedOrPublicTargets",
+          "action": "pass"
+        },
+        {
+          "test": "TestPrivateReadOnlyRuntimeCannotOwnAdmission",
+          "action": "pass"
+        },
+        {
+          "test": "TestFailedExplicitPreparationInvalidatesEarlierQualification",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingStateDirectoryWriterHealsLegacyAndReaderStaysPassive",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingStateDirectoryRefusesAliasAndForeignWrites",
+          "action": "pass"
+        },
+        {
+          "test": "TestPrivateWriterSerializesConcurrentPublishers",
+          "action": "pass"
+        },
+        {
+          "test": "TestPrivateOperationLockHonorsCancellationAndRemainsReusable",
+          "action": "pass"
+        },
+        {
+          "test": "TestRepairDryRunIsBoundedAndDoesNotFollowSymlinks",
+          "action": "pass"
+        },
+        {
+          "test": "TestRepairResumesAfterBoundedBatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestRepairRejectsResumePathOutsideCanonicalRoot",
+          "action": "pass"
+        },
+        {
+          "test": "TestRepairRejectsNonCanonicalRootAndSymlinkFollowing",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeWireCapacityRetainsAllManagedHistory/65536",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeWireCapacityRetainsAllManagedHistory",
+          "action": "pass"
+        },
+        {
+          "test": "TestOnlyOperatorStatePackageWritesTheOperatorState",
+          "action": "pass"
+        },
+        {
+          "test": "TestPersistentStateSourceChecks",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeWireRefusesOverflowOrExpiredProofWithoutPartialJSON/false",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeWireRefusesOverflowOrExpiredProofWithoutPartialJSON/true",
+          "action": "pass"
+        },
+        {
+          "test": "TestExecutorScopeWireRefusesOverflowOrExpiredProofWithoutPartialJSON",
+          "action": "pass"
+        },
+        {
+          "test": "TestGovernedAcquisitionRejectsBlockedOrMalformedSuccessfulCLIReply/blocked",
+          "action": "pass"
+        },
+        {
+          "test": "TestGovernedAcquisitionRejectsBlockedOrMalformedSuccessfulCLIReply/dry_run_cannot_install",
+          "action": "pass"
+        },
+        {
+          "test": "TestGovernedAcquisitionRejectsBlockedOrMalformedSuccessfulCLIReply/malformed",
+          "action": "pass"
+        },
+        {
+          "test": "TestGovernedAcquisitionRejectsBlockedOrMalformedSuccessfulCLIReply",
+          "action": "pass"
+        },
+        {
+          "test": "TestGovernedAcquisitionRejectsChangedReleaseBeforeInvokingInstaller",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingRootAcquisitionNeverRunsUserOwnedSDA",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingSelectionRequiresExactBoundedInstallation/unspecified",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingSelectionRequiresExactBoundedInstallation/unknown",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingSelectionRequiresExactBoundedInstallation/digest",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingSelectionRequiresExactBoundedInstallation/version",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingSelectionRequiresExactBoundedInstallation",
+          "action": "pass"
+        },
+        {
+          "test": "TestExistingInstallationSetupRejectsVersionOnlyProgramBeforeExecution",
+          "action": "pass"
+        },
+        {
+          "test": "TestExistingInstallationSetupSeparatesMetadataFromMissingPolicy",
+          "action": "pass"
+        },
+        {
+          "test": "TestDisabledStatusRetainsStaticPreparationWithoutClaimingPresentBytes",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingLauncherBindsPublishedBytesToInstalledHost",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingLauncherRequiresTrustedSealedHostBeforePublication",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingImageDigestChecksBoundsAndCancellation",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingPrepareDoesNotProvisionWhileEnabled",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingElevationPreservesPublicPrepareOperation",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingPreparationInstallsSealedHostBeforeDeviceOrLauncher",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingLifecycleRejectsPrivilegeBeforeAnyOwnerEffect/disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingLifecycleRejectsPrivilegeBeforeAnyOwnerEffect/setup",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingLifecycleRejectsPrivilegeBeforeAnyOwnerEffect/enable",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingLifecycleRejectsPrivilegeBeforeAnyOwnerEffect",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingOrdinarySetupAcquiresWithoutPrivilegedPreparation",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingPrepareReadOnlyAcquisitionFailurePrecedesBootPublication",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefault/darwin/home/matthalloran8/.vrooli/tmp/go-work/TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefa1105678631/001/lighting_'_root",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefault/darwin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefault/windows/home/matthalloran8/.vrooli/tmp/go-work/TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefa1105678631/001/lighting_'_root",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefault/windows",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingElevationFreezesOnlyGlobalRootForCustomAndDefault",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingServingPrepareOnlyPublishesTargetAndPreservesIntent/published",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingServingPrepareOnlyPublishesTargetAndPreservesIntent/publication-failed",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingServingPrepareOnlyPublishesTargetAndPreservesIntent",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingPublicationCannotBypassPendingDisable",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace/disable",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace/reconnect",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace/setup",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace/prepare",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace/permissions",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace/status",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeLightingChangedGlobalRootCannotDisableOrReconnectDifferentNamespace",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlDisabledStatusDoesNotObserveResource",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlStatusUsesExplicitUnavailableNotInstalledReadyAndDegradedStates/not_installed",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlStatusUsesExplicitUnavailableNotInstalledReadyAndDegradedStates/ready",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlStatusUsesExplicitUnavailableNotInstalledReadyAndDegradedStates/degraded",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlStatusUsesExplicitUnavailableNotInstalledReadyAndDegradedStates/running_without_readiness",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlStatusUsesExplicitUnavailableNotInstalledReadyAndDegradedStates",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlSetupVerifiesOnlyAndEnableNeedsBothOwners",
+          "action": "pass"
+        },
+        {
+          "test": "TestServiceComposesLightingControlOnlyWhenTypedOwnersExist",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlUsesFixedLifecycleAndDisableOrdering",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingControlRejectsSetupFailureAndReportsStatusErrors",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingUnavailableTargetStatusKeepsOptOutTruthful",
+          "action": "pass"
+        },
+        {
+          "test": "TestLightingUnavailableTargetCannotEnableOrProvision",
+          "action": "pass"
+        },
+        {
+          "test": "TestResolveNativeOperatorSourceBoundedAndCanonical",
+          "action": "pass"
+        },
+        {
+          "test": "TestResolveNativeOperatorSourceRejectsAlias",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineQualifiesBeforeActingAndComposesTheOwnersInOrder",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineInstallsConfirmedBytesWhenTheBuildPathIsReplaced",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment/role",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment/identity",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment/watchdog",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment/explanation",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment/confirmation",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesCandidateReplacementWhilePreparingItsSnapshot",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselinePreservesInstalledDigestFailureDetails/mismatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselinePreservesInstalledDigestFailureDetails/read-error",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselinePreservesInstalledDigestFailureDetails",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross/active_operation",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross/watchdog_mismatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross/equal_contract",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross/layout_change",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross/unstamped_candidate",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross",
+          "action": "pass"
+        },
+        {
+          "test": "TestDeclinedRebaselineChangesNothing",
+          "action": "pass"
+        },
+        {
+          "test": "TestStoppedRebaselineFinishesFromLiveStateWithoutAskingAgain",
+          "action": "pass"
+        },
+        {
+          "test": "TestPauseFailureIsReportedAsStillEnabled",
+          "action": "pass"
+        },
+        {
+          "test": "TestCallerWritableFilesGrantNothing",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebaselineLeavesAnUnenrolledHostUnenrolled",
+          "action": "pass"
+        },
+        {
+          "test": "TestRebuiltCandidateContinuesAPausedRebaselineAndRestoresEnrollment",
+          "action": "pass"
+        },
+        {
+          "test": "TestOperatorEnrollmentDecisionAfterAPauseIsNeverOverridden",
+          "action": "pass"
+        },
+        {
+          "test": "TestSameContractCandidateRefusalStatesEnrollmentHonestly",
+          "action": "pass"
+        },
+        {
+          "test": "TestResolveNativeOperatorSourceRejectsFIFOWithoutOpeningIt",
+          "action": "pass"
+        },
+        {
+          "test": "TestSupervisorStatusJSONUsesTypedProtoShape",
+          "action": "pass"
+        },
+        {
+          "test": "TestActualBuildsAdmitBehaviourOnlyChangesAndRefuseStoredShapeChanges",
+          "action": "skip"
+        },
+        {
+          "test": "TestPersistenceOwnersDeclareEveryVersionedEnvelope",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativePathWritersAreOwnedOrListed",
+          "action": "pass"
+        },
+        {
+          "test": "TestStoredFormatChangesAreRefusedWithAPreciseReason",
+          "action": "pass"
+        },
+        {
+          "test": "TestStoredVocabularyIsNeverWrittenAsALiteral",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativePersistenceOwnersQualifyWithTheGovernedStamp",
+          "action": "pass"
+        },
+        {
+          "test": "TestUnstampedExecutableIsUnqualified",
+          "action": "pass"
+        },
+        {
+          "test": "TestAgentCatalogOwnerPassesItsSourceChecks",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "path": "device-boundaries.jsonl",
+      "bytes": 86620,
+      "sha256": "656d6ad9afd911060e01b39e72d89932115401150640e0441ab8afe25180aeb5",
+      "command": "go test -race ./internal/hostreqkit -run '(OpenRGB|NativeHID)' -count=1 -json",
+      "packages": [
+        {
+          "Time": "2026-11-11T10:56:05.390342803-05:00",
+          "Action": "pass",
+          "Package": "github.com/vrooli/vrooli/internal/hostreqkit",
+          "Elapsed": 3.225
+        }
+      ],
+      "selected_tests": [
+        {
+          "test": "TestOpenRGBLinuxPolicyResolvesRenumberedPhysicalDevices",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/selected_seat_ACL",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/unknown_access_syscall",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/installed_rule_changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/session-only_group",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/different_host",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/wrong_detector_digest",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions/device_number_changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsWideOrUnknownPermissions",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyVerifiesChildCredentialsWithoutClaimingChildAccess",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsNodeReplacementDuringAccessCheck",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsAccessibleUnselectedHIDNode",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyPreservesUnrelatedAmbientAccess",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRequiresEveryMatchingGPUAdapterInEnrollment",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyVerifiesPersistentNumericOwnerWithoutGroupRefresh",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyRejectsUnqualifiedDetectorCatalogBeforeProbe",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBLinuxPolicyGenerationTracksSelectedDeviceBirth",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/root",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/system",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/virtual_service",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/SMBus",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/usage_mismatch",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/unknown_controller",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/unqualified_catalog",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors/duplicate_attachment",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyBindsOnlySourceQualifiedAccountAndSelectors",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyChecksScopeBeforeOpeningAnyTransport/absent",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyChecksScopeBeforeOpeningAnyTransport/duplicate",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyChecksScopeBeforeOpeningAnyTransport/unknown_generation",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyChecksScopeBeforeOpeningAnyTransport/extra_callback_candidate",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyChecksScopeBeforeOpeningAnyTransport",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyGenerationAndAccessRemainSeparateFromStableIdentity",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDPolicyRejectsWrongAccountAndCancelledProofBeforeProbe",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDRetainedIdentitySurvivesSourceScopeEvolution",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted/LedsValve.bin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted/LpcIO.bin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted/SmbusI801.bin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted/SmbusPIIX4.bin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted/SmbusNCT6793.bin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted/SmbusIntelSkylakeIMC.bin",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRequiresEveryPawnIOModuleOmitted",
+          "action": "pass"
+        },
+        {
+          "test": "TestNativeHIDTransportRejectsDeniedAndUnknownModuleMetadata",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionRetryAcceptsPreservedOwnerACLMask",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/restrictive-user-removed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/new-other",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/mode-mask-disagree",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/invalid-object-id",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/foreign-user-added",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/foreign-user-unmasked",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/malformed-prior",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/unmasked-owning-group",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/special-mode",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/executable-mode",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/malformed-current",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/missing-mask",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/unknown-tag",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/mode-is-real-group-grant",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/group-owner-changed",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/wrong-owner",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/owner-not-writable",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/duplicate-user",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess/unknown-permission",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRejectsNewOrUnknownAccess",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionACLRetainsExistingNamedGrants",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionPlanBindsExactLiteralPhysicalRules",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionPlanRejectsUnqualifiedOrPatternSelectors",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionApplyRollbackAndIdempotentRetry",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionForeignFileAndSymlinksPreserved/foreign",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionForeignFileAndSymlinksPreserved/empty_foreign",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionForeignFileAndSymlinksPreserved/symlink",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionForeignFileAndSymlinksPreserved/ancestor-symlink",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionForeignFileAndSymlinksPreserved",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionFailureExpiryAndCancellationRemainTruthful/expiry",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionFailureExpiryAndCancellationRemainTruthful/canceled_before_effects",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionFailureExpiryAndCancellationRemainTruthful/targeted_activation_retry_after_expiry",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionFailureExpiryAndCancellationRemainTruthful/rollback_retry",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionFailureExpiryAndCancellationRemainTruthful/foreign_replacement",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionFailureExpiryAndCancellationRemainTruthful",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionPlanRequiresElevatedExecutorAndSerializes",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionUdevSyntax",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionReplacementRevokesRemovedRoutesAndRollbackRestoresPrior",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionReplacementRetainsOriginalBaselineAcrossSeveralSelections",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionAbsentControllerCannotBlockPersistentRevocation",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionIdenticalSuccessorCannotBeUndoneByStaleTransaction",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionARMSoCHIDPlanApplyRollback",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionArchitecturesRemainBounded",
+          "action": "pass"
+        },
+        {
+          "test": "TestOpenRGBPermissionARMQualificationIsExactArtifactAndHIDClass",
+          "action": "pass"
+        }
+      ]
+    }
+  ]
+}

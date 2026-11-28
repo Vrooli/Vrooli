@@ -1,22 +1,9 @@
 package artifacts
 
-import "os"
+import sharedfs "test-genie/internal/shared/filesystem"
 
-// FileSystem abstracts filesystem operations for testing.
-type FileSystem interface {
-	WriteFile(path string, data []byte, perm os.FileMode) error
-	MkdirAll(path string, perm os.FileMode) error
-}
+// FileSystem preserves the artifact package API as the shared write contract.
+type FileSystem = sharedfs.Writer
 
-// OSFileSystem is the default filesystem implementation using os package.
-type OSFileSystem struct{}
-
-// WriteFile writes data to a file.
-func (OSFileSystem) WriteFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-// MkdirAll creates a directory and all parents.
-func (OSFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
+// OSFileSystem preserves the artifact-owner name while sharing the OS adapter.
+type OSFileSystem = sharedfs.OS

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/bas-ui-journey-evidence/v1",
+  "title": "BAS UI Journey Evidence Record",
+  "type": "object",
+  "required": ["schema_version", "run_id", "recorded_at", "journey_id", "event", "kind", "outcome"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "journey_id": { "enum": ["MB3", "J26", "J27", "J28", "J29", "J30"] },
+    "event": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["timing", "receipt"] },
+    "outcome": { "enum": ["ok", "failed"] },
+    "elapsed_ms": { "type": "number", "minimum": 0 },
+    "facts": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "null" },
+          { "type": "array", "items": { "type": "string" } }
+        ]
+      }
+    },
+    "error_type": { "type": "string" },
+    "runtime_identity": {
+      "type": "object",
+      "required": ["browser_version", "driver_version"],
+      "properties": {
+        "browser_version": { "type": "string", "minLength": 1 },
+        "driver_version": { "type": "string", "minLength": 1 },
+        "driver_browser_version": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "timing" } } },
+      "then": { "required": ["elapsed_ms"] }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "receipt" } }, "required": ["kind"] },
+      "then": { "not": { "required": ["elapsed_ms"] } }
+    },
+    {
+      "if": {
+        "properties": {
+          "journey_id": { "enum": ["J26", "J27", "J28", "J29", "J30"] },
+          "outcome": { "const": "ok" }
+        },
+        "required": ["journey_id", "outcome"]
+      },
+      "then": { "required": ["runtime_identity"] }
+    }
+  ],
+  "additionalProperties": false
+}

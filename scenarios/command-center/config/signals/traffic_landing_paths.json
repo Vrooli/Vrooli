@@ -1,0 +1,70 @@
+{
+  "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "label": {
+      "optional": true,
+      "type": "string"
+    },
+    "share": {
+      "type": "number"
+    },
+    "value": {
+      "type": "number"
+    }
+  },
+  "coverage": "IN-REACH",
+  "description": "Ranked landing-path breakdown of visitors.",
+  "format": "integer",
+  "id": "traffic_landing_paths",
+  "kind": "panel",
+  "label": "Traffic by landing path",
+  "sample": {
+    "basis": "hand-authored structural sample, reviewed 2026-09-03",
+    "rows": [
+      {
+        "key": "/",
+        "label": "Home",
+        "share": 0.7,
+        "value": 70
+      },
+      {
+        "key": "/pricing",
+        "label": "Pricing",
+        "share": 0.2,
+        "value": 20
+      },
+      {
+        "key": "/docs",
+        "label": "Docs",
+        "share": 0.1,
+        "value": 10
+      }
+    ],
+    "series": [
+      100
+    ],
+    "value": 100
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_landing_paths",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=LANDING_PATH\u0026limit=6\u0026window_days=30",
+    "select": "traffic_landing_paths",
+    "selector": "traffic_landing_paths",
+    "sourceTimePolicy": "producer_required",
+    "team": "marketing-crew",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
+}

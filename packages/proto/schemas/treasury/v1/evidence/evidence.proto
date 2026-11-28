@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.evidence;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/evidence;evidence_v1";
+
+message EvidenceRecord {
+  string id = 1;
+  string authorization_id = 2;
+  string mandate_id = 3;
+  string approval_id = 4;
+  string charge_id = 5;
+  string outcome = 6;
+  string basis = 7;
+  google.protobuf.Struct request = 8;
+  google.protobuf.Struct rail_response = 9;
+  google.protobuf.Struct receipt = 10;
+  google.protobuf.Timestamp recorded_at = 11;
+}

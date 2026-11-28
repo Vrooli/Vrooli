@@ -1,20 +1,34 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "description": "Merged into architecture-lenses (\u00a73 Invariants); read that.",
+  "entry": "SKILL.md",
+  "icon": "lock",
   "id": "invariant-discovery-and-enforcement",
-  "name": "Invariant Discovery \u0026 Enforcement",
-  "description": "Discover and enforce system invariants and constraints",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "analysis"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "lock",
+  "name": "Invariant Discovery & Enforcement",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 44,
+  "schemaVersion": 1,
   "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

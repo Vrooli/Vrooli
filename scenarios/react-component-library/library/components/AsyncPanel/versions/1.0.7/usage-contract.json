@@ -1,0 +1,13 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Card",
+      "EmptyState",
+      "ErrorState"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:AsyncPanel",
+  "version": "1.0.7"
+}

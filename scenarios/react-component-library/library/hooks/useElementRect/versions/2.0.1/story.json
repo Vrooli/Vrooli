@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useElementRect",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Measured on mount",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The border-box rect is available on first paint rather than after it.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-element-rect']",
+          "attribute": "data-measured",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "id": "disabled",
+      "name": "Observation stopped",
+      "role": "boundary",
+      "states": [
+        "disabled"
+      ],
+      "mode": "live",
+      "description": "A disabled observer installs nothing and reports no rect.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Disabled"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-element-rect']",
+          "attribute": "data-measured",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}

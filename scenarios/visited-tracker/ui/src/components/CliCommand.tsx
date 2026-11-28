@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useClipboard } from "../hooks/useClipboard";
 import { Copy, Check } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -13,18 +13,7 @@ interface CliCommandProps {
  * Optimized for agent workflows - reduces friction in copying commands
  */
 export function CliCommand({ command, description, className = "" }: CliCommandProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Silently fail if clipboard API is unavailable
-      // User will notice the lack of visual feedback
-    }
-  };
+  const { isCopied: copied, error, copy } = useClipboard();
 
   return (
     <div className={`group ${className}`}>
@@ -38,7 +27,7 @@ export function CliCommand({ command, description, className = "" }: CliCommandP
         <Button
           size="sm"
           variant="ghost"
-          onClick={handleCopy}
+          onClick={() => void copy(command)}
           className="absolute right-1 top-1/2 -translate-y-1/2 h-7 sm:h-8 px-2 sm:px-2.5 hover:bg-white/10"
           aria-label={copied ? "Copied to clipboard!" : "Copy command to clipboard"}
         >
@@ -49,6 +38,7 @@ export function CliCommand({ command, description, className = "" }: CliCommandP
           )}
         </Button>
       </div>
+      {error && <p role="status" className="mt-1 text-xs text-amber-300">{error}</p>}
     </div>
   );
 }

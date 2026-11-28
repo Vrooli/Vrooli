@@ -1,0 +1,362 @@
+
+x-default-logging: &default
+  {}
+
+x-loki-logging: &loki
+  driver: loki
+  options:
+    loki-url: http://localhost:3100/loki/api/v1/push
+    mode: non-blocking
+    max-buffer-size: 4m
+    loki-retries: "3"
+
+x-log-config: &log-config
+  # update this value to *loki if needed to see logs in grafana dashboard.
+  <<: *default
+
+services:
+
+  proxy:
+    image: 'bahmni/proxy:${PROXY_IMAGE_TAG:?}'
+    #volumes:
+      # - ${CERTIFICATE_PATH}:/etc/tls
+    ports:
+      - '80:80'
+      - '443:443'
+    logging: *log-config
+    environment:
+      TZ: ${TZ}
+
+  bahmni-config:
+    image: 'bahmni/clinic-config:${CONFIG_IMAGE_TAG:?}'
+    volumes:
+      - '${CONFIG_VOLUME:?}:/usr/local/bahmni_config'
+    logging: *log-config
+
+  bahmni-lab:
+    profiles: ["lab-lite","emr","bahmni-lite"]
+    image: 'bahmni/bahmni-lab:${BAHMNI_LAB_IMAGE_TAG:?}'
+    logging: *log-config
+    environment:
+      TZ: ${TZ}
+
+  openmrs:
+    profiles: ["emr","bahmni-lite", "bahmni-mart"]
+    image: bahmni/openmrs:${OPENMRS_IMAGE_TAG:?}
+    environment:
+      TZ: ${TZ}
+      OMRS_DB_NAME: ${OPENMRS_DB_NAME:?}
+      OMRS_DB_HOSTNAME: ${OPENMRS_DB_HOST:?}
+      OMRS_DB_USERNAME: ${OPENMRS_DB_USERNAME:?}
+      OMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:?}
+      OMRS_CREATE_TABLES: ${OPENMRS_DB_CREATE_TABLES}
+      OMRS_AUTO_UPDATE_DATABASE: ${OPENMRS_DB_AUTO_UPDATE}
+      OMRS_MODULE_WEB_ADMIN: ${OPENMRS_MODULE_WEB_ADMIN}
+      # OMRS_DEV_DEBUG_PORT: ${OMRS_DEV_DEBUG_PORT}
+      OMRS_JAVA_SERVER_OPTS: ${OMRS_JAVA_SERVER_OPTS}
+      OMRS_JAVA_MEMORY_OPTS: ${OMRS_JAVA_MEMORY_OPTS}
+      SEND_MAIL: ${SEND_MAIL}
+      MAIL_TRANSPORT_PROTOCOL: ${MAIL_TRANSPORT_PROTOCOL}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH}
+      MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE}
+      MAIL_SMTP_SSL_ENABLE: ${MAIL_SMTP_SSL_ENABLE}
+      MAIL_DEBUG: ${MAIL_DEBUG}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      OMRS_DOCKER_ENV: ${OPENMRS_DOCKER_ENV}
+      OMRS_C3P0_MAX_SIZE: ${OMRS_C3P0_MAX_SIZE}
+    #ports:
+      # - ${OMRS_DEV_DEBUG_PORT}:${OMRS_DEV_DEBUG_PORT}
+    volumes:
+      - "${CONFIG_VOLUME:?}:/etc/bahmni_config/:ro"
+      - "bahmni-lab-results:/home/bahmni/uploaded_results"
+      # - "${BAHMNI_OPENMRS_MODULES_PATH:?}/:/openmrs/data/modules/"
+      - 'bahmni-patient-images:/home/bahmni/patient_images'
+      - 'bahmni-document-images:/home/bahmni/document_images'
+      - 'bahmni-clinical-forms:/home/bahmni/clinical_forms'
+      - 'configuration_checksums:/openmrs/data/configuration_checksums'
+
+    depends_on:
+      - openmrsdb
+    logging: *log-config
+
+  openmrsdb:
+    image: ${OPENMRS_DB_IMAGE_NAME:?}
+    restart: always
+    profiles: ["emr","bahmni-lite", "metabase", "bahmni-mart"]
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci
+    environment:
+      TZ: ${TZ}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+      MYSQL_DATABASE: ${OPENMRS_DB_NAME:?}
+      MYSQL_USER: ${OPENMRS_DB_USERNAME:?}
+      MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD:?}
+    volumes:
+      - 'openmrsdbdata:/var/lib/mysql'
+      - 'configuration_checksums:/configuration_checksums'
+
+    logging: *log-config
+
+  crater-php:
+    image: bahmni/crater-php:${CRATER_PHP_IMAGE_TAG:?}
+    profiles: ["crater","bahmni-lite"]
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+     - 'crater-app-data:/var/www/storage/app/public'
+    environment:
+      TZ: ${TZ}
+      APP_URL: ${CRATER_APP_URL:?}
+      DB_HOST: ${CRATER_DB_HOST:?}
+      DB_PORT: ${CRATER_DB_PORT:?}
+      DB_DATABASE: ${CRATER_DB_DATABASE:?}
+      DB_USERNAME: ${CRATER_DB_USERNAME:?}
+      DB_PASSWORD: ${CRATER_DB_PASSWORD:?}
+      SANCTUM_STATEFUL_DOMAINS: ${CRATER_SANCTUM_STATEFUL_DOMAINS:?}
+      SESSION_DOMAIN: ${CRATER_SESSION_DOMAIN:?}
+      AUTO_INSTALL: ${CRATER_AUTO_INSTALL:?}
+      ADMIN_NAME: ${CRATER_ADMIN_NAME:?}
+      ADMIN_EMAIL: ${CRATER_ADMIN_EMAIL:?}
+      ADMIN_PASSWORD: ${CRATER_ADMIN_PASSWORD:?}
+      COMPANY_NAME: ${CRATER_COMPANY_NAME:?}
+      COMPANY_SLUG: ${CRATER_COMPANY_SLUG:?}
+      COUNTRY_ID: ${CRATER_COUNTRY_ID:?}
+      APP_DEBUG: ${CRATER_APP_DEBUG:?}
+
+  crater-nginx:
+    image: bahmni/crater-nginx:${CRATER_NGINX_IMAGE_TAG:?}
+    profiles: ["crater","bahmni-lite"]
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+     - 'crater-app-data:/var/www/public/storage'
+    ports:
+      - 444:443
+
+  craterdb:
+    image: mysql:5.7
+    profiles: ["crater","bahmni-lite"]
+    restart: always
+    volumes:
+      - craterdb:/var/lib/mysql
+      # # If you want to persist data on the host, comment the line above this one...
+      # # and uncomment the line under this one.
+      # - ./docker-compose/db/data:/var/lib/mysql:rw,delegated
+    environment:
+      TZ: ${TZ}
+      MYSQL_USER: ${CRATER_DB_USERNAME:?}
+      MYSQL_PASSWORD: ${CRATER_DB_PASSWORD:?}
+      MYSQL_DATABASE: ${CRATER_DB_DATABASE:?}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+
+
+  metabasedb:
+    image: postgres:${METABASE_POSTGRES_IMAGE_TAG:?}
+    restart: on-failure:[3]
+    profiles: ["metabase", "bahmni-mart"]
+    environment:
+      TZ: ${TZ}
+      POSTGRES_DB: ${METABASE_DB_NAME:?}
+      POSTGRES_USER: ${METABASE_DB_USER:?}
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD:?}
+    volumes:
+      - 'metabase-data:/var/lib/postgresql/data'
+
+
+  metabase:
+    image: bahmni/bahmni-metabase:${METABASE_IMAGE_TAG:?}
+    restart: on-failure:[3]
+    profiles: ["metabase", "bahmni-mart"]
+    environment:
+      TZ: ${TZ}
+      MB_ADMIN_EMAIL: ${METABASE_ADMIN_EMAIL:?}
+      MB_ADMIN_FIRST_NAME: ${METABASE_ADMIN_FIRST_NAME:?}
+      MB_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD:?}
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${METABASE_DB_NAME:?}
+      MB_DB_PORT:  ${METABASE_DB_PORT:?}
+      MB_DB_USER: ${METABASE_DB_USER:?}
+      MB_DB_PASS: ${METABASE_DB_PASSWORD:?}
+      MB_DB_HOST: ${METABASE_DB_HOST:?}
+      OPENMRS_DB_HOST: ${OPENMRS_DB_HOST:?}
+      OPENMRS_DB_NAME: ${OPENMRS_DB_NAME:?}
+      OPENMRS_DB_USERNAME: ${OPENMRS_DB_USERNAME:?}
+      OPENMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:?}
+      MART_DB_HOST: ${MART_DB_HOST:?}
+      MART_DB_NAME: ${MART_DB_NAME:?}
+      MART_DB_USERNAME: ${MART_DB_USERNAME:?}
+      MART_DB_PASSWORD: ${MART_DB_PASSWORD:?}
+    depends_on:
+     - metabasedb
+
+  martdb:
+    image: postgres:${BAHMNI_MART_DB_IMAGE_TAG:?}
+    profiles: ["bahmni-mart"]
+    environment:
+      TZ: ${TZ}
+      POSTGRES_DB: ${MART_DB_NAME:?}
+      POSTGRES_USER: ${MART_DB_USERNAME:?}
+      POSTGRES_PASSWORD: ${MART_DB_PASSWORD:?}
+    volumes:
+      - 'mart-data:/var/lib/postgresql/data'
+
+
+  mart:
+    image: bahmni/bahmni-mart:${BAHMNI_MART_IMAGE_TAG:?}
+    profiles: ["bahmni-mart"]
+    environment:
+      TZ: ${TZ}
+      CRON_TIME: ${MART_CRON_TIME:?}
+      MART_DB_HOST: ${MART_DB_HOST:?}
+      MART_DB_NAME: ${MART_DB_NAME:?}
+      MART_DB_USERNAME: ${MART_DB_USERNAME:?}
+      MART_DB_PASSWORD: ${MART_DB_PASSWORD:?}
+      OPENMRS_DB_HOST: ${OPENMRS_DB_HOST:?}
+      OPENMRS_DB_NAME: ${OPENMRS_DB_NAME:?}
+      OPENMRS_DB_USERNAME: ${OPENMRS_DB_USERNAME:?}
+      OPENMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:?}
+    depends_on:
+     - martdb
+     - openmrsdb
+     - openmrs
+    volumes:
+     - 'bahmni-clinical-forms:/home/bahmni/clinical_forms'
+
+  bahmni-web:
+    image: bahmni/bahmni-web:${BAHMNI_WEB_IMAGE_TAG:?}
+    profiles: ["emr","bahmni-lite","bahmni-mart"]
+    volumes:
+      - "${CONFIG_VOLUME:?}:/usr/local/apache2/htdocs/bahmni_config/:ro"
+    #   - "${BAHMNI_APPS_PATH:?}/ui/app/:/usr/local/apache2/htdocs/bahmni"
+    #   - "${BAHMNI_APPS_PATH:?}/ui/node_modules/@bower_components/:/usr/local/apache2/htdocs/bahmni/components"
+    logging: *log-config
+
+  implementer-interface:
+    image: bahmni/implementer-interface:${IMPLEMENTER_INTERFACE_IMAGE_TAG:?}
+    profiles: ["implementer-interface","emr","bahmni-lite"]
+    #volumes:
+    #  - "${IMPLEMENTER_INTERFACE_CODE_PATH:?}/dist:/usr/local/apache2/htdocs/implementer-interface"
+    depends_on:
+      - openmrs
+    logging: *log-config
+
+  reports:
+    image: bahmni/reports:${REPORTS_IMAGE_TAG:?}
+    profiles: ["reports","bahmni-lite"]
+    environment:
+      TZ: ${TZ}
+      OPENMRS_DB_HOST: ${OPENMRS_DB_HOST:?}
+      OPENMRS_DB_NAME: ${OPENMRS_DB_NAME:?}
+      OPENMRS_DB_USERNAME: ${OPENMRS_DB_USERNAME:?}
+      OPENMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:?}
+      OPENMRS_HOST: ${OPENMRS_HOST:?}
+      OPENMRS_PORT: ${OPENMRS_PORT:?}
+      REPORTS_DB_SERVER: reportsdb
+      REPORTS_DB_NAME: ${REPORTS_DB_NAME:?}
+      REPORTS_DB_USERNAME: ${REPORTS_DB_USERNAME:?}
+      REPORTS_DB_PASSWORD: ${REPORTS_DB_PASSWORD:?}
+    volumes:
+      - "${CONFIG_VOLUME:?}:/etc/bahmni_config/:ro"
+    depends_on:
+      - reportsdb
+      - openmrsdb
+      - bahmni-web
+    logging: *log-config
+
+  reportsdb:
+    platform: linux/amd64
+    image: mysql:5.7
+    profiles: ["reports","bahmni-lite"]
+    environment:
+      TZ: ${TZ}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?}
+      MYSQL_DATABASE: ${REPORTS_DB_NAME:?}
+      MYSQL_USER: ${REPORTS_DB_USERNAME:?}
+      MYSQL_PASSWORD: ${REPORTS_DB_PASSWORD:?}
+    logging: *log-config
+
+  patient-documents:
+    image: 'bahmni/patient-documents:${PATIENT_DOCUMENTS_TAG:?}'
+    profiles: ["emr","bahmni-lite"]
+    volumes:
+      - 'bahmni-document-images:/usr/share/nginx/html/document_images'
+      - 'bahmni-lab-results:/usr/share/nginx/html/uploaded_results'
+    environment:
+      TZ: ${TZ}
+      OPENMRS_HOST: ${OPENMRS_HOST:?}
+    depends_on:
+      - openmrs
+    logging: *log-config
+
+  appointments:
+    image: bahmni/appointments:${APPOINTMENTS_IMAGE_TAG:?}
+    profiles: ["emr","bahmni-lite"]
+    # volumes:
+    # - "${APPOINTMENTS_PATH:?}/dist/:/usr/local/apache2/htdocs/appointments"
+
+  sms-service:
+    image: bahmni/sms-service:${SMS_SERVICE_IMAGE_TAG:?}
+    profiles: ["sms"]
+    environment:
+      TZ: ${TZ}
+      SMS_TOKEN: ${SMS_TOKEN}
+      SMS_ORIGINATOR: ${SMS_ORIGINATOR}
+      SMS_OPENMRS_HOST: ${OPENMRS_HOST:?}
+      SMS_OPENMRS_PORT: ${OPENMRS_PORT:?}
+
+  atomfeed-console:
+    image: bahmni/atomfeed-console:latest
+    profiles: ["atomfeed-console"]
+    environment:
+      TZ: ${TZ}
+      OPENMRS_DB_HOST: ${OPENMRS_DB_HOST}
+      OPENMRS_DB_NAME: ${OPENMRS_DB_NAME}
+      OPENMRS_DB_USERNAME: ${OPENMRS_DB_USERNAME}
+      OPENMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD}
+
+  crater-atomfeed:
+    image: bahmni/crater-atomfeed:${CRATER_ATOMFEED_IMAGE_TAG:?}
+    profiles: ["crater","bahmni-lite"]
+    environment:
+      TZ: ${TZ}
+      OPENMRS_HOST: ${OPENMRS_HOST:?}
+      OPENMRS_PORT: ${OPENMRS_PORT:?}
+      OPENMRS_ATOMFEED_USER: ${OPENMRS_ATOMFEED_USER}
+      OPENMRS_ATOMFEED_PASSWORD: ${OPENMRS_ATOMFEED_PASSWORD}
+      CRATER_ATOMFEED_DB_HOST: ${CRATER_ATOMFEED_DB_HOST:?}
+      CRATER_ATOMFEED_DB_PORT: ${CRATER_ATOMFEED_DB_PORT:?}
+      CRATER_USERNAME: ${CRATER_USERNAME}
+      CRATER_PASSWORD: ${CRATER_PASSWORD}
+      CRATER_ATOMFEED_DB_USERNAME: ${CRATER_ATOMFEED_DB_USERNAME}
+      CRATER_ATOMFEED_DB_PASSWORD: ${CRATER_ATOMFEED_DB_PASSWORD}
+      CRATER_ATOMFEED_DB_NAME: ${CRATER_ATOMFEED_DB_NAME}
+      CRATER_URL: ${CRATER_URL}
+
+  crater-atomfeed-db:
+    platform: linux/amd64
+    image: mysql:5.7
+    profiles: ["crater","bahmni-lite"]
+    environment:
+      TZ: ${TZ}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${CRATER_ATOMFEED_DB_NAME:?}
+      MYSQL_USER: ${CRATER_ATOMFEED_DB_USERNAME:?}
+      MYSQL_PASSWORD: ${CRATER_ATOMFEED_DB_PASSWORD:?}
+
+volumes:
+  openmrs-data:
+  openmrsdbdata:
+  craterdb:
+  bahmni-patient-images:
+  bahmni-document-images:
+  bahmni-clinical-forms:
+  crater-app-data:
+  bahmni-config:
+  configuration_checksums:
+  mart-data:
+  metabase-data:
+  bahmni-lab-results:

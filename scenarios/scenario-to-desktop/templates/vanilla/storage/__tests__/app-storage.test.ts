@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { posix } from "node:path";
 import type {
     IStorageFileSystem,
     IStoragePathUtils,
@@ -172,78 +173,8 @@ function createMockFileSystem(): MockFileSystem {
     return fs;
 }
 
-function createMockPathUtils(): IStoragePathUtils {
-    return {
-        join: (...segments) => segments.join("/").replace(/\/+/g, "/"),
-        dirname: (p) => {
-            const parts = p.split("/");
-            parts.pop();
-            return parts.join("/") || "/";
-        },
-        normalize: (p) => {
-            // Accurate normalization that preserves leading ".." for relative paths
-            const isAbsolute = p.startsWith("/");
-            const parts = p.split("/");
-            const result: string[] = [];
-
-            for (const part of parts) {
-                if (part === "..") {
-                    // Can only pop if we have non-".." parts to pop
-                    if (result.length > 0 && result[result.length - 1] !== "..") {
-                        result.pop();
-                    } else if (!isAbsolute) {
-                        // For relative paths, keep leading ".."
-                        result.push("..");
-                    }
-                    // For absolute paths, ".." at root is ignored
-                } else if (part !== "." && part !== "") {
-                    result.push(part);
-                }
-            }
-
-            if (isAbsolute) {
-                return "/" + result.join("/");
-            }
-            return result.join("/") || ".";
-        },
-        resolve: (...segments) => {
-            // Accurate resolve: join paths and resolve ".." properly
-            let result = "";
-            for (const segment of segments) {
-                if (segment.startsWith("/")) {
-                    result = segment;
-                } else {
-                    result = result + "/" + segment;
-                }
-            }
-            // Normalize the absolute path
-            const parts = result.split("/");
-            const normalized: string[] = [];
-            for (const part of parts) {
-                if (part === "..") {
-                    // Pop from normalized (but not below root)
-                    if (normalized.length > 0) {
-                        normalized.pop();
-                    }
-                } else if (part !== "." && part !== "") {
-                    normalized.push(part);
-                }
-            }
-            return "/" + normalized.join("/");
-        },
-        isAbsolute: (p) => p.startsWith("/"),
-        relative: (from, to) => {
-            // Simple relative: strip common prefix
-            const fromParts = from.split("/").filter(Boolean);
-            const toParts = to.split("/").filter(Boolean);
-            let common = 0;
-            while (common < fromParts.length && common < toParts.length && fromParts[common] === toParts[common]) {
-                common++;
-            }
-            return toParts.slice(common).join("/");
-        },
-        sep: "/",
-    };
+function createTestPathUtils(): IStoragePathUtils {
+    return posix;
 }
 
 function createTestConfig(overrides?: Partial<StorageConfig>): StorageConfig {
@@ -263,7 +194,7 @@ describe("createAppStorage", () => {
 
     beforeEach(() => {
         fs = createMockFileSystem();
-        path = createMockPathUtils();
+        path = createTestPathUtils();
         config = createTestConfig();
     });
 
@@ -422,6 +353,35 @@ describe("createAppStorage", () => {
             const storage = createAppStorage(fs, path, config);
 
             await expect(storage.writeFile("../escape.txt", "data")).rejects.toThrow("Invalid storage path");
+        });
+
+        it("atomically replaces an existing file when rename is available", async () => {
+            const rename = vi.fn(async (from: string, to: string) => {
+                const value = fs._files.get(from);
+                if (value === undefined) throw new Error("temporary file missing");
+                fs._files.set(to, value);
+                fs._files.delete(from);
+            });
+            (fs as unknown as { rename: typeof rename }).rename = rename;
+            const storage = createAppStorage(fs, path, config);
+
+            await storage.writeFile("state.json", "new state");
+
+            expect(rename).toHaveBeenCalledTimes(1);
+            const [temporary, target] = rename.mock.calls[0] ?? [];
+            expect(temporary).toMatch(/^\/mock\/userData\/app-storage\/state\.json\.tmp-\d+$/);
+            expect(target).toBe("/mock/userData/app-storage/state.json");
+            expect(fs._files.get(target!)).toBe("new state");
+            expect([...fs._files.keys()].some((key) => key.includes(".tmp-"))).toBe(false);
+        });
+
+        it("removes the temporary file when atomic replacement fails", async () => {
+            const rename = vi.fn(async () => { throw new Error("replacement failed"); });
+            (fs as unknown as { rename: typeof rename }).rename = rename;
+            const storage = createAppStorage(fs, path, config);
+
+            await expect(storage.writeFile("state.json", "new state")).rejects.toThrow("replacement failed");
+            expect([...fs._files.keys()].some((key) => key.includes("state.json.tmp-"))).toBe(false);
         });
     });
 

@@ -1,0 +1,21 @@
+{
+  "bottomNavLabel": "Mobile navigation",
+  "nav": {
+    "asks": "Needs you",
+    "dashboard": "Updates",
+    "history": "History",
+    "settings": "Settings"
+  },
+  "sidebarLabel": "Primary navigation",
+  "brandSub": "Night desk",
+  "needsYouBadge": "{{count}} waiting",
+  "needsYouBadge_one": "1 waiting",
+  "account": {
+    "signedOut": "Not signed in"
+  },
+  "sources": {
+    "title": "By source",
+    "label": "Filter by source",
+    "all": "All {{count}}"
+  }
+}

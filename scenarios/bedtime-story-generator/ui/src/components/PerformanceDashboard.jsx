@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import useExperienceStore from "../state/store.js";
 import { resetLongTaskHistory } from "../performance/longTaskCache.js";
-import FeatureToggleDialog from "./FeatureToggleDialog.jsx";
+import { Dialog } from "@vrooli/react-component-library/Dialog/1.3.10";
 
 const PANEL_VARIANTS = {
   hidden: { opacity: 0, y: 20 },
@@ -26,6 +26,8 @@ const PerformanceDashboard = ({ experience, isOpen, onToggle }) => {
   const frameProfile = useExperienceStore((state) => state.frameProfile);
   const longTasks = useExperienceStore((state) => state.longTasks);
   const gcEvents = useExperienceStore((state) => state.gcEvents);
+  const profiling = useExperienceStore((state) => state.profiling);
+  const setProfilingFlag = useExperienceStore((state) => state.setProfilingFlag);
   const clearLongTasks = useExperienceStore((state) => state.clearLongTasks);
   const clearGCEvents = useExperienceStore((state) => state.clearGCEvents);
   const frameProfileTotal = frameProfile?.total ?? 0;
@@ -511,9 +513,64 @@ const PerformanceDashboard = ({ experience, isOpen, onToggle }) => {
           font-size: 11px;
           padding: 2px 6px;
         }
+        .performance-dialog {
+          background: rgba(10, 12, 25, 0.65);
+          backdrop-filter: blur(6px);
+        }
+        .performance-dialog .rcl-dialog__surface {
+          background: rgba(20, 24, 44, 0.98);
+          color: #f8faff;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          border-radius: 14px;
+        }
+        .performance-dialog .rcl-dialog__title { color: #f8faff; }
+        .performance-dialog .rcl-dialog__description,
+        .performance-dialog .feature-toggle-item p { color: rgba(255, 255, 255, 0.7); }
+        .performance-dialog .feature-toggle-list {
+          list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px;
+        }
+        .performance-dialog .feature-toggle-item {
+          display: flex; gap: 12px; align-items: flex-start;
+          background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 12px;
+        }
+        .performance-dialog .feature-toggle-item input { margin-top: 4px; }
+        .performance-dialog .feature-toggle-item strong { display: block; margin-bottom: 4px; }
+        .performance-dialog .feature-toggle-item p { margin: 0; font-size: 12px; }
       `}</style>
 
-      <FeatureToggleDialog open={togglesOpen} onClose={() => setTogglesOpen(false)} />
+      <Dialog
+        open={togglesOpen}
+        title="Performance Toggles"
+        description="Disable subsystems to understand their impact. Changes apply instantly."
+        onClose={() => setTogglesOpen(false)}
+        closeLabel="Close"
+        className="performance-dialog"
+        testId="performance.toggles"
+        footer={<button type="button" className="ghost-action" onClick={() => setTogglesOpen(false)}>Close</button>}
+      >
+        <ul className="feature-toggle-list">
+          {[
+            ["disableAudio", "Disable Ambient Audio", "Turns off oscillator-based ambience and fade processing."],
+            ["disableWorldAnimations", "Freeze Scene Animations", "Skips particle, lighting, and prop animations inside the world update loop."],
+            ["disableProjectorCanvas", "Stop Projector Canvas Updates", "Halts story text rendering on the projector screen."],
+            ["disablePostProcessing", "Disable Post Processing", "Bypasses bloom and color grading passes (if developer mode enabled)."],
+          ].map(([flag, label, description]) => (
+            <li key={flag}>
+              <label className="feature-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={!!profiling?.[flag]}
+                  onChange={(event) => setProfilingFlag(flag, event.target.checked)}
+                />
+                <div>
+                  <strong>{label}</strong>
+                  <p>{description}</p>
+                </div>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </Dialog>
     </motion.div>
   );
 };

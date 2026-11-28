@@ -18,6 +18,10 @@ export interface PanelDeps {
 
   // Queries
   statusData: RepoStatus | undefined;
+  statusIsLoading: boolean;
+  statusError: Error | null;
+  onRefreshStatus: () => void;
+  onRetryFileStats?: () => void;
   diffData: DiffResponse | undefined;
   diffIsLoading: boolean;
   diffError: Error | null;
@@ -27,6 +31,7 @@ export interface PanelDeps {
   historyIsFetching: boolean;
   syncStatusData: SyncStatusResponse | undefined;
   approvedChangesData: { available: boolean; committableFiles: number; suggestedMessage?: string; warning?: string; files?: Array<{ status: string; relativePath: string }> } | undefined;
+  runIndex?: Map<string, import("./lib/runAttribution").RunAttribution>;
 
   // Selection state
   selectedFile: string | undefined;
@@ -68,7 +73,6 @@ export interface PanelDeps {
   // Commit state
   commitMessage: string;
   commitError: string | undefined;
-  canUseApprovedMessage: boolean;
   canAmend: boolean;
   amendDisabledReason: string | undefined;
   pushTargetRef: string | undefined;
@@ -80,7 +84,6 @@ export interface PanelDeps {
   isIgnoring: boolean;
   isCommitting: boolean;
   isPushing: boolean;
-  isUsingApprovedMessage: boolean;
   isDeleting: boolean;
   isSavingFile: boolean;
   confirmingDiscard: string | null;
@@ -106,7 +109,6 @@ export interface PanelDeps {
   onStageAll: () => void;
   onUnstageAll: () => void;
   onStagePaths: (paths: string[]) => void;
-  onStageApproved: () => void;
   onDiscardPaths: (paths: string[], untracked: boolean) => void;
   onConfirmDiscard: (path: string | null) => void;
   onConfirmIgnore: (path: string | null) => void;
@@ -115,7 +117,6 @@ export interface PanelDeps {
   onContinueCommit: (message: string) => void;
   onCommit: (message: string, options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }) => void;
   onCommitMessageChange: (msg: string) => void;
-  onUseApprovedMessage: () => void;
   onPush: () => void;
   onLoadMoreHistory: () => void;
   onViewModeChange: (mode: ViewMode) => void;
@@ -124,6 +125,9 @@ export interface PanelDeps {
   onScrollComplete: () => void;
   onDeletePath: (path: string, isDir: boolean) => void;
   onBlameFile: (path: string) => void;
+  onStageFilesWithSameName?: (path: string) => void;
+  onRevealInTree?: (path: string) => void;
+  onOpenRun?: (runId: string) => void;
   onExitBlameMode: () => void;
   onCycleViewMode: () => void;
   onSetChangesCollapsed: (fn: (prev: boolean) => boolean) => void;
@@ -186,22 +190,19 @@ export function renderPanel(
       return (
         <FileList
           files={deps.statusData?.files}
+          loading={deps.statusIsLoading && !deps.statusData}
+          loadError={deps.statusError?.message ?? null}
+          onRetryLoad={deps.onRefreshStatus}
+          runIndex={deps.runIndex}
+          onRevealInTree={deps.onRevealInTree}
+          onOpenRun={deps.onOpenRun}
           fileStats={deps.statusData?.file_stats}
+          previewFileStats={deps.statusData?.file_stats_preview}
+          fileStatsState={deps.statusData?.file_stats_state}
+          onRetryFileStats={deps.onRetryFileStats}
           selectedFiles={deps.selectedFiles}
           selectedKeySet={deps.selectedKeySet}
           selectionKey={deps.selectionKey}
-          approvedChanges={
-            deps.approvedChangesData
-              ? {
-                  available: deps.approvedChangesData.available,
-                  committableFiles: deps.approvedChangesData.committableFiles,
-                  warning: deps.approvedChangesData.warning,
-                }
-              : undefined
-          }
-          approvedPaths={deps.approvedPendingSet}
-          onStageApproved={deps.onStageApproved}
-          isStagingApproved={deps.isStaging}
           onSelectFile={(path, staged, event) => {
             deps.onSelectFile(path, staged, event);
             if (deps.primaryPanel === "review") deps.onSetPrimaryPanel("diff");
@@ -232,6 +233,7 @@ export function renderPanel(
           onScrollComplete={deps.onScrollComplete}
           onDeletePath={deps.onDeletePath}
           onBlameFile={deps.onBlameFile}
+          onStageFilesWithSameName={deps.onStageFilesWithSameName}
           repoId={deps.repoId}
           onOpenReview={(slug) => {
             if (deps.reviewScenarioSlug && slug !== deps.reviewScenarioSlug) {
@@ -299,9 +301,6 @@ export function renderPanel(
           stagedCount={deps.statusData?.summary.staged ?? 0}
           commitMessage={deps.commitMessage}
           onCommitMessageChange={deps.onCommitMessageChange}
-          canUseApprovedMessage={deps.canUseApprovedMessage}
-          onUseApprovedMessage={deps.onUseApprovedMessage}
-          isUsingApprovedMessage={deps.isUsingApprovedMessage}
           onCommit={deps.onCommit}
           isCommitting={deps.isCommitting}
           commitError={deps.commitError}
@@ -319,6 +318,7 @@ export function renderPanel(
           pushTarget={deps.pushTargetRef}
           sourceBranch={deps.pushSourceBranch}
           isHistoryMode={isHistoryMode}
+          historyCommit={deps.viewingCommit}
         />
       );
 
@@ -372,4 +372,3 @@ export function renderPanel(
       );
   }
 }
-

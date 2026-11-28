@@ -42,24 +42,22 @@ describe("deepMerge", () => {
   });
 
   test("array values replace rather than merge", () => {
-    const result = deepMerge(DEFAULT_STATE, {
-      workflows: { selectedModes: ["mutating", "destructive"] },
-    });
-    expect(result.workflows.selectedModes).toEqual(["mutating", "destructive"]);
-    // viewRole sibling preserved
-    expect(result.workflows.viewRole).toBe("capture");
+    // ScenarioReviewState has no array fields; exercise the generic deepMerge
+    // array-replacement branch with an ad-hoc object.
+    const base = { tags: ["a", "b"], nested: { x: 1 } };
+    const result = deepMerge(base, { tags: ["c"] });
+    expect(result.tags).toEqual(["c"]);
+    // sibling preserved
+    expect(result.nested.x).toBe(1);
   });
 
   test("multiple nested patches compose correctly", () => {
     let state = deepMerge(DEFAULT_STATE, { activeTab: "tests" as ReviewTab });
     state = deepMerge(state, { screenshots: { activePresetIndex: 2 } });
-    state = deepMerge(state, { workflows: { viewRole: "baseline" } });
 
     expect(state.activeTab).toBe("tests");
     expect(state.screenshots.activePresetIndex).toBe(2);
     expect(state.screenshots.selectedPage).toBe(0);
-    expect(state.workflows.viewRole).toBe("baseline");
-    expect(state.workflows.selectedModes).toEqual(["observer"]);
   });
 
   test("empty patch returns a copy of base", () => {
@@ -99,9 +97,6 @@ describe("loadState", () => {
     // Missing fields filled from defaults
     expect(state.agentRunId).toBeNull();
     expect(state.screenshots).toEqual(DEFAULT_STATE.screenshots);
-    expect(state.workflows).toEqual(DEFAULT_STATE.workflows);
-    expect(state.codeQuality).toEqual(DEFAULT_STATE.codeQuality);
-    expect(state.rules).toEqual(DEFAULT_STATE.rules);
   });
 
   test("returns defaults on corrupted JSON", () => {
@@ -112,7 +107,7 @@ describe("loadState", () => {
   test("returns defaults when version is wrong", () => {
     localStorage.setItem(
       "gct.reviewState.v2",
-      JSON.stringify({ version: 2, lastAccessed: Date.now(), state: { activeTab: "agent" } }),
+      JSON.stringify({ version: 3, lastAccessed: Date.now(), state: { activeTab: "agent" } }),
     );
     expect(loadState("v2")).toEqual(DEFAULT_STATE);
   });
@@ -130,9 +125,6 @@ describe("loadState", () => {
       activeTab: "workflows",
       agentRunId: "run-abc",
       screenshots: { activePresetIndex: 2, selectedPage: 5 },
-      workflows: { selectedModes: ["mutating"], viewRole: "baseline" },
-      codeQuality: { view: "scenario" },
-      rules: { jobId: "job-xyz" },
     };
     localStorage.setItem("gct.reviewState.full", storedEntry(full));
     expect(loadState("full")).toEqual(full);
@@ -149,13 +141,12 @@ describe("saveState", () => {
       ...DEFAULT_STATE,
       activeTab: "agent",
       agentRunId: "run-456",
-      workflows: { selectedModes: ["destructive"], viewRole: "baseline" },
     };
     saveState("roundtrip", state);
     expect(loadState("roundtrip")).toEqual(state);
   });
 
-  test("stores version: 1 and lastAccessed timestamp", () => {
+  test("stores version: 2 and lastAccessed timestamp", () => {
     const before = Date.now();
     saveState("ts-check", DEFAULT_STATE);
     const after = Date.now();
@@ -163,7 +154,7 @@ describe("saveState", () => {
     const raw = localStorage.getItem("gct.reviewState.ts-check");
     expect(raw).not.toBeNull();
     const entry = JSON.parse(raw ?? "") as { version: number; lastAccessed: number; state: ScenarioReviewState };
-    expect(entry.version).toBe(1);
+    expect(entry.version).toBe(2);
     expect(entry.lastAccessed).toBeGreaterThanOrEqual(before);
     expect(entry.lastAccessed).toBeLessThanOrEqual(after);
   });
@@ -268,7 +259,7 @@ describe("pruneOldEntries", () => {
 // ---------------------------------------------------------------------------
 
 describe("validateTab", () => {
-  const allTabs: ReviewTab[] = ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "rules", "ai-provenance", "agent"];
+  const allTabs: ReviewTab[] = ["overview", "baselines", "metrics", "screenshots", "workflows", "tests", "ai-provenance", "agent"];
 
   test("valid tab passes through unchanged", () => {
     expect(validateTab("agent", allTabs)).toBe("agent");
@@ -279,12 +270,12 @@ describe("validateTab", () => {
   test("invalid tab falls back to overview", () => {
     const limited: ReviewTab[] = ["overview", "screenshots", "tests"];
     expect(validateTab("agent", limited)).toBe("overview");
-    expect(validateTab("rules", limited)).toBe("overview");
+    expect(validateTab("workflows", limited)).toBe("overview");
   });
 
   test("empty visibleTabs does not trigger fallback (capabilities still loading)", () => {
     expect(validateTab("agent", [])).toBe("agent");
-    expect(validateTab("code-quality", [])).toBe("code-quality");
+    expect(validateTab("baselines", [])).toBe("baselines");
   });
 
   test("overview is always valid if in visibleTabs", () => {
@@ -306,7 +297,6 @@ describe("switchScenario flow (save + load)", () => {
     const scenarioBState: ScenarioReviewState = {
       ...DEFAULT_STATE,
       activeTab: "tests",
-      rules: { jobId: "job-B" },
     };
 
     // Pre-populate B
@@ -317,7 +307,7 @@ describe("switchScenario flow (save + load)", () => {
     const loaded = loadState("scenario-b");
 
     expect(loaded.activeTab).toBe("tests");
-    expect(loaded.rules.jobId).toBe("job-B");
+    expect(loaded.screenshots).toEqual(DEFAULT_STATE.screenshots);
 
     // Verify A was saved
     const savedA = loadState("scenario-a");
@@ -326,8 +316,34 @@ describe("switchScenario flow (save + load)", () => {
   });
 
   test("returns DEFAULT_STATE for a never-visited scenario", () => {
-    saveState("old-scenario", { ...DEFAULT_STATE, activeTab: "rules" });
+    saveState("old-scenario", { ...DEFAULT_STATE, activeTab: "workflows" });
     const loaded = loadState("new-scenario");
     expect(loaded).toEqual(DEFAULT_STATE);
+  });
+
+  test("migrates obsolete tab state to overview and drops tab-only fields", () => {
+    localStorage.setItem(
+      "gct.reviewState.legacy",
+      JSON.stringify({
+        version: 1,
+        lastAccessed: Date.now(),
+        state: {
+          activeTab: "code-quality",
+          agentRunId: null,
+          screenshots: { activePresetIndex: 1, selectedPage: 2 },
+          codeQuality: { view: "scenario" },
+          rules: { jobId: "legacy-job" },
+        },
+      }),
+    );
+
+    const loaded = loadState("legacy");
+    expect(loaded).toEqual({
+      activeTab: "overview",
+      agentRunId: null,
+      screenshots: { activePresetIndex: 1, selectedPage: 2 },
+    });
+    expect("codeQuality" in loaded).toBe(false);
+    expect("rules" in loaded).toBe(false);
   });
 });

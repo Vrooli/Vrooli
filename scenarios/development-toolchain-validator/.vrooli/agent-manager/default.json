@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "development-toolchain-validator-default",
+  "profileKey": "development-toolchain-validator/default",
+  "description": "Sandboxed runner used to execute a skill against a pristine golden scenario; the sandbox diff is the artifact the validator evaluates against the pinned manifest.",
+  "roleRef": "code.default",
+  "maxTurns": 600,
+  "timeout": "3600s",
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "development-toolchain-validator",
+  "effort": "medium"
+}

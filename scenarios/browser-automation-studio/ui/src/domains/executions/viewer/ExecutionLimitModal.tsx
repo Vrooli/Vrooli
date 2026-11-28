@@ -2,13 +2,7 @@ import { AlertTriangle, Crown, Zap, ArrowUpRight, X } from 'lucide-react';
 import { useEntitlementStore, TIER_CONFIG } from '@stores/entitlementStore';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import { UsageMeter } from '@shared/ui';
-
-// Get landing page URL from environment or use default
-const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
-const LANDING_PAGE_URL =
-  typeof landingPageEnv === 'string' && landingPageEnv.length > 0
-    ? landingPageEnv
-    : 'https://browser-automation-studio.com';
+import { LANDING_PAGE_URL } from '@shared/upgradeDestination';
 
 interface ExecutionLimitModalProps {
   isOpen: boolean;

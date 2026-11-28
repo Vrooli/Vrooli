@@ -1,0 +1,176 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "scenario-dependency-analyzer.advisory-lockfile-refresh",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Refresh one surface's lockfile per scenario for advisories whose fix the declared ranges already admit: preview, optionally apply, re-preview to prove convergence; one bounded row per scenario.",
+  "inputs": {
+    "scenarios": {
+      "type": "string",
+      "required": true,
+      "description": "Scenario names separated by spaces or semicolons (commas also work in a program call, but `library run` reads a comma in --input as the next input), 1..12 per run; batch a larger fleet across runs."
+    },
+    "advisories": {
+      "type": "string",
+      "default": "all",
+      "description": "all (every advisory Security Health reports on each scenario's surface; the default) or GHSA or CVE ids separated by spaces or semicolons, 1..8. The exposed packages are updated in one resolution."
+    },
+    "parents": {
+      "type": "string",
+      "default": "",
+      "description": "npm packages that may move with the advisory's packages when a parent pins a vulnerable version (express pins body-parser ~1.20.3 in older locks). Used only for a scenario whose advisory-only update leaves a package exposed and which locks the parent; the parent moves within its own declared range."
+    },
+    "surface": {
+      "type": "string",
+      "default": "ui",
+      "description": "Surface whose lockfile is refreshed in every scenario."
+    },
+    "lock_only": {
+      "type": "boolean",
+      "default": true,
+      "description": "true publishes only the lockfile: node_modules is not relinked, nothing is downloaded and no package store is written, so the write is kilobytes and a running scenario is untouched until its next governed setup. false also relinks node_modules (store growth; held to the install-sized disk floor)."
+    },
+    "apply": {
+      "type": "boolean",
+      "default": false,
+      "description": "false previews only; true publishes each lockfile update and re-previews it. Run the preview first."
+    }
+  },
+  "assumptions": [
+    "scenario-dependency-analyzer is running and Security Health has current vulnerability evidence for the scenarios (the advisory selector and the exposure judgment read it)",
+    "the advisories are ones whose fix lies inside the declared ranges (a pinning parent named in parents may move with them); an advisory that needs a major bump is reported per scenario as no_fix_in_range and changes nothing",
+    "a running scenario keeps serving: only the lockfile changes and nothing is restarted, so the next governed setup or restart picks the lock up",
+    "apply=true is the caller's decision after reading the preview of the same inputs"
+  ],
+  "invariants": [
+    "no manifest range, approval record or generated file is written; the only effect is the lockfile update the owner's deps update verb performs under its own store, disk admission and rollback, and with lock_only (the default) node_modules and the package store are not touched",
+    "apply=false never publishes anything",
+    "scenarios are handled one at a time, in input order, with no retry; a refusal or failure is that scenario's row and the run continues",
+    "an applied update is reported refreshed only after a re-preview shows the lockfile current and no package named exposed by the analyzer",
+    "an unreachable owner stops the run as unavailable with the remaining scenarios not attempted",
+    "the envelope is printed exactly once, on every path, below the 4096-byte stdout bound"
+  ],
+  "bindings": [
+    {
+      "id": "scenario-dependency-analyzer/deps/update",
+      "effect": "write"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "mode": "preview or apply",
+      "counts": "scenarios per row status",
+      "rows": "one [scenario, status, detail] per scenario; row status is refreshed, would_update, already_fixed, not_exposed, no_fix_in_range, partly_fixed, not_converged, blocked, apply_failed or error",
+      "attention": "scenarios whose status is not refreshed, would_update, already_fixed or not_exposed",
+      "rows_compacted": "true when quiet rows were collapsed or trimmed to fit the output bound"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "invalid_input",
+        "ambiguous_response",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "none"
+  },
+  "budget": {
+    "wall_ms": 900000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0,
+    "async": true,
+    "async_reason": "each scenario is a staged package-manager resolution (a preview, an apply and a re-preview), so a batch of up to 12 exceeds the 120 s synchronous bound"
+  },
+  "fixtures": [
+    {
+      "id": "bad-scenario-name",
+      "inputs": {
+        "scenarios": "Not A Name",
+        "advisories": "GHSA-27r3-jxmh-p828"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "scenario-dependency-analyzer"
+      ]
+    },
+    {
+      "id": "bad-advisory",
+      "inputs": {
+        "scenarios": "notification-hub",
+        "advisories": "not-an-advisory"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "scenario-dependency-analyzer"
+      ]
+    },
+    {
+      "id": "preview-one-scenario",
+      "inputs": {
+        "scenarios": "notification-hub",
+        "advisories": "GHSA-337j-9hxr-rhxg"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "scenario-dependency-analyzer"
+      ],
+      "host_local": true,
+      "note": "Preview only: react-router's fix is outside the declared range, so the row is no_fix_in_range and nothing is published."
+    },
+    {
+      "id": "bad-all-mixed",
+      "inputs": {
+        "scenarios": "notification-hub",
+        "advisories": "all GHSA-27r3-jxmh-p828"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "scenario-dependency-analyzer"
+      ]
+    }
+  ],
+  "rung": "S3"
+}

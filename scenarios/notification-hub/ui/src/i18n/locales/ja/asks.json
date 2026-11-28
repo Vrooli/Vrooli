@@ -1,0 +1,109 @@
+{
+  "list": {
+    "title": "要回答",
+    "loadError": "判断を読み込めませんでした。",
+    "loadErrorBoth": "判断と権限リクエストを確認できませんでした。",
+    "stale": "以前に読み込んだ結果を表示しています。更新に失敗しました。",
+    "notCleared": "何も破棄されていません。",
+    "waiting": "{{count}} 件が回答待ち",
+    "allClear": "すべて対応済み",
+    "searchOpen": "判断を検索",
+    "searchClose": "検索を閉じる",
+    "matching": "回答待ち {{total}} 件中 {{count}} 件"
+  },
+  "row": {
+    "dueIn": "期限 {{when}}",
+    "escalated": "エスカレーション済み",
+    "closesIn": "締切 {{when}}",
+    "readiness": {
+      "ready": "準備完了",
+      "needsWork": "要修正",
+      "returned": "返却済み"
+    }
+  },
+  "urgency": {
+    "low": "低",
+    "normal": "通常",
+    "high": "高",
+    "critical": "緊急"
+  },
+  "sort": {
+    "label": "並べ替え",
+    "attention": "要対応を先に",
+    "due": "期限の近い順",
+    "newest": "新しい順",
+    "oldest": "古い順",
+    "how": {
+      "attention": "要対応順: エスカレーション済み、{{count}} 時間以内に締切、緊急度、締切時刻の順",
+      "due": "締切が近い順: 締切時刻が早いものから、次に緊急度",
+      "newest": "新しい順: 最近届いたものが上",
+      "oldest": "古い順: 待ち時間が長いものが上"
+    }
+  },
+  "filters": {
+    "open": "絞り込み",
+    "title": "判断を絞り込む",
+    "urgency": "緊急度",
+    "sender": "送信元",
+    "show": "{{count}} 件を表示",
+    "remove": "絞り込みを解除: {{name}}",
+    "active": "適用中の絞り込み",
+    "openActive": "絞り込み ({{count}})"
+  },
+  "group": {
+    "closing": "{{count}} 時間以内に締切"
+  },
+  "focus": {
+    "progress": "{{current}} / {{total}}",
+    "accept": "おすすめを受け入れる",
+    "send": "回答を送信",
+    "later": "あとで回答",
+    "openPacket": "判断の全体を開く",
+    "next": "次の判断",
+    "doneTitle": "待機中の判断はありません。",
+    "doneDetail": "すべての判断に回答または既定の扱いがあります。",
+    "start": "レビューを開始",
+    "title": "フォーカスレビュー",
+    "pageAttached": "判断ページ添付",
+    "context": "この判断",
+    "source": "送信元",
+    "age": "経過",
+    "closes": "期限",
+    "ifIgnored": "放置した場合",
+    "unknown": "未記載",
+    "contextFailed": "詳しい内容を読み込めませんでした。"
+  },
+  "desk": {
+    "listLabel": "判断キュー",
+    "detailLabel": "選択中の判断",
+    "choose": "判断を選んでください",
+    "chooseDetail": "キューから一つ選ぶと、ここに内容が表示されます。",
+    "dueToday": "本日中に{{count}}件",
+    "dueToday_one": "本日中に1件",
+    "permissions": "権限リクエスト{{count}}件",
+    "permissions_one": "権限リクエスト1件",
+    "family": "同じ原因の{{count}}件",
+    "family_one": "同じ原因の1件",
+    "familyHint": "まとめて回答",
+    "questions": "この判断には{{count}}件の質問があります。",
+    "questions_one": "この判断には1件の質問があります。",
+    "answerQuestions": "{{count}}件の質問に回答",
+    "answerQuestions_one": "1件の質問に回答",
+    "openFull": "判断の全体を開く",
+    "files": "判断ページ・ファイル{{count}}件",
+    "files_one": "判断ページ・ファイル1件",
+    "more": "さらに判断を読み込む",
+    "loadingMore": "判断を読み込み中…",
+    "detailError": "この判断を読み込めませんでした。",
+    "detailGone": "この判断は利用できなくなりました。",
+    "needYou": "{{count}}件があなたを待っています",
+    "needYou_one": "1件があなたを待っています",
+    "ifIgnored": "何もしない場合:"
+  },
+  "kind": {
+    "judge": "判断",
+    "approve": "承認",
+    "review": "確認",
+    "do": "実行"
+  }
+}

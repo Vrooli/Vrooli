@@ -1,0 +1,8 @@
+{
+  "historical_path": "resources/openrgb/docs/review-native-f/native_f_recovery_counterexample_test.go",
+  "retained_path": "resources/openrgb/docs/review-native-f/native_f_recovery_counterexample_test.go.txt",
+  "sha256": "61731b9d7da5c912b7617d090897065b4b727da5c2ebf117574b1bc3f67413af",
+  "original_bytes_preserved": true,
+  "reason": "Retained private Go overlay evidence must not declare an independent Go package under resources docs; owning-package regressions remain in internal/resources",
+  "historical_receipts": "Original path names are historical; source digest/content unchanged, only retained evidence filename changes"
+}

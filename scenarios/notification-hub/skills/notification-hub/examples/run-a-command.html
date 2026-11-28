@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  Technique: the operator has to run a command. The command is on the first screen with where to
+  run it, what it does, what it shows before it changes anything, and the undo; the cause says why
+  only the operator can do it.
+  Shows: lead with the recommendation, .hub-command, the cause, choice cards, what happens after
+  and with no answer. If this is not the first time you ask, add .hub-recurrence and an option that
+  stops the repeats.
+  Based on a real decision: a one-time upgrade of the host's permission helper so an agent can take
+  one 10-second memory sample.
+
+  notification-hub conversations ask \
+    --subject-key kernel-memory-sample \
+    --question 'Will you run one setup command so I can take a 10-second sample of what is using 13 GB of memory?' \
+    --big-picture '...' \
+    --option 'ran=I ran it: take the sample' --option 'wait=Not now: leave the helper as it is' \
+    --recommend ran --recommend-reason 'One short sample may name what is holding 13 GB, and the upgrade changes nothing else.' \
+    --explainer run-a-command.html --packet work/KERNEL-MEMORY-SAMPLE
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run one setup command</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; font-size: .8125rem; color: var(--hub-muted); }
+  .verdict { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; margin: .25rem 0 1rem; }
+  .stat { display: grid; grid-template-columns: auto 1fr; gap: .25rem .875rem; align-items: baseline; margin: 1rem 0; }
+  .stat strong { font-size: 1.75rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--hub-muted); }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Something only you can run</p>
+  <h1>Run one setup command, then I take a 10-second sample</h1>
+  <div class="verdict"><span class="hub-chip is-primary">I recommend running it</span><span>It may show what is holding 13 GB of memory.</span></div>
+
+  <section class="hub-command">
+    <p class="hub-command__where">In a terminal on the Vrooli computer <small>about a minute</small></p>
+    <div class="hub-command__line"><code>vrooli setup broker --sudo-mode=ask</code><button type="button" class="is-quiet" data-hub-copy>Copy</button></div>
+    <ol class="hub-command__steps">
+      <li>It asks for your computer password, in the terminal only.</li>
+      <li>It upgrades the small helper that runs the few approved admin tasks.</li>
+      <li>Then tap "I ran it" here, and I take one 10-second sample.</li>
+    </ol>
+    <p><strong>Before it changes anything:</strong> to see what it would change, run <code>vrooli setup broker --dry-run --json</code> first; it installs nothing.</p>
+    <p><strong>Undo:</strong> not needed for the sample, which changes nothing. The upgrade is the same one a full setup installs.</p>
+  </section>
+
+  <div class="stat"><strong>13 GB</strong><span>of memory the system cannot free, and no tool so far shows who holds it</span></div>
+
+  <h2>Why it has to be you</h2>
+  <p>Sampling memory needs administrator rights. Agents never get your password, so the one helper allowed to do admin tasks has to learn this new task, and only you can upgrade it.</p>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>I ran it</h3>
+      <p>I take one sample of at most ten call paths, with no addresses or file contents, and tell you what holds the memory.</p>
+      <button type="button" data-answer="ran">Choose this</button>
+    </section>
+    <section>
+      <h3>Not now</h3>
+      <p>The helper stays as it is. The 13 GB stays unexplained, and I keep watching it.</p>
+      <button type="button" class="is-quiet" data-answer="wait">Choose this</button>
+    </section>
+  </div>
+
+  <div class="hub-callout"><strong>If you do not answer,</strong> nothing changes and the memory stays unexplained.</div>
+
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

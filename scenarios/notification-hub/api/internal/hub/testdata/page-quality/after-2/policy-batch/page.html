@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set the standing-teams policies</title>
+<style>
+  .eyebrow { color: var(--hub-muted); margin-bottom: .25rem; }
+  .verdict { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+  .cause { padding: .75rem; border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .cause h2 { margin-top: 0; }
+  .hub-matrix { font-size: .84rem; }
+  .hub-matrix td, .hub-matrix th { padding: .3rem .4rem; }
+  .hub-matrix td:first-child { text-align: left; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Standing-teams programme · eight policy choices</p>
+  <h1>How far should the programme be allowed to go?</h1>
+  <p class="verdict"><span class="hub-chip is-primary">I recommend all eight</span><span>Set limits, cut repeat permission asks and remove unused code.</span></p>
+
+  <figure class="hub-proportion">
+    <figcaption><span>How reversible the choices are</span><strong>8 policies</strong></figcaption>
+    <div class="hub-proportion__bar" role="img" aria-label="Six reversible policies and two that deserve their own answer">
+      <span data-tone="1" style="--share:75%"></span><span data-tone="4" style="--share:25%"></span>
+    </div>
+    <ol class="hub-proportion__legend">
+      <li data-tone="1"><span class="hub-proportion__label">Easy to reverse</span><span class="hub-proportion__value">6<small>75%</small></span></li>
+      <li data-tone="4"><span class="hub-proportion__label">Hard to take back</span><span class="hub-proportion__value">2<small>25%</small></span></li>
+    </ol>
+  </figure>
+
+  <h2>What each switch changes</h2>
+  <table class="hub-matrix">
+    <thead><tr><th scope="col">Policy</th><th scope="col">Recommended</th><th scope="col">Default</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">1 · Weekly usage</th><td data-label="Recommended">15 points/24h; stop at half-week</td><td data-label="Default">No ceiling; cheaper mode on</td></tr>
+      <tr><th scope="row">2 · Unused code</th><td data-label="Recommended">Delete ~8,000 lines</td><td data-label="Default">Keep; 10% code cut</td></tr>
+      <tr><th scope="row">3 · Team access</th><td data-label="Recommended">Until revoked; daily grant list</td><td data-label="Default">Link or command; max 30 days</td></tr>
+      <tr><th scope="row">4 · Reviews</th><td data-label="Recommended">Hub reviews and close-outs</td><td data-label="Default">Command line / web</td></tr>
+      <tr><th scope="row">5 · Old runs</th><td data-label="Recommended">Permanent same-owner deletion</td><td data-label="Default">Ask first</td></tr>
+      <tr><th scope="row">6 · Agent asks</th><td data-label="Recommended">Launched agents: no repeat grant</td><td data-label="Default">Grant each time</td></tr>
+      <tr><th scope="row">7 · Finished notices</th><td data-label="Recommended">Mute; one daily digest</td><td data-label="Default">All notices continue</td></tr>
+      <tr><th scope="row">8 · Supervision</th><td data-label="Recommended">Research + teams; enable last</td><td data-label="Default">Current scope; last</td></tr>
+    </tbody>
+  </table>
+
+  <section class="cause">
+    <h2>Why decide now</h2>
+    <p>The programme is about to run. Six choices are reversible; policies 3 and 5 deserve special care: grants have no end date until revoked, and deleted runs are gone.</p>
+    <p>Policy 6 addresses repeat asks: 8 of the last 11 permission requests were for agents you launched. Policy 2 changes the board code reduction from 10% to 25%.</p>
+  </section>
+
+  <h2>Choose the scope</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Research recommendation</span>
+      <h3>Apply the selected policies</h3>
+      <p>The multi-select starts with all eight. Select the six reversible choices to leave access grants and permanent deletion for a separate decision. Selected policies go to the teams that apply them.</p>
+      <button type="button" data-answer="apply">Choose this</button>
+    </section>
+    <section>
+      <h3>Keep all defaults</h3>
+      <p>No recommended changes are handed off. The current safe defaults remain in force.</p>
+      <button type="button" class="is-quiet" data-answer="defaults">Choose this</button>
+    </section>
+  </div>
+
+  <div class="hub-callout"><strong>If you do not answer:</strong> the safe defaults remain in force and the programme does not wait on this decision.</div>
+
+  <script>
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-answer]");
+      if (b && window.hub && window.hub.prefill) window.hub.prefill("answer", b.getAttribute("data-answer"));
+    });
+  </script>
+</body>
+</html>

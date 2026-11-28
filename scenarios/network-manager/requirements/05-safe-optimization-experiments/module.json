@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "safe-optimization-experiments",
+    "description": "Measurement-backed optimization runs with approval gates.",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-005",
+      "title": "Optimization runs compare candidates before applying changes",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "optimization",
+      "criticality": "P0",
+      "description": "The scenario shall run baseline, candidate, and after measurements; score candidates with reliability-first metrics; preserve an experiment ledger; and require explicit approval before any persistent configuration change is applied.",
+      "tags": ["optimization", "experiments", "approval"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add experiment-runner tests tagged [REQ:NM-P0-005] for baseline/candidate sequencing, scoring, approval gating, timeout handling, and rollback selection."
+        }
+      ]
+    }
+  ]
+}

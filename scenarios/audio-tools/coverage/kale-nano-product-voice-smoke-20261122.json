@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-11-22T09:17:05Z",
+  "kind": "serviceability_smoke",
+  "scope": "audio-tools live product TTS route; one short prompt per canonical voice",
+  "provider_id": "kale-tts",
+  "model_id": "kale-tts-1-nano",
+  "prompt": "A quick local speech quality check.",
+  "format": "wav",
+  "audio": {
+    "codec": "pcm_s16le",
+    "sample_rate_hz": 24000,
+    "channels": 1,
+    "audio_copied_into_repository": false
+  },
+  "voices": [
+    {
+      "canonical_voice": "voice.feminine.warm",
+      "backend_voice": "kenzie",
+      "latency_ms": 3755,
+      "duration_seconds": 2.425,
+      "bytes": 116444,
+      "sha256": "00f94050584edfd2697643c34a5395ffe0adf0fa8d269dd4e80d041cc6cbc91c"
+    },
+    {
+      "canonical_voice": "voice.feminine.neutral",
+      "backend_voice": "simone",
+      "latency_ms": 2003,
+      "duration_seconds": 2.525,
+      "bytes": 121244,
+      "sha256": "3107c7f3917106d5d23815dd7ff80a38038abdc507ac2ac8b8ffaa46ddad2a64e"
+    },
+    {
+      "canonical_voice": "voice.masculine.warm",
+      "backend_voice": "earl",
+      "latency_ms": 177,
+      "duration_seconds": 2.675,
+      "bytes": 128444,
+      "sha256": "90e7fd7fa8a45d3a959e5943d54cde741f2675e5f3a62edf6c05555867447694"
+    },
+    {
+      "canonical_voice": "voice.masculine.neutral",
+      "backend_voice": "owen",
+      "latency_ms": 175,
+      "duration_seconds": 2.375,
+      "bytes": 114044,
+      "sha256": "ef6c707c12933abdeaf92e9256c9f1802d00cb91988c123083fe1181c92eb59b"
+    }
+  ],
+  "limitations": [
+    "Single-host, single-prompt route smoke only.",
+    "No human naturalness or intelligibility review was performed.",
+    "These measurements do not qualify the model or change catalog promotion status."
+  ]
+}

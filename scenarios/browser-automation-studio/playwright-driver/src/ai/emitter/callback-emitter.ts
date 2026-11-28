@@ -4,7 +4,9 @@
  * STABILITY: STABLE CORE
  *
  * This module emits navigation step events to the API callback URL.
- * The API uses these events for timeline updates, credit deduction, and WebSocket broadcasting.
+ * The API uses these events for timeline updates and WebSocket broadcasting.
+ * Inference receipts travel for review/reconciliation only; LPBS settlement
+ * requires owner-attested evidence and never trusts this callback as authority.
  */
 
 import type { StepEmitterInterface } from '../vision-agent/types';
@@ -75,6 +77,7 @@ function stepToEvent(step: NavigationStep): NavigationStepEvent {
     annotatedScreenshot: step.annotatedScreenshot?.toString('base64'),
     currentUrl: step.currentUrl,
     tokensUsed: step.tokensUsed,
+    inferenceReceipt: step.inferenceReceipt,
     durationMs: step.durationMs,
     goalAchieved: step.goalAchieved,
     error: step.error,
@@ -151,38 +154,4 @@ export async function emitNavigationComplete(
   const retryDelayMs = config.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
 
   await sendWithRetry(callbackUrl, event, timeoutMs, retries, retryDelayMs);
-}
-
-/**
- * Create a mock emitter for testing.
- */
-export function createMockEmitter(): StepEmitterInterface & {
-  getEmittedSteps(): NavigationStep[];
-  clearEmittedSteps(): void;
-  setFailMode(shouldFail: boolean): void;
-} {
-  const emittedSteps: NavigationStep[] = [];
-  let shouldFail = false;
-
-  return {
-    emit(step: NavigationStep, _callbackUrl: string): Promise<void> {
-      if (shouldFail) {
-        return Promise.reject(new Error('Mock emitter failure'));
-      }
-      emittedSteps.push(step);
-      return Promise.resolve();
-    },
-
-    getEmittedSteps(): NavigationStep[] {
-      return [...emittedSteps];
-    },
-
-    clearEmittedSteps(): void {
-      emittedSteps.length = 0;
-    },
-
-    setFailMode(fail: boolean): void {
-      shouldFail = fail;
-    },
-  };
 }

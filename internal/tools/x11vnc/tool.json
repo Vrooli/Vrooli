@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "x11vnc",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "VNC server for exposing virtual Linux desktops over VNC",
+  "commands": [
+    "x11vnc"
+  ],
+  "versionArgs": [
+    "-version"
+  ],
+  "defaultPackage": "x11vnc",
+  "packages": {
+    "apt-get": "x11vnc"
+  },
+  "installHint": "Install x11vnc to expose the virtual Linux desktop over VNC",
+  "bundling": "host-required",
+  "capability": "remote-desktop",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    }
+  }
+}

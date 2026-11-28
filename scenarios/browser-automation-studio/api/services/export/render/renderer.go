@@ -2,21 +2,24 @@
 //
 // The ReplayRenderer orchestrates video and GIF generation from replay movie specifications.
 // It delegates to specialized modules for capture (Playwright), media processing (FFmpeg),
-// and utility operations (filename generation, timeout estimation).
+// and utility operations (filename generation).
 //
 // Module Organization:
 //   - renderer.go (this file): Core types, orchestration, and main Render method
-//   - ffmpeg.go: FFmpeg video assembly and GIF conversion
-//   - utils.go: Filename sanitization and timeout estimation
+//   - video_encoder.go: FFmpeg video assembly and GIF conversion
+//   - utils.go: Filename sanitization
 //   - config.go: Configuration and constructor
 //   - playwright_client.go: Playwright capture client (desktop engine)
 package render
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	"image/png"
 	"math"
 	"net/http"
 	"os"
@@ -24,11 +27,13 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
-// Type alias for ReplayMovieSpec from export package
-type ReplayMovieSpec = export.ReplayMovieSpec
+// ReplayMovieSpec is the canonical generated replay contract.
+type ReplayMovieSpec = exportsv1.ReplaySpec
 
 // RenderedMedia represents a generated media artifact ready for download.
 type RenderedMedia struct {
@@ -71,8 +76,8 @@ const (
 )
 
 // NewReplayRenderer constructs a replay renderer with sane defaults.
-func NewReplayRenderer(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
-	return newReplayRendererConfig(log, recordingsRoot)
+func NewReplayRenderer(log *logrus.Logger, recordingsRoot string, engineFactory autoengine.Factory) *ReplayRenderer {
+	return newReplayRendererConfig(log, recordingsRoot, engineFactory)
 }
 
 // replayCaptureClient abstracts the capture transport.
@@ -85,7 +90,7 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	if spec == nil {
 		return nil, errors.New("nil replay movie spec")
 	}
-	if len(spec.Frames) == 0 {
+	if len(spec.GetFrames()) == 0 {
 		return nil, errors.New("movie spec missing frames")
 	}
 	if format != RenderFormatMP4 && format != RenderFormatGIF {
@@ -93,10 +98,7 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	}
 
 	if r.captureClient == nil {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			return nil, errors.New("PLAYWRIGHT_DRIVER_URL required for replay rendering")
-		}
-		r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
+		return nil, errors.New("replay capture client not configured")
 	}
 
 	if strings.TrimSpace(r.exportPageURL) == "" {
@@ -104,17 +106,14 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	}
 
 	captureInterval := r.captureIntervalMs
-	if spec.Playback.FrameIntervalMs > 0 {
-		captureInterval = spec.Playback.FrameIntervalMs
+	if spec.GetPlayback().GetFrameIntervalMs() > 0 {
+		captureInterval = int(spec.GetPlayback().GetFrameIntervalMs())
 	}
-	if spec.Summary.TotalDurationMs > 0 {
-		targetInterval := int(math.Ceil(float64(spec.Summary.TotalDurationMs) / float64(maxCaptureFrames)))
-		if targetInterval > captureInterval {
-			captureInterval = targetInterval
-		}
-		if captureInterval < 20 {
-			captureInterval = 20
-		}
+	if captureInterval < 20 {
+		captureInterval = 20
+	}
+	if _, err := buildPlaywrightCaptureInstructions(r.exportPageURL, spec, captureInterval); err != nil {
+		return nil, err
 	}
 
 	return r.renderCapture(ctx, spec, format, filename, captureInterval)
@@ -143,10 +142,7 @@ func (r *ReplayRenderer) WithVideoEncoder(encoder VideoEncoder) *ReplayRenderer 
 // renderCapture orchestrates the full pipeline: capture, decode, assemble, and optionally convert to GIF.
 func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpec, format RenderFormat, filename string, captureInterval int) (*RenderedMedia, error) {
 	if r.captureClient == nil {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			return nil, errors.New("PLAYWRIGHT_DRIVER_URL required for capture")
-		}
-		r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
+		return nil, errors.New("replay capture client not configured")
 	}
 
 	capture, err := r.captureClient.Capture(ctx, spec, captureInterval)
@@ -174,6 +170,10 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 
 	written := 0
 	for _, frame := range capture.Frames {
+		if err := ctx.Err(); err != nil {
+			cleanup()
+			return nil, err
+		}
 		data := strings.TrimSpace(frame.Data)
 		if data == "" {
 			continue
@@ -183,10 +183,25 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 			cleanup()
 			return nil, fmt.Errorf("failed to decode captured frame %d: %w", written, decodeErr)
 		}
+		// Capture can return PNG or JPEG. The image2 demuxer selects its codec
+		// from the sequence suffix, so raw PNG bytes in a .jpg sequence fail
+		// even though Go's dimension probe can read them. Normalize every
+		// decoded image to lossless PNG, including mixed-format captures.
+		captured, _, imageErr := image.Decode(bytes.NewReader(decoded))
+		if imageErr != nil {
+			cleanup()
+			return nil, fmt.Errorf("invalid captured image %d: %w", written, imageErr)
+		}
+		var normalized bytes.Buffer
+		if imageErr := png.Encode(&normalized, captured); imageErr != nil {
+			cleanup()
+			return nil, fmt.Errorf("failed to normalize captured image %d: %w", written, imageErr)
+		}
+		decoded = normalized.Bytes()
 		// Use `written` (not loop index) to produce a contiguous sequence.
 		// FFmpeg's image2 demuxer reads frame-00000, frame-00001, ... and stops
 		// at the first gap, so skipped (empty) frames must not leave holes.
-		filePath := filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", written))
+		filePath := filepath.Join(framesDir, fmt.Sprintf("frame-%05d.png", written))
 		if err := os.WriteFile(filePath, decoded, 0o644); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("failed to persist captured frame %d: %w", written, err)
@@ -207,7 +222,7 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 		}
 	}
 
-	sequencePattern := filepath.Join(framesDir, "frame-%05d.jpg")
+	sequencePattern := filepath.Join(framesDir, "frame-%05d.png")
 	baseVideoPath := filepath.Join(tempRoot, "replay.mp4")
 	encoder := r.videoEncoder
 	if encoder == nil {
@@ -241,7 +256,7 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 	if filename == "" {
 		filename = defaultFilename(spec, string(format))
 	}
-	filename = sanitizeFilename(filename)
+	filename = export.SanitizeFilename(filename, "browser-automation-replay")
 
 	return &RenderedMedia{
 		Path:        finalPath,

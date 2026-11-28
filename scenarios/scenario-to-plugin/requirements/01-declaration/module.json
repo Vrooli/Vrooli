@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "module": "declaration",
+    "description": "The scenario-to-plugin declaration is the single source of truth for what a scenario publishes, and readiness is derived from it rather than guessed.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PLG-DECL-SOURCE",
+      "title": "When the ramp composes a package, it shall read the scenario's plugin declaration from the governed scenario manifest and fail closed when that declaration is absent or invalid.",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "declaration.source",
+      "description": "The declaration names which skills a scenario publishes, which CLI surface each skill wraps, the entitlement tier, and any MCP server. Inferring publishable content from the filesystem would let an unreviewed file reach a registry, so an explicit, schema-validated declaration is the only accepted input.",
+      "tags": [
+        "declaration",
+        "schema",
+        "fail-closed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/declaration/loader_test.go; api: api/handlers/declaration/module_test.go; cli: cli/domains/declaration/register_test.go. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DECL-READINESS",
+      "title": "The ramp should report each scenario's publish readiness as the set of unmet prerequisites and name the first prerequisite that blocks eligibility.",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "declaration.readiness",
+      "description": "Readiness is the operator's entry point: it answers 'can this scenario publish, and if not, what is the one thing to fix.' A boolean would hide the remediation, so the report enumerates every prerequisite with its state and marks the blocking one.",
+      "tags": [
+        "readiness",
+        "fleet",
+        "operator"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/declaration/readiness_test.go; ui: ui/src/features/readiness/__tests__/ReadinessBoard.test.tsx; e2e: bas/cases/01-declaration/readiness-board-blocking-reason.json. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    },
+    {
+      "id": "PLG-DECL-STANDALONE",
+      "title": "If a scenario is not standalone-installable, then the ramp shall mark it ineligible, name standalone install as the blocking prerequisite, and refuse composition rather than deferring the failure to rehearsal.",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "declaration.readiness",
+      "description": "Standalone install is the stated gating prerequisite for the skill-registries channel. A package for a capability that cannot install without the full Vrooli runtime is a trust violation, so ineligibility must be explicit, attributed, and enforced at composition rather than surfacing later as a rehearsal failure. The fleet readiness board (OT-P1-005) presents this verdict; the refusal itself is a viability invariant and does not depend on the board existing.",
+      "tags": [
+        "readiness",
+        "prerequisite",
+        "standalone-install"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/TESTING.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Not implemented. Planned automated layers \u2014 api: api/internal/declaration/readiness_test.go; ui: ui/src/features/readiness/__tests__/IneligibleReason.test.tsx. Approach and fixtures: docs/internal/TESTING.md."
+        }
+      ]
+    }
+  ]
+}

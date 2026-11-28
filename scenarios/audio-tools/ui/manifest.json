@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Audio Tools UI manifest",
+  "description": "Declares the governed navigated-console shell for Audio Tools.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/components/AppShell.tsx",
+    "export": "AppShell"
+  },
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react"
+  },
+  "slots": {
+    "layout-shell": { "dir": "ui/src/components" }
+  }
+}

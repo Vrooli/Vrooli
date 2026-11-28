@@ -7,12 +7,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Dashboard from './DashboardView';
 import { type DashboardTab } from './DashboardTabs';
-import { type Project, useProjectStore, buildProjectFolderPath } from '@/domains/projects';
-import { WorkflowCreationDialog, type WorkflowCreationType } from '@/domains/workflows';
+import { type Project, useProjectStore, buildProjectFolderPath } from '@/domains/projects/store';
+import WorkflowCreationDialog, { type WorkflowCreationType } from '@/domains/workflows/WorkflowCreationDialog';
 import { useWorkflowStore } from '@stores/workflowStore';
-import { useExecutionStore, useStartWorkflow } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
+import { useStartWorkflow } from '@/domains/executions/hooks/useStartWorkflow';
 import { useModals } from '@shared/modals';
-import { PromptDialog } from '@shared/ui';
+import PromptDialog from '@shared/ui/PromptDialog';
 import { useGuidedTour } from '@shared/onboarding';
 import { selectors } from '@constants/selectors';
 import { logger } from '@utils/logger';
@@ -28,6 +29,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
   const [searchParams, setSearchParams] = useSearchParams();
   const [isGeneratingWorkflow, setIsGeneratingWorkflow] = useState(false);
   const hasHandledCreateProject = useRef(false);
+  const aiGenerationProjectRef = useRef<Project | null>(null);
 
   const { projects, setCurrentProject } = useProjectStore();
   const {
@@ -163,11 +165,12 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
       try {
         // If no project exists, create one first
         if (projects.length === 0) {
-          const project = await useProjectStore.getState().createProject({
+          const project = aiGenerationProjectRef.current ?? await useProjectStore.getState().createProject({
             name: 'My Automations',
             description: 'Automated workflows',
             folder_path: buildProjectFolderPath('my-automations'),
           });
+          aiGenerationProjectRef.current = project;
           setCurrentProject(project);
 
           // Generate workflow in new project
@@ -176,6 +179,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
             .generateWorkflow(prompt, 'ai-generated-workflow', '/', project.id);
 
           if (workflow?.id) {
+            aiGenerationProjectRef.current = null;
             navigate(`/projects/${project.id}/workflows/${workflow.id}`);
             toast.success('Workflow generated successfully!');
           }
@@ -204,7 +208,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
           { component: 'DashboardViewWrapper', action: 'handleAIGenerateWorkflow' },
           error
         );
-        toast.error('Failed to generate workflow. Please try again.');
+        toast.error('Could not confirm workflow generation. Retry the same prompt to safely recover the result.');
       } finally {
         setIsGeneratingWorkflow(false);
       }

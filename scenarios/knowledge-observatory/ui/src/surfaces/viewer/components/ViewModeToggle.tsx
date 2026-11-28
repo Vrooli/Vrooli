@@ -1,6 +1,6 @@
 import { Code2, Eye, SplitSquareVertical } from "lucide-react";
 import { Button } from "../../../shared/ui/button";
-import type { DocViewMode } from "../../../shared/hooks/viewerHooks";
+import type { DocViewMode } from "../../../shared/controllers/viewerController";
 import { selectors } from "../../../consts/selectors";
 
 export type ViewModeToggleProps = {

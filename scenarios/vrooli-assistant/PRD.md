@@ -79,10 +79,10 @@ optional:
     fallback: Linear search through postgres
     access_method: resource-qdrant CLI
     
-  - resource_name: browserless
+  - resource_name: browser-automation-studio
     purpose: Enhanced DOM capture for web scenarios
     fallback: Basic screenshot only
-    access_method: resource-browserless CLI
+    access_method: browser-automation-studio CLI
 ```
 
 ### Resource Integration Standards
@@ -90,7 +90,7 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: agent-spawner.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: Orchestrates agent creation with context
   
   2_resource_cli:
@@ -283,8 +283,8 @@ provides_to:
     interface: API
 
 consumes_from:
-  - scenario: task-planner
-    capability: Task creation and tracking
+  - scenario: plan-manager
+    capability: Plan and phase creation and tracking
     fallback: Direct file writes to backlog
     
   - scenario: agent-dashboard
@@ -424,7 +424,7 @@ discovery:
 ### External Dependencies
 - PostgreSQL - Issue and session storage
 - Qdrant (optional) - Vector search for pattern matching
-- Browserless (optional) - Enhanced DOM capture
+- browser-automation-studio (optional) - Enhanced DOM capture
 - System screenshot tools - scrot, gnome-screenshot, or imagemagick
 
 ### Standards & Compliance
@@ -450,19 +450,19 @@ structure:
     - api/main.go
     - cli/vrooli-assistant
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
     - ui/electron
-    - initialization/storage
+    - api/internal/<domain>/storage
     - data
 
 resources:
   required: [postgres]
-  optional: [qdrant, browserless, claude-code, agent-s2]
+  optional: [qdrant, browser-automation-studio, claude-code, agent-s2]
   health_timeout: 30
 
 tests:

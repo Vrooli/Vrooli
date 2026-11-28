@@ -14,11 +14,7 @@ func TestPerformanceHealthCheck(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("HealthCheckLatency", func(t *testing.T) {
 		iterations := 100
@@ -54,11 +50,7 @@ func TestPerformanceConcurrentRequests(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ConcurrentHealthChecks", func(t *testing.T) {
 		concurrency := 50
@@ -110,11 +102,7 @@ func TestPerformanceDataParsing(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ParseLargeCSV", func(t *testing.T) {
 		// Generate large CSV
@@ -157,11 +145,7 @@ func TestPerformanceDataTransformation(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("TransformLargeDataset", func(t *testing.T) {
 		// Generate large dataset
@@ -210,11 +194,7 @@ func TestPerformanceDataValidation(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("ValidateLargeDataset", func(t *testing.T) {
 		// Generate large dataset
@@ -263,11 +243,7 @@ func TestPerformanceQueryExecution(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("SimpleQueryPerformance", func(t *testing.T) {
 		queryBody := map[string]interface{}{
@@ -310,11 +286,7 @@ func TestPerformanceMemoryUsage(t *testing.T) {
 		t.Skip("Skipping performance test in short mode")
 	}
 
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("CreateManyResources", func(t *testing.T) {
 		resourceCount := 100

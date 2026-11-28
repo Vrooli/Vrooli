@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import TerminalHeader from "../components/TerminalHeader";
 
 // Mock the workspace store
@@ -9,6 +10,10 @@ const mockSetAppearanceModalPane = vi.fn();
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (state: Record<string, unknown>) => unknown) => {
     const state = {
+      // The header reads panes/groups to resolve its accent (own color first,
+      // then the group's), so both must exist for the selector to run.
+      panes: [],
+      groups: [],
       renamePaneById: mockRenamePaneById,
       setAppearanceModalPane: mockSetAppearanceModalPane,
     };

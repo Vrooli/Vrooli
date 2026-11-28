@@ -15,8 +15,7 @@ import (
 // TestQueryEvents_WithFilters verifies event querying with domain filter.
 // [REQ:LD-QUERY-FILTER] Handler-level domain filtering.
 func TestQueryEvents_WithFilters(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events
 	h.createTestEvent(t, "domain-a", "event.a")
@@ -45,8 +44,7 @@ func TestQueryEvents_WithFilters(t *testing.T) {
 // TestQueryEvents_TypeFilter verifies event querying with event_type filter.
 // [REQ:LD-QUERY-FILTER] Handler-level event type filtering.
 func TestQueryEvents_TypeFilter(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events with different types
 	h.createTestEvent(t, "domain-a", "session.start")
@@ -75,8 +73,7 @@ func TestQueryEvents_TypeFilter(t *testing.T) {
 // TestQueryEvents_LimitFilter verifies event querying with limit parameter.
 // [REQ:LD-QUERY-FILTER] Handler-level limit enforcement.
 func TestQueryEvents_LimitFilter(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create more test events than the limit
 	for i := 0; i < 5; i++ {
@@ -105,8 +102,7 @@ func TestQueryEvents_LimitFilter(t *testing.T) {
 // TestGetTimeline_AggregatesCorrectly verifies timeline statistics.
 // [REQ:LD-QUERY-AGGREGATE] Timeline aggregation through handler layer.
 func TestGetTimeline_AggregatesCorrectly(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test events
 	h.createTestEvent(t, "timeline-test", "event.a")
@@ -133,8 +129,7 @@ func TestGetTimeline_AggregatesCorrectly(t *testing.T) {
 // TestGetTimeline_DefaultDays verifies default timeline days when not specified.
 // [REQ:LD-QUERY-AGGREGATE] Timeline default parameter handling.
 func TestGetTimeline_DefaultDays(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/stats/timeline", nil)
 	rr := httptest.NewRecorder()
@@ -158,8 +153,7 @@ func TestGetTimeline_DefaultDays(t *testing.T) {
 // TestGetSummary_ReturnsTotals verifies summary statistics.
 // [REQ:LD-QUERY-AGGREGATE] Summary aggregation through handler layer.
 func TestGetSummary_ReturnsTotals(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test data
 	h.registerTestDomain(t, "summary-domain", "Summary Test")
@@ -190,8 +184,7 @@ func TestGetSummary_ReturnsTotals(t *testing.T) {
 // TestGetSummary_EmptyDatabase verifies summary with no data.
 // [REQ:LD-QUERY-AGGREGATE] Summary aggregation with empty database.
 func TestGetSummary_EmptyDatabase(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/stats/summary", nil)
 	rr := httptest.NewRecorder()
@@ -217,8 +210,7 @@ func TestGetSummary_EmptyDatabase(t *testing.T) {
 // TestGetScore_Success verifies lifestyle score retrieval.
 // [REQ:LD-UI-SCORE] Handler returns lifestyle score.
 func TestGetScore_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
 	rr := httptest.NewRecorder()
@@ -242,8 +234,7 @@ func TestGetScore_Success(t *testing.T) {
 // TestGetScore_WithActivity verifies score calculation with domain activity.
 // [REQ:LD-UI-SCORE] Handler calculates score based on domain activity.
 func TestGetScore_WithActivity(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create test data across multiple domains
 	h.registerTestDomain(t, "score-domain-1", "Score Domain 1")
@@ -278,8 +269,7 @@ func TestGetScore_WithActivity(t *testing.T) {
 // TestGetScore_WithHistoryDays verifies history_days parameter handling.
 // [REQ:LD-UI-SCORE] Handler respects history_days parameter.
 func TestGetScore_WithHistoryDays(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/stats/score?history_days=14", nil)
 	rr := httptest.NewRecorder()
@@ -303,8 +293,7 @@ func TestGetScore_WithHistoryDays(t *testing.T) {
 // TestGetScore_DefaultHistoryDays verifies default history_days.
 // [REQ:LD-UI-SCORE] Handler uses default history_days.
 func TestGetScore_DefaultHistoryDays(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/stats/score", nil)
 	rr := httptest.NewRecorder()
@@ -328,8 +317,7 @@ func TestGetScore_DefaultHistoryDays(t *testing.T) {
 // TestGetTimeline_InvalidDays verifies invalid days parameter handling.
 // [REQ:LD-QUERY-AGGREGATE] Timeline parameter validation.
 func TestGetTimeline_InvalidDays(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/stats/timeline?days=invalid", nil)
 	rr := httptest.NewRecorder()
@@ -351,8 +339,7 @@ func TestGetTimeline_InvalidDays(t *testing.T) {
 // TestGetTimeline_MaxDays verifies max days limit enforcement.
 // [REQ:LD-QUERY-AGGREGATE] Timeline max days enforcement.
 func TestGetTimeline_MaxDays(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Request more than max allowed
 	req := httptest.NewRequest("GET", "/api/v1/stats/timeline?days=999", nil)

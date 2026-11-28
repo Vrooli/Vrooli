@@ -6,7 +6,7 @@
  * This module executes BrowserAction objects via Playwright.
  * It translates high-level actions into Playwright operations.
  *
- * Supports human-like typing behavior via BehaviorSettings:
+ * Supports configurable typing timing and variation via BehaviorSettings:
  * - Pre-typing delays (pause before starting to type)
  * - Character-by-character typing with variable delays
  * - Enhanced variance based on digraphs, shifted chars, etc.
@@ -33,7 +33,6 @@ import type {
   ActionExecutionContext,
 } from '../vision-agent/types';
 import type { BehaviorSettings } from '../../types/browser-profile';
-import { logger, LogContext, scopedLog } from '../../utils';
 import { HumanBehavior } from '../../browser-profile/human-behavior';
 import { sleep } from '../../utils';
 
@@ -55,41 +54,10 @@ export interface ActionExecutorConfig {
   actionTimeout?: number;
   /** Whether to wait for navigation after clicks */
   waitForNavigation?: boolean;
-  /** Behavior settings for human-like interactions */
+  /** Configurable timing and movement settings for interactions */
   behaviorSettings?: BehaviorSettings;
-  /**
-   * @deprecated Use behaviorSettings instead. Delay between typing characters in ms (0 for instant).
-   *
-   * ## Migration Guide
-   *
-   * Replace:
-   * ```typescript
-   * createActionExecutor({ typeDelay: 50 })
-   * ```
-   *
-   * With:
-   * ```typescript
-   * createActionExecutor({
-   *   behaviorSettings: {
-   *     typingBehavior: {
-   *       enabled: true,
-   *       baseDelayMs: 50,        // Average delay between chars
-   *       varianceMs: 20,         // Random variance (+/-)
-   *       burstProbability: 0.1,  // Chance of fast typing bursts
-   *     }
-   *   }
-   * })
-   * ```
-   *
-   * BehaviorSettings provides more realistic human-like typing with:
-   * - Variable delays between characters
-   * - Typing bursts (fast sequences)
-   * - Digraph awareness (common letter pairs typed faster)
-   * - Micro-pauses for realism
-   *
-   * @see BehaviorSettings in types/browser-profile.ts for full options
-   */
-  typeDelay?: number;
+	/** Optional session permission guard called before every physical browser action. */
+	authorize?: (page: Page, action: BrowserAction) => Promise<void> | void;
 }
 
 /**
@@ -103,17 +71,6 @@ export function createActionExecutor(
   const actionTimeout = config.actionTimeout ?? DEFAULT_ACTION_TIMEOUT;
   // Create HumanBehavior instance if settings provided
   const behavior = config.behaviorSettings ? new HumanBehavior(config.behaviorSettings) : null;
-  // Legacy fallback for typeDelay
-  const legacyTypeDelay = config.typeDelay ?? 0;
-
-  // LEGACY TELEMETRY: Log once when executor is created with deprecated typeDelay
-  if (config.typeDelay !== undefined && config.typeDelay > 0) {
-    logger.warn(scopedLog(LogContext.INSTRUCTION, 'deprecated typeDelay config used'), {
-      typeDelay: config.typeDelay,
-      hasBehaviorSettings: !!config.behaviorSettings,
-      telemetryReason: 'DEPRECATED_TYPE_DELAY_CONFIG',
-    });
-  }
 
   return {
     async execute(
@@ -125,13 +82,14 @@ export function createActionExecutor(
       let context: ActionExecutionContext | undefined;
 
       try {
+		if (config.authorize) await config.authorize(page, action);
         switch (action.type) {
           case 'click':
             await executeClick(page, action, elementLabels, actionTimeout);
             break;
 
           case 'type':
-            await executeType(page, action, elementLabels, actionTimeout, behavior, legacyTypeDelay);
+            await executeType(page, action, elementLabels, actionTimeout, behavior);
             break;
 
           case 'scroll':
@@ -256,15 +214,14 @@ async function executeClick(
  * - Types character-by-character with enhanced variance
  * - Adds micro-pauses during typing
  *
- * Falls back to legacy typeDelay or instant typing if no behavior provided.
+ * Falls back to instant typing if no behavior is provided.
  */
 async function executeType(
   page: Page,
   action: TypeAction,
   elementLabels: ElementLabel[] | undefined,
   timeout: number,
-  behavior: HumanBehavior | null,
-  legacyTypeDelay: number
+  behavior: HumanBehavior | null
 ): Promise<void> {
   const text = action.text;
 
@@ -288,9 +245,6 @@ async function executeType(
     // Apply human-like typing behavior if available
     if (behavior && behavior.isEnabled()) {
       await typeWithHumanBehavior(page, text, behavior, selector);
-    } else if (legacyTypeDelay > 0) {
-      // Legacy: uniform delay
-      await page.keyboard.type(text, { delay: legacyTypeDelay });
     } else {
       // Instant typing
       await page.keyboard.type(text);
@@ -305,9 +259,6 @@ async function executeType(
     // Apply human-like typing behavior if available
     if (behavior && behavior.isEnabled()) {
       await typeWithHumanBehavior(page, text, behavior);
-    } else if (legacyTypeDelay > 0) {
-      // Legacy: uniform delay
-      await page.keyboard.type(text, { delay: legacyTypeDelay });
     } else {
       // Instant typing
       await page.keyboard.type(text);
@@ -541,58 +492,4 @@ async function executeKeyPress(page: Page, action: KeyPressAction): Promise<void
   }
 
   await page.keyboard.press(key);
-}
-
-/**
- * Create a mock ActionExecutor for testing.
- *
- * @returns Mock executor that records calls
- */
-export function createMockActionExecutor(): ActionExecutorInterface & {
-  getCalls(): Array<{ action: BrowserAction; elementLabels?: ElementLabel[] }>;
-  clearCalls(): void;
-  setFailMode(shouldFail: boolean, errorMessage?: string): void;
-} {
-  const calls: Array<{ action: BrowserAction; elementLabels?: ElementLabel[] }> = [];
-  let shouldFail = false;
-  let failureMessage = 'Mock executor failure';
-
-  return {
-    execute(
-      _page: Page,
-      action: BrowserAction,
-      elementLabels?: ElementLabel[]
-    ): Promise<ActionExecutionResult> {
-      calls.push({ action, elementLabels });
-
-      if (shouldFail) {
-        return Promise.resolve({
-          success: false,
-          error: failureMessage,
-          durationMs: 10,
-        });
-      }
-
-      return Promise.resolve({
-        success: true,
-        newUrl: 'https://example.com',
-        durationMs: 10,
-      });
-    },
-
-    getCalls(): Array<{ action: BrowserAction; elementLabels?: ElementLabel[] }> {
-      return [...calls];
-    },
-
-    clearCalls(): void {
-      calls.length = 0;
-    },
-
-    setFailMode(fail: boolean, message?: string): void {
-      shouldFail = fail;
-      if (message) {
-        failureMessage = message;
-      }
-    },
-  };
 }

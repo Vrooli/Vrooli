@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import * as useAdminAuthModule from '../../../app/providers/useAdminAuth';
@@ -10,8 +11,8 @@ const renderWithAuth = (isAuthenticated: boolean) => {
     isAuthenticated,
     isSessionLoading: false,
     canResetDemoData: false,
-    login: async () => {},
-    logout: async () => {},
+    login: vi.fn(),
+    logout: vi.fn(),
     user: isAuthenticated ? { email: 'test@example.com' } : null,
   });
 
@@ -56,8 +57,8 @@ describe('ProtectedRoute [REQ:ADMIN-AUTH]', () => {
       isAuthenticated: true,
       isSessionLoading: false,
       canResetDemoData: false,
-      login: async () => {},
-      logout: async () => {},
+      login: vi.fn(),
+      logout: vi.fn(),
       user: { email: 'test@example.com' },
     });
 

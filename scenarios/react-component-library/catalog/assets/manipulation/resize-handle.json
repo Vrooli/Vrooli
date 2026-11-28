@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "manipulation.resize-handle",
+    "name": "ResizeHandle",
+    "kind": "component",
+    "surface": "none",
+    "domain": "manipulation",
+    "description": "The separator affordance itself: a pointer target wider than the seam it draws, with focus, drag, snap and collapse states, on either logical axis.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-resizable-panel",
+        "reason": "Pointer math, keyboard operation, clamping and persistence belong to the hook, not to the affordance."
+      },
+      {
+        "asset": "foundations.tokens",
+        "reason": "The hit-target size, seam colour, focus ring and motion all resolve to declared ramps."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "content-reflow"
+  ],
+  "rationale": "Separating the affordance from the region it resizes is what lets one implementation serve a sidebar, a split pane and a terminal grid. The hit target must be far wider than the visible seam, and that width has to be the same number the resize arithmetic reserves — keeping both in one token is the whole reason this is a component rather than a class list."
+}

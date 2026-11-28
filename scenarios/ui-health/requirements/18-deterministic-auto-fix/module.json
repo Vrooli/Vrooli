@@ -1,0 +1,109 @@
+{
+  "description": "ui-health implements `PreviewFix`/`ApplyFix` RPCs plus a `ui-health fix <scenario> [--apply] [--rule] [--path] [--json]` CLI. A safe mechanical subset of findings is fixable while risky transforms remain report-only. `test-genie fix ui-health --deterministic` picks up these fixers. An absent `fix_class` defaults to manual, and every manual finding carries a reason.",
+  "module_id": "MOD-P0-018",
+  "prd_ref": "OT-P0-012",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "ui-health must expose `PreviewFix` and `ApplyFix` RPCs and a `ui-health fix <scenario> [--apply] [--rule] [--path] [--json]` CLI. PreviewFix returns the proposed change without writing; ApplyFix (or --apply) writes the change. An absent fix_class defaults to manual, and every manual finding must carry a human-readable reason.",
+      "id": "REQ-P0-021",
+      "prd_ref": "OT-P0-012",
+      "status": "draft",
+      "title": "PreviewFix/ApplyFix RPCs + fix CLI",
+      "validation": [
+        {
+          "notes": "PreviewFix returns the proposed change without modifying any file",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ApplyFix writes the change; an absent fix_class defaults to manual and carries a reason",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The fix CLI honors --apply, --rule, --path, and --json flags",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health fix <scenario> --json` (preview) and confirm proposed changes are listed with no files written",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `ui-health fix <scenario> --apply` and confirm the safe change is written and the finding clears on re-validate",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Every manual finding explains why it cannot be auto-fixed",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-021"
+      ],
+      "description": "Only a safe mechanical subset of findings is auto-fixable; risky transforms remain report-only. Safe fixers must be idempotent (re-applying produces no further change), and `test-genie fix ui-health --deterministic` must pick up these fixers.",
+      "id": "REQ-P0-022",
+      "prd_ref": "OT-P0-012",
+      "status": "draft",
+      "title": "Idempotent safe fixers + test-genie deterministic-fix integration",
+      "validation": [
+        {
+          "notes": "Safe mechanical findings are marked autofix_available; risky transforms are report-only",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Applying a safe fixer twice produces no change on the second run (idempotent)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `test-genie fix ui-health --deterministic` and confirm ui-health's safe fixers are invoked",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Re-running the deterministic fix leaves the tree unchanged after the first application",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Deterministic auto-fix safely reduces UI-health findings without touching risky transforms",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Deterministic auto-fix"
+}

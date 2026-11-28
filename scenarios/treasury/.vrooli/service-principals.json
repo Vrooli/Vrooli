@@ -1,0 +1,52 @@
+{
+  "principals": [
+    {
+      "name": "treasury-ask-reader",
+      "resource": "notification-hub-ask-reader",
+      "audience": "scenario-authenticator:notification-hub-ask-reader",
+      "scopes": ["notification-hub:ask-read"]
+    },
+    {
+      "name": "treasury-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "treasury-money-ledger",
+      "resource": "money-ledger",
+      "audience": "scenario-authenticator:money-ledger",
+      "scopes": ["money-ledger:write"]
+    },
+    {
+      "name": "treasury-agent-manager",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:write"]
+    },
+    {
+      "name": "treasury-lpbs-credit-grant",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:credits.grant-accepted-crypto-receipt"]
+    },
+    {
+      "name": "treasury-notification-hub",
+      "resource": "notification-hub",
+      "audience": "scenario-authenticator:notification-hub",
+      "scopes": ["notification-hub:send"]
+    },
+    {
+      "name": "treasury-x402-order",
+      "resource": "treasury-x402-order",
+      "audience": "scenario-authenticator:treasury-x402-order",
+      "scopes": ["treasury:x402-authorize", "treasury:x402-settle", "treasury:x402-cancel"]
+    },
+    {
+      "name": "treasury-x402-receipt-reader",
+      "resource": "treasury-x402-receipt",
+      "audience": "scenario-authenticator:treasury-x402-receipt",
+      "scopes": ["treasury:x402-receipt-read"]
+    }
+  ]
+}

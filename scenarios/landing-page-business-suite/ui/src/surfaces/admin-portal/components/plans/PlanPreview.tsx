@@ -1,55 +1,28 @@
-import { MetricsModeProvider } from '../../../../shared/hooks/useMetrics';
-import { PricingSection } from '../../../public-landing/sections/PricingSection';
-import type { PricingPreviewData } from '../../services/pricing.service';
+import { formatOwnerPrice } from '../../../public-landing/presentation/commerce';
+import { isDemoPlanOption } from '../../../../shared/lib/pricingPlaceholders';
+import { getIntervalLabel, normalizeInterval, type PricingPreviewData } from '../../services/pricing.service';
 
-const PRICING_PREVIEW_CONTENT = {
-  title: 'Landing pricing preview',
-  subtitle: 'Updates instantly with unsaved copy changes so you can validate the three-card layout visitors will see.',
-};
+interface PlanPreviewProps { data: PricingPreviewData }
 
-interface PlanPreviewProps {
-  data: PricingPreviewData;
-}
-
+/** Private owner-facts preview. No alternate marketing renderer or transaction effects. */
 export function PlanPreview({ data }: PlanPreviewProps) {
-  let statusMessage = 'Showing live preview of enabled monthly plans.';
-  if (data.monthlyCount === 0 && data.placeholderCount > 0) {
-    statusMessage = 'No saved monthly plans yet - displaying demo placeholders so the layout stays complete.';
-  } else if (data.placeholderCount > 0) {
-    statusMessage = `Showing ${data.monthlyCount} saved plan${data.monthlyCount === 1 ? '' : 's'} plus ${data.placeholderCount} demo placeholder${data.placeholderCount === 1 ? '' : 's'} to fill the preview.`;
-  } else if (data.monthlyCount > 0) {
-    statusMessage = `Showing ${data.monthlyCount} saved monthly plan${data.monthlyCount === 1 ? '' : 's'}.`;
-  }
-
-  return (
-    <div className="bg-slate-950/60">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-white">Live Pricing Preview</p>
-          <p className="text-xs text-slate-400">{statusMessage}</p>
-        </div>
-      </div>
-      <MetricsModeProvider mode="preview">
-        <div className="relative mt-4">
-          <div
-            className="max-h-[640px] overflow-y-auto rounded-[28px] border border-white/10 bg-surface-darker p-1"
-            onClickCapture={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onKeyDownCapture={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                event.stopPropagation();
-              }
-            }}
-          >
-            <div className="pointer-events-none">
-              <PricingSection content={PRICING_PREVIEW_CONTENT} pricingOverview={data.overview} />
-            </div>
-          </div>
-        </div>
-      </MetricsModeProvider>
-    </div>
-  );
+  const plans = [...data.overview.monthly, ...data.overview.yearly].filter(plan => plan.display_enabled && !isDemoPlanOption(plan));
+  return <section className="rounded-xl border border-white/10 bg-slate-950/60 p-5" aria-label="Pricing owner preview">
+    <h2 className="text-sm font-semibold text-white">Pricing preview</h2>
+    <p className="mt-1 text-xs text-slate-400">Configured owner prices with unsaved form edits. Public presentation copy and publication are managed separately.</p>
+    {plans.length === 0 ? <p className="mt-4 text-sm text-slate-300" role="status">No enabled configured plans to preview.</p> :
+      <div className="mt-4 grid gap-4 md:grid-cols-2">{plans.map((plan, index) => {
+        let money: string;
+        try { money = formatOwnerPrice(plan, 'en'); } catch { money = 'Price unavailable'; }
+        return <article key={plan.stripe_price_id || index} className="min-w-0 rounded-lg border border-white/10 p-4">
+          <h3 className="break-words font-semibold">{plan.plan_name}</h3>
+          <p className="mt-2 text-xl">{money}</p><p className="text-sm text-slate-400">{getIntervalLabel(normalizeInterval(plan.billing_interval))}</p>
+          <p className="mt-2 break-all font-mono text-xs text-slate-400">{plan.stripe_price_id}</p>
+          {typeof plan.metadata?.subtitle === 'string' && <p className="mt-3">{plan.metadata.subtitle}</p>}
+          {typeof plan.metadata?.badge === 'string' && <p className="mt-2 text-sm">{plan.metadata.badge}</p>}
+          {Array.isArray(plan.metadata?.features) && <ul className="mt-3 list-inside list-disc text-sm">{plan.metadata.features.filter((feature): feature is string => typeof feature === 'string').map((feature, i) => <li key={i}>{feature}</li>)}</ul>}
+          {typeof plan.metadata?.cta_label === 'string' && <p className="mt-3 text-sm text-slate-400">Configured label: {plan.metadata.cta_label}</p>}
+        </article>;
+      })}</div>}
+  </section>;
 }

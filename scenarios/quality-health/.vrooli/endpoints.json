@@ -1,0 +1,215 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.quality_health.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.quality_health.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "audit_quality",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/AuditQuality",
+      "method": "POST",
+      "summary": "Run static quality audit",
+      "description": "Discovers scenario surfaces through Code Facts, evaluates static-quality contracts, optionally runs lint/type commands, and returns normalized findings and maturity.",
+      "category": "audit",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string",
+          "surfaces": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "findings": "array<QualityFinding>",
+          "maturity": "MaturitySummary",
+          "status": "string",
+          "surfaces": "array<QualitySurface>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "audit_contracts_list",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/ListContracts",
+      "method": "POST",
+      "summary": "List quality contracts",
+      "description": "",
+      "category": "contracts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "framework": "string",
+          "language": "string",
+          "rule_ids": "array<string>",
+          "surface_kind": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "contracts": "array<QualityContract>"
+        }
+      }
+    },
+    {
+      "id": "audit_explain_finding",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/ExplainFinding",
+      "method": "POST",
+      "summary": "Explain a quality finding",
+      "description": "",
+      "category": "explain",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_id": "string",
+          "rule_id": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "contract": "QualityContract",
+          "finding": "QualityFinding",
+          "next_steps": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "audit_preview_fix_config",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/PreviewFixConfig",
+      "method": "POST",
+      "summary": "Preview static quality config fixes",
+      "description": "",
+      "category": "autofix",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<AutofixCandidate>",
+          "messages": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "audit_apply_fix_config",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/ApplyFixConfig",
+      "method": "POST",
+      "summary": "Apply static quality config fixes",
+      "description": "",
+      "category": "autofix",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<AutofixCandidate>",
+          "messages": "array<string>"
+        }
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's static quality posture",
+      "description": "Runs Quality Health's static audit and returns the shared scenario-validation response; the native AuditQualityResponse is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool (run command-backed checks)",
+          "path": "string (required when scenario is empty)",
+          "scenario": "string (required when path is empty)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<quality_health.v1.audit.AuditQualityResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"quality-health\"}'"
+        }
+      ]
+    }
+  ]
+}

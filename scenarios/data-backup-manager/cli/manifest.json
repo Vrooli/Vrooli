@@ -1,0 +1,2194 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "data-backup-manager",
+  "description": "Data Backup Manager CLI surface. Single source of truth for the scenario's domain commands: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "space",
+      "flat": true,
+      "description": "Emit this scenario's coverage-space denominator.",
+      "commands": [
+        {
+          "name": "space",
+          "description": "Emit this scenario's coverage-space denominator as JSON.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "targets",
+      "description": "Register and inspect backup targets (scenarios self-register at lifecycle)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Register (upsert) a backup target keyed by owner+name",
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario/service id"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Owner-scoped target name"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "Source kind: filesystem|workspace-checkpoint|sqlite|postgres|redis|qdrant|object-storage",
+              "bind": {
+                "field": "source_kind"
+              }
+            },
+            {
+              "name": "locator",
+              "required": true,
+              "description": "Source locator (path, db name, key prefix, collection, or bucket/prefix)"
+            },
+            {
+              "name": "critical",
+              "bool": true,
+              "description": "Approve this target for critical-primary and critical-secondary plans"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetsService",
+            "method": "RegisterTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deregister",
+          "description": "Deregister a backup target by owner+name",
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario/service id"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Owner-scoped target name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetsService",
+            "method": "DeregisterTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a backup target by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Target id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetsService",
+            "method": "GetTarget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List backup targets (optionally filtered by owner)",
+          "flags": [
+            {
+              "name": "owner",
+              "description": "Filter by owning scenario/service id"
+            },
+            {
+              "name": "page-size",
+              "description": "Page size (1-100)"
+            },
+            {
+              "name": "page-token",
+              "description": "Opaque continuation token returned by the preceding list response"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetsService",
+            "method": "ListTargets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "destinations",
+      "description": "Manage backup destinations (kopia repositories: filesystem, SFTP, or S3)",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a new backup destination",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Operator-facing unique name"
+            },
+            {
+              "name": "backend",
+              "description": "Backend kind: filesystem|sftp|s3 (default: filesystem)",
+              "bind": {
+                "field": "backend_kind"
+              }
+            },
+            {
+              "name": "location",
+              "required": true,
+              "description": "Filesystem path, SFTP URI, or S3-compatible URI"
+            },
+            {
+              "name": "cap-bytes",
+              "description": "Storage cap in bytes (0 = no cap)"
+            },
+            {
+              "name": "cap-policy",
+              "description": "Over-cap behavior: alert-block|alert-only (default: unspecified)"
+            },
+            {
+              "name": "allow-unrepairable",
+              "bool": true,
+              "description": "Admit a filesystem this host cannot repair (for example NTFS on Linux). Without it, creation is refused because one unsafe shutdown can make the drive unrecoverable.",
+              "bind": {
+                "field": "acknowledge_unrepairable_filesystem"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "CreateDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import-existing",
+          "description": "Attach an exact existing repository described by non-secret catalog metadata",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Stable destination ID from source catalog/bundle"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Slug-safe Kopia repository name"
+            },
+            {
+              "name": "backend",
+              "required": true,
+              "description": "Existing backend: filesystem|sftp|s3"
+            },
+            {
+              "name": "location",
+              "required": true,
+              "description": "Existing bundle root or non-secret backend URI"
+            },
+            {
+              "name": "created-at",
+              "required": true,
+              "description": "Original destination creation time in RFC3339 format"
+            },
+            {
+              "name": "snapshot-ids",
+              "description": "Optional comma-separated exact snapshot IDs to prove present; import still requires readable history"
+            },
+            {
+              "name": "cap-bytes",
+              "description": "Storage cap in bytes (0 = no cap)"
+            },
+            {
+              "name": "cap-policy",
+              "description": "Over-cap behavior: alert-block|alert-only (default: alert-block)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ImportExistingDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "snapshots",
+          "description": "List immutable snapshots for a stable DBM owner/name identity, newest first",
+          "flags": [
+            {
+              "name": "destination-id",
+              "required": true,
+              "description": "Connected DBM destination id"
+            },
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Stable target owner"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Stable target name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ListTargetSnapshots"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a backup destination by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "GetDestination"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List all backup destinations",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ListDestinations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update cap-bytes or cap-policy on a destination",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "cap-bytes",
+              "description": "New storage cap in bytes (0 = no cap)"
+            },
+            {
+              "name": "cap-policy",
+              "description": "Over-cap behavior: alert-block|alert-only"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "UpdateDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "bind-recovery-identity",
+          "description": "Bind a filesystem destination to a stable volume UUID or serial after read-only host verification",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "device-uuid",
+              "description": "Stable filesystem UUID",
+              "local_only": true,
+              "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."
+            },
+            {
+              "name": "device-serial",
+              "description": "Stable backing-disk serial",
+              "local_only": true,
+              "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."
+            },
+            {
+              "name": "device-filesystem",
+              "description": "Expected filesystem type",
+              "local_only": true,
+              "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."
+            },
+            {
+              "name": "mountpoint",
+              "required": true,
+              "description": "Intended volume mount root; destination path must be beneath it"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "BindDestinationRecoveryIdentity"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a backup destination record (catalog row). Encrypted repository bytes on the backend are never removed by this command",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "delete-repository",
+              "description": "Also remove local resource-kopia metadata/config/cache and credential-authority refs. Does NOT delete the encrypted repository bytes on the backend (default: false)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "DeleteDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage",
+          "description": "Get current storage usage for a destination",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "GetDestinationUsage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "readiness",
+          "description": "Analyze a mounted filesystem location for backup readiness without writing to it",
+          "flags": [
+            {
+              "name": "location",
+              "required": true,
+              "description": "Mounted path or subdirectory to analyze"
+            },
+            {
+              "name": "proposed-subdir",
+              "description": "Backup subdirectory to recommend (default: vrooli-backups)"
+            },
+            {
+              "name": "selected-target-bytes",
+              "description": "Optional selected target estimate in bytes for capacity checks"
+            },
+            {
+              "name": "retention-copies",
+              "description": "Optional retention copy count for capacity checks"
+            },
+            {
+              "name": "cross-platform",
+              "bool": true,
+              "description": "Prefer cross-platform filesystem guidance",
+              "bind": {
+                "field": "cross_platform_required"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "AnalyzeDestination"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prepare-plan",
+          "description": "Create a non-mutating destination-preparation or volume-remediation plan with a confirmation phrase",
+          "flags": [
+            {
+              "name": "location",
+              "required": true,
+              "description": "Mounted path or subdirectory to prepare"
+            },
+            {
+              "name": "action",
+              "required": true,
+              "description": "Preparation action: create-subdir|relabel|clear-directory|format|unmount|check-filesystem|repair-filesystem|mount-read-write"
+            },
+            {
+              "name": "subdir",
+              "description": "Subdirectory name for create-subdir (default: vrooli-backups)",
+              "bind": {
+                "field": "desired_subdir"
+              }
+            },
+            {
+              "name": "label",
+              "description": "Desired filesystem label for relabel/format"
+            },
+            {
+              "name": "filesystem",
+              "description": "Desired filesystem for format, e.g. ext4 or exfat"
+            },
+            {
+              "name": "device",
+              "description": "Device path (e.g. /dev/sda1) to address the destination volume directly; required once a remediation sequence has unmounted it",
+              "local_only": true,
+              "bind_waiver": "The hand-written destination preparation handler nests this CLI-only scalar under expected_identity.device_path before invoking the typed RPC."
+            },
+            {
+              "name": "uuid",
+              "description": "Stable filesystem UUID from a prior read-only inspection; on Linux it can resolve an unmounted device without a path"
+            },
+            {
+              "name": "serial",
+              "description": "Stable device serial from a prior read-only inspection; on Linux it can resolve an unmounted device without a path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "PlanDestinationPreparation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prepare-execute",
+          "description": "Dry-run or execute a destination-preparation plan after explicit confirmation",
+          "flags": [
+            {
+              "name": "plan-json",
+              "required": true,
+              "description": "DestinationPreparationPlan JSON returned by prepare-plan"
+            },
+            {
+              "name": "confirm",
+              "description": "Exact confirmation phrase from the plan"
+            },
+            {
+              "name": "dry-run",
+              "description": "Whether to validate only (default: true)"
+            },
+            {
+              "name": "acknowledge-data-loss",
+              "bool": true,
+              "description": "Required for destructive actions when dry-run is false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ExecuteDestinationPreparation"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "recovery-start",
+          "description": "Persist an identity-bound volume recovery journal without changing host state",
+          "flags": [
+            {
+              "name": "location",
+              "required": true,
+              "description": "Requested mount root"
+            },
+            {
+              "name": "identity-json",
+              "required": true,
+              "description": "DestinationDeviceIdentity JSON from read-only inspection",
+              "local_only": true,
+              "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON into the typed identity message before invoking the RPC."
+            },
+            {
+              "name": "plans-json",
+              "required": true,
+              "description": "JSON array of separately planned remediation steps",
+              "local_only": true,
+              "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON array into typed plan messages before invoking the RPC."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "StartVolumeRecovery"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recovery-get",
+          "description": "Inspect a durable volume recovery journal without changing host state",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Recovery journal id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "GetVolumeRecovery"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recovery-resume",
+          "description": "Dry-run or resume a volume recovery journal one confirmed step at a time",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Recovery journal id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirmations-json",
+              "description": "JSON object mapping step indexes to exact confirmation phrases"
+            },
+            {
+              "name": "dry-run",
+              "description": "Whether to validate only (default: true)"
+            },
+            {
+              "name": "acknowledge-data-loss",
+              "bool": true,
+              "description": "Required when executing a repair step"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ResumeVolumeRecovery"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "safe-eject",
+          "description": "Flush writes and unmount a filesystem destination so it is safe to unplug; preview unless --apply",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Execute the flush and unmount"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "safe-mount",
+          "description": "Mount an ejected filesystem destination at its recorded mountpoint; preview unless --apply",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Execute the mount"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "repair-options",
+          "description": "Report whether this host can repair the destination's filesystem, and the smallest safe path off it if not",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "staging",
+              "description": "Path on a second drive to fill into the migration copy commands"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "discovery",
+      "description": "Onboarding suggestions: targets worth protecting and destinations to back up to (accept by calling targets register / destinations create)",
+      "commands": [
+        {
+          "name": "targets",
+          "description": "List suggested targets worth protecting (well-known ~/.vrooli runtime state)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "ListTargetSuggestions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "destinations",
+          "description": "List suggested destinations (mounted volumes / plugged-in drives) to back up to",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "ListDestinationSuggestions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "dismiss",
+          "description": "Dismiss a suggestion permanently by id",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Stable suggestion id (from discovery targets/destinations)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "DismissSuggestion"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "coverage",
+      "description": "First-real-backup readiness: see what is registered/recommended/sensitive/planned/backed-up/verified, and bulk-register default coverage",
+      "commands": [
+        {
+          "name": "report",
+          "description": "Show backup coverage per enabled destination, including per-copy backups and scratch-restore verification",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetCoverageReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "accept-defaults",
+          "description": "Bulk-register non-sensitive discovered durable targets as default coverage",
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Report what would be registered without registering anything"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "AcceptDefaultTargets"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "review-sensitive",
+          "description": "Request one verified Notification Hub review for current sensitive coverage suggestions",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "RequestSensitiveReview"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sensitive-policy",
+          "description": "Show the standing rule for places that hold secrets: whether it is on, who consented and when, what it added and what it keeps out",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "GetSensitivePolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revoke-sensitive-policy",
+          "description": "Turn off the standing rule: what it already added stays backed up, and new places that hold secrets wait for a decision again",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "RevokeSensitivePolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "adopt-sensitive-consent",
+          "description": "Record the operator's own-words answer on a sensitive coverage decision as the standing consent, confirmed with the Hub, and apply it",
+          "flags": [
+            {
+              "name": "ask",
+              "required": true,
+              "description": "The Hub ask id whose answer is the consent"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "AdoptSensitiveConsent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "exclude-sensitive",
+          "description": "Keep one item out of the standing rule so it is never added automatically",
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owner of the item, as listed by the weekly note or `coverage sensitive-policy`"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Name of the item"
+            },
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why it stays out"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CoverageService",
+            "method": "ExcludeSensitiveTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "plans",
+      "description": "Manage backup plans (bind targets to destinations on a schedule)",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a new backup plan",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Plan name"
+            },
+            {
+              "name": "targets",
+              "description": "Comma-separated target ids (or use --target-selector)",
+              "bind": {
+                "field": "target_ids"
+              }
+            },
+            {
+              "name": "target-selector",
+              "description": "Rule instead of a list: 'registered' = every registered target, evaluated on every run so a newly registered target is backed up without editing the plan"
+            },
+            {
+              "name": "excluded-target-ids",
+              "description": "With --target-selector: comma-separated target ids to keep out of the plan"
+            },
+            {
+              "name": "destinations",
+              "required": true,
+              "description": "Comma-separated destination ids",
+              "bind": {
+                "field": "destination_ids"
+              }
+            },
+            {
+              "name": "schedule",
+              "description": "Cron-style schedule expression (empty = manual only)"
+            },
+            {
+              "name": "keep-latest",
+              "description": "Retention: keep at most N latest snapshots (0 = keep all)"
+            },
+            {
+              "name": "keep-hourly",
+              "description": "Age-based retention: hourly snapshots (default 24 on new plans)"
+            },
+            {
+              "name": "keep-daily",
+              "description": "Age-based retention: daily snapshots (default 7 on new plans)"
+            },
+            {
+              "name": "keep-weekly",
+              "description": "Age-based retention: weekly snapshots (default 4 on new plans)"
+            },
+            {
+              "name": "keep-monthly",
+              "description": "Age-based retention: monthly snapshots (default 6 on new plans)"
+            },
+            {
+              "name": "keep-annual",
+              "description": "Age-based retention: annual snapshots (default 2 on new plans)"
+            },
+            {
+              "name": "protection-tier",
+              "description": "Protection tier: full-primary|critical-primary|critical-secondary (default: full-primary)"
+            },
+            {
+              "name": "recovery-drill-schedule",
+              "description": "Automated recovery-drill interval as a Go duration (for example 168h; empty disables)"
+            },
+            {
+              "name": "allow-incomplete-coverage",
+              "bool": true,
+              "description": "Proceed even if non-sensitive recommended targets are unregistered (default: blocked)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "CreatePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a backup plan by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "GetPlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List all backup plans",
+          "flags": [
+            { "name": "page-size", "description": "Page size (1-100)" },
+            { "name": "page-token", "description": "Opaque continuation token returned by the preceding list response" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ListPlans"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a backup plan; omitted flags keep their current values",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id"
+            },
+            {
+              "name": "name",
+              "description": "New plan name"
+            },
+            {
+              "name": "targets",
+              "description": "Comma-separated target ids (replaces existing; turns a selector plan back into a list)",
+              "bind": {
+                "field": "target_ids"
+              }
+            },
+            {
+              "name": "target-selector",
+              "description": "'registered' to select every registered target by rule; 'none' to go back to an explicit list"
+            },
+            {
+              "name": "excluded-target-ids",
+              "description": "With a target selector: comma-separated target ids to keep out (replaces existing)"
+            },
+            {
+              "name": "destinations",
+              "description": "Comma-separated destination ids (replaces existing)",
+              "bind": {
+                "field": "destination_ids"
+              }
+            },
+            {
+              "name": "schedule",
+              "description": "New schedule expression"
+            },
+            {
+              "name": "keep-latest",
+              "description": "Retention: keep at most N latest snapshots"
+            },
+            {
+              "name": "keep-hourly",
+              "description": "Age-based retention: hourly snapshots"
+            },
+            {
+              "name": "keep-daily",
+              "description": "Age-based retention: daily snapshots"
+            },
+            {
+              "name": "keep-weekly",
+              "description": "Age-based retention: weekly snapshots"
+            },
+            {
+              "name": "keep-monthly",
+              "description": "Age-based retention: monthly snapshots"
+            },
+            {
+              "name": "keep-annual",
+              "description": "Age-based retention: annual snapshots"
+            },
+            {
+              "name": "enabled",
+              "description": "Enable or disable scheduler for this plan"
+            },
+            {
+              "name": "protection-tier",
+              "description": "Protection tier: full-primary|critical-primary|critical-secondary"
+            },
+            {
+              "name": "recovery-drill-schedule",
+              "description": "Automated recovery-drill interval as a Go duration (for example 168h; empty disables)"
+            },
+            {
+              "name": "allow-incomplete-coverage",
+              "bool": true,
+              "description": "Proceed even if non-sensitive recommended targets are unregistered (default: blocked)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "UpdatePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "add-destination",
+          "description": "Add one destination to existing plans (every enabled plan when --plans is omitted); defaults to a non-mutating preview",
+          "flags": [
+            {
+              "name": "plans",
+              "description": "Comma-separated plan ids (default: every enabled plan, which is how a new drive is attached everywhere at once)"
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id to add"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the validated changes"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a backup plan",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "DeletePlan"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "drills",
+      "description": "Run and inspect durable automated recovery drills against verified snapshots",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview recovery-drill eligibility without mutating data",
+          "flags": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id",
+              "bind": {
+                "field": "plan_id"
+              }
+            },
+            {
+              "name": "target",
+              "description": "Target id when the plan has multiple targets",
+              "bind": {
+                "field": "target_id"
+              }
+            },
+            {
+              "name": "destination",
+              "description": "Destination id when the plan has multiple destinations",
+              "bind": {
+                "field": "destination_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryDrillsService",
+            "method": "PreviewDrill"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Start an asynchronous scratch restore verification and persist its evidence",
+          "flags": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id",
+              "bind": {
+                "field": "plan_id"
+              }
+            },
+            {
+              "name": "target",
+              "description": "Target id when the plan has multiple targets",
+              "bind": {
+                "field": "target_id"
+              }
+            },
+            {
+              "name": "destination",
+              "description": "Destination id when the plan has multiple destinations",
+              "bind": {
+                "field": "destination_id"
+              }
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable retry key; repeated requests return the original drill"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryDrillsService",
+            "method": "RunDrill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get persisted recovery-drill evidence",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Drill id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryDrillsService",
+            "method": "GetDrill"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List persisted recovery-drill evidence",
+          "flags": [
+            {
+              "name": "plan",
+              "description": "Filter by plan id",
+              "bind": {
+                "field": "plan_id"
+              }
+            },
+            {
+              "name": "target",
+              "description": "Filter by target id",
+              "bind": {
+                "field": "target_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryDrillsService",
+            "method": "ListDrills"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retire",
+          "description": "Retire a completed drill while retaining its durable evidence",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Drill id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why this completed drill is retired",
+              "bind": {
+                "field": "reason"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryDrillsService",
+            "method": "RetireDrill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "runs",
+      "description": "Trigger and inspect backup run executions",
+      "commands": [
+        {
+          "name": "preflight",
+          "description": "Run read-only plan-wide readiness checks before backup fan-out",
+          "flags": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "PreflightRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "trigger",
+          "description": "Trigger an immediate backup run for a plan",
+          "flags": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Plan id to run",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "TriggerRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a backup run by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List backup runs (optionally filtered by plan)",
+          "flags": [
+            {
+              "name": "plan",
+              "description": "Filter by plan id",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show last-success / last-run status for all targets",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListTargetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "browse",
+          "description": "Browse the contents of a snapshot in a destination",
+          "flags": [
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id",
+              "bind": {
+                "field": "destination_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "description": "Snapshot id",
+              "bind": {
+                "field": "snapshot_id"
+              }
+            },
+            {
+              "name": "path",
+              "description": "Optional path prefix within the snapshot"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "BrowseSnapshot"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stats",
+          "description": "Show aggregate run metrics (counts, success rate, p50/p95 duration, bytes/run, throughput)",
+          "flags": [
+            {
+              "name": "plan",
+              "description": "Scope metrics to a single plan id",
+              "bind": {
+                "field": "plan_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRunStats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "restores",
+      "description": "Restore or verify backup snapshots",
+      "commands": [
+        {
+          "name": "restore",
+          "description": "Restore a snapshot to a target location",
+          "flags": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target id",
+              "bind": {
+                "field": "target_id"
+              }
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id containing the snapshot",
+              "bind": {
+                "field": "destination_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "description": "Snapshot id to restore",
+              "bind": {
+                "field": "snapshot_id"
+              }
+            },
+            {
+              "name": "location",
+              "required": true,
+              "description": "Filesystem path to restore into"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RestoresService",
+            "method": "RestoreTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Test-restore a snapshot to scratch and verify checksum",
+          "flags": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target id",
+              "bind": {
+                "field": "target_id"
+              }
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id containing the snapshot",
+              "bind": {
+                "field": "destination_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "description": "Snapshot id to verify",
+              "bind": {
+                "field": "snapshot_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RestoresService",
+            "method": "VerifyTarget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a restore/verify record by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Restore id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RestoresService",
+            "method": "GetRestore"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List restore/verify records (optionally filtered by target)",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Filter by target id",
+              "bind": {
+                "field": "target_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RestoresService",
+            "method": "ListRestores"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "safety",
+      "description": "Baseline Modes data substrate: ensure the safety destination and take pre-promote scenario snapshots",
+      "commands": [
+        {
+          "name": "ensure-destination",
+          "description": "Idempotently provision the reserved baseline-safety destination",
+          "flags": [
+            {
+              "name": "cap-bytes",
+              "description": "Optional storage cap in bytes for the safety repository (0 = no cap); applied only at creation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "EnsureSafetyDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "backup-now",
+          "description": "Back up a scenario's registered targets now to the safety destination",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario whose registered targets (owner=scenario) to back up"
+            },
+            {
+              "name": "keep-latest",
+              "description": "Keep at most this many latest safety snapshots per target (0 = keep all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "BackupScenarioNow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "register-targets",
+          "description": "Derive and register a scenario's backup targets (Postgres + data dir) from its service.json",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario whose backup targets to derive and register (owner=scenario)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "RegisterScenarioTargets"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "populate-shadow",
+          "description": "Restore a scenario's safety snapshots into shadow namespaces (the data half of `baseline start`)",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario whose registered targets + safety snapshots to restore into the shadow"
+            },
+            {
+              "name": "run-id",
+              "description": "Optional terminal safety run id to restore from (default: the latest terminal run)"
+            },
+            {
+              "name": "mappings",
+              "required": true,
+              "description": "JSON array of target-to-shadow mappings, each with `target_name` and `location` (e.g. [{\"target_name\":\"postgres\",\"location\":\"vrooli_x_shadow\"}])",
+              "bind": {
+                "field": "mappings",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "The flag name intentionally remains mappings for CLI compatibility; the explicit JSON decoder is required because the request field is a repeated message."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "PopulateShadow"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "audits",
+      "description": "Generic snapshot audits: prove a backup's filesystem/database shape matches live",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a generic snapshot audit (restore to scratch, capture live, compare generic inventory)",
+          "flags": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target id",
+              "bind": {
+                "field": "target_id"
+              }
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id containing the snapshot",
+              "bind": {
+                "field": "destination_id"
+              }
+            },
+            {
+              "name": "snapshot",
+              "required": true,
+              "description": "Snapshot id to audit",
+              "bind": {
+                "field": "snapshot_id"
+              }
+            },
+            {
+              "name": "no-content-hash",
+              "bool": true,
+              "description": "Skip the streaming tree content hash (use for huge trees)",
+              "bind": {
+                "field": "include_content_hash"
+              }
+            },
+            {
+              "name": "no-sqlite-checks",
+              "bool": true,
+              "description": "Skip SQLite integrity/schema checks",
+              "bind": {
+                "field": "include_sqlite_checks"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditsService",
+            "method": "RunSnapshotAudit"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a snapshot audit record by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Audit id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditsService",
+            "method": "GetAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List snapshot audit records (optionally filtered by target)",
+          "flags": [
+            {
+              "name": "target",
+              "description": "Filter by target id",
+              "bind": {
+                "field": "target_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditsService",
+            "method": "ListAudits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "wallet-recovery",
+      "description": "Produce and finalize DBM-owned signed wallet recovery attestations",
+      "commands": [
+        {
+          "name": "attest",
+          "description": "Verify the exact newest restored snapshot and return a signed recovery receipt while pinning the target and destination",
+          "flags": [
+            {
+              "name": "reservation-id",
+              "required": true,
+              "description": "Stable id derived from wallet, successor and destination"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM target id containing recovery tombstone"
+            },
+            {
+              "name": "destination-id",
+              "required": true,
+              "description": "DBM off-host destination id"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryAttest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "finish",
+          "description": "Pin the exact receipt for Treasury commit or release the pin after Treasury confirms its outcome",
+          "flags": [
+            {
+              "name": "reservation-id",
+              "required": true,
+              "description": "Stable wallet recovery reservation id"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM target id"
+            },
+            {
+              "name": "state",
+              "required": true,
+              "description": "commit pins through Treasury commit; release follows Treasury confirmation (commit|release)"
+            },
+            {
+              "name": "commit-ack-json",
+              "required": false,
+              "description": "Treasury-signed exact commit acknowledgement, required for release"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReservationFinish"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "read-lease-acquire",
+          "description": "Acquire a bounded read lock for the exact newest recovery snapshot before Treasury consumes it",
+          "flags": [
+            {
+              "name": "lease-id",
+              "required": true,
+              "description": "Unique request identity for this consumer operation"
+            },
+            {
+              "name": "target-name",
+              "required": true,
+              "description": "Stable Treasury wallet recovery target name"
+            },
+            {
+              "name": "destination-id",
+              "required": true,
+              "description": "DBM off-host destination id"
+            },
+            {
+              "name": "snapshot-id",
+              "required": true,
+              "description": "Exact newest snapshot selected by the consumer"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReadLeaseAcquire"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "read-lease-renew",
+          "description": "Renew an unexpired wallet recovery read lock while Treasury consumes its exact snapshot",
+          "flags": [
+            {
+              "name": "lease-id",
+              "required": true,
+              "description": "Active read lease identity"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM recovery target id"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReadLeaseRenew"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "read-lease-release",
+          "description": "Release the wallet recovery read lock after Treasury completes the bound operation",
+          "flags": [
+            {
+              "name": "lease-id",
+              "required": true,
+              "description": "Active read lease identity"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM recovery target id"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReadLeaseRelease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": []
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "react-component-library.workbench",
+      "lifecycle": "production",
+      "provider_group": "react-component-library",
+      "bucket": "BUCKET_REUSE",
+      "type": "workbench-object",
+      "description": "Workspaces, pages, displays, states, component library assets, commands, and review evidence. Find the design outcome or reusable component that best matches the user's intent.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "indexedAt",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "react-component-library",
+          "path": "/vrooli.react_component_library.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "react-component-library",
+          "path": "/vrooli.react_component_library.v1.search.SearchService/GetSearchStatus",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "react-component-library",
+          "path": "/vrooli.react_component_library.v1.search.SearchService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"force\":true}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "href",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "performance": {
+        "p95_ms": 1500,
+        "ask_p95_ms": 8000,
+        "ask_minimum_samples": 20,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "config_writable": false,
+      "config_pinned_reason": "RCL currently owns a fixed dense+sparse retrieval configuration; tuning write-back will be exposed when the provider control surface supports it.",
+      "tuning": {
+        "engine": "hybrid",
+        "rerank_enabled": false,
+        "floor": { "max_gap": 0, "hard_floor": 0 }
+      },
+      "tests": {
+        "name": "RCL workbench search",
+        "description": "Basic provider contract check; scenario-owned ranking remains outcome-first and lexical FTS remains available during semantic degradation.",
+        "minimum": { "reviewed_positive": 1, "negative": 1 },
+        "cases": [
+          {
+            "id": "exact-button-asset",
+            "query": "button",
+            "tags": ["catalog", "strong"],
+            "expect_ids": ["asset:controls.button"],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "unrelated-gibberish",
+            "query": "florbnax zzqq nonsense",
+            "tags": ["gibberish"],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.35
+          }
+        ]
+      }
+    }
+  ]
+}

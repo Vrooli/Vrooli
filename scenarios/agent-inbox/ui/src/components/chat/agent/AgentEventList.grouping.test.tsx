@@ -1,9 +1,10 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 /**
  * Tests for AgentEventList - Event grouping, filtering, and basic rendering
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { AgentEventList } from "./AgentEventList";
 import type { AgentEvent } from "../../../lib/api";
 
@@ -68,7 +69,7 @@ function makeEvent(overrides: Partial<AgentEvent> = {}): AgentEvent {
 
 describe("AgentEventList - basic rendering", () => {
   it("renders waiting message when events array is empty", () => {
-    render(<AgentEventList events={[]} />);
+    renderWithProviders(<AgentEventList events={[]} />);
     expect(screen.getByText("Waiting for agent response...")).toBeInTheDocument();
   });
 
@@ -83,7 +84,7 @@ describe("AgentEventList - basic rendering", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} viewMode="compact" />);
+    renderWithProviders(<AgentEventList events={events} viewMode="compact" />);
 
     expect(screen.getByTestId("agent-event-list")).toHaveClass("space-y-2");
   });
@@ -111,7 +112,7 @@ describe("AgentEventList - tool_call + tool_result grouping by tool_call_id", ()
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     const toolCard = screen.getByTestId("tool-call-1");
     expect(toolCard).toBeInTheDocument();
@@ -141,7 +142,7 @@ describe("AgentEventList - fallback name+proximity matching", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     const toolCard = screen.getByTestId("tool-call-2");
     expect(toolCard).toBeInTheDocument();
@@ -178,7 +179,7 @@ describe("AgentEventList - fallback name+proximity matching", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     const toolCard = screen.getByTestId("tool-call-far");
     expect(toolCard).toBeInTheDocument();
@@ -206,7 +207,7 @@ describe("AgentEventList - event filtering", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     expect(screen.queryByTestId("raw-metric-1")).not.toBeInTheDocument();
     expect(screen.getByTestId("message-msg-1")).toBeInTheDocument();
@@ -230,7 +231,7 @@ describe("AgentEventList - event filtering", () => {
       }),
     ];
 
-    render(<AgentEventList events={events} />);
+    renderWithProviders(<AgentEventList events={events} />);
 
     expect(screen.queryByTestId("raw-log-1")).not.toBeInTheDocument();
     expect(screen.getByTestId("message-msg-2")).toBeInTheDocument();

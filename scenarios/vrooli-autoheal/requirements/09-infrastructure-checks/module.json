@@ -1,269 +1,285 @@
 {
-  "module": "infrastructure-checks",
-  "description": "Platform and infrastructure health checks",
-  "prd_refs": [
-    "OT-P1-001",
-    "OT-P1-002",
-    "OT-P1-003",
-    "OT-P1-004",
-    "OT-P1-005",
-    "OT-P1-009"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-09-02T09:47:16-04:00"
+  },
   "requirements": [
     {
       "id": "INFRA-NET-001",
       "title": "Network connectivity check",
-      "description": "Verify basic network connectivity via ping to configurable target",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
+      "description": "Verify basic network connectivity via ping to configurable target",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-DNS-001",
       "title": "DNS resolution check",
-      "description": "Verify DNS resolution is working via lookup of configurable domain",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
+      "description": "Verify DNS resolution is working via lookup of configurable domain",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-TIME-001",
       "title": "Time synchronization check",
-      "description": "Verify NTP is synchronized (platform-specific implementation)",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
+      "description": "Verify NTP is synchronized (platform-specific implementation)",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-DISK-001",
       "title": "Disk space check",
-      "description": "Warn when disk usage exceeds configurable threshold",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
+      "description": "Warn when disk usage exceeds configurable threshold",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-SWAP-001",
       "title": "Swap usage check",
-      "description": "Warn when swap usage indicates memory pressure",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
+      "description": "Warn when swap usage indicates memory pressure",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-ZOMBIE-001",
       "title": "Zombie process check",
-      "description": "Detect excessive zombie processes (Linux/macOS)",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
+      "description": "Detect excessive zombie processes (Linux/macOS)",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-PORT-001",
       "title": "Port exhaustion check",
-      "description": "Warn when ephemeral port usage is high",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
+      "description": "Warn when ephemeral port usage is high",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-RDP-001",
       "title": "RDP/xrdp health check",
-      "description": "Check xrdp (Linux) or TermService (Windows) is running",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
+      "description": "Check xrdp (Linux) or TermService (Windows) is running",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-RDP-002",
       "title": "RDP auto-restart",
-      "description": "Attempt to restart RDP service if down",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
+      "description": "Attempt to restart RDP service if down",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
+    },
+    {
+      "id": "INFRA-RDP-003",
+      "title": "Distinguish an unloadable keyring from a locked one",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "infra-rdp must read gnome-keyring's own boot-scoped journal verdict and report a rejected keyring file as the root cause, withdrawing the autologin locked-keyring posture claim when the daemon discarded the file. A locked keyring and an unloadable one share a symptom but need opposite remedies, and the posture remedies require root and cost the operator their desktop session. A failed journal read must never assert a healthy keyring.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/infra/rdp_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring, TestRDPRepairKeyringActionAvailability, TestKeyringPathFromMessage"
+        }
+      ]
     },
     {
       "id": "INFRA-DOCKER-001",
       "title": "Docker daemon health",
-      "description": "Verify Docker daemon is responsive via docker info",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
+      "description": "Verify Docker daemon is responsive via docker info",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-DOCKER-002",
       "title": "Docker auto-restart",
-      "description": "Attempt to restart Docker service if unresponsive",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
+      "description": "Attempt to restart Docker service if unresponsive",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-TUNNEL-001",
       "title": "Cloudflared service check",
-      "description": "Verify cloudflared service is active",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
+      "description": "Verify cloudflared service is active",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-TUNNEL-002",
       "title": "Cloudflared connectivity test",
-      "description": "Optionally test end-to-end tunnel connectivity",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
+      "description": "Optionally test end-to-end tunnel connectivity",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-TUNNEL-003",
       "title": "Cloudflared auto-restart",
-      "description": "Restart cloudflared if service or connectivity check fails",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
+      "description": "Restart cloudflared if service or connectivity check fails",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/checks/infra/infra_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "INFRA-SHUTDOWN-001",
       "title": "Graceful SIGTERM handling",
-      "description": "Loop mode handles SIGINT/SIGTERM cleanly, completing current tick before exit",
+      "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "criticality": "P1",
+      "description": "When vrooli-autoheal loop receives SIGINT or SIGTERM during a lifecycle step, it shall cancel the child vrooli invocation within the configured wait delay and exit cleanly; a signal during the inter-tick sleep shall exit 0.",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "cli/loop/lifecycle_test.go::TestSigtermDuringLifecycleCancelsChildWithinWaitDelay",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Phase 8 of the boot-recovery plan; failing-before capture at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p08/failing-before-TestSigtermDuringLifecycleCancelsChildWithinWaitDelay.txt. The plan's phase-12 step 3 attaches this test to WATCH-GRACEFUL-001 (graceful failure on unsupported platforms); it validates graceful shutdown, so it is registered under OT-P1-009 instead. Loop tests carry no [REQ:] tag yet."
+        },
+        {
+          "type": "test",
+          "ref": "cli/loop/loop_test.go::TestSignalDuringSleepExitsZero",
+          "phase": "unit",
+          "status": "implemented"
         }
-      ],
-      "status": "pending"
+      ]
     }
   ]
 }

@@ -1,21 +1,46 @@
 package edge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments/deploymentsv1connect"
+	edgev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/edge"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/edge/edgev1connect"
+
+	"scenario-to-cloud/cli/internal/transport"
 )
 
-// Client provides API access for edge and TLS operations.
+// Client provides API access for edge and TLS operations: the generated
+// EdgeService for the typed observation, the REST client for the legacy
+// DNS/Caddy/TLS actions.
 type Client struct {
-	api *cliutil.APIClient
+	api         *cliutil.APIClient
+	Service     edgev1connect.EdgeServiceClient
+	Deployments deploymentsv1connect.DeploymentsServiceClient
 }
 
-// NewClient creates a new edge client.
-func NewClient(api *cliutil.APIClient) *Client {
-	return &Client{api: api}
+// NewClient creates a new edge client over the shared transport.
+func NewClient(tr transport.Transport) *Client {
+	return &Client{
+		api:         tr.API,
+		Service:     edgev1connect.NewEdgeServiceClient(tr.HTTP, tr.BaseURL),
+		Deployments: deploymentsv1connect.NewDeploymentsServiceClient(tr.HTTP, tr.BaseURL),
+	}
+}
+
+// Observation returns the typed edge observation (routes, private
+// listeners, DNS, TLS, readiness).
+func (c *Client) Observation(ctx context.Context, deploymentID string) (*edgev1.GetEdgeObservationResponse, error) {
+	resp, err := c.Service.GetEdgeObservation(ctx, connect.NewRequest(&edgev1.GetEdgeObservationRequest{DeploymentId: deploymentID}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }
 
 // DNSCheck checks DNS configuration for a deployment.

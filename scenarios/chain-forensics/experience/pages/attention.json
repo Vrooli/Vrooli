@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "attention",
+    "title": "Local attention",
+    "routes": ["/attention"],
+    "purpose": "Review exact private packet versions delivered to this machine, including their evidence grades and unresolved gaps, without publishing or contacting anyone.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    { "id": "default", "description": "Persisted packet receipts show their case, delivery time, packet hash, graded links, caveats, and unresolved gaps." },
+    { "id": "loading", "description": "Private cases or local attention receipts are loading." },
+    { "id": "empty", "description": "No packet has been delivered locally; the operator can choose an existing private case." },
+    { "id": "partial", "description": "Packets retain unresolved gaps, counterexamples, disagreements, and lower evidence grades." },
+    { "id": "request-error", "description": "A local read or delivery failed and the error is visible without implying external delivery." }
+  ]
+}

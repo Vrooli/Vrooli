@@ -1,0 +1,415 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.launch;
+
+import "google/protobuf/timestamp.proto";
+import "research-desk/v1/activity/activity.proto";
+import "research-desk/v1/shared/commission.proto";
+import "research-desk/v1/shared/evidence.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/launch;launch_v1";
+
+// =============================================================================
+// LAUNCH DOMAIN — packets, launch and control without chat
+// =============================================================================
+//
+// @stability beta
+//
+// Packets are rendered and gated only by the research-coordination skill's
+// packet.py; the desk passes the spec through verbatim and returns the
+// script's result. A launch creates one Web Console session through the
+// governed launcher, sends the stance message, waits for "ready", sets the
+// goal kernel and verifies it from Codex's goals_1.sqlite; each step is
+// recorded in the commission's LAUNCH.json. Controls type /goal pause|resume,
+// paste the stance again, or quit Codex; nothing else is ever typed into a
+// session, and sessions are never deleted. Design:
+// scenarios/research-desk/docs/concepts/SYSTEM.md §5–§6; files:
+// docs/reference/FILE-CONTRACT.md §2–§3.
+// =============================================================================
+
+service LaunchService {
+  // GetLaunchOptions returns the defaults and allowed values from limits.json
+  // and, for the topics asked about, suggested stance quotes and each
+  // workstream's title, so a default launch needs no typing.
+  rpc GetLaunchOptions(GetLaunchOptionsRequest) returns (GetLaunchOptionsResponse);
+  // Preflight renders a spec in memory (or gates a prepared commission) and
+  // says what every earlier commission on the same topics means for a launch.
+  rpc Preflight(PreflightRequest) returns (PreflightResponse);
+  // Build writes a new commission folder from a spec, or from an earlier
+  // commission's PACKET.json (a relaunch is always a new commission).
+  rpc Build(BuildRequest) returns (BuildResponse);
+  // Launch starts an automatic launch in the background, after stopping each
+  // earlier commission the request supersedes.
+  rpc Launch(LaunchRequest) returns (LaunchResponse);
+  // GetLaunchMessages returns a built packet's charter path and the two
+  // messages to paste by hand. It is a read and writes nothing.
+  rpc GetLaunchMessages(GetLaunchMessagesRequest) returns (GetLaunchMessagesResponse);
+  // GetLaunch returns a commission's LAUNCH.json and whether an attempt is
+  // running in this instance.
+  rpc GetLaunch(GetLaunchRequest) returns (GetLaunchResponse);
+  // Control pauses, resumes, stops or discards a commission, or pastes its
+  // stance message again; each is recorded in LAUNCH.json.
+  rpc Control(ControlRequest) returns (ControlResponse);
+  // TestLaunch starts, in the background, one throwaway session with a fixed
+  // harmless stance and a kernel that completes at once, then pauses, resumes
+  // and stops it. It writes nothing in the research home; the session row
+  // stays. It returns the report as started.
+  rpc TestLaunch(TestLaunchRequest) returns (LaunchTestReport);
+  // GetLaunchTest returns the newest launch test report.
+  rpc GetLaunchTest(GetLaunchTestRequest) returns (LaunchTestReport);
+}
+
+message GetLaunchOptionsRequest {
+  // Topics to suggest stance quotes and list workstreams for; empty gives
+  // the limits only.
+  repeated string topics = 1;
+}
+
+// SuggestedQuote is one stance quote the desk offers, with where it came from.
+message SuggestedQuote {
+  // The operator's words, without surrounding quotation marks.
+  string text = 1;
+  // The file it was read from: a PACKET.json or a STANCE-MESSAGE.txt.
+  string source = 2;
+  // The commission that file belongs to.
+  string commission_id = 3;
+}
+
+// TopicWorkstreams lists one topic's workstreams for choosing an order.
+message TopicWorkstreams {
+  string topic = 1;
+  // From mission_check.py; each carries its id, title and showcase line.
+  repeated vrooli.research_desk.v1.shared.Workstream workstreams = 2;
+  // Where the rows came from, or why there are none.
+  vrooli.research_desk.v1.shared.Evidence evidence = 3;
+}
+
+message GetLaunchOptionsResponse {
+  // limits.json path.
+  string limits_path = 1;
+  string default_supervisor_model = 2;
+  string default_supervisor_effort = 3;
+  string default_owner_model_tier = 4;
+  repeated string supervisor_models = 5;
+  repeated string supervisor_efforts = 6;
+  repeated string owner_model_tiers = 7;
+  int32 charter_bytes_limit = 8;
+  int32 stance_chars_limit = 9;
+  int32 kernel_chars_limit = 10;
+  // Whether Web Console is reachable for an automatic launch; manual launch
+  // always works.
+  bool automatic_available = 11;
+  string automatic_reason = 12;
+  // How the desk reaches Web Console: "service credential" or
+  // "local availability policy (no desk credential)"; empty when unknown.
+  string web_console_access = 13;
+  // Suggested stance quotes for the topics asked about: the newest
+  // commission naming one of them, from its PACKET.json, else the quoted
+  // lines of its STANCE-MESSAGE.txt. Empty means the operator types them.
+  repeated SuggestedQuote stance_quotes = 14;
+  // Why there are no suggested quotes, when there are none.
+  string stance_quotes_reason = 15;
+  repeated TopicWorkstreams topic_workstreams = 16;
+  // The same access as a kind, for wording it without matching the phrase.
+  vrooli.research_desk.v1.activity.WebConsoleAccess web_console_access_kind = 17;
+  // limits.json packet bounds for a spec; packet.py reads the same values.
+  PacketLimits packet_limits = 18;
+}
+
+// PacketLimits are limits.json's bounds on a spec.
+message PacketLimits {
+  int32 topics_max = 1;
+  int32 allowance_hours_min = 2;
+  int32 allowance_hours_max = 3;
+  // The allowance a new spec starts with.
+  int32 allowance_hours_default = 4;
+  // The most workstreams one topic's order may list.
+  int32 ordered_workstreams_max = 5;
+}
+
+// PacketResult is packet.py's result (FILE-CONTRACT §2), unchanged.
+message PacketResult {
+  bool ok = 1;
+  string commission_id = 2;
+  string folder = 3;
+  bool written = 4;
+  repeated Gate gates = 5;
+  repeated Card cards = 6;
+  // Set by preview only.
+  Texts texts = 7;
+  repeated PacketError errors = 8;
+  // 0 ok, 1 a gate failed, 2 invalid spec, 3 filesystem error or folder exists.
+  int32 exit_code = 9;
+}
+
+message Gate {
+  string name = 1;
+  // JSON text of the value and limit (a number, a string, or null).
+  string value = 2;
+  string limit = 3;
+  bool ok = 4;
+}
+
+message Card {
+  string topic = 1;
+  string mode = 2;
+  repeated string order = 3;
+  // "operator", "mission", or empty for an older layout.
+  string order_source = 4;
+  string read_first = 5;
+}
+
+message Texts {
+  string charter = 1;
+  string stance = 2;
+  string kernel = 3;
+}
+
+message PacketError {
+  string code = 1;
+  string message = 2;
+}
+
+// Resolution is what the operator chooses for an earlier commission that
+// blocks a launch.
+enum Resolution {
+  RESOLUTION_UNSPECIFIED = 0;
+  // The new commission replaces it: the launch stops its supervisor (only
+  // through its own thread and session, or the launch is refused before
+  // anything starts) and records it as superseded.
+  RESOLUTION_SUPERSEDE = 1;
+  // Both run; the new launch records the choice.
+  RESOLUTION_RUN_ALONGSIDE = 2;
+}
+
+// TopicVerdict says what one earlier commission on a topic means for this
+// launch (SYSTEM.md §5).
+message TopicVerdict {
+  string topic = 1;
+  string commission_id = 2;
+  // The earlier commission's derived state.
+  string state = 3;
+  // True when the launch is refused until the operator acts.
+  bool blocks = 4;
+  // Plain words: what this is and what the launch does about it.
+  string message = 5;
+  // The newest checkpoint of a stopped or ended commission, offered as the
+  // spec's read_first for the topic.
+  string read_first = 6;
+  // An unknown commission with no open session and no write in the last 24
+  // hours: listed, never blocking.
+  bool quiet = 7;
+  // For a blocker: the choices that clear it.
+  repeated Resolution choices = 8;
+  // The desk's recommendation, already selected; unspecified when the
+  // operator must choose (a live supervisor).
+  Resolution recommended = 9;
+  string recommended_reason = 10;
+  // The choice the request carried for this commission, if any.
+  Resolution chosen = 11;
+}
+
+message PreflightRequest {
+  oneof target {
+    // The packet spec, JSON as in FILE-CONTRACT §2, passed to packet.py.
+    string spec_json = 1;
+    // A prepared commission folder, gated with packet.py check.
+    string commission_id = 2;
+  }
+  // Choices for blocking commissions, as the launch would carry them: the
+  // commissions this one supersedes and those it runs alongside, named as
+  // the spec and LAUNCH.json name them. One commission in both is refused.
+  repeated string supersedes = 3;
+  // The operator asserts the commission was never started (commission_id
+  // only); see LaunchRequest.
+  bool assert_never_started = 4;
+  repeated string run_alongside = 5;
+}
+
+message PreflightResponse {
+  PacketResult packet = 1;
+  repeated TopicVerdict topics = 2;
+  // True when the packet passes and no verdict blocks.
+  bool launchable = 3;
+  // Why not, one line each.
+  repeated string blockers = 4;
+  // For an unknown commission: whether the operator may assert it was never
+  // started, and why or why not.
+  vrooli.research_desk.v1.shared.NeverStarted never_started = 5;
+  // For an existing packet: the start of its own STATE.md, verbatim, so
+  // advice written there is seen before launching. Not interpreted and never
+  // blocking.
+  StateExcerpt packet_state = 6;
+  // What each topic's owner reads at start ("owner-start:<topic>"): the skill
+  // text and the topic's MISSION.md, bytes the total. Flags say in plain
+  // words when the mission is over its size, with the recommended action;
+  // never blocking.
+  repeated vrooli.research_desk.v1.shared.ReadSet owner_reading = 7;
+}
+
+// StateExcerpt is the start of a STATE.md: its first 12 lines or 800
+// characters, whichever is shorter.
+message StateExcerpt {
+  string path = 1;
+  string text = 2;
+  // True when the file is longer than the excerpt.
+  bool truncated = 3;
+  // Why there is no text: no STATE.md, or it cannot be read.
+  string reason = 4;
+}
+
+message BuildRequest {
+  oneof source {
+    string spec_json = 1;
+    // Rebuild from this commission's PACKET.json with supersedes and
+    // carry_baseline_from set to it.
+    string relaunch_of = 2;
+  }
+  // The operator's choices for blocking commissions, written into the spec
+  // so the charter names each. The request wins over the spec; one
+  // commission in both lists is refused.
+  repeated string supersedes = 3;
+  repeated string run_alongside = 4;
+}
+
+message BuildResponse {
+  PacketResult packet = 1;
+  repeated TopicVerdict topics = 2;
+}
+
+message LaunchRequest {
+  string commission_id = 1;
+  // One choice per blocking commission: it is superseded or runs
+  // alongside. A blocker in neither list refuses; one in both is refused.
+  repeated string supersedes = 3;
+  // The operator asserts this unknown commission was never started; refused
+  // when any session or goal for it is found. Recorded in LAUNCH.json.
+  bool assert_never_started = 4;
+  repeated string run_alongside = 5;
+}
+
+message LaunchResponse {
+  LaunchRecord launch = 1;
+}
+
+message GetLaunchMessagesRequest {
+  string commission_id = 1;
+}
+
+message GetLaunchMessagesResponse {
+  string charter_path = 1;
+  // STANCE-MESSAGE.txt, verbatim.
+  string stance = 2;
+  // KERNEL.txt, trimmed; send it as "/goal <kernel>".
+  string kernel = 3;
+}
+
+message GetLaunchRequest {
+  string commission_id = 1;
+}
+
+message GetLaunchResponse {
+  LaunchRecord launch = 1;
+}
+
+// LaunchRecord is LAUNCH.json (FILE-CONTRACT §3) plus whether an attempt is
+// running in this instance.
+message LaunchRecord {
+  string commission_id = 1;
+  // Empty when the commission has no LAUNCH.json.
+  string path = 2;
+  string launched_by = 3;
+  string web_console_session_id = 4;
+  string thread_id = 5;
+  repeated LaunchStep steps = 6;
+  string failed_step = 7;
+  string failed_reason = 8;
+  google.protobuf.Timestamp discarded_at = 9;
+  string discarded_reason = 10;
+  repeated ControlRecord controls = 11;
+  bool running = 12;
+  // Commissions this launch superseded, each stopped before it started.
+  repeated string supersedes = 13;
+  // Commissions this launch runs alongside by the operator's choice.
+  repeated string run_alongside = 14;
+  // The operator's assertion that an unknown commission was never started.
+  NeverStartedAssertion never_started = 15;
+  // Set on a commission another launch superseded.
+  string superseded_by = 16;
+}
+
+message NeverStartedAssertion {
+  google.protobuf.Timestamp at = 1;
+  // What the desk searched and found nothing in.
+  string evidence = 2;
+}
+
+message LaunchStep {
+  string step = 1;
+  google.protobuf.Timestamp at = 2;
+}
+
+message ControlRecord {
+  string action = 1;
+  google.protobuf.Timestamp at = 2;
+  // For a stop, discard or supersede: what was found and what is left, in
+  // plain words ("window stopped; 2 Codex process(es) of session s ended;
+  // none still running" or "no window found; ..."). Empty for older records
+  // and other controls.
+  string outcome = 3;
+}
+
+enum ControlAction {
+  CONTROL_ACTION_UNSPECIFIED = 0;
+  // Type /goal pause.
+  CONTROL_ACTION_PAUSE = 1;
+  // Type /goal resume.
+  CONTROL_ACTION_RESUME = 2;
+  // Pause the goal, quit Codex and end the session's Codex processes.
+  CONTROL_ACTION_STOP = 3;
+  // Stop if open, then record the operator's reason; the commission ends.
+  CONTROL_ACTION_DISCARD = 4;
+  // Paste STANCE-MESSAGE.txt again and submit it (it becomes one of the
+  // messages Codex keeps at compaction).
+  CONTROL_ACTION_RESEND_STANCE = 5;
+}
+
+message ControlRequest {
+  string commission_id = 1;
+  ControlAction action = 2;
+  // The operator's words; required for discard.
+  string reason = 3;
+}
+
+message ControlResponse {
+  LaunchRecord launch = 1;
+  // The goal status read back from goals_1.sqlite after the control.
+  string goal_status = 2;
+  string message = 3;
+}
+
+message TestLaunchRequest {}
+
+message GetLaunchTestRequest {}
+
+// LaunchTestReport is one launch test, kept in the desk state folder.
+message LaunchTestReport {
+  string session_id = 1;
+  string codex_home = 2;
+  repeated LaunchStep steps = 3;
+  int32 kernel_chars = 4;
+  // Goal status after each control, read from goals_1.sqlite.
+  string status_after_goal = 5;
+  string status_after_pause = 6;
+  string status_after_resume = 7;
+  string status_final = 8;
+  bool stopped = 9;
+  // Where the launch or a control failed; empty when every step passed.
+  string failed_step = 10;
+  string failed_reason = 11;
+  // The desk state file holding this report; empty when no test has run.
+  string report_path = 12;
+  // True while the test is still running in this instance.
+  bool running = 13;
+  google.protobuf.Timestamp at = 14;
+}

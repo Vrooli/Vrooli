@@ -9,11 +9,22 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/health"
 )
+
+type HealthResponse struct {
+	Status    string    `json:"status"`
+	Service   string    `json:"service"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+var healthHandler = health.New("seo-optimizer-api").Version("1.0.0").Handler()
 
 // TestLogger manages logging configuration during tests
 type TestLogger struct {
-	originalFlags int
+	originalFlags  int
 	originalOutput io.Writer
 }
 

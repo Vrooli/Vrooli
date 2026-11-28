@@ -1,0 +1,251 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "pool",
+    "title": "Pool",
+    "routes": [
+      "/pool"
+    ],
+    "purpose": "Show how many ready takes exist per style, who is holding what, and when replenishment will run — so a consumer can tell whether a track is available right now without generating one.",
+    "prd_refs": [
+      "OT-P1-005",
+      "OT-P0-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Depth per style is the headline number, because it answers the only question the page exists for: is a track available now?"
+    },
+    {
+      "statement": "A reserved take names its holder. A take missing from the pool must never be unexplained."
+    },
+    {
+      "statement": "Replenishment is legible: whether it has been triggered, whether a batch is in flight, and that it runs on consumption rather than on a clock."
+    },
+    {
+      "statement": "An empty pool is an ordinary state, not an error. The page says what it costs to fill it and what the caller can do meanwhile."
+    },
+    {
+      "statement": "The storage cost of holding surplus is visible, because the budget is sized for discarded takes and that is easy to forget."
+    }
+  ],
+  "states": [
+    {
+      "id": "healthy",
+      "example": "success",
+      "description": "Every configured style is at or above its target depth.",
+      "setup": {
+        "route": "/pool",
+        "query": {
+          "fixture": "healthy"
+        }
+      }
+    },
+    {
+      "id": "below-threshold",
+      "example": "partial",
+      "description": "A style has fallen below its replenish threshold.",
+      "setup": {
+        "route": "/pool",
+        "query": {
+          "fixture": "below-threshold"
+        }
+      }
+    },
+    {
+      "id": "replenishing",
+      "example": "loading",
+      "description": "A replenishment batch is in flight.",
+      "setup": {
+        "route": "/pool",
+        "query": {
+          "fixture": "replenishing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "A style has no available takes.",
+      "setup": {
+        "route": "/pool",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "unconfigured",
+      "example": "empty",
+      "description": "No style has a declared depth policy yet.",
+      "setup": {
+        "route": "/pool",
+        "query": {
+          "fixture": "unconfigured"
+        }
+      }
+    },
+    {
+      "id": "stalled",
+      "example": "stale",
+      "description": "Depth is below threshold and no batch is in flight — replenishment is blocked or failing.",
+      "setup": {
+        "route": "/pool",
+        "query": {
+          "fixture": "stalled"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "style-depth-row",
+      "role": "listitem",
+      "description": "One style with its available, reserved, target, and threshold counts."
+    },
+    {
+      "id": "depth-gauge",
+      "role": "img",
+      "description": "Depth against target, with a text equivalent."
+    },
+    {
+      "id": "holder-label",
+      "role": "status",
+      "description": "Who holds a reserved take, and since when."
+    },
+    {
+      "id": "replenish-status",
+      "role": "status",
+      "description": "Whether replenishment is triggered, in flight, or blocked."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "status",
+      "description": "What an empty pool costs to fill and what is possible meanwhile."
+    },
+    {
+      "id": "storage-usage",
+      "role": "status",
+      "description": "Bytes held by pooled takes against the declared budget."
+    },
+    {
+      "id": "stall-reason",
+      "role": "alert",
+      "description": "Why replenishment is not running despite low depth."
+    },
+    {
+      "id": "configure-action",
+      "role": "button",
+      "description": "Set target depth and replenish threshold for a style."
+    }
+  ],
+  "claims": [
+    {
+      "id": "depth-is-the-headline",
+      "type": "element-present",
+      "statement": "Each configured style shows its available and reserved counts against its target depth.",
+      "tier": "machine",
+      "elements": [
+        "style-depth-row",
+        "depth-gauge"
+      ],
+      "states": [
+        "healthy",
+        "below-threshold"
+      ]
+    },
+    {
+      "id": "reservations-name-their-holder",
+      "type": "element-present",
+      "statement": "A reserved take identifies who is holding it and since when.",
+      "tier": "machine",
+      "elements": [
+        "holder-label"
+      ],
+      "states": [
+        "below-threshold",
+        "healthy"
+      ]
+    },
+    {
+      "id": "replenishment-is-legible",
+      "type": "element-present",
+      "statement": "The page states whether replenishment is triggered, in flight, or blocked.",
+      "tier": "machine",
+      "elements": [
+        "replenish-status"
+      ],
+      "states": [
+        "replenishing",
+        "below-threshold"
+      ]
+    },
+    {
+      "id": "stalled-replenishment-is-explained",
+      "type": "element-present",
+      "statement": "Low depth with no batch in flight surfaces the reason rather than appearing as ordinary low depth.",
+      "tier": "machine",
+      "elements": [
+        "stall-reason"
+      ],
+      "states": [
+        "stalled"
+      ]
+    },
+    {
+      "id": "empty-pool-is-actionable",
+      "type": "element-present",
+      "statement": "An empty pool states the cost of filling it and what is available meanwhile, rather than presenting as a failure.",
+      "tier": "machine",
+      "elements": [
+        "empty-guidance"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "surplus-storage-is-visible",
+      "type": "element-present",
+      "statement": "The storage held by pooled takes is shown against its declared budget.",
+      "tier": "machine",
+      "elements": [
+        "storage-usage"
+      ],
+      "states": [
+        "healthy",
+        "below-threshold"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "style-depth-row": {
+        "testid": "pool-style-row"
+      },
+      "depth-gauge": {
+        "testid": "pool-depth-gauge"
+      },
+      "holder-label": {
+        "testid": "pool-holder"
+      },
+      "replenish-status": {
+        "testid": "pool-replenish-status"
+      },
+      "empty-guidance": {
+        "testid": "pool-empty-guidance"
+      },
+      "storage-usage": {
+        "testid": "pool-storage-usage"
+      },
+      "stall-reason": {
+        "testid": "pool-stall-reason"
+      },
+      "configure-action": {
+        "testid": "pool-configure"
+      }
+    }
+  }
+}

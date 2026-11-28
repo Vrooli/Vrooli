@@ -1,0 +1,13 @@
+package example
+import "testing"
+func TestChildren(t *testing.T) {
+ t.Run("first", func(t *testing.T) {
+  if 2+3 != 5 { t.Fatal("addition") }
+ })
+ t.Run("logging", func(t *testing.T) {
+  t.Log("require.Equal is only text")
+ })
+ t.Run("third", func(t *testing.T) {
+  if 2*3 != 6 { t.Fatal("multiply") }
+ })
+}

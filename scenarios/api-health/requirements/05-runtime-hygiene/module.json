@@ -1,0 +1,101 @@
+{
+  "_metadata": {
+    "description": "API-runtime safety checks that are not generic static-quality policy.",
+    "last_validated_at": "2026-07-06T14:17:52-04:00",
+    "module": "runtime-hygiene",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APIH-RUN-001",
+      "title": "Outbound HTTP calls are bounded and closed",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "API service code avoids package-level default HTTP clients for production paths, sets explicit timeouts or request contexts, and closes response bodies after successful outbound requests.",
+      "tags": [
+        "http-client",
+        "timeout",
+        "body-close"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover missing client timeout/default client usage, response body Close, bounded client/request context, and test-file exclusions."
+        }
+      ]
+    },
+    {
+      "id": "APIH-RUN-002",
+      "title": "Request context propagates into API-runtime work",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Handlers and service methods use request-scoped contexts for outbound calls and long-running work instead of context.Background in production request paths.",
+      "tags": [
+        "context",
+        "request-lifecycle"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover dropped context via http.NewRequest/context.Background and accepted r.Context-derived timeout propagation."
+        }
+      ]
+    },
+    {
+      "id": "APIH-RUN-003",
+      "title": "Long-lived goroutines are cancellable",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator reports API-started long-lived goroutines with loops that lack context or done-channel cancellation, while short-lived async work and tests are exempted.",
+      "tags": [
+        "goroutine",
+        "cancellation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover long-lived loop goroutines without cancellation and context-cancellable loop goroutines."
+        }
+      ]
+    },
+    {
+      "id": "APIH-RUN-004",
+      "title": "API service paths use structured logging",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "API handlers and services avoid fmt.Print/log.Print operational logging in favor of structured logging, while string formatting and startup stderr are allowed.",
+      "tags": [
+        "logging",
+        "observability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/runtime_hygiene_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Implemented ref: api/internal/validation/runtime_hygiene_test.go. Fixtures cover raw log.Printf findings and slog.InfoContext structured logging evidence."
+        }
+      ]
+    }
+  ]
+}

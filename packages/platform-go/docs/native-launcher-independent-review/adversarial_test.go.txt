@@ -1,0 +1,89 @@
+package platform
+
+import (
+ "bytes"
+ "encoding/binary"
+ "testing"
+ "os"
+)
+
+// Native dyld loader forms must have the same closure policy as LC_LOAD_DYLIB.
+func TestIndependentNativeLauncherRejectsForeignMachOLoaderForms(t *testing.T) {
+ for name, command := range map[string]uint32{
+  "weak dylib": 0x80000018,
+  "reexport dylib": 0x8000001f,
+  "upward dylib": 0x80000023,
+  "lazy dylib": 0x20,
+  "custom dylinker": 0xe,
+ } {
+  t.Run(name, func(t *testing.T) {
+   image := darwinBrokerMachFixture("/Users/operator/unqualified.dylib")
+   binary.LittleEndian.PutUint32(image[32:], command)
+   if err := validateDarwinBrokerMachO(bytes.NewReader(image), "arm64"); err == nil {
+    t.Fatal("foreign loader form admitted by published launcher closure verifier")
+   }
+  })
+ }
+}
+
+// Diagnostic recorded-Go-image admission; no foreign image is executed.
+func TestIndependentNativeLauncherAcceptsRecordedGoMachOInputs(t *testing.T) {
+ for architecture, path := range map[string]string{
+  "amd64": "/tmp/platform-darwin-published-amd64.test",
+  "arm64": "/tmp/platform-darwin-published-arm64.test",
+ } {
+  t.Run(architecture, func(t *testing.T) {
+   file, err := os.Open(path)
+   if err != nil { t.Fatal(err) }
+   defer file.Close()
+   if err = validateDarwinBrokerMachO(file, architecture); err != nil { t.Fatal(err) }
+  })
+ }
+}
+
+// This independently constructs the alternate header and checks both policy
+// consumers. Reporting metadata must never imply maintained-host admission.
+func TestIndependentNativeLauncherMetadataPolicySplit(t *testing.T) {
+ makeImage := func(command uint32, path string, flags uint32, filetype uint32) []byte {
+  size := (28+len(path)+1+7)&^7
+  image := make([]byte,32+size)
+  for at,value := range []uint32{0xfeedfacf,0x100000c,0,filetype,1,uint32(size),0,0} { binary.LittleEndian.PutUint32(image[at*4:],value) }
+  cmd:=image[32:]
+  binary.LittleEndian.PutUint32(cmd,command)
+  binary.LittleEndian.PutUint32(cmd[4:],uint32(size))
+  binary.LittleEndian.PutUint32(cmd[8:],28)
+  binary.LittleEndian.PutUint32(cmd[12:],0x1a741800)
+  binary.LittleEndian.PutUint32(cmd[24:],flags)
+  copy(cmd[28:],path)
+  return image
+ }
+ for _, command:=range []uint32{0xc,0x80000018} {
+  for flags:=uint32(0); flags<16; flags++ {
+   image:=makeImage(command,"@loader_path/vendor.dylib",flags,2)
+   metadata,err:=ReadMachOLoaderMetadata(bytes.NewReader(image),int64(len(image)))
+   if err!=nil || len(metadata.Slices)!=1 || len(metadata.Slices[0].Dylibs)!=1 { t.Fatalf("metadata lost alternate command %#x flags %#x: %v",command,flags,err) }
+   load:=metadata.Slices[0].Dylibs[0]
+   if load.Command!=command || load.Flags!=flags || load.Path!="@loader_path/vendor.dylib" { t.Fatal("metadata changed dependency facts",load) }
+   if err=validateDarwinBrokerMachO(bytes.NewReader(image),"arm64"); err==nil { t.Fatal("vendor metadata widened maintained-host policy") }
+   for _,filetype:=range []uint32{6,8} {
+    system:=makeImage(command,"/usr/lib/libSystem.B.dylib",flags,filetype)
+    if _,err=ReadMachOLoaderMetadata(bytes.NewReader(system),int64(len(system))); err!=nil { t.Fatal("metadata refused vendor file type",err) }
+    if err=validateDarwinBrokerMachO(bytes.NewReader(system),"arm64"); err==nil { t.Fatal("non-executable metadata widened maintained-host policy") }
+   }
+  }
+ }
+ for _,flags:=range []uint32{16,0x80000000,0xffffffff} {
+  image:=makeImage(0xc,"/usr/lib/libSystem.B.dylib",flags,2)
+  if _,err:=ReadMachOLoaderMetadata(bytes.NewReader(image),int64(len(image))); err==nil { t.Fatal("unknown alternate flags admitted",flags) }
+ }
+ image:=makeImage(0xc,"/usr/lib/libSystem.B.dylib",0,2)
+ if _,err:=ReadMachOLoaderMetadata(bytes.NewReader(image),int64(len(image)-8)); err==nil { t.Fatal("explicit input extent escaped") }
+}
+
+func TestIndependentNativeLauncherMetadataReportsEnvironmentWithoutTrust(t *testing.T) {
+ image:=darwinBrokerMachFixture("DYLD_INSERT_LIBRARIES=/Users/operator/lib.dylib")
+ binary.LittleEndian.PutUint32(image[32:],0x27)
+ metadata,err:=ReadMachOLoaderMetadata(bytes.NewReader(image),int64(len(image)))
+ if err!=nil || len(metadata.Slices)!=1 || len(metadata.Slices[0].DyldEnvironment)!=1 || metadata.Slices[0].DyldEnvironment[0]!="DYLD_INSERT_LIBRARIES=/Users/operator/lib.dylib" { t.Fatal("embedded environment silently lost",metadata,err) }
+ if err=validateDarwinBrokerMachO(bytes.NewReader(image),"arm64"); err==nil { t.Fatal("metadata environment widened maintained-host policy") }
+}

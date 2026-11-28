@@ -36,8 +36,8 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
 - **Container**: minio/minio:latest
 - **Ports**: 9000 (API), 9001 (Console)
 - **Network**: Isolated Docker network (minio-network)
-- **Storage**: ~/.minio/data for persistent storage
-- **Config**: ~/.minio/config for credentials
+- **Storage**: `${MINIO_DATA_DIR:-$XDG_DATA_HOME/vrooli/resources/minio}` for persistent storage
+- **Config**: `${MINIO_CONFIG_DIR:-$XDG_CONFIG_HOME/vrooli/resources/minio}` for credentials
 
 ### Dependencies
 - Docker for containerization

@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package vrooli.business_health.v1.wizard;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/wizard;wizard_v1";
+
+// =============================================================================
+// CONTRACT WIZARD SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain business-health
+// @stability beta
+//
+// WizardService drives the deterministic, interview-based scaffolding of a
+// conformant PRD.md + requirements/ skeleton. The question model derives from
+// the same intent-go template-section definitions the validator checks, so
+// wizard output and validator expectations can never disagree.
+//
+// Design guarantees (PRD non-goals made structural):
+//   - No LLM or network calls anywhere in the wizard path; answers come from
+//     the caller (interactive TTY, --answers file, or the UI).
+//   - Dry-run by default: PreviewScaffold returns diffs; ApplyScaffold is the
+//     only writing RPC and requires the caller's explicit apply intent.
+//   - Sessions are resumable: state persists under the scenario's data/ dir.
+// =============================================================================
+
+service WizardService {
+  // StartSession creates (or resumes) a wizard session for a scenario and
+  // returns the question model with any previously recorded answers.
+  rpc StartSession(StartSessionRequest) returns (SessionState);
+  // SubmitAnswers records answers into the session and returns the updated
+  // state (remaining questions, validity of each answer).
+  rpc SubmitAnswers(SubmitAnswersRequest) returns (SessionState);
+  // PreviewScaffold renders the PRD.md + requirements/ artifacts the current
+  // answers produce, as diffs against the scenario tree. Never writes.
+  rpc PreviewScaffold(PreviewScaffoldRequest) returns (ScaffoldPreview);
+  // ApplyScaffold writes the previewed artifacts. Requires a complete answer
+  // set; output validates clean by construction.
+  rpc ApplyScaffold(ApplyScaffoldRequest) returns (ScaffoldResult);
+}
+
+message StartSessionRequest {
+  // Scenario slug the contract is being authored for.
+  string scenario = 1;
+  // Optional explicit scenario path.
+  string path = 2;
+  // When true, discard any existing session and start fresh.
+  bool reset = 3;
+}
+
+message SubmitAnswersRequest {
+  string session_id = 1;
+  repeated Answer answers = 2;
+}
+
+message SessionState {
+  string session_id = 1;
+  string scenario = 2;
+  // The full ordered question model.
+  repeated Question questions = 3;
+  // Answers recorded so far, keyed by question id.
+  map<string, Answer> answers = 4;
+  // Ids of questions still unanswered (in ask order).
+  repeated string remaining = 5;
+  // True when every required question has a valid answer.
+  bool complete = 6;
+  // Similar-capability hints from the search leaf (empty when search-hub is
+  // unavailable — the dedup hook degrades silently).
+  repeated CapabilityHint hints = 7;
+}
+
+// Question is one interview step, derived from the template-section model.
+message Question {
+  string id = 1;
+  // The template section / artifact this question feeds (e.g. "overview",
+  // "operational_targets_p0", "module_layout").
+  string target = 2;
+  string prompt = 3;
+  string help = 4;
+  // "text" | "multiline" | "list" | "ot_list" (structured OT entries).
+  string kind = 5;
+  bool required = 6;
+  // For list kinds: minimum entries required (e.g. ≥1 P0 target).
+  int32 min_entries = 7;
+}
+
+message Answer {
+  string question_id = 1;
+  // Scalar answer (text/multiline kinds).
+  string text = 2;
+  // List answers (list kind).
+  repeated string items = 3;
+  // Structured operational-target answers (ot_list kind).
+  repeated OperationalTargetAnswer targets = 4;
+  // Validation verdict for this answer (empty when valid).
+  string invalid_reason = 5;
+}
+
+message OperationalTargetAnswer {
+  // Title of the outcome (ID is minted deterministically by tier order).
+  string title = 1;
+  string description = 2;
+}
+
+// CapabilityHint surfaces "a similar capability already exists" before
+// scaffolding (powered by the business-health.intent search leaf).
+message CapabilityHint {
+  string scenario = 1;
+  string capability = 2;
+  // Anchor into the other scenario's PRD (file + OT id), pointer-only.
+  string anchor = 3;
+  float score = 4;
+}
+
+message PreviewScaffoldRequest {
+  string session_id = 1;
+}
+
+message ScaffoldPreview {
+  string session_id = 1;
+  repeated FileDiff files = 2;
+  // Non-empty when the answer set is incomplete (preview may still render
+  // partial artifacts with TODO markers).
+  repeated string blocking = 3;
+}
+
+// FileDiff is one artifact the scaffold would write.
+message FileDiff {
+  // Repo-relative path (e.g. "scenarios/x/PRD.md").
+  string path = 1;
+  // Current content (empty when the file does not exist).
+  string before = 2;
+  // Content after apply.
+  string after = 3;
+}
+
+message ApplyScaffoldRequest {
+  string session_id = 1;
+  // Explicit apply intent; ApplyScaffold fails without it (dry-run-by-default
+  // discipline, mirrored from the Fix RPC semantics).
+  bool apply = 2;
+}
+
+message ScaffoldResult {
+  string session_id = 1;
+  repeated string written = 2;
+  // Result of running the validator over the written artifacts; empty when
+  // clean (the round-trip guarantee).
+  repeated string residual_findings = 3;
+}

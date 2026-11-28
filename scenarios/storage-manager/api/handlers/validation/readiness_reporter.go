@@ -1,0 +1,48 @@
+package validation
+
+import (
+	"context"
+	"errors"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/vrooli/api-core/discovery"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	readinessreporter "github.com/vrooli/vrooli/packages/proto/readinessreporter"
+)
+
+const storageManagerReadinessPrefix = "STORAGE_MANAGER_DEPLOYMENT_MANAGER_READINESS"
+
+type ReadinessReporter interface {
+	Report(context.Context, string, *scenariovalidationv1.ValidateScenarioResponse, time.Time) error
+}
+
+func newReadinessReporter(ctx context.Context) ReadinessReporter {
+	if strings.TrimSpace(os.Getenv(storageManagerReadinessPrefix+"_TOKEN")) == "" {
+		return nil
+	}
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv(storageManagerReadinessPrefix+"_URL")), "/")
+	var reporter *readinessreporter.Reporter
+	var err error
+	if baseURL != "" {
+		reporter, err = readinessreporter.NewFromEnv(storageManagerReadinessPrefix, baseURL, "storage-architecture-clean", "storage-manager.validate.scenario", "storage-manager")
+	} else {
+		reporter, err = readinessreporter.NewFromEnvResolver(storageManagerReadinessPrefix, func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+		}, "storage-architecture-clean", "storage-manager.validate.scenario", "storage-manager")
+	}
+	if err != nil {
+		return readinessConfigurationError{err: err}
+	}
+	return reporter
+}
+
+type readinessConfigurationError struct{ err error }
+
+func (e readinessConfigurationError) Report(context.Context, string, *scenariovalidationv1.ValidateScenarioResponse, time.Time) error {
+	if e.err == nil {
+		return errors.New("storage-manager readiness reporter is unavailable")
+	}
+	return e.err
+}

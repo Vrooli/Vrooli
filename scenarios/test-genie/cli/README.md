@@ -90,10 +90,9 @@ cli/
 ├── main.go                      # Entry point
 ├── app.go                       # App struct & command registration
 │
-├── generate/                    # DOMAIN: Test Suite Generation
-│   ├── command.go              # Generate command implementation
-│   ├── client.go               # API client for suite requests
-│   └── types.go                # Request/Response types
+├── remediate/                   # DOMAIN: Findings-first remediation
+│   ├── command.go              # Remediation job command implementation
+│   └── client.go               # Remediation API client
 │
 ├── execute/                     # DOMAIN: Test Suite Execution
 │   ├── command.go              # Execute command implementation
@@ -118,11 +117,6 @@ cli/
 │   ├── client.go               # API client
 │   └── types.go                # Request/Response types
 │
-├── storage/                    # DOMAIN: Storage Migration & Maintenance
-│   ├── command.go              # Storage command dispatcher
-│   ├── import_postgres.go      # Legacy Postgres -> SQLite importer
-│   └── import_postgres_test.go # Import contract tests
-│
 ├── status/                      # DOMAIN: Health & Status
 │   ├── command.go              # Status command
 │   ├── client.go               # Health API client
@@ -136,89 +130,34 @@ cli/
 
 ## Commands
 
-### Generate Test Suites
-
-Queue AI-driven test suite generation for a scenario:
-
-```bash
-test-genie generate <scenario> [options]
-
-Options:
-  --types      Comma-separated test types (unit,integration,e2e,business,performance)
-  --coverage   Target coverage percentage (1-100)
-  --priority   Priority level (low|normal|high|urgent)
-  --notes      Notes for the generation request
-  --notes-file Path to notes file
-  --json       Output as JSON
-```
-
 ### Execute Test Suites
 
-Run test suites with phased execution:
+Run the current scenario test suite with Test Genie, or use the lifecycle-managed
+control-plane command when running it as an operator:
 
 ```bash
-test-genie execute <scenario> [phases...] [options]
-
-Options:
-  --preset      Preset name (e.g., quick, full)
-  --phases      Comma-separated phases to run
-  --skip        Comma-separated phases to skip
-  --request-id  Link to a suite request
-  --fail-fast   Stop on first failure
-  --stream      Stream live phase logs
-  --json        Output as JSON
-
-Phases:
-  structure, dependencies, unit, integration, business, performance
+test-genie execute demo --preset quick
+vrooli scenario test test-genie --phases unit
 ```
 
-### Run Local Tests
+### Inspect and Remediate Runs
 
-Trigger scenario-local test runners:
+Use the durable run commands to list or inspect evidence. Remediation jobs are
+created from a completed run and stable finding IDs:
 
 ```bash
-test-genie run-tests <scenario> [options]
-
-Options:
-  --type       Test runner type (e.g., phased)
-  --path       Limit to one or more files/dirs (repeatable; forwarded to runner)
-  --playbook   Limit to specific playbook(s) (repeatable; forwarded to runner)
-  --filter     Text filter passed to the runner (e.g., test name)
-  --json       Output as JSON
+test-genie runs list --scenario demo
+test-genie remediate create demo --execution "uuid" --findings afid:123 --role code.default
 ```
 
-### Check Status
+### Inspect Requirements
 
-View Test Genie health and queue status:
+The current requirements command is the read-through surface. Run `test-genie
+requirements --help` for its supported options. Older subcommands for report,
+manual logging, PRD linting, and drift checks are retired.
 
-```bash
-test-genie status
-```
-
-### Migrate Legacy Storage
-
-Import operational history from the removed Postgres store into the embedded SQLite database:
-
-```bash
-test-genie storage import-postgres \
-  --source "postgres://user:pass@host:5432/test_genie?sslmode=disable" \
-  --target "${SCENARIO_DATA_DIR}/test-genie.db"
-```
-
-Use `--force` to overwrite existing SQLite operational rows.
-
-### Manage Requirements (local, no Node required)
-
-Generate coverage, validate registries, sync statuses, and log manual validations using the native Go requirements service:
-
-```bash
-test-genie requirements report --format markdown         # or json|trace|summary
-test-genie requirements validate                         # schema + semantic checks
-test-genie requirements sync --command "suite demo"      # update statuses from evidence
-test-genie requirements manual-log --requirement REQ-001 --status passed --notes "UI verified"
-test-genie requirements lint-prd                         # PRD ↔ requirements mapping
-test-genie requirements drift                            # detect stale snapshot/evidence/manuals
-```
+For the complete current command inventory, run `test-genie --help` and
+`test-genie <command> --help`.
 
 ## Design Principles
 
@@ -228,10 +167,9 @@ The top-level directories communicate business capabilities, not technical conce
 
 | Directory | Business Capability |
 |-----------|---------------------|
-| `generate/` | Queue AI test generation |
+| `remediate/` | Create evidence-bound remediation jobs |
 | `execute/` | Run test suites with phases |
 | `runlocal/` | Trigger local test runners |
-| `storage/` | Perform one-time storage migrations |
 | `status/` | Monitor system health |
 
 ### Domain Cohesion
@@ -250,7 +188,21 @@ Common utilities live in `internal/` to prevent duplication:
 
 ## Building
 
+The preferred path is the repository lifecycle, which refreshes the selected
+shared Proto artifact before installing the CLI:
+
 ```bash
+vrooli setup --scenarios test-genie
+```
+
+For a compile-only check, perform the shared generated-artifact preflight from
+the repository root first:
+
+```bash
+cd packages/proto
+go run -mod=mod ./cmd/protogen generate --changed
+go run -mod=mod ./cmd/protogen verify
+
 cd scenarios/test-genie/cli
 go build -o test-genie .
 ```

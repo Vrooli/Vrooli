@@ -3,8 +3,6 @@ package services
 import (
 	"testing"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // TestContainsString verifies slice membership check.
@@ -152,7 +150,7 @@ func intPtr(i int) *int {
 
 // TestProcessStatusResult_SuccessCompletion verifies success detection.
 func TestProcessStatusResult_SuccessCompletion(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	sub := svc.SubscribeWithID("chat-1")
 	defer svc.UnsubscribeByID(sub)
@@ -163,8 +161,8 @@ func TestProcessStatusResult_SuccessCompletion(t *testing.T) {
 		ToolName:   "test_tool",
 		Status:     "running",
 		UpdatedAt:  time.Now(),
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			CompletionConditions: &toolspb.CompletionConditions{
+		AsyncBehavior: &AsyncBehavior{
+			CompletionConditions: &CompletionConditions{
 				StatusField:   "status",
 				SuccessValues: []string{"completed", "succeeded"},
 				FailureValues: []string{"failed", "error"},
@@ -193,15 +191,15 @@ func TestProcessStatusResult_SuccessCompletion(t *testing.T) {
 
 // TestProcessStatusResult_FailureCompletion verifies failure detection.
 func TestProcessStatusResult_FailureCompletion(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
 		ChatID:     "chat-1",
 		Status:     "running",
 		UpdatedAt:  time.Now(),
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			CompletionConditions: &toolspb.CompletionConditions{
+		AsyncBehavior: &AsyncBehavior{
+			CompletionConditions: &CompletionConditions{
 				StatusField:   "status",
 				SuccessValues: []string{"completed"},
 				FailureValues: []string{"failed", "error"},

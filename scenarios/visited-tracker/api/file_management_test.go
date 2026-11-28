@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,7 +20,7 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-update-file-notes-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-update-file-notes-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -33,10 +33,7 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign with tracked file
 	fileID := uuid.New()
@@ -63,7 +60,7 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -168,7 +165,7 @@ func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-bulk-exclude-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-bulk-exclude-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -181,10 +178,7 @@ func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	workDir := filepath.Join(tempDir, "work", "nested")
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
@@ -193,10 +187,10 @@ func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
 
 	alphaPath := filepath.Join(tempDir, "work", "alpha.go")
 	betaPath := filepath.Join(workDir, "beta.go")
-	if err := ioutil.WriteFile(alphaPath, []byte("package main"), 0o644); err != nil {
+	if err := os.WriteFile(alphaPath, []byte("package main"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	if err := ioutil.WriteFile(betaPath, []byte("package main"), 0o644); err != nil {
+	if err := os.WriteFile(betaPath, []byte("package main"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -230,7 +224,7 @@ func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -271,7 +265,7 @@ func TestUpdateFilePriorityHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-update-file-priority-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-update-file-priority-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -283,11 +277,7 @@ func TestUpdateFilePriorityHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign with tracked file
 	fileID := uuid.New()
@@ -315,7 +305,7 @@ func TestUpdateFilePriorityHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 
@@ -419,7 +409,7 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-toggle-exclusion-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-toggle-exclusion-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -431,11 +421,7 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign with tracked file
 	fileID := uuid.New()
@@ -462,7 +448,7 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 		StructureSnapshots: []StructureSnapshot{},
 	}
 
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save test campaign: %v", err)
 	}
 

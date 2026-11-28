@@ -1,0 +1,165 @@
+package corpusgen
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"sort"
+	"testing"
+
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
+)
+
+func TestModelPolicyRoleCoverageMatchesAuthoritativeInventory(t *testing.T) {
+	roles := authoritativeModelPolicyRoles(t)
+	counts, err := ValidateModelRoleCoverage(nil, roles, 20)
+	if err == nil || len(counts) != len(roles) {
+		t.Fatalf("authoritative role inventory was not used as denominator: roles=%v counts=%v err=%v", roles, counts, err)
+	}
+}
+
+func TestGatewayTaskRoleCoverageMatchesAuthoritativeCatalog(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	catalogPath := filepath.Join(repoRoot, "scenarios", "ai-gateway", "config", "inference-role-catalog.json")
+	raw, err := os.ReadFile(catalogPath)
+	if err != nil {
+		t.Fatalf("read authoritative AI Gateway task-role catalog: %v", err)
+	}
+	var catalog struct {
+		Roles map[string]json.RawMessage `json:"roles"`
+	}
+	if err := json.Unmarshal(raw, &catalog); err != nil {
+		t.Fatalf("decode authoritative AI Gateway task-role catalog: %v", err)
+	}
+	want := make([]string, 0, len(catalog.Roles))
+	for role := range catalog.Roles {
+		want = append(want, role)
+	}
+	sort.Strings(want)
+	counts, err := ValidateGatewayTaskRoleCoverage(nil, want, 20)
+	if err == nil || len(catalog.Roles) == 0 || len(counts) != len(want) {
+		t.Fatalf("task-role coverage result = %v, %v; want all catalog roles represented as deficient", counts, err)
+	}
+	for _, role := range want {
+		if counts[role] != 0 {
+			t.Fatalf("empty acceptance corpus unexpectedly counted task role %s", role)
+		}
+	}
+}
+
+func TestModelRoleCoverageRequiresReviewedRealCasesForEveryRole(t *testing.T) {
+	roles := authoritativeModelPolicyRoles(t)
+	cases := make([]*evalv1.EvalCase, 0, len(roles)*2+1)
+	for i, role := range roles {
+		for n := 0; n < 2; n++ {
+			event := callerEventFixture()
+			event.EventID = string(rune('a'+i)) + "-event-" + string(rune('0'+n))
+			event.EvidenceRef = "agent-manager://runs/" + event.RunID + "/events/" + event.EventID
+			route := gatewayRouteFixture()
+			route.SourceEventID = event.EventID
+			route.GatewayEventID = string(rune('a'+i)) + "-route-" + string(rune('0'+n))
+			route.GatewayRoleEvidenceURI = "gateway-ledger://events/" + route.GatewayEventID
+			route.SelectedResourceRole = role
+			got, err := AuditedCallerCase(event, route, CallerLabelReview{
+				Reviewer: "independent reviewer", EvidenceURI: "audit://expected-docs/" + role,
+				ExpectedIDs: []string{"doc/" + role}, IndependentlyValidated: true,
+			})
+			if err != nil {
+				t.Fatalf("build reviewed case for %s: %v", role, err)
+			}
+			cases = append(cases, got)
+		}
+	}
+	cases = append(cases, &evalv1.EvalCase{CaseId: "synthetic", Status: "reviewed", ExpectIds: []string{"doc/x"}, Tags: []string{"independently-reviewed", "resource-role:chat.default"}})
+	counts, err := ValidateModelRoleCoverage(cases, roles, 2)
+	if err != nil {
+		t.Fatalf("adequate real caller corpus rejected: %v", err)
+	}
+	if counts["chat.default"] != 2 {
+		t.Fatalf("synthetic fixture entered caller denominator: %d", counts["chat.default"])
+	}
+}
+
+func TestModelRoleCoverageRejectsCallerTagsWithoutLinkedEvidence(t *testing.T) {
+	caseWithTagsOnly := &evalv1.EvalCase{
+		CaseId: "pretend", Query: "caller query", Status: "reviewed", ExpectIds: []string{"doc/expected"},
+		Tags: []string{"caller-audit", "independently-reviewed", "resource-role:chat.default"},
+	}
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caseWithTagsOnly}, []string{"chat.default"}, 1)
+	if err == nil || counts["chat.default"] != 0 {
+		t.Fatalf("tag-only case counted as real caller evidence: counts=%v err=%v", counts, err)
+	}
+}
+
+func TestModelRoleCoverageRejectsCaseIDThatDoesNotMatchLinkedRoute(t *testing.T) {
+	caller, err := AuditedCallerCase(callerEventFixture(), gatewayRouteFixture(), CallerLabelReview{
+		Reviewer: "independent reviewer", EvidenceURI: "audit://expected-docs/chat.default",
+		ExpectedIDs: []string{"doc/chat.default"}, IndependentlyValidated: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	caller.CaseId = "caller-unrelated"
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caller}, []string{"chat.default"}, 1)
+	if err == nil || counts["chat.default"] != 0 {
+		t.Fatalf("case without deterministic source/route identity was counted: counts=%v err=%v", counts, err)
+	}
+}
+
+func TestModelRoleCoverageReportsAllUnderfilledRoles(t *testing.T) {
+	roles := authoritativeModelPolicyRoles(t)
+	_, err := ValidateModelRoleCoverage(nil, roles, 20)
+	if err == nil || len(err.Error()) < len(roles) {
+		t.Fatalf("expected all role gaps to be reported, got %v", err)
+	}
+}
+
+func TestUnknownResourceRoleIsExcludedByAuthoritativeCoverageBoundary(t *testing.T) {
+	route := gatewayRouteFixture()
+	route.SelectedResourceRole = "code.future"
+	item, err := AuditedCallerCase(callerEventFixture(), route, CallerLabelReview{
+		Reviewer: "independent reviewer", EvidenceURI: "audit://expected",
+		ExpectedIDs: []string{"src/example.go"}, IndependentlyValidated: true,
+	})
+	if err != nil {
+		t.Fatalf("source-linked candidate should retain an unrecognized role for reasoned denominator rejection: %v", err)
+	}
+	roles := authoritativeModelPolicyRoles(t)
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{item}, roles, 1)
+	if err == nil || counts["code.future"] != 0 {
+		t.Fatalf("role outside current owner inventory counted toward coverage: counts=%v err=%v", counts, err)
+	}
+}
+
+func authoritativeModelPolicyRoles(t *testing.T) []string {
+	t.Helper()
+	policyPath := filepath.Join(testRepoRoot(t), "resources", "ollama", "model-policy.json")
+	raw, err := os.ReadFile(policyPath)
+	if err != nil {
+		t.Fatalf("read authoritative Ollama model policy: %v", err)
+	}
+	var policy struct {
+		Roles map[string]json.RawMessage `json:"roles"`
+	}
+	if err := json.Unmarshal(raw, &policy); err != nil {
+		t.Fatalf("decode authoritative Ollama model policy: %v", err)
+	}
+	roles := make([]string, 0, len(policy.Roles))
+	for role := range policy.Roles {
+		roles = append(roles, role)
+	}
+	sort.Strings(roles)
+	return roles
+}
+
+// testRepoRoot resolves the repository from the package directory `go test`
+// runs in. runtime.Caller paths are module-relative under -trimpath, which is
+// how Test Genie runs the suite.
+func testRepoRoot(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve package directory: %v", err)
+	}
+	return filepath.Clean(filepath.Join(wd, "../../../../.."))
+}

@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Web Console consent journey fixture</title></head>
+  <body>
+    <main id="root"></main>
+    <script>
+      const token = new URLSearchParams(location.search).get('fixtureToken');
+      if (token) sessionStorage.setItem("vrooli.web.access-token", JSON.stringify({ accessToken: token, expiresAt: new Date(Date.now() + 3600000).toISOString() }));
+    </script>
+    <script type="module" src="/tests/e2e/consent-fixture/web-console.tsx"></script>
+  </body>
+</html>

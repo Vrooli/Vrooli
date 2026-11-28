@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Provision the current Unix user's companion, with an explicitly selected X11 display.
+set -euo pipefail
+if [[ $# != 4 || ! "$2" =~ ^[0-9]{1,5}$ || "$3" != /* ||
+      ! "$4" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$ ]]; then
+    printf '%s\n' 'Usage: install-linux COMPANION_BINARY DISPLAY_NUMBER ABSOLUTE_XAUTHORITY SESSION_ID_OR_ACTIVE_USER' >&2
+    exit 2
+fi
+if [[ $(uname -s) != Linux || $(id -u) == 0 || ! -x "$1" || ! -r "$3" ]]; then
+    printf '%s\n' 'Run from the intended unprivileged desktop account with a built Linux companion and readable Xauthority file.' >&2
+    exit 2
+fi
+if (( 10#$2 > 65535 )); then
+    printf '%s\n' 'X11 display number is out of range.' >&2
+    exit 2
+fi
+here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+root=$(git -C "$here" rev-parse --show-toplevel)
+write_var() {
+    local value=$2
+    value=${value//\\/\\\\}
+    value=${value//\"/\\\"}
+    printf '%s="%s"\n' "$1" "$value"
+}
+umask 077
+install -d "$HOME/.config/vrooli" "$HOME/.config/systemd/user" "$HOME/.vrooli/bin"
+config=$(mktemp "$HOME/.config/vrooli/.desktop-companion.XXXXXX")
+artifact=$(mktemp "$HOME/.vrooli/bin/.device-control-companion.XXXXXX")
+trap 'rm -f -- "$config" "$artifact"' EXIT
+{
+    write_var VROOLI_ROOT "$root"
+    write_var VROOLI_DESKTOP_SESSION "$4"
+    write_var VROOLI_DESKTOP_DISPLAY "$((10#$2))"
+    write_var VROOLI_DESKTOP_AUTHORITY "$3"
+} > "$config"
+install -m755 "$1" "$artifact"
+mv -f -- "$artifact" "$HOME/.vrooli/bin/device-control-companion"
+mv -f -- "$config" "$HOME/.config/vrooli/desktop-companion-x11.env"
+install -m644 "$here"/vrooli-desktop-companion.{socket,service} "$HOME/.config/systemd/user/"
+systemctl --user daemon-reload
+if systemctl --user is-active --quiet vrooli-desktop-companion.service; then
+    systemctl --user restart vrooli-desktop-companion.service
+fi
+systemctl --user enable --now vrooli-desktop-companion.socket

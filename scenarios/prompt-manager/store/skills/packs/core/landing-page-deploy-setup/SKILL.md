@@ -1,3 +1,23 @@
+---
+name: "landing-page-deploy-setup"
+description: "Prepare landing-page-business-suite for desktop artifact deployments by validating admin session, storage, app registry, remote profiles, and service auth prerequisites"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["landing-page-business-suite","desktop","deployment","downloads","remote-profiles","scenario-to-desktop","scenario-to-cloud"]
+  icon: "settings"
+  status: "active"
+  revision: 2
+  createdAt: "2026-02-08T00:00:00Z"
+  updatedAt: "2026-02-08T00:20:00Z"
+  requires:
+    scenarios: ["prompt-manager", "vrooli"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Landing Page Deploy Setup
 
 Prepare a local `landing-page-business-suite` (LPBS) instance so `scenario-to-desktop` can deploy desktop artifacts through LPBS to a remote LPBS deployment.
@@ -28,7 +48,7 @@ Optional reading:
 - Download storage readiness (configured + connectivity test)
 - Optional download app onboarding (create/verify per-app `app_key`)
 - Remote profile creation/login/test against deployed LPBS
-- `LPBS_SERVICE_SECRET` requirement for inter-scenario deploy calls
+- Scoped service identity readiness for inter-scenario deploy calls
 
 **Out of scope:**
 - Desktop build and upload execution (`scenario-to-desktop`)
@@ -46,12 +66,7 @@ Required (base LPBS readiness):
 - `{{PROFILE_TAG}}` remote profile tag (example: `prod`)
 - Local LPBS admin credentials (`email`, `password`)
 - Remote LPBS admin credentials (`email`, `password`)
-- `LPBS_SERVICE_SECRET` value used by local LPBS runtime
-
-`LPBS_SERVICE_SECRET` source-of-truth rule:
-- Use the canonical secret configured by the local LPBS runtime.
-- Do not invent ad-hoc per-shell values.
-- If the canonical runtime value is unknown, stop and hand off to the LPBS runtime owner before continuing.
+- The scoped LPBS deployment identity is provisioned by the service-principal owner. This setup flow never handles service credential values.
 
 One deployment selector is required for Gate B health checks:
 - `{{DOMAIN}}` remote LPBS domain (preferred), or
@@ -297,48 +312,13 @@ Pass condition:
 - `remote-profiles-test --tag {{PROFILE_TAG}}` succeeds.
 - Do not treat `scenario-to-desktop deploy-target test <name>` as a replacement for Gate F pass/fail.
 
-#### Gate G: Ensure `LPBS_SERVICE_SECRET` is set for deploy stage auth
+#### Gate G: Verify scoped deployment service identity
 
-Default safety rule:
-- Do not rotate `LPBS_SERVICE_SECRET` during setup when both scopes already verify.
-- Verify first, then sync only if missing/mismatched.
-- Treat LPBS runtime value as canonical source of truth.
+The LPBS deployment APIs authorize `scenario-to-desktop` through its scoped service principal. Do not create, copy, reveal, or synchronize `LPBS_SERVICE_SECRET` as part of this setup. The legacy secret is only a recovery bridge while the scoped principal is confirmed unissued; any recovery is an operator-owned action outside this skill.
 
-Verify current state first:
+If service-auth probes return 401/403, stop this gate and hand off to the identity owner with the exact redacted error and deployment selector. Do not downgrade, set a shared token, or retry after changing credentials. Continue only after the owner confirms scoped identity availability.
 
-```bash
-scenario-to-cloud secrets verify LPBS_SERVICE_SECRET \
-  --scenario landing-page-business-suite \
-  --targets scenario,deployment \
-  --domain {{DOMAIN}}
-
-scenario-to-cloud secrets verify LPBS_SERVICE_SECRET \
-  --scenario scenario-to-desktop \
-  --targets scenario
-```
-
-If verify indicates missing/mismatch in either scope, sync using the canonical LPBS runtime value:
-
-```bash
-scenario-to-cloud secrets set LPBS_SERVICE_SECRET \
-  --scenario landing-page-business-suite \
-  --value <canonical_lpbs_service_secret> \
-  --targets scenario,deployment \
-  --domain {{DOMAIN}} \
-  --restart
-
-scenario-to-cloud secrets set LPBS_SERVICE_SECRET \
-  --scenario scenario-to-desktop \
-  --value <canonical_lpbs_service_secret> \
-  --targets scenario
-```
-
-Pass condition:
-- `LPBS_SERVICE_SECRET` exists for LPBS runtime surfaces (scenario + deployment targets).
-- `LPBS_SERVICE_SECRET` also exists in `scenario-to-desktop` scenario scope (same canonical value).
-- If deploy-auth probes fail with 401/403 or `LPBS_SERVICE_SECRET is not set`, treat as scope mismatch and re-sync both sides before handoff.
-
-Gate G.1 (required for unattended runs): verify auth gates (and re-verify secrets only if sync was applied)
+Gate G.1 (required for unattended runs): verify scoped auth gates
 
 ```bash
 landing-page-business-suite service-auth-status --require-enabled
@@ -355,7 +335,7 @@ scenario-to-desktop deploy-target add {{PROFILE_TAG}} \
 ```
 
 Pass condition:
-- If Gate G performed a sync, both `secrets verify` commands succeed after sync.
+- The identity owner has confirmed the scoped principal is available.
 - `service-auth-status --require-enabled` succeeds.
 - `deploy-target test {{PROFILE_TAG}} --require-service-auth` succeeds.
 
@@ -416,7 +396,7 @@ Use this section for long-tail operational failures and recovery paths.
 | `Remote profile is not logged in` / session expired | Remote cookie missing/expired | Re-run `remote-profiles-login --tag {{PROFILE_TAG}}`, then `remote-profiles-test --tag {{PROFILE_TAG}}` |
 | `remote-profiles-login` returns `401` and later admin commands fail with `admin session not configured` | Remote login failure invalidated local admin session | Re-run `admin-login`, then retry `remote-profiles-login` and `remote-profiles-test` |
 | `deployment health` is healthy but freshness is `outdated` | Deployed bundle fingerprint drift vs local scenario state | Run `deployment health` and follow the emitted `Next step` command first. If drift persists with healthy endpoint after one `--if-needed` convergence, record risk and hand off per `scenario-to-cloud` guidance |
-| `scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth` fails OR deploy later fails with service auth 401/403 | `LPBS_SERVICE_SECRET` unset/mismatch in LPBS runtime scope or in `scenario-to-desktop` scope | 1) Run `scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth` and capture exact error. 2) Verify LPBS scope: `scenario-to-cloud secrets verify LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario,deployment --domain {{DOMAIN}}`. 3) Verify `scenario-to-desktop` scope: `scenario-to-cloud secrets verify LPBS_SERVICE_SECRET --scenario scenario-to-desktop --targets scenario`. 4) Re-sync failing scope, then rerun Gate G.1 and continue only after both checks pass. |
+| `scenario-to-desktop deploy-target test {{PROFILE_TAG}} --require-service-auth` fails OR deploy later fails with service auth 401/403 | Scoped principal unavailable or rejected | Capture the redacted error and deployment selector, stop Gate G, and hand off to the identity owner. Never set or copy `LPBS_SERVICE_SECRET` as an automatic retry. |
 
 Command timing note:
 - `scenario-to-cloud deployment health ...` can take ~40s+ in normal conditions. Use long enough timeouts in scripted runs.
@@ -464,7 +444,7 @@ Note:
 
 ---
 
-### 8. Output Expectations
+### **8. Output Expectations**
 
 **May create/update:**
 - Local admin session state

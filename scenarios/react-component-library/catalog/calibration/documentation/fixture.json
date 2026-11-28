@@ -1,0 +1,11 @@
+{
+  "gate": "documentation",
+  "assetId": "calibration.documentation",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.documentation",
+  "description": "An exported symbol without a TSDoc block must fail the absence check.",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "missing-tsdoc"
+}

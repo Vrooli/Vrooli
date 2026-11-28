@@ -12,6 +12,31 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
+// HTTPDoer is the outbound request seam for handlers that proxy or forward
+// requests. Production wires a configured *http.Client; tests supply a fake.
+type HTTPDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+// Logger is the API's injectable operation-log boundary.
+type Logger interface {
+	Printf(format string, args ...any)
+	Infof(format string, args ...any)
+}
+
+type discardLogger struct{}
+
+func (discardLogger) Printf(string, ...any) {}
+func (discardLogger) Infof(string, ...any)  {}
+
+func (s *Server) logf(format string, args ...any) {
+	if s != nil && s.Logger != nil {
+		s.Logger.Printf(format, args...)
+		return
+	}
+	discardLogger{}.Printf(format, args...)
+}
+
 // BaseClient provides shared HTTP helpers for service clients.
 type BaseClient struct {
 	httpClient  *http.Client

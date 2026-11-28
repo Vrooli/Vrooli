@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "defect-report",
+      "name": "Bug reports",
+      "aliases": ["bug", "bugs", "bug report", "defect", "defects", "defect report", "defect reports", "regressions"],
+      "definition": "The observation reports a concrete failure or incorrect behavior in an existing feature or workflow. A failure may affect only one environment. A fix verification belongs here only when it explicitly reports a remaining failure. It is unrelated when a problem is mentioned only as the background to a successful fix. A missing feature, setup instructions, or a proposed change is unrelated.",
+      "examples": ["Remote browser capture fails with a timeout, even though local sessions work", "Search returned no result for a document that it previously found"],
+      "sources": [{"kind": "legacy-bug-report", "requestKeyPrefix": "legacy-scenario-qa-bugs/v1/"}]
+    },
+    {
+      "id": "capability-gap",
+      "name": "Capability gaps",
+      "aliases": ["capability gap", "missing capability", "missing capabilities", "missing feature", "missing features", "feature gaps"],
+      "definition": "An observation that a needed tool, workflow, integration, or capability is absent or insufficient for the task. Exclude broken behavior in an existing capability unless the observation also describes a distinct unmet need.",
+      "examples": ["There is no voice cloning capability in the audio workflow", "The toolkit cannot export this data with its attribution"]
+    },
+    {
+      "id": "resolution-update",
+      "name": "Resolution updates",
+      "aliases": ["resolution update", "bug fix", "bug fixes", "resolved issues", "fix verification"],
+      "definition": "A follow-up that records the observed result of investigating, correcting, working around, or fixing a previous problem. Include partial fixes and new evidence that changes the earlier account. An initial regression report belongs elsewhere, even when it compares a broken version with a working version. A plan or suggestion without an observed outcome is unrelated.",
+      "examples": ["Local browser capture works after the fix; remote capture still times out", "The repro only applies to older browser sessions"],
+      "sources": [
+        {"kind": "legacy-bug-investigation", "requestKeyPrefix": "legacy-scenario-qa-bugs/v1/"},
+        {"kind": "legacy-bug-disposition", "requestKeyPrefix": "legacy-scenario-qa-bugs/v1/"}
+      ]
+    }
+  ]
+}

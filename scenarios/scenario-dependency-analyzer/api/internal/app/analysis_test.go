@@ -1,21 +1,22 @@
 package app
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/seams"
-	types "scenario-dependency-analyzer/internal/types"
-)
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+	_ "modernc.org/sqlite"
 
-func repoScenarioPath(parts ...string) string {
-	base := []string{"..", "..", "..", ".."}
-	base = append(base, parts...)
-	return filepath.Join(base...)
-}
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
+)
 
 // TestAnalyzeScenario tests scenario analysis functionality
 func TestAnalyzeScenario(t *testing.T) {
@@ -27,6 +28,9 @@ func TestAnalyzeScenario(t *testing.T) {
 
 	// Set up test scenario directory
 	scenarioName := "test-scenario"
+	if scenarioName == "" {
+		t.Fatal("test scenario name must be non-empty")
+	}
 	testScenario := createTestScenario(t, env, scenarioName, map[string]types.Resource{
 		"postgres": {
 			Type:     "postgres",
@@ -85,7 +89,7 @@ func TestScanForScenarioDependencies(t *testing.T) {
 	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
 
 	t.Run("WithScenarioReferences", func(t *testing.T) {
-		os.MkdirAll(scenarioPath, 0755)
+		os.MkdirAll(scenarioPath, 0o755)
 		defer os.RemoveAll(scenarioPath)
 
 		// Create a file with scenario references
@@ -94,7 +98,7 @@ func TestScanForScenarioDependencies(t *testing.T) {
 vrooli scenario run other-scenario
 vrooli scenario test another-scenario
 `
-		os.WriteFile(testFile, []byte(content), 0644)
+		os.WriteFile(testFile, []byte(content), 0o644)
 
 		deps, err := scanForScenarioDependencies(scenarioPath, scenarioName)
 		if err != nil {
@@ -115,7 +119,7 @@ vrooli scenario test another-scenario
 
 	t.Run("EmptyDirectory", func(t *testing.T) {
 		emptyPath := filepath.Join(env.ScenariosDir, "empty-scenario")
-		os.MkdirAll(emptyPath, 0755)
+		os.MkdirAll(emptyPath, 0o755)
 		defer os.RemoveAll(emptyPath)
 
 		deps, err := scanForScenarioDependencies(emptyPath, "empty-scenario")
@@ -130,7 +134,7 @@ vrooli scenario test another-scenario
 
 	t.Run("WithCLIReferences", func(t *testing.T) {
 		cliPath := filepath.Join(env.ScenariosDir, "cli-test")
-		os.MkdirAll(cliPath, 0755)
+		os.MkdirAll(cliPath, 0o755)
 		defer os.RemoveAll(cliPath)
 
 		// Create file with CLI references
@@ -138,7 +142,7 @@ vrooli scenario test another-scenario
 		content := `#!/bin/bash
 data-tools-cli.sh process input.csv
 `
-		os.WriteFile(scriptFile, []byte(content), 0644)
+		os.WriteFile(scriptFile, []byte(content), 0o644)
 
 		deps, err := scanForScenarioDependencies(cliPath, "cli-test")
 		if err != nil {
@@ -167,7 +171,7 @@ func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
 	refreshDependencyCatalogs()
 
 	subjectPath := filepath.Join(env.ScenariosDir, "subject")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	mainFile := filepath.Join(subjectPath, "script.sh")
@@ -175,14 +179,14 @@ func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
 vrooli scenario run other-scenario
 vrooli scenario run totally-fake
 `
-	os.WriteFile(mainFile, []byte(content), 0644)
+	os.WriteFile(mainFile, []byte(content), 0o644)
 
 	cliFile := filepath.Join(subjectPath, "cli.sh")
-	os.WriteFile(cliFile, []byte("browser-automation-studio-cli analyze"), 0644)
+	os.WriteFile(cliFile, []byte("browser-automation-studio-cli analyze"), 0o644)
 
 	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
-	os.MkdirAll(nodeModules, 0755)
-	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("vrooli scenario run ignored-scenario"), 0644)
+	os.MkdirAll(nodeModules, 0o755)
+	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("vrooli scenario run ignored-scenario"), 0o644)
 
 	deps, err := scanForScenarioDependencies(subjectPath, "subject")
 	if err != nil {
@@ -194,15 +198,18 @@ vrooli scenario run totally-fake
 		found[dep.DependencyName] = true
 	}
 
-	if !found["other-scenario"] || !found["browser-automation-studio"] {
+	if !found["other-scenario"] {
 		t.Fatalf("Missing expected dependencies: %v", found)
+	}
+	if found["browser-automation-studio"] {
+		t.Fatalf("CLI filename references should no longer be dependency evidence")
 	}
 	if found["ignored-scenario"] {
 		t.Fatalf("ignored-scenario should have been excluded")
 	}
 }
 
-func TestScanForScenarioDependenciesDetectsScenarioPortResolvers(t *testing.T) {
+func TestScanForScenarioDependenciesIgnoresObsoleteScenarioPortResolvers(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -222,7 +229,7 @@ const issueTrackerScenarioID = "app-issue-tracker"
 func use(ctx context.Context) {
     resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT")
 }`
-	if err := os.WriteFile(sourcePath, []byte(source), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
 		t.Fatalf("Failed to write source: %v", err)
 	}
 
@@ -239,8 +246,8 @@ func use(ctx context.Context) {
 		}
 	}
 
-	if !found {
-		t.Fatalf("Expected to detect app-issue-tracker dependency via port resolver")
+	if found {
+		t.Fatalf("obsolete scenario port resolver calls should no longer be dependency evidence")
 	}
 }
 
@@ -252,7 +259,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	defer env.Cleanup()
 
 	setEnvAndCleanup(t, "API_PORT", "12345")
-	setEnvAndCleanup(t, "DATABASE_URL", "postgres://example:test@localhost:5432/test")
+	setEnvAndCleanup(t, "VROOLI_STORAGE_ROOT", env.TempDir)
 	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
 
 	resourcesDir := filepath.Join(env.TempDir, "resources")
@@ -305,7 +312,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	}
 
 	var captured int
-	applyDiffsHook = func(name string, cfg *types.ServiceConfig) {
+	applyDiffsHook = func(name string, cfg *types.Manifest) {
 		if name == scenarioName {
 			captured = len(cfg.Dependencies.Resources)
 		}
@@ -336,80 +343,20 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	}
 }
 
-func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
+func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
-	configureTestScenariosDir(t, env)
+
+	scenarioName := "fixture-with-deps"
+	scenarioPath := writeFixtureWithResources(t, env.ScenariosDir, scenarioName)
 
 	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
-	resourcesDir := filepath.Join(env.TempDir, "resources")
-	os.MkdirAll(filepath.Join(resourcesDir, "n8n"), 0o755)
-	refreshDependencyCatalogs()
-
-	scenarioName := "initialization-test"
-	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
-	os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755)
-
-	serviceConfig := map[string]interface{}{
-		"$schema": "../../../.vrooli/schemas/service.schema.json",
-		"version": "1.0.0",
-		"service": map[string]interface{}{
-			"name":        scenarioName,
-			"displayName": scenarioName,
-			"description": "",
-			"version":     "1.0.0",
-		},
-		"dependencies": map[string]interface{}{
-			"resources": map[string]interface{}{
-				"n8n": map[string]interface{}{
-					"type":     "n8n",
-					"enabled":  true,
-					"required": true,
-					"initialization": []map[string]interface{}{
-						{"file": "initialization/automation/n8n/workflow.json", "type": "workflow"},
-					},
-				},
-			},
-			"scenarios": map[string]interface{}{},
-		},
-	}
-	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
-	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
-
 	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
-		t.Fatalf("failed to load test service config: %v", err)
-	}
-	deps, err := scanForResourceUsageWithConfig(scenarioPath, scenarioName, cfg)
-	if err != nil {
-		t.Fatalf("scanForResourceUsage returned error: %v", err)
-	}
-
-	found := false
-	for _, dep := range deps {
-		if dep.DependencyName == "n8n" && dep.DependencyType == "resource" {
-			if dep.Configuration["initialization_detected"] == true {
-				found = true
-				break
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("expected n8n to be detected via initialization data")
-	}
-}
-
-func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", repoScenarioPath())
-	cfg, err := appconfig.LoadServiceConfig(repoScenarioPath("brand-manager"))
-	if err != nil {
-		t.Fatalf("failed to load brand-manager config: %v", err)
+		t.Fatalf("failed to load fixture config: %v", err)
 	}
 	if len(cfg.Dependencies.Resources) == 0 {
 		t.Fatalf("expected dependencies.resources to contain entries")
@@ -420,7 +367,12 @@ func TestRawServiceConfigMapHasDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	raw, err := loadRawServiceConfigMap(repoScenarioPath("brand-manager"))
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	scenarioPath := writeFixtureWithResources(t, env.ScenariosDir, "fixture-raw-deps")
+
+	raw, err := loadRawServiceConfigMap(scenarioPath)
 	if err != nil {
 		t.Fatalf("failed to load raw config: %v", err)
 	}
@@ -434,6 +386,43 @@ func TestRawServiceConfigMapHasDependencies(t *testing.T) {
 	}
 }
 
+func writeFixtureWithResources(t *testing.T, scenariosDir, name string) string {
+	t.Helper()
+	scenarioPath := filepath.Join(scenariosDir, name)
+	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("failed to create fixture dirs: %v", err)
+	}
+	serviceConfig := map[string]interface{}{
+		"$schema": "../../../.vrooli/schemas/service.schema.json",
+		"version": "1.0.0",
+		"service": map[string]interface{}{
+			"name":        name,
+			"displayName": name,
+			"description": "fixture",
+			"version":     "1.0.0",
+		},
+		"dependencies": map[string]interface{}{
+			"resources": map[string]interface{}{
+				"sqlite": map[string]interface{}{
+					"type":        "sqlite",
+					"enabled":     true,
+					"required":    true,
+					"description": "embedded SQLite",
+				},
+			},
+			"scenarios": map[string]interface{}{},
+		},
+	}
+	data, err := json.MarshalIndent(serviceConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal fixture config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644); err != nil {
+		t.Fatalf("failed to write fixture config: %v", err)
+	}
+	return scenarioPath
+}
+
 func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -445,7 +434,7 @@ func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
 	createTestResourceDirs(t, env, "postgres")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "resource-subject")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	script := `#!/bin/bash
@@ -453,11 +442,11 @@ resource-postgres connect
 PGHOST=localhost
 resource-fake something
 `
-	os.WriteFile(filepath.Join(subjectPath, "main.sh"), []byte(script), 0644)
+	os.WriteFile(filepath.Join(subjectPath, "main.sh"), []byte(script), 0o644)
 
 	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
-	os.MkdirAll(nodeModules, 0755)
-	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("resource-redis start"), 0644)
+	os.MkdirAll(nodeModules, 0o755)
+	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("resource-redis start"), 0o644)
 
 	deps, err := scanForResourceUsage(subjectPath, "resource-subject")
 	if err != nil {
@@ -472,7 +461,7 @@ resource-fake something
 	}
 }
 
-func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
+func TestResourceHeuristicIgnoresPlainCustomResourceMentions(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -480,17 +469,17 @@ func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
 	defer env.Cleanup()
 
 	configureTestScenariosDir(t, env)
-	createTestResourceDirs(t, env, "n8n")
+	createTestResourceDirs(t, env, "declaredresource")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-noise")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	content := `package main
 
-var resourceTypes = []string{"postgres", "redis", "n8n"}
+var resourceTypes = []string{"postgres", "redis", "declaredresource"}
 `
-	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0o644)
 
 	deps, err := scanForResourceUsage(subjectPath, "heuristic-noise")
 	if err != nil {
@@ -498,13 +487,13 @@ var resourceTypes = []string{"postgres", "redis", "n8n"}
 	}
 
 	for _, dep := range deps {
-		if dep.DependencyName == "n8n" {
-			t.Fatalf("plain text mention should not be treated as n8n dependency")
+		if dep.DependencyName == "declaredresource" {
+			t.Fatalf("plain text mention should not be treated as a custom resource dependency")
 		}
 	}
 }
 
-func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
+func TestResourceHeuristicDetectsDeclaredResourceEnvUsage(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -512,21 +501,21 @@ func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
 	defer env.Cleanup()
 
 	configureTestScenariosDir(t, env)
-	createTestResourceDirs(t, env, "n8n")
+	createTestResourceDirs(t, env, "declaredresource")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-hit")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	content := `package main
 
 import "os"
 
-func useN8N() string {
-	return os.Getenv("N8N_URL")
+func useDeclaredResource() string {
+	return os.Getenv("DECLAREDRESOURCE_URL")
 }
 `
-	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0o644)
 
 	deps, err := scanForResourceUsage(subjectPath, "heuristic-hit")
 	if err != nil {
@@ -535,14 +524,14 @@ func useN8N() string {
 
 	found := false
 	for _, dep := range deps {
-		if dep.DependencyName == "n8n" {
+		if dep.DependencyName == "declaredresource" {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("expected n8n dependency to be detected when referencing N8N_URL")
+		t.Fatalf("expected declared resource dependency to be detected when referencing DECLAREDRESOURCE_URL")
 	}
 }
 
@@ -554,7 +543,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Setenv("API_PORT", "19999")
-	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+	t.Setenv("VROOLI_STORAGE_ROOT", env.TempDir)
 
 	configureTestScenariosDir(t, env)
 	createTestResourceDirs(t, env, "postgres")
@@ -579,9 +568,15 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 			{
 				DependencyName: "support-scenario",
 				AccessMethod:   "vrooli scenario",
+				Required:       true,
+			},
+			{
+				DependencyName: "ai-gateway",
+				AccessMethod:   "scenario_url_discovery",
+				Required:       false,
 			},
 		},
-		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "support-scenario"}}},
+		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "support-scenario"}, {Name: "ai-gateway"}}},
 	}
 
 	summary, err := applyDetectedDiffs("apply-subject", analysis, true, true, defaultDependencyService())
@@ -600,7 +595,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 		t.Fatalf("Failed to read service.json: %v", err)
 	}
 
-	var cfg types.ServiceConfig
+	var cfg types.Manifest
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("Failed to parse service.json: %v", err)
 	}
@@ -617,65 +612,121 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	if !ok || !scenarioDep.Required {
 		t.Fatalf("support-scenario not added correctly: %+v", cfg.Dependencies.Scenarios)
 	}
-	if scenarioDep.Version != "1.0.0" {
-		t.Fatalf("expected version to be propagated, got %q", scenarioDep.Version)
-	}
 	if scenarioDep.VersionRange != ">=1.0.0" {
 		t.Fatalf("expected version range to track detected version, got %q", scenarioDep.VersionRange)
 	}
+	aiGateway, ok := cfg.Dependencies.Scenarios["ai-gateway"]
+	if !ok || aiGateway.Required || aiGateway.StartupPolicy != "try_start" || !strings.Contains(aiGateway.DegradedBehavior, "verify this scenario's capability contract") {
+		t.Fatalf("ai-gateway inferred optional policy is incorrect: %+v", aiGateway)
+	}
 }
 
-// TestScanForSharedWorkflows tests shared workflow detection
-func TestScanForSharedWorkflows(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
+func TestApplyDetectedDiffsOnlySelectedScenario(t *testing.T) {
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
+	t.Setenv("API_PORT", "19999")
+	t.Setenv("VROOLI_STORAGE_ROOT", env.TempDir)
+	configureTestScenariosDir(t, env)
+	createTestScenario(t, env, "selector-subject", map[string]types.Resource{})
+	createTestScenario(t, env, "selected-peer", map[string]types.Resource{})
+	createTestScenario(t, env, "other-peer", map[string]types.Resource{})
+	analysis := &types.DependencyAnalysisResponse{
+		Scenarios:    []types.ScenarioDependency{{DependencyName: "selected-peer", AccessMethod: "program_binding"}, {DependencyName: "other-peer", AccessMethod: "program_binding"}},
+		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "selected-peer"}, {Name: "other-peer"}}},
+	}
+	_, err := applyDetectedDiffs("selector-subject", analysis, false, true, nil, map[string]struct{}{"selected-peer": {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(env.ScenariosDir, "selector-subject", ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg types.Manifest
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Dependencies.Scenarios["selected-peer"]; !ok {
+		t.Fatal("selected detected peer was not added")
+	}
+	if _, ok := cfg.Dependencies.Scenarios["other-peer"]; ok {
+		t.Fatal("unselected peer was added")
+	}
+}
 
-	scenarioName := "test-scenario"
-	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
+func TestSelectiveApplyPreservesManifestOrderAndAbsentSections(t *testing.T) {
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+	t.Setenv("API_PORT", "19999")
+	t.Setenv("VROOLI_STORAGE_ROOT", env.TempDir)
+	configureTestScenariosDir(t, env)
+	createTestScenario(t, env, "order-subject", map[string]types.Resource{})
+	createTestScenario(t, env, "chosen-peer", map[string]types.Resource{})
+	path := filepath.Join(env.ScenariosDir, "order-subject", ".vrooli", "service.json")
+	original := "{\n  \"version\": \"2.0.0\",\n  \"storage\": {},\n  \"service\": {\"name\": \"order-subject\", \"version\": \"1.0.0\"},\n  \"dependencies\": {\"scenarios\": {}},\n  \"generation\": {}\n}\n"
+	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	analysis := &types.DependencyAnalysisResponse{Scenarios: []types.ScenarioDependency{{DependencyName: "chosen-peer", AccessMethod: "program_binding"}}, ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "chosen-peer"}}}}
+	if _, err := applyDetectedDiffs("order-subject", analysis, false, true, nil, map[string]struct{}{"chosen-peer": {}}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if strings.Index(text, `"storage"`) > strings.Index(text, `"service"`) || strings.Index(text, `"generation"`) < strings.Index(text, `"dependencies"`) {
+		t.Fatalf("top-level order changed: %s", text)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	deps := result["dependencies"].(map[string]any)
+	if _, ok := deps["resources"]; ok {
+		t.Fatalf("absent resources section was inserted: %s", text)
+	}
+	if !strings.HasSuffix(text, "\n") {
+		t.Fatal("manifest lost its trailing newline")
+	}
+}
 
-	t.Run("WithN8nWorkflows", func(t *testing.T) {
-		os.MkdirAll(scenarioPath, 0755)
-		defer os.RemoveAll(scenarioPath)
-
-		// Create n8n workflows directory
-		workflowsDir := filepath.Join(scenarioPath, "workflows", "n8n")
-		os.MkdirAll(workflowsDir, 0755)
-
-		// Create a sample workflow file
-		workflowFile := filepath.Join(workflowsDir, "test-workflow.json")
-		workflow := map[string]interface{}{
-			"name":  "test-workflow",
-			"nodes": []interface{}{},
+func TestScanRejectsUnsafeEmptyOrConflictingSelection(t *testing.T) {
+	s := &scanService{}
+	for _, req := range []types.ScanRequest{
+		{ApplyScenarios: true, OnlyScenarios: []string{}},
+		{ApplyScenarios: true, OnlyScenarios: []string{""}},
+		{Apply: true, ApplyScenarios: true, OnlyScenarios: []string{"peer"}},
+		{OnlyScenarios: []string{"peer"}},
+	} {
+		if _, err := s.ScanScenario("subject", req); !errors.Is(err, types.ErrInvalidScanRequest) {
+			t.Errorf("request %+v: error %v, want invalid scan request", req, err)
 		}
-		workflowJSON, _ := json.Marshal(workflow)
-		os.WriteFile(workflowFile, workflowJSON, 0644)
+	}
+}
 
-		deps, err := scanForSharedWorkflows(scenarioPath, scenarioName)
-		if err != nil {
-			t.Logf("Scan returned error: %v", err)
-		}
-
-		// Verify we can at least scan without crashing
-		t.Logf("Found %d workflow dependencies", len(deps))
-	})
-
-	t.Run("NoWorkflows", func(t *testing.T) {
-		emptyPath := filepath.Join(env.ScenariosDir, "no-workflows")
-		os.MkdirAll(emptyPath, 0755)
-		defer os.RemoveAll(emptyPath)
-
-		deps, err := scanForSharedWorkflows(emptyPath, "no-workflows")
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		if len(deps) != 0 {
-			t.Errorf("Expected no workflows, got %d", len(deps))
-		}
-	})
+func TestSelectedApplyFiltersInterfaceGraphProposals(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(store.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(db)
+	if err := st.ReplaceGraphEdges([]types.UnifiedGraphEdge{
+		{From: "subject", To: "selected", Kind: "scenario", Source: "go_import", Confidence: 1},
+		{From: "subject", To: "unselected", Kind: "scenario", Source: "go_import", Confidence: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c := &dependencyApplyContext{cfg: &types.Manifest{}}
+	added := c.applyInterfaceGraphScenarios("subject", &dependencyService{store: st}, map[string]struct{}{"selected": {}})
+	if len(added) != 1 || added[0] != "selected" {
+		t.Fatalf("added graph edges = %v", added)
+	}
 }
 
 // TestGenerateDependencyGraph tests graph generation
@@ -693,16 +744,16 @@ func TestGenerateDependencyGraph(t *testing.T) {
 	db = testDB
 	defer func() { db = nil }()
 
-	// Insert test data
-	deps := []types.ScenarioDependency{
-		createTestDependency("scenario-a", "resource", "postgres", true),
-		createTestDependency("scenario-a", "resource", "redis", false),
-		createTestDependency("scenario-b", "resource", "postgres", true),
-		createTestDependency("scenario-b", "scenario", "scenario-a", true),
-	}
-
-	for _, dep := range deps {
-		insertTestDependency(t, testDB, dep)
+	// Seed the unified graph store — the single source of truth that graph
+	// generation and centrality now read (the analyze rows feed it via the
+	// ingest sweeper, not directly).
+	if err := store.New(testDB).ReplaceGraphEdges([]types.UnifiedGraphEdge{
+		{From: "scenario-a", To: "postgres", Kind: "resource", Source: "resource", Confidence: 0.8, Required: true},
+		{From: "scenario-a", To: "redis", Kind: "resource", Source: "resource", Confidence: 0.8},
+		{From: "scenario-b", To: "postgres", Kind: "resource", Source: "resource", Confidence: 0.8, Required: true},
+		{From: "scenario-b", To: "scenario-a", Kind: "scenario", Source: "declared", Confidence: 0.7, Required: true},
+	}); err != nil {
+		t.Fatalf("seed graph edges: %v", err)
 	}
 
 	tests := []struct {
@@ -763,7 +814,6 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 		}
 
 		result, err := analyzeProposedScenario(req)
-
 		// May fail if resources not available, that's OK
 		if err != nil {
 			t.Logf("Analysis failed (expected if resources unavailable): %v", err)
@@ -789,7 +839,6 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 		}
 
 		result, err := analyzeProposedScenario(req)
-
 		// Should still work, just with low confidence
 		if err != nil {
 			t.Logf("Analysis failed: %v", err)
@@ -856,51 +905,12 @@ func TestCalculateScenarioConfidence(t *testing.T) {
 	}
 }
 
-// TestParseClaudeCodeResponse tests Claude Code response parsing
-func TestParseClaudeCodeResponse(t *testing.T) {
-	tests := []struct {
-		name        string
-		response    string
-		description string
-		wantNil     bool
-	}{
-		{
-			name:        "ValidResponse",
-			response:    "Analysis: This scenario needs postgres and redis for data storage and caching.",
-			description: "Test scenario",
-			wantNil:     false,
-		},
-		{
-			name:        "EmptyResponse",
-			response:    "",
-			description: "Test scenario",
-			wantNil:     false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseClaudeCodeResponse(tt.response, tt.description)
-
-			if (result == nil) != tt.wantNil {
-				t.Errorf("parseClaudeCodeResponse() = %v, wantNil %v", result, tt.wantNil)
-			}
-
-			if !tt.wantNil && result != nil {
-				if len(result.PredictedResources) == 0 && len(result.Recommendations) == 0 {
-					t.Logf("Parsed response contains no resources or recommendations (may be expected for empty input)")
-				}
-			}
-		})
-	}
-}
-
 // TestExtractDeclaredResourcesWithSeams tests deterministic resource extraction
 func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	testSeams := newTestSeams()
 
 	t.Run("EmptyResources", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{}
 
 		result := extractDeclaredResourcesWithSeams("test-scenario", cfg, testSeams)
@@ -911,7 +921,7 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	})
 
 	t.Run("SingleResource", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"postgres": {
 				Type:     "database",
@@ -946,7 +956,7 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	})
 
 	t.Run("MultipleResourcesSorted", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"redis":    {Type: "cache", Enabled: true},
 			"postgres": {Type: "database", Enabled: true},
@@ -970,12 +980,12 @@ func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	})
 
 	t.Run("ConfigurationPreserved", func(t *testing.T) {
-		cfg := &types.ServiceConfig{}
+		cfg := &types.Manifest{}
 		cfg.Dependencies.Resources = map[string]types.Resource{
 			"ollama": {
 				Type:    "ai",
 				Enabled: true,
-				Models:  []string{"llama2", "codellama"},
+				Config:  json.RawMessage(`{"models":["fixture-chat-model","fixture-code-model"]}`),
 			},
 		}
 
@@ -1050,7 +1060,7 @@ func TestBuildDependencyDiff(t *testing.T) {
 	})
 
 	t.Run("ExtraDependencies", func(t *testing.T) {
-		declared := map[string]struct{}{"postgres": {}, "redis": {}, "n8n": {}}
+		declared := map[string]struct{}{"postgres": {}, "redis": {}, "declaredresource": {}}
 		detected := []types.ScenarioDependency{}
 
 		diff := buildDependencyDiff(declared, detected, func(name string) map[string]interface{} {
@@ -1062,7 +1072,7 @@ func TestBuildDependencyDiff(t *testing.T) {
 		}
 
 		// Verify sorted
-		expected := []string{"n8n", "postgres", "redis"}
+		expected := []string{"declaredresource", "postgres", "redis"}
 		for i, e := range diff.Extra {
 			if e.Name != expected[i] {
 				t.Errorf("At position %d: expected %q, got %q", i, expected[i], e.Name)
@@ -1118,7 +1128,7 @@ func TestBuildResourceDiff(t *testing.T) {
 func TestBuildScenarioDiff(t *testing.T) {
 	t.Run("ScenarioDetailsPreserved", func(t *testing.T) {
 		declared := map[string]types.ScenarioDependencySpec{
-			"auth-service": {Required: true, Version: "2.0.0"},
+			"auth-service": {Required: true, VersionRange: ">=2.0.0"},
 		}
 		detected := []types.ScenarioDependency{}
 
@@ -1132,8 +1142,8 @@ func TestBuildScenarioDiff(t *testing.T) {
 		if details["required"] != true {
 			t.Errorf("Expected required=true, got %v", details["required"])
 		}
-		if details["version"] != "2.0.0" {
-			t.Errorf("Expected version '2.0.0', got %v", details["version"])
+		if details["version_range"] != ">=2.0.0" {
+			t.Errorf("Expected version range '>=2.0.0', got %v", details["version_range"])
 		}
 	})
 }
@@ -1236,7 +1246,6 @@ func TestConvertDeclaredScenariosToDependenciesWithSeams(t *testing.T) {
 		specs := map[string]types.ScenarioDependencySpec{
 			"auth-service": {
 				Required:     true,
-				Version:      "1.0.0",
 				VersionRange: ">=1.0.0",
 				Description:  "Authentication service",
 			},
@@ -1269,9 +1278,6 @@ func TestConvertDeclaredScenariosToDependenciesWithSeams(t *testing.T) {
 		}
 
 		config := dep.Configuration
-		if config["version"] != "1.0.0" {
-			t.Errorf("Expected version '1.0.0', got %v", config["version"])
-		}
 		if config["version_range"] != ">=1.0.0" {
 			t.Errorf("Expected version_range '>=1.0.0', got %v", config["version_range"])
 		}

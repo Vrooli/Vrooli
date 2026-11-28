@@ -56,6 +56,22 @@ func EnvInt(key string, defaultVal int) int {
 	return i
 }
 
+// EnvIntMin reads an integer environment variable with a default and floor.
+// Unset, unparseable, or below-floor values return defaultVal. The floor keeps
+// admission levers usable: a zero concurrency cap would wedge the manager
+// without a running slot or a useful error.
+func EnvIntMin(key string, defaultVal, min int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	i, err := strconv.Atoi(val)
+	if err != nil || i < min {
+		return defaultVal
+	}
+	return i
+}
+
 // EnvInt64 reads an int64 environment variable with a default.
 // Returns defaultVal if the variable is not set or cannot be parsed.
 func EnvInt64(key string, defaultVal int64) int64 {
@@ -78,29 +94,6 @@ func EnvString(key string, defaultVal string) string {
 		return defaultVal
 	}
 	return val
-}
-
-// ClampInt constrains an integer value to be within [min, max].
-// This is the decision point for "is this value within acceptable bounds?"
-func ClampInt(value, min, max int) int {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
-// ClampInt64 constrains an int64 value to be within [min, max].
-func ClampInt64(value, min, max int64) int64 {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
 }
 
 // TestingConfigPath returns the path to the testing.json config file.
@@ -127,7 +120,7 @@ func LoadTestingConfig(scenarioDir string) ([]byte, error) {
 
 // LoadPhaseConfig loads phase-specific configuration from testing.json.
 // T should be a struct type that can unmarshal the phase-specific section.
-// phaseName is the JSON key for the phase (e.g., "structure", "business").
+// phaseName is the provider descriptor key in the JSON configuration.
 // defaultConfig is returned if the file doesn't exist or the phase section is missing.
 func LoadPhaseConfig[T any](scenarioDir, phaseName string, defaultConfig T) (T, error) {
 	data, err := LoadTestingConfig(scenarioDir)
@@ -159,7 +152,7 @@ func LoadPhaseConfig[T any](scenarioDir, phaseName string, defaultConfig T) (T, 
 
 // MergePhaseConfig loads phase config and merges non-zero values into the provided config.
 // This is useful when you want to start with defaults and override specific fields.
-// phaseName is the JSON key for the phase (e.g., "structure", "business").
+// phaseName is the provider descriptor key in the JSON configuration.
 // config is a pointer to the config struct to populate.
 func MergePhaseConfig[T any](scenarioDir, phaseName string, config *T) error {
 	data, err := LoadTestingConfig(scenarioDir)

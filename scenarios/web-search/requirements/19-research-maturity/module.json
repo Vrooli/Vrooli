@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-05T18:59:42-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-009",
+      "title": "Evidence-aware research",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "integration",
+      "description": "When research is requested, the scenario shall apply explicit evidence requirements and return complete source-linked answers or typed unresolved outcomes.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/research/answer_test.go::TestAnswerStoredPolicy",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/program_contract_test.go::TestResearchPrograms",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recorded response regression probes; live quality acceptance remains separate."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/LIVE_VALIDATION.md",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Research maturity acceptance for OT-P0-009; no passing evidence claimed."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-010",
+      "title": "Governed research lifecycle",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "category": "integration",
+      "description": "When L3 research starts, the scenario shall retain Agent Manager ownership and provide bounded start, wait, and result handoff.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/research/agentmanager/service_test.go::TestWaitTimeoutPreservesExecution",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/research/program_contract_test.go::TestResearchPrograms",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recorded response regression probes; live quality acceptance remains separate."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/LIVE_VALIDATION.md",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Research maturity acceptance for OT-P0-010; no passing evidence claimed."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-011",
+      "title": "Outcome-linked research learning",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "integration",
+      "description": "For each research attempt, the usage workflow shall record outcome, effort, provenance, and comparison context through Vrooli Memory.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/research/program_contract_test.go::TestResearchPrograms",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recorded response regression probes; live quality acceptance remains separate."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/LIVE_VALIDATION.md",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Research maturity acceptance for OT-P0-011; no passing evidence claimed."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-012",
+      "title": "Validated research methods",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "integration",
+      "description": "When research methods recur, the scenario shall expose versioned programs with quality fixtures and preserve evidence across repairs.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/research/program_contract_test.go::TestResearchPrograms",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recorded response regression probes; live quality acceptance remains separate."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/LIVE_VALIDATION.md",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Research maturity acceptance for OT-P0-012; no passing evidence claimed."
+        }
+      ]
+    }
+  ]
+}

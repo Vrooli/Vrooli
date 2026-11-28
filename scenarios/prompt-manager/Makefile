@@ -1,7 +1,7 @@
-# Scenario Makefile
+# Prompt Manager Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+# NEVER run scenarios directly (./api/prompt-manager-api). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
@@ -10,130 +10,117 @@
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui type type-go type-ui check setup open
 
-# Default target - show help
 .DEFAULT_GOAL := help
 
-# Get scenario name from current directory
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-# Colors for output
-GREEN := \033[1;32m
-YELLOW := \033[1;33m
-BLUE := \033[1;34m
-RED := \033[1;31m
-RESET := \033[0m
+SCENARIO_CUSTOM_TARGETS += build fmt-ui lint-go
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
 
-help: ## Show this help message
-	@echo "$(BLUE)📱 $(SCENARIO_NAME) Scenario Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+help: ## Show the supported scenario entrypoints
+	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
+	@printf "  make setup                      Run scenario setup lifecycle\n"
+	@printf "  make start                      Start the scenario\n"
+	@printf "  make stop                       Stop the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
+	@printf "  make status                     Show scenario runtime status\n"
+	@printf "  make logs                       Show scenario logs\n"
+	@printf "  make test                       Run scenario tests\n"
+	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make run                        Alias for make start\n"
+	@printf "  make dev                        Alias for make start\n"
+	@printf "\n"
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
 
-start: ## Start this scenario (uses Vrooli lifecycle)
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario start $(SCENARIO_NAME)
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
 
-run: start ## Alias for 'start'
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
 
-stop: ## Stop this scenario
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario stop $(SCENARIO_NAME)
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
 
-test: ## Run scenario tests
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
+
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
 
 logs: ## Show scenario logs
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50
 
-status: ## Check scenario status
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario status $(SCENARIO_NAME)
+test: ## Run scenario tests
+	@vrooli scenario test "$(SCENARIO_NAME)"
 
 clean: ## Clean build artifacts
-	@echo "$(YELLOW)🧹 Cleaning build artifacts...$(RESET)"
 	@rm -rf ui/dist 2>/dev/null || true
-	@rm -f api/prompt-manager-api 2>/dev/null || true
-	@echo "$(GREEN)✅ Cleaned$(RESET)"
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
+	@rm -f cli/$(SCENARIO_NAME) 2>/dev/null || true
 
-build: ## Build all components
-	@echo "$(BLUE)🔨 Building $(SCENARIO_NAME)...$(RESET)"
+build: ## Build the scenario
 	@if [ -f api/go.mod ]; then \
-		cd api && GOWORK=off go mod download && GOWORK=off go build -o prompt-manager-api .; \
+		cd api && go build -o "$(SCENARIO_NAME)-api" .; \
+	fi
+	@if [ -f cli/go.mod ]; then \
+		cd cli && go build -o "$(SCENARIO_NAME)" .; \
 	fi
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run build; \
 	fi
-	@echo "$(GREEN)✅ Build complete$(RESET)"
-
-dev: ## Start in development mode
-	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario develop $(SCENARIO_NAME)
 
 fmt: fmt-go fmt-ui ## Format all code
 
-fmt-go: ## Format Go code
-	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
-	@if [ -d "api" ] && find api -name "*.go" -type f | grep -q .; then \
-		cd api && gofumpt -w . 2>/dev/null || go fmt ./...; \
-		echo "$(GREEN)✅ Go code formatted$(RESET)"; \
-	else \
-		echo "$(YELLOW)⚠️  No Go sources found$(RESET)"; \
-	fi
-
 fmt-ui: ## Format UI code
-	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
-	@cd ui && pnpm run lint:fix 2>/dev/null || echo "$(YELLOW)⚠️  No lint:fix script$(RESET)"
-	@echo "$(GREEN)✅ UI code formatted$(RESET)"
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint:fix; \
+	fi
 
 lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
-	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@if [ -d "api" ] && find api -name "*.go" -type f | grep -q .; then \
-		cd api && golangci-lint run 2>/dev/null || go vet ./...; \
-		echo "$(GREEN)✅ Go code linted$(RESET)"; \
-	else \
-		echo "$(YELLOW)⚠️  No Go sources found$(RESET)"; \
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run ./...; \
+		elif command -v go >/dev/null 2>&1; then \
+			cd api && go vet ./... && go fmt ./...; \
+		fi; \
+	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd cli && golangci-lint run ./...; \
+		elif command -v go >/dev/null 2>&1; then \
+			cd cli && go vet ./... && go fmt ./...; \
+		fi; \
 	fi
 
-lint-ui: ## Lint UI code
-	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
-	@cd ui && pnpm run lint 2>/dev/null || echo "$(YELLOW)⚠️  No lint script$(RESET)"
-	@echo "$(GREEN)✅ UI code linted$(RESET)"
+type: type-go type-ui ## Type-check all code
 
-check: fmt lint test ## Run all checks (format + lint + test)
+type-go: ## Type-check Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		cd api && go test ./... -run '^$$'; \
+	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		cd cli && go test ./... -run '^$$'; \
+	fi
 
-# Scenario-specific targets
-.PHONY: health db-status cli-test quick-test
+type-ui: ## Type-check UI code
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run type-check; \
+	fi
 
-health: ## Check health endpoints
-	@echo "$(BLUE)🏥 Checking health...$(RESET)"
-	@curl -sf http://localhost:$${API_PORT:-15000}/health | jq '.' || echo "$(RED)❌ API not responding$(RESET)"
-	@curl -sf http://localhost:$${UI_PORT:-35000}/health | jq '.' || echo "$(RED)❌ UI not responding$(RESET)"
+check: fmt lint test ## Run full quality gates
 
-db-status: ## Check database connection
-	@echo "$(BLUE)🗄️  Checking database status...$(RESET)"
-	@curl -sf http://localhost:$${API_PORT:-15000}/health | jq '.services.database' || echo "$(RED)❌ Cannot check database status$(RESET)"
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
 
-cli-test: ## Test CLI commands
-	@echo "$(BLUE)🧪 Testing CLI...$(RESET)"
-	@prompt-manager status || echo "$(YELLOW)⚠️  CLI not installed or service not running$(RESET)"
-	@prompt-manager list-campaigns || true
-	@echo "$(GREEN)✅ CLI test complete$(RESET)"
-
-quick-test: ## Quick API test
-	@echo "$(BLUE)⚡ Quick API test...$(RESET)"
-	@curl -sf http://localhost:$${API_PORT:-15000}/api/v1/campaigns | jq '.' || echo "$(RED)❌ API test failed$(RESET)"
-	@echo "$(GREEN)✅ Quick test complete$(RESET)"
+# Development shortcuts
+run: start
+dev: start

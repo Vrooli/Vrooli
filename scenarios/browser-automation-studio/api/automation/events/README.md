@@ -15,7 +15,7 @@ flowchart LR
     Executor["SimpleExecutor\n(EventEnvelope)"]
     Sequencer["Sequencer\nper-execution order"]
     Queue["executionQueue\nper-execution buffers\n(perAttempt limits)"]
-    Sink["WSHubSink\n-> browserless events emitter"]
+    Sink["WSHubSink\n-> engine events emitter"]
     UI["WS clients / UI"]
 
     Executor --> Sequencer --> Queue --> Sink --> UI

@@ -1,25 +1,10 @@
 package main
 
-import (
-	"testing"
-)
+import "testing"
 
 // [REQ:CHART-P0-005-SVG] Export capabilities: SVG format
 func TestSVGExport_RenderChart(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	renderer := NewChartRenderer(env.TempDir)
-
-	tests := []struct {
-		name        string
-		chartID     string
-		req         ChartGenerationProcessorRequest
-		expectError bool
-	}{
+	tests := []chartExportCase{
 		{
 			name:    "RenderBarChartSVG",
 			chartID: "test-bar-svg-001",
@@ -30,7 +15,6 @@ func TestSVGExport_RenderChart(t *testing.T) {
 				Width:         800,
 				Height:        600,
 			},
-			expectError: false,
 		},
 		{
 			name:    "RenderPieChartSVG",
@@ -40,31 +24,8 @@ func TestSVGExport_RenderChart(t *testing.T) {
 				Data:          generateTestChartData("pie", 4),
 				ExportFormats: []string{"svg"},
 			},
-			expectError: false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			files, err := renderer.RenderChart(tt.chartID, tt.req)
-
-			if tt.expectError && err == nil {
-				t.Error("Expected error but got nil")
-			}
-
-			if !tt.expectError && err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if !tt.expectError {
-				if len(files) == 0 {
-					t.Error("Expected at least one file to be generated")
-				}
-				for format, path := range files {
-					assertFileExists(t, path)
-					t.Logf("Generated %s file: %s", format, path)
-				}
-			}
-		})
-	}
+	runChartExportCases(t, tests)
 }

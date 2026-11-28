@@ -22,48 +22,11 @@ type PlaywrightEngine struct {
 	log      *logrus.Logger
 }
 
-// NewPlaywrightEngine constructs an engine using environment configuration.
-// It requires PLAYWRIGHT_DRIVER_URL unless allowDefault is true, in which case
-// it falls back to localhost for developer setups.
-func NewPlaywrightEngine(log *logrus.Logger) (*PlaywrightEngine, error) {
-	mgr, err := session.NewManager(session.WithLogger(log))
-	if err != nil {
-		return nil, err
+// NewPlaywrightEngineWithSessionManager uses the API's shared session broker.
+func NewPlaywrightEngineWithSessionManager(mgr *session.Manager, log *logrus.Logger) (*PlaywrightEngine, error) {
+	if mgr == nil {
+		return nil, errors.New("session manager is required")
 	}
-	return &PlaywrightEngine{sessions: mgr, log: log}, nil
-}
-
-// NewPlaywrightEngineWithRecordingsRoot constructs an engine with an explicit recordings root.
-func NewPlaywrightEngineWithRecordingsRoot(log *logrus.Logger, recordingsRoot string) (*PlaywrightEngine, error) {
-	opts := []session.Option{session.WithLogger(log)}
-	if strings.TrimSpace(recordingsRoot) != "" {
-		opts = append(opts, session.WithExecutionArtifactsRoot(recordingsRoot))
-	}
-	mgr, err := session.NewManager(opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &PlaywrightEngine{sessions: mgr, log: log}, nil
-}
-
-// NewPlaywrightEngineWithDefault allows the localhost fallback when explicit
-// configuration is absent (useful for local development and tests).
-func NewPlaywrightEngineWithDefault(log *logrus.Logger) (*PlaywrightEngine, error) {
-	// NewManager already allows default, so this is the same as NewPlaywrightEngine
-	return NewPlaywrightEngine(log)
-}
-
-// NewPlaywrightEngineWithHTTPClient constructs an engine with a custom HTTP client.
-// This is primarily used for testing to inject mock HTTP responses.
-func NewPlaywrightEngineWithHTTPClient(driverURL string, httpClient HTTPDoer, log *logrus.Logger) (*PlaywrightEngine, error) {
-	if httpClient == nil {
-		return nil, errors.New("httpClient is required")
-	}
-	client, err := driver.NewClientWithURL(driverURL, driver.WithHTTPClient(httpClient), driver.WithLogger(log))
-	if err != nil {
-		return nil, err
-	}
-	mgr := session.NewManagerWithClient(client, session.WithLogger(log))
 	return &PlaywrightEngine{sessions: mgr, log: log}, nil
 }
 
@@ -76,7 +39,7 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 	if e == nil {
 		return contracts.EngineCapabilities{}, errors.New("engine not configured")
 	}
-	if err := e.sessions.Client().Health(ctx); err != nil {
+	if err := e.sessions.Health(ctx); err != nil {
 		return contracts.EngineCapabilities{}, err
 	}
 	return contracts.EngineCapabilities{
@@ -89,10 +52,12 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 		AllowsParallelTabs:    true,
 		SupportsHAR:           true,
 		SupportsVideo:         true,
-		SupportsIframes:       false, // WebSocket streaming to Playwright is used instead of iframes
+		SupportsIframes:       true, // Frame automation is independent of viewer transport.
 		SupportsFileUploads:   true,
 		SupportsDownloads:     true,
 		SupportsTracing:       true,
+		SupportsPerfTrace:     true,
+		SupportsAccessibility: true,
 		MaxViewportWidth:      1920,
 		MaxViewportHeight:     1080,
 	}, nil
@@ -102,36 +67,42 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (EngineSession, error) {
 	// Convert engine.SessionSpec to session.Spec
 	sessionSpec := session.Spec{
-		ExecutionID:    spec.ExecutionID,
-		WorkflowID:     spec.WorkflowID,
-		Mode:           session.ModeExecution,
-		ViewportWidth:  spec.ViewportWidth,
-		ViewportHeight: spec.ViewportHeight,
-		ReuseMode:      string(spec.ReuseMode),
-		BaseURL:        spec.BaseURL,
-		Labels:         spec.Labels,
+		ExecutionID:           spec.ExecutionID,
+		WorkflowID:            spec.WorkflowID,
+		Mode:                  session.ModeExecution,
+		ViewportWidth:         spec.ViewportWidth,
+		ViewportHeight:        spec.ViewportHeight,
+		ReuseMode:             string(spec.ReuseMode),
+		SessionProfileVersion: spec.SessionProfileVersion,
+		BaseURL:               spec.BaseURL,
+		Labels:                spec.Labels,
 		Capabilities: session.CapabilityRequirement{
-			NeedsParallelTabs: spec.Capabilities.NeedsParallelTabs,
-			NeedsIframes:      spec.Capabilities.NeedsIframes,
-			NeedsFileUploads:  spec.Capabilities.NeedsFileUploads,
-			NeedsDownloads:    spec.Capabilities.NeedsDownloads,
-			NeedsHAR:          spec.Capabilities.NeedsHAR,
-			NeedsVideo:        spec.Capabilities.NeedsVideo,
-			NeedsTracing:      spec.Capabilities.NeedsTracing,
-			MinViewportWidth:  spec.Capabilities.MinViewportWidth,
-			MinViewportHeight: spec.Capabilities.MinViewportHeight,
+			NeedsParallelTabs:  spec.Capabilities.NeedsParallelTabs,
+			NeedsIframes:       spec.Capabilities.NeedsIframes,
+			NeedsFileUploads:   spec.Capabilities.NeedsFileUploads,
+			NeedsDownloads:     spec.Capabilities.NeedsDownloads,
+			NeedsHAR:           spec.Capabilities.NeedsHAR,
+			NeedsVideo:         spec.Capabilities.NeedsVideo,
+			NeedsTracing:       spec.Capabilities.NeedsTracing,
+			NeedsPerfTrace:     spec.Capabilities.NeedsPerfTrace,
+			NeedsAccessibility: spec.Capabilities.NeedsAccessibility,
+			MinViewportWidth:   spec.Capabilities.MinViewportWidth,
+			MinViewportHeight:  spec.Capabilities.MinViewportHeight,
 		},
-		BrowserProfile: spec.BrowserProfile,
-		StorageState:   spec.StorageState,
+		BrowserProfile:    spec.BrowserProfile,
+		StorageState:      spec.StorageState,
+		FakeMicrophoneWav: spec.FakeMicrophoneWav,
+		AppTarget:         spec.AppTarget,
+		ValidationContext: spec.ValidationContext,
 	}
 
 	// Add frame streaming config if enabled (for live execution preview)
 	if spec.FrameStreaming != nil {
 		sessionSpec.FrameStreaming = &session.FrameStreamingConfig{
-			CallbackURL: spec.FrameStreaming.CallbackURL,
-			Quality:     spec.FrameStreaming.Quality,
-			FPS:         spec.FrameStreaming.FPS,
-			Scale:       spec.FrameStreaming.Scale,
+			URL:     spec.FrameStreaming.URL,
+			Quality: spec.FrameStreaming.Quality,
+			FPS:     spec.FrameStreaming.FPS,
+			Scale:   spec.FrameStreaming.Scale,
 		}
 	}
 

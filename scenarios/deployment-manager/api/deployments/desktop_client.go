@@ -8,32 +8,63 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"deployment-manager/shared"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // DesktopPackagerClient handles communication with scenario-to-desktop.
 type DesktopPackagerClient struct {
 	httpClient *http.Client
 	baseURL    string
+	resolveURL func(context.Context) (string, error)
 	log        func(string, map[string]interface{})
 }
 
 // NewDesktopPackagerClient creates a client for the scenario-to-desktop API.
 func NewDesktopPackagerClient(log func(string, map[string]interface{})) (*DesktopPackagerClient, error) {
-	baseURL, err := shared.GetConfigResolver().ResolveDesktopPackagerURL()
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve scenario-to-desktop URL: %w", err)
+	baseURL := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_URL"))
+	if baseURL != "" {
+		var err error
+		baseURL, err = shared.ValidateServiceURL(baseURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid scenario-to-desktop URL: %w", err)
+		}
 	}
 
+	var resolveURL func(context.Context) (string, error)
+	if baseURL == "" {
+		resolveURL = func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "scenario-to-desktop")
+		}
+	}
 	return &DesktopPackagerClient{
 		httpClient: &http.Client{
 			Timeout: 30 * time.Minute, // Long timeout for builds
 		},
-		baseURL: baseURL,
-		log:     log,
+		baseURL:    baseURL,
+		resolveURL: resolveURL,
+		log:        log,
 	}, nil
+}
+
+func (c *DesktopPackagerClient) endpoint(ctx context.Context, path string) (string, error) {
+	base := strings.TrimSpace(c.baseURL)
+	if c.resolveURL != nil {
+		resolved, err := c.resolveURL(ctx)
+		if err != nil {
+			return "", fmt.Errorf("resolve scenario-to-desktop URL: %w", err)
+		}
+		base = strings.TrimSpace(resolved)
+	}
+	validated, err := shared.ValidateServiceURL(base)
+	if err != nil {
+		return "", fmt.Errorf("scenario-to-desktop URL: %w", err)
+	}
+	return validated + path, nil
 }
 
 // QuickGenerateRequest is the request for quick desktop generation.
@@ -43,6 +74,7 @@ type QuickGenerateRequest struct {
 	DeploymentMode     string   `json:"deployment_mode"`
 	BundleManifestPath string   `json:"bundle_manifest_path,omitempty"`
 	Platforms          []string `json:"platforms,omitempty"`
+	StrategyID         string   `json:"strategy_id,omitempty"`
 }
 
 // QuickGenerateResponse is the response from quick desktop generation.
@@ -82,8 +114,9 @@ type PlatformResult struct {
 
 // ScenarioBuildRequest is the request for building desktop installers.
 type ScenarioBuildRequest struct {
-	Platforms []string `json:"platforms,omitempty"`
-	Clean     bool     `json:"clean,omitempty"`
+	Platforms  []string `json:"platforms,omitempty"`
+	Clean      bool     `json:"clean,omitempty"`
+	StrategyID string   `json:"strategy_id,omitempty"`
 }
 
 // ScenarioBuildResponse is the response from starting a scenario build.
@@ -109,7 +142,11 @@ func (c *DesktopPackagerClient) QuickGenerate(ctx context.Context, req *QuickGen
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/desktop/generate/quick", bytes.NewReader(body))
+	endpoint, err := c.endpoint(ctx, "/api/v1/desktop/generate/quick")
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -146,7 +183,11 @@ func (c *DesktopPackagerClient) QuickGenerate(ctx context.Context, req *QuickGen
 
 // GetBuildStatus polls for the status of a build.
 func (c *DesktopPackagerClient) GetBuildStatus(ctx context.Context, buildID string) (*BuildStatusResponse, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/desktop/status/"+buildID, nil)
+	endpoint, err := c.endpoint(ctx, "/api/v1/desktop/status/"+buildID)
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -218,7 +259,11 @@ func (c *DesktopPackagerClient) BuildScenario(ctx context.Context, scenarioName 
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/desktop/build/"+scenarioName, bytes.NewReader(body))
+	endpoint, err := c.endpoint(ctx, "/api/v1/desktop/build/"+scenarioName)
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -254,7 +299,11 @@ func (c *DesktopPackagerClient) BuildScenario(ctx context.Context, scenarioName 
 
 // IsAvailable checks if scenario-to-desktop is reachable.
 func (c *DesktopPackagerClient) IsAvailable(ctx context.Context) bool {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/health", nil)
+	endpoint, err := c.endpoint(ctx, "/health")
+	if err != nil {
+		return false
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return false
 	}
@@ -285,7 +334,11 @@ type PlatformStatus struct {
 // CheckSigningReadiness checks if signing is configured and ready for a scenario.
 // This is a non-blocking check - returns the status without failing.
 func (c *DesktopPackagerClient) CheckSigningReadiness(ctx context.Context, scenarioName string) (*SigningReadinessResponse, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/signing/"+scenarioName+"/ready", nil)
+	endpoint, err := c.endpoint(ctx, "/api/v1/signing/"+scenarioName+"/ready")
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

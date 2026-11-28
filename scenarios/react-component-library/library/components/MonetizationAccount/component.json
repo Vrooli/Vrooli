@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:MonetizationAccount",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.1",
+    "1.0.5",
+    "1.0.0"
+  ],
+  "description": "Reusable monetization account component implementation for the React component library.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Monetization Account",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.5",
+    "1.0.0",
+    "1.0.6"
+  ],
+  "latest": "2.0.2",
+  "libraryId": "react-component-library:MonetizationAccount",
+  "tags": []
+}

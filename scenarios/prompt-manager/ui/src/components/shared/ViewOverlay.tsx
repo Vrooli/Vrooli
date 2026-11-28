@@ -10,20 +10,17 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Globe, Network, Settings, HelpCircle, BarChart3, Search, X, Menu, Users } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useSelectionStore } from '@/stores/selectionStore'
-import { usePerformanceStore } from '@/stores/performanceStore'
+import { Button } from '@vrooli/react-component-library/Button/2.2.14'
 import { selectors } from '@/constants/selectors'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { StatsBar } from './StatsBar'
 import { FloatingPanel } from './FloatingPanel'
 import { AgentPickerList } from './AgentPickerList'
-import { FPSOverlay } from '@/components/world/performance'
 
 interface ViewOverlayProps {
   onOpenMobileSidebar?: () => void
-  /** Number of pending decisions needing attention */
-  pendingDecisionCount?: number
+  /** Number of pending work items needing attention */
+  pendingWorkCount?: number
   /** Number of currently running agents */
   runningAgentCount?: number
   leftPanelContent?: ReactNode
@@ -31,26 +28,31 @@ interface ViewOverlayProps {
   settingsTitle?: string
   helpContent: ReactNode
   helpTitle?: string
+  homeView?: 'world' | 'graph'
+  onHomeViewChange?: (view: 'world' | 'graph') => void
+  /** Called after the settings panel closes, so the caller can restore focus. */
+  onSettingsClose?: () => void
 }
 
 export function ViewOverlay({
   onOpenMobileSidebar,
-  pendingDecisionCount = 0,
+  pendingWorkCount = 0,
   runningAgentCount = 0,
   leftPanelContent,
   settingsContent,
   settingsTitle = 'Settings',
   helpContent,
   helpTitle = 'Help',
+  homeView = 'world',
+  onHomeViewChange,
+  onSettingsClose,
 }: ViewOverlayProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
   const [activeMobilePanel, setActiveMobilePanel] = useState<'stats' | 'left' | 'agents' | null>(null)
 
-  const graphViewActive = useSelectionStore((s) => s.graphViewActive)
-  const setGraphViewActive = useSelectionStore((s) => s.setGraphViewActive)
+  const graphViewActive = homeView === 'graph'
   const isMobile = useIsMobile()
-  const showPerformanceOverlay = usePerformanceStore((state) => state.config.showOverlay)
 
   const panelAnchorX = useMemo(() => {
     if (typeof window === 'undefined') return 24
@@ -94,8 +96,9 @@ export function ViewOverlay({
               {onOpenMobileSidebar && (
                 <div className="relative">
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="icon"
+                    shape="square"
                     onClick={onOpenMobileSidebar}
                     className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                     title="Open sidebar"
@@ -103,16 +106,17 @@ export function ViewOverlay({
                   >
                     <Menu className="h-4 w-4" />
                   </Button>
-                  {(pendingDecisionCount > 0 || runningAgentCount > 0) && (
+                  {(pendingWorkCount > 0 || runningAgentCount > 0) && (
                     <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white px-1 pointer-events-none">
-                      {pendingDecisionCount + runningAgentCount}
+                      {pendingWorkCount + runningAgentCount}
                     </span>
                   )}
                 </div>
               )}
               <Button
-                variant="outline"
+                variant="secondary"
                 size="icon"
+                shape="square"
                 onClick={() => setActiveMobilePanel(activeMobilePanel === 'stats' ? null : 'stats')}
                 className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                 title="View stats"
@@ -122,8 +126,9 @@ export function ViewOverlay({
               </Button>
               {leftPanelContent && (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
+                  shape="square"
                   onClick={() => setActiveMobilePanel(activeMobilePanel === 'left' ? null : 'left')}
                   className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                   title="Open queries"
@@ -133,8 +138,9 @@ export function ViewOverlay({
                 </Button>
               )}
               <Button
-                variant="outline"
+                variant="secondary"
                 size="icon"
+                shape="square"
                 onClick={() => setActiveMobilePanel(activeMobilePanel === 'agents' ? null : 'agents')}
                 className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
                 title="Find agent"
@@ -158,9 +164,10 @@ export function ViewOverlay({
         {/* Top-right: view toggle + settings + help */}
         <div className="absolute top-4 right-4 pointer-events-auto flex flex-col gap-1">
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
-            onClick={() => setGraphViewActive(!graphViewActive)}
+            shape="square"
+            onClick={() => onHomeViewChange?.(graphViewActive ? 'world' : 'graph')}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={graphViewActive ? 'Switch to World View' : 'Switch to Graph View'}
             data-testid={selectors.viewOverlay.viewToggle}
@@ -168,8 +175,9 @@ export function ViewOverlay({
             {graphViewActive ? <Globe className="h-4 w-4" /> : <Network className="h-4 w-4" />}
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
+            shape="square"
             onClick={() => setIsSettingsOpen(true)}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={settingsTitle}
@@ -178,8 +186,9 @@ export function ViewOverlay({
             <Settings className="h-4 w-4" />
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="icon"
+            shape="square"
             onClick={() => setIsHelpOpen(true)}
             className="h-8 w-8 bg-card/80 border-border hover:bg-muted"
             title={helpTitle}
@@ -199,6 +208,9 @@ export function ViewOverlay({
           />
           <div
             className="fixed inset-x-0 bottom-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-2xl border border-border bg-popover text-popover-foreground shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={mobilePanelTitle}
             data-testid={selectors.viewOverlay.mobilePanelSheet}
           >
             <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-border" />
@@ -223,7 +235,7 @@ export function ViewOverlay({
       {/* Settings panel */}
       <FloatingPanel
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => { setIsSettingsOpen(false); onSettingsClose?.() }}
         title={settingsTitle}
         initialPosition={{ x: panelAnchorX, y: 88 }}
         className="max-w-md"
@@ -241,17 +253,6 @@ export function ViewOverlay({
         {helpContent}
       </FloatingPanel>
 
-      {/* Performance panel (world view only) */}
-      <FloatingPanel
-        isOpen={!graphViewActive && showPerformanceOverlay}
-        onClose={() => usePerformanceStore.getState().setConfig({ showOverlay: false })}
-        title="Performance"
-        initialPosition={{ x: panelAnchorX - 24, y: 136 }}
-        className="max-w-md"
-        testId={selectors.viewOverlay.performancePanel}
-      >
-        <FPSOverlay detailed />
-      </FloatingPanel>
     </>
   )
 }

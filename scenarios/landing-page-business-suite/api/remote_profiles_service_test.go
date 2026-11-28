@@ -11,32 +11,33 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	adminhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/administration"
 )
 
-func newRemoteProfileServiceForTest(db *sql.DB, client HTTPDoer) *RemoteProfileService {
+func setupRemoteProfileTest(t *testing.T) (*sql.DB, context.Context) {
+	t.Helper()
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	return setupTestDB(t), context.Background()
+}
+
+func newRemoteProfileServiceForTest(db *sql.DB, client administration.HTTPDoer) *administration.RemoteProfileService {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
-	return &RemoteProfileService{
-		db:            db,
-		encryptionKey: nil,
-		httpClient:    client,
-		now:           time.Now,
-		dialects:      NewDialectHelper("postgres"),
+	return &administration.RemoteProfileService{
+		DB:            db,
+		EncryptionKey: nil,
+		HTTPClient:    client,
+		Now:           time.Now,
 	}
 }
 
 func TestRemoteProfileService_CreateAndList(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -67,16 +68,9 @@ func TestRemoteProfileService_CreateAndList(t *testing.T) {
 }
 
 func TestRemoteProfileService_ListHandlesNullConnectorID(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
 
 	if _, err := db.Exec(`
 		INSERT INTO remote_profiles (tag, label, api_base, connector_id, status, created_at, updated_at)
@@ -106,19 +100,14 @@ func TestRemoteProfileService_ListHandlesNullConnectorID(t *testing.T) {
 }
 
 func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	var lastCookie string
+	var lastConnectProtocol string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/admin/login":
-			var req LoginRequest
+		case "/landing_page_business_suite.v1.AdminAuthService/Login":
+			var req adminhttp.LoginRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -130,16 +119,16 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 				Expires: time.Now().Add(1 * time.Hour),
 			})
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(LoginResponse{Email: req.Email, Authenticated: true, ResetEnabled: true})
-		case "/api/v1/admin/session":
+			_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Email: req.Email, Authenticated: true, ResetEnabled: true})
+		case "/landing_page_business_suite.v1.AdminAuthService/Session":
 			cookie, _ := r.Cookie(remoteProfileCookieName)
 			if cookie == nil || cookie.Value != "session-123" {
 				w.WriteHeader(http.StatusUnauthorized)
-				_ = json.NewEncoder(w).Encode(LoginResponse{Authenticated: false, ResetEnabled: true})
+				_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Authenticated: false, ResetEnabled: true})
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(LoginResponse{Authenticated: true, ResetEnabled: true})
+			_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Authenticated: true, ResetEnabled: true})
 		case "/api/v1/admin/download-storage":
 			cookie, _ := r.Cookie(remoteProfileCookieName)
 			if cookie == nil {
@@ -149,6 +138,15 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 			lastCookie = cookie.Value
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"ok":true}`))
+		case "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys":
+			cookie, _ := r.Cookie(remoteProfileCookieName)
+			if cookie == nil || cookie.Value != "session-123" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			lastConnectProtocol = r.Header.Get("Connect-Protocol-Version")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"keys":[]}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -156,7 +154,7 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	defer srv.Close()
 
 	svc := newRemoteProfileServiceForTest(db, srv.Client())
-	ctx := context.Background()
+	svc.EncryptionKey = []byte("01234567890123456789012345678901")
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -188,19 +186,96 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	if lastCookie != "session-123" {
 		t.Fatalf("expected proxy to forward session cookie, got %s", lastCookie)
 	}
+
+	connectResult, err := svc.Proxy(ctx, profile.ID, RemoteProfileProxyRequest{
+		Method: http.MethodPost,
+		Path:   "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys",
+		Body:   json.RawMessage(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("Connect settings proxy returned error: %v", err)
+	}
+	if connectResult.StatusCode != http.StatusOK || string(connectResult.Body) != `{"keys":[]}` {
+		t.Fatalf("unexpected Connect settings proxy result: %#v", connectResult)
+	}
+	if lastConnectProtocol != "1" {
+		t.Fatalf("expected Connect protocol header, got %q", lastConnectProtocol)
+	}
+}
+
+func TestRemoteProfileService_ServiceModeUsesBearerOnly(t *testing.T) {
+	db, _ := setupRemoteProfileTest(t)
+	var authHeader, cookieHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader, cookieHeader = r.Header.Get("Authorization"), r.Header.Get("Cookie")
+		if r.URL.Path == "/admin/download-apps" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"apps":[{"app_key":"web-console"}]}`))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	svc := newRemoteProfileServiceForTest(db, srv.Client())
+	svc.EncryptionKey = []byte("01234567890123456789012345678901")
+	profile, err := svc.Create(context.Background(), RemoteProfileCreateRequest{Tag: "service", APIBase: srv.URL + "/api/v1", AuthMode: "service", RemoteServiceSecret: "destination-secret"}, defaultAdminEmail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.AuthMode != "service" || !profile.RemoteServiceSecretConfigured || profile.HasSession {
+		t.Fatalf("unexpected service profile: %#v", profile)
+	}
+	var sealed string
+	if err := db.QueryRow(`SELECT encrypted_remote_service_secret FROM remote_profiles WHERE id = $1`, profile.ID).Scan(&sealed); err != nil {
+		t.Fatal(err)
+	}
+	if sealed == "destination-secret" || sealed == "" {
+		t.Fatalf("service secret was not sealed: %q", sealed)
+	}
+	updatedSecret := "rotated-destination-secret"
+	updated, err := svc.Update(context.Background(), profile.ID, RemoteProfileUpdateRequest{RemoteServiceSecret: &updatedSecret})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.RemoteServiceSecretConfigured || updated.AuthMode != "service" {
+		t.Fatalf("updated service profile lost configuration: %#v", updated)
+	}
+	var encoded []byte
+	encoded, err = json.Marshal(updated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), updatedSecret) || strings.Contains(string(encoded), "destination-secret") {
+		t.Fatalf("response exposed service secret: %s", encoded)
+	}
+	if _, err := svc.Test(context.Background(), profile.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Proxy(context.Background(), profile.ID, RemoteProfileProxyRequest{Method: "GET", Path: "/admin/download-apps", Headers: map[string]string{"Authorization": "Bearer caller-secret"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authHeader != "Bearer rotated-destination-secret" {
+		t.Fatalf("authorization = %q", authHeader)
+	}
+	if cookieHeader != "" {
+		t.Fatalf("unexpected cookie = %q", cookieHeader)
+	}
+}
+
+func TestRemoteProfileService_ServiceModeRequiresSecret(t *testing.T) {
+	db, _ := setupRemoteProfileTest(t)
+	svc := newRemoteProfileServiceForTest(db, nil)
+	_, err := svc.Create(context.Background(), RemoteProfileCreateRequest{Tag: "service", APIBase: "http://example.com/api/v1", AuthMode: "service"}, defaultAdminEmail)
+	if !errors.Is(err, ErrRemoteProfileServiceSecretMissing) {
+		t.Fatalf("expected missing service secret, got %v", err)
+	}
 }
 
 func TestRemoteProfileService_ProxyDisallowedPath(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -329,10 +404,10 @@ func TestRemoteProfileService_EncryptDecrypt(t *testing.T) {
 	for i := range key {
 		key[i] = byte(i + 1)
 	}
-	svc := &RemoteProfileService{encryptionKey: key}
+	svc := &administration.RemoteProfileService{EncryptionKey: key}
 	plaintext := "session-token-123"
 
-	encrypted, err := svc.encrypt(plaintext)
+	encrypted, err := svc.Encrypt(plaintext)
 	if err != nil {
 		t.Fatalf("encrypt returned error: %v", err)
 	}
@@ -340,7 +415,7 @@ func TestRemoteProfileService_EncryptDecrypt(t *testing.T) {
 		t.Fatalf("expected encrypted value to differ from plaintext")
 	}
 
-	decrypted, err := svc.decrypt(encrypted)
+	decrypted, err := svc.Decrypt(encrypted)
 	if err != nil {
 		t.Fatalf("decrypt returned error: %v", err)
 	}
@@ -350,10 +425,10 @@ func TestRemoteProfileService_EncryptDecrypt(t *testing.T) {
 }
 
 func TestRemoteProfileService_EncryptDecrypt_NoKey(t *testing.T) {
-	svc := &RemoteProfileService{encryptionKey: nil}
+	svc := &administration.RemoteProfileService{EncryptionKey: nil}
 	plaintext := "session-token-plain"
 
-	encrypted, err := svc.encrypt(plaintext)
+	encrypted, err := svc.Encrypt(plaintext)
 	if err != nil {
 		t.Fatalf("encrypt returned error: %v", err)
 	}
@@ -361,7 +436,7 @@ func TestRemoteProfileService_EncryptDecrypt_NoKey(t *testing.T) {
 		t.Fatalf("expected plaintext when encryption key is nil")
 	}
 
-	decrypted, err := svc.decrypt(encrypted)
+	decrypted, err := svc.Decrypt(encrypted)
 	if err != nil {
 		t.Fatalf("decrypt returned error: %v", err)
 	}
@@ -371,19 +446,13 @@ func TestRemoteProfileService_EncryptDecrypt_NoKey(t *testing.T) {
 }
 
 func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/admin/session":
+		case "/landing_page_business_suite.v1.AdminAuthService/Session":
 			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(LoginResponse{Authenticated: false, ResetEnabled: true})
+			_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Authenticated: false, ResetEnabled: true})
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -391,7 +460,6 @@ func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
 	defer srv.Close()
 
 	svc := newRemoteProfileServiceForTest(db, srv.Client())
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -402,7 +470,7 @@ func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if err := svc.setSession(ctx, profile.ID, "session-123", "", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -428,16 +496,9 @@ func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
 }
 
 func TestRemoteProfileService_CreateTagConflict(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 
 	_, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -459,7 +520,7 @@ func TestRemoteProfileService_CreateTagConflict(t *testing.T) {
 }
 
 func TestRemoteProfileService_LoginInvalidInput(t *testing.T) {
-	svc := &RemoteProfileService{}
+	svc := &administration.RemoteProfileService{}
 	_, err := svc.Login(context.Background(), 1, " ", "")
 	if !errors.Is(err, ErrRemoteProfileInvalid) {
 		t.Fatalf("expected ErrRemoteProfileInvalid, got %v", err)
@@ -467,16 +528,9 @@ func TestRemoteProfileService_LoginInvalidInput(t *testing.T) {
 }
 
 func TestRemoteProfileService_UpdateClearsSessionOnAPIBaseChange(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -487,7 +541,7 @@ func TestRemoteProfileService_UpdateClearsSessionOnAPIBaseChange(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if err := svc.setSession(ctx, profile.ID, "session-123", "", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -512,16 +566,9 @@ func TestRemoteProfileService_UpdateClearsSessionOnAPIBaseChange(t *testing.T) {
 }
 
 func TestRemoteProfileService_UpdateTagConflict(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 
 	_, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -549,9 +596,7 @@ func TestRemoteProfileService_UpdateTagConflict(t *testing.T) {
 }
 
 func TestRemoteProfileService_DeleteNotFound(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
+	db, _ := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
 	err := svc.Delete(context.Background(), 99999)
@@ -561,24 +606,17 @@ func TestRemoteProfileService_DeleteNotFound(t *testing.T) {
 }
 
 func TestRemoteProfileService_LogoutClearsSession(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/logout" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Logout" {
 				t.Fatalf("unexpected logout path: %s", req.URL.Path)
 			}
 			return newHTTPResponse(http.StatusOK, `{}`, nil, "application/json"), nil
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -589,7 +627,7 @@ func TestRemoteProfileService_LogoutClearsSession(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if err := svc.setSession(ctx, profile.ID, "session-123", "", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -608,15 +646,15 @@ func TestRemoteProfileService_LogoutClearsSession(t *testing.T) {
 func TestRemoteProfileService_RemoteLogoutUnauthorizedNoError(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/logout" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Logout" {
 				t.Fatalf("unexpected logout path: %s", req.URL.Path)
 			}
 			return newHTTPResponse(http.StatusUnauthorized, "unauthorized", nil, "application/json"), nil
 		},
 	}
-	svc := &RemoteProfileService{httpClient: client}
+	svc := &administration.RemoteProfileService{HTTPClient: client}
 
-	if err := svc.remoteLogout(context.Background(), "http://example.com/api/v1", "session-abc"); err != nil {
+	if err := svc.RemoteLogout(context.Background(), "http://example.com/api/v1", "session-abc"); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
@@ -624,15 +662,15 @@ func TestRemoteProfileService_RemoteLogoutUnauthorizedNoError(t *testing.T) {
 func TestRemoteProfileService_RemoteLogoutServerError(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/logout" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Logout" {
 				t.Fatalf("unexpected logout path: %s", req.URL.Path)
 			}
 			return newHTTPResponse(http.StatusInternalServerError, "boom", nil, "application/json"), nil
 		},
 	}
-	svc := &RemoteProfileService{httpClient: client}
+	svc := &administration.RemoteProfileService{HTTPClient: client}
 
-	err := svc.remoteLogout(context.Background(), "http://example.com/api/v1", "session-abc")
+	err := svc.RemoteLogout(context.Background(), "http://example.com/api/v1", "session-abc")
 	var remoteErr *RemoteProfileError
 	if !errors.As(err, &remoteErr) {
 		t.Fatalf("expected RemoteProfileError, got %v", err)
@@ -643,13 +681,7 @@ func TestRemoteProfileService_RemoteLogoutServerError(t *testing.T) {
 }
 
 func TestRemoteProfileService_ProxyUnauthorizedClearsSession(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(_ *http.Request) (*http.Response, error) {
@@ -657,7 +689,6 @@ func TestRemoteProfileService_ProxyUnauthorizedClearsSession(t *testing.T) {
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -668,7 +699,7 @@ func TestRemoteProfileService_ProxyUnauthorizedClearsSession(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if err := svc.setSession(ctx, profile.ID, "session-123", "", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -693,13 +724,7 @@ func TestRemoteProfileService_ProxyUnauthorizedClearsSession(t *testing.T) {
 }
 
 func TestRemoteProfileService_ProxyServerErrorUpdatesStatus(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(_ *http.Request) (*http.Response, error) {
@@ -707,7 +732,6 @@ func TestRemoteProfileService_ProxyServerErrorUpdatesStatus(t *testing.T) {
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -718,7 +742,7 @@ func TestRemoteProfileService_ProxyServerErrorUpdatesStatus(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if err := svc.setSession(ctx, profile.ID, "session-123", "", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -740,16 +764,9 @@ func TestRemoteProfileService_ProxyServerErrorUpdatesStatus(t *testing.T) {
 }
 
 func TestRemoteProfileService_ProxyMissingSession(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -770,13 +787,7 @@ func TestRemoteProfileService_ProxyMissingSession(t *testing.T) {
 }
 
 func TestRemoteProfileService_SessionLinks(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
@@ -788,7 +799,6 @@ func TestRemoteProfileService_SessionLinks(t *testing.T) {
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -798,7 +808,7 @@ func TestRemoteProfileService_SessionLinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
 	}
-	if err := svc.setSession(ctx, profile.ID, "session-123", "remote-session-1", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "remote-session-1", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 	created, err := svc.GetByID(ctx, profile.ID)
@@ -819,13 +829,7 @@ func TestRemoteProfileService_SessionLinks(t *testing.T) {
 }
 
 func TestRemoteProfileService_SessionLinksUnauthorizedClearsSession(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
@@ -836,7 +840,6 @@ func TestRemoteProfileService_SessionLinksUnauthorizedClearsSession(t *testing.T
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -846,7 +849,7 @@ func TestRemoteProfileService_SessionLinksUnauthorizedClearsSession(t *testing.T
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
 	}
-	if err := svc.setSession(ctx, profile.ID, "session-123", "remote-session-1", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "remote-session-1", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -872,13 +875,7 @@ func TestRemoteProfileService_SessionLinksUnauthorizedClearsSession(t *testing.T
 }
 
 func TestRemoteProfileService_RevokeRemoteSessions(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
@@ -894,7 +891,6 @@ func TestRemoteProfileService_RevokeRemoteSessions(t *testing.T) {
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -904,7 +900,7 @@ func TestRemoteProfileService_RevokeRemoteSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
 	}
-	if err := svc.setSession(ctx, profile.ID, "session-123", "remote-session-2", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "remote-session-2", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -918,16 +914,9 @@ func TestRemoteProfileService_RevokeRemoteSessions(t *testing.T) {
 }
 
 func TestRemoteProfileService_RevokeRemoteSessions_MissingLocalSession(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -945,13 +934,7 @@ func TestRemoteProfileService_RevokeRemoteSessions_MissingLocalSession(t *testin
 }
 
 func TestRemoteProfileService_RevokeRemoteSessions_ListRemoteSessionsError(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
@@ -962,7 +945,6 @@ func TestRemoteProfileService_RevokeRemoteSessions_ListRemoteSessionsError(t *te
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -972,7 +954,7 @@ func TestRemoteProfileService_RevokeRemoteSessions_ListRemoteSessionsError(t *te
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
 	}
-	if err := svc.setSession(ctx, profile.ID, "session-123", "remote-session-2", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "remote-session-2", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -995,13 +977,7 @@ func TestRemoteProfileService_RevokeRemoteSessions_ListRemoteSessionsError(t *te
 }
 
 func TestRemoteProfileService_RevokeRemoteSessions_RevokeOneRemoteSessionFails(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
@@ -1019,7 +995,6 @@ func TestRemoteProfileService_RevokeRemoteSessions_RevokeOneRemoteSessionFails(t
 		},
 	}
 	svc := newRemoteProfileServiceForTest(db, client)
-	ctx := context.Background()
 
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
@@ -1029,7 +1004,7 @@ func TestRemoteProfileService_RevokeRemoteSessions_RevokeOneRemoteSessionFails(t
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
 	}
-	if err := svc.setSession(ctx, profile.ID, "session-123", "remote-session-2", nil); err != nil {
+	if err := svc.SetSession(ctx, profile.ID, "session-123", "remote-session-2", nil); err != nil {
 		t.Fatalf("setSession returned error: %v", err)
 	}
 
@@ -1052,8 +1027,8 @@ func TestRemoteProfileService_RevokeRemoteSessions_RevokeOneRemoteSessionFails(t
 }
 
 func TestRemoteProfileService_EnsureConnectorID_ReturnsTrimmedCurrent(t *testing.T) {
-	svc := &RemoteProfileService{}
-	connectorID, err := svc.ensureConnectorID(context.Background(), 1, "  connector-abc  ")
+	svc := &administration.RemoteProfileService{}
+	connectorID, err := svc.EnsureConnectorID(context.Background(), 1, "  connector-abc  ")
 	if err != nil {
 		t.Fatalf("ensureConnectorID returned error: %v", err)
 	}
@@ -1063,16 +1038,9 @@ func TestRemoteProfileService_EnsureConnectorID_ReturnsTrimmedCurrent(t *testing
 }
 
 func TestRemoteProfileService_EnsureConnectorID_GeneratesAndPersistsWhenMissing(t *testing.T) {
-	t.Setenv("LPBS_ENVIRONMENT", "development")
-	db := setupTestDB(t)
-	defer db.Close()
-
-	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
-		t.Fatalf("failed to clear remote_profiles: %v", err)
-	}
+	db, ctx := setupRemoteProfileTest(t)
 
 	svc := newRemoteProfileServiceForTest(db, nil)
-	ctx := context.Background()
 	profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
 		Tag:     "prod",
 		Label:   "Production",
@@ -1086,7 +1054,7 @@ func TestRemoteProfileService_EnsureConnectorID_GeneratesAndPersistsWhenMissing(
 		t.Fatalf("failed to clear connector id: %v", err)
 	}
 
-	connectorID, err := svc.ensureConnectorID(ctx, profile.ID, "")
+	connectorID, err := svc.EnsureConnectorID(ctx, profile.ID, "")
 	if err != nil {
 		t.Fatalf("ensureConnectorID returned error: %v", err)
 	}
@@ -1104,7 +1072,7 @@ func TestRemoteProfileService_EnsureConnectorID_GeneratesAndPersistsWhenMissing(
 }
 
 func TestRemoteProfileService_ProxyInvalidMethod(t *testing.T) {
-	svc := &RemoteProfileService{}
+	svc := &administration.RemoteProfileService{}
 	_, err := svc.Proxy(context.Background(), 1, RemoteProfileProxyRequest{
 		Method: "TRACE",
 		Path:   "/admin/download-storage",
@@ -1119,7 +1087,7 @@ func TestRemoteProfileService_ProxyInvalidMethod(t *testing.T) {
 }
 
 func TestRemoteProfileService_ProxyMissingMethod(t *testing.T) {
-	svc := &RemoteProfileService{}
+	svc := &administration.RemoteProfileService{}
 	_, err := svc.Proxy(context.Background(), 1, RemoteProfileProxyRequest{
 		Method: "",
 		Path:   "/admin/download-storage",
@@ -1133,201 +1101,120 @@ func TestRemoteProfileService_ProxyMissingMethod(t *testing.T) {
 	}
 }
 
-func TestRemoteProfileService_RemoteLoginHappyPath(t *testing.T) {
+func TestRemoteProfileService_RemoteLoginProtocolCases(t *testing.T) {
+	const (
+		loginPath   = "/landing_page_business_suite.v1.AdminAuthService/Login"
+		sessionPath = "/landing_page_business_suite.v1.AdminAuthService/Session"
+	)
 	fixedNow := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			switch req.URL.Path {
-			case "/api/v1/admin/login":
-				cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc", MaxAge: 3600}
-				body := `{"authenticated":true,"reset_enabled":true}`
-				return newHTTPResponse(http.StatusOK, body, []*http.Cookie{cookie}, "application/json"), nil
-			case "/api/v1/admin/session":
-				body := `{"authenticated":true,"reset_enabled":true}`
-				return newHTTPResponse(http.StatusOK, body, nil, "application/json"), nil
-			default:
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
+	tests := []struct {
+		name            string
+		loginBody       string
+		loginCookie     bool
+		sessionBody     string
+		wantSession     string
+		wantExpiry      bool
+		wantStatus      int
+		wantInvalidJSON bool
+	}{
+		{name: "happy path", loginBody: `{"authenticated":true,"reset_enabled":true}`, loginCookie: true, sessionBody: `{"authenticated":true,"reset_enabled":true}`, wantSession: "session-abc", wantExpiry: true},
+		{name: "missing cookie", loginBody: `{"authenticated":true,"reset_enabled":true}`, wantStatus: http.StatusBadGateway},
+		{name: "not authenticated", loginBody: `{"authenticated":false}`, loginCookie: true, wantStatus: http.StatusUnauthorized},
+		{name: "session verification rejected", loginBody: `{"authenticated":true}`, loginCookie: true, sessionBody: `{"authenticated":false}`, wantStatus: http.StatusUnauthorized},
+		{name: "invalid login JSON", loginBody: "{invalid", loginCookie: true, wantInvalidJSON: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := stubHTTPClient{do: func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case loginPath:
+					var cookies []*http.Cookie
+					if tc.loginCookie {
+						cookies = []*http.Cookie{{Name: remoteProfileCookieName, Value: "session-abc", MaxAge: 3600}}
+					}
+					return newHTTPResponse(http.StatusOK, tc.loginBody, cookies, "application/json"), nil
+				case sessionPath:
+					return newHTTPResponse(http.StatusOK, tc.sessionBody, nil, "application/json"), nil
+				default:
+					return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
+				}
+			}}
+			svc := &administration.RemoteProfileService{HTTPClient: client, Now: func() time.Time { return fixedNow }}
+			session, remoteSessionID, expiresAt, err := svc.RemoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", administration.RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
+			if tc.wantSession != "" {
+				if err != nil {
+					t.Fatalf("remote login returned error: %v", err)
+				}
+				if session != tc.wantSession || remoteSessionID != "" {
+					t.Fatalf("session=%q remoteSessionID=%q", session, remoteSessionID)
+				}
+				if tc.wantExpiry && (expiresAt == nil || !expiresAt.Equal(fixedNow.Add(time.Hour))) {
+					t.Fatalf("expiry=%v, want %v", expiresAt, fixedNow.Add(time.Hour))
+				}
+				return
 			}
-		},
-	}
-	svc := &RemoteProfileService{
-		httpClient: client,
-		now:        func() time.Time { return fixedNow },
-	}
-
-	session, remoteSessionID, expiresAt, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
-	if err != nil {
-		t.Fatalf("remoteLogin returned error: %v", err)
-	}
-	if session != "session-abc" {
-		t.Fatalf("expected session-abc, got %q", session)
-	}
-	if remoteSessionID != "" {
-		t.Fatalf("expected empty remote session id when not provided, got %q", remoteSessionID)
-	}
-	if expiresAt == nil || !expiresAt.Equal(fixedNow.Add(time.Hour)) {
-		t.Fatalf("expected expiry %v, got %v", fixedNow.Add(time.Hour), expiresAt)
+			if tc.wantInvalidJSON {
+				if err == nil {
+					t.Fatal("expected error for invalid login JSON")
+				}
+				return
+			}
+			var remoteErr *RemoteProfileError
+			if !errors.As(err, &remoteErr) || remoteErr.Status != tc.wantStatus {
+				t.Fatalf("remote error=%v, want RemoteProfileError status %d", err, tc.wantStatus)
+			}
+		})
 	}
 }
 
-func TestRemoteProfileService_RemoteLoginMissingCookie(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/login" {
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
+func TestRemoteProfileService_RemoteSessionCheckProtocolCases(t *testing.T) {
+	const sessionPath = "/landing_page_business_suite.v1.AdminAuthService/Session"
+	tests := []struct {
+		name            string
+		status          int
+		body            string
+		wantAuth        bool
+		wantStatus      int
+		wantErrorType   string
+		wantInvalidJSON bool
+	}{
+		{name: "unauthorized is unauthenticated", status: http.StatusUnauthorized, body: `{"authenticated":false}`},
+		{name: "server error maps to gateway error", status: http.StatusInternalServerError, body: `{"error":"boom"}`, wantStatus: http.StatusBadGateway, wantErrorType: ApiErrorTypeServerError},
+		{name: "invalid JSON is rejected", status: http.StatusOK, body: "{invalid", wantInvalidJSON: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := stubHTTPClient{do: func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path != sessionPath {
+					return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
+				}
+				return newHTTPResponse(tc.status, tc.body, nil, "application/json"), nil
+			}}
+			svc := &administration.RemoteProfileService{HTTPClient: client, Now: time.Now}
+			authenticated, err := svc.RemoteSessionCheck(context.Background(), "http://example.com/api/v1", "session-abc")
+			if tc.wantInvalidJSON {
+				if err == nil {
+					t.Fatal("expected error for invalid session JSON")
+				}
+				return
 			}
-			body := `{"authenticated":true,"reset_enabled":true}`
-			return newHTTPResponse(http.StatusOK, body, nil, "application/json"), nil
-		},
-	}
-	svc := &RemoteProfileService{
-		httpClient: client,
-		now:        time.Now,
-	}
-
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
-	var remoteErr *RemoteProfileError
-	if !errors.As(err, &remoteErr) {
-		t.Fatalf("expected RemoteProfileError, got %v", err)
-	}
-	if remoteErr.Status != http.StatusBadGateway {
-		t.Fatalf("expected status 502, got %d", remoteErr.Status)
-	}
-}
-
-func TestRemoteProfileService_RemoteLoginNotAuthenticated(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/login" {
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
+			if tc.wantStatus == 0 {
+				if err != nil || authenticated != tc.wantAuth {
+					t.Fatalf("authenticated=%v err=%v", authenticated, err)
+				}
+				return
 			}
-			cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc"}
-			body := `{"authenticated":false}`
-			return newHTTPResponse(http.StatusOK, body, []*http.Cookie{cookie}, "application/json"), nil
-		},
-	}
-	svc := &RemoteProfileService{httpClient: client, now: time.Now}
-
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
-	var remoteErr *RemoteProfileError
-	if !errors.As(err, &remoteErr) {
-		t.Fatalf("expected RemoteProfileError, got %v", err)
-	}
-	if remoteErr.Status != http.StatusUnauthorized {
-		t.Fatalf("expected status 401, got %d", remoteErr.Status)
-	}
-}
-
-func TestRemoteProfileService_RemoteLoginSessionVerificationFails(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			switch req.URL.Path {
-			case "/api/v1/admin/login":
-				cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc"}
-				body := `{"authenticated":true}`
-				return newHTTPResponse(http.StatusOK, body, []*http.Cookie{cookie}, "application/json"), nil
-			case "/api/v1/admin/session":
-				body := `{"authenticated":false}`
-				return newHTTPResponse(http.StatusOK, body, nil, "application/json"), nil
-			default:
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
+			var remoteErr *RemoteProfileError
+			if !errors.As(err, &remoteErr) || remoteErr.Status != tc.wantStatus || remoteErr.ErrorType != tc.wantErrorType {
+				t.Fatalf("remote error=%v, want status=%d type=%q", err, tc.wantStatus, tc.wantErrorType)
 			}
-		},
-	}
-	svc := &RemoteProfileService{httpClient: client, now: time.Now}
-
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
-	var remoteErr *RemoteProfileError
-	if !errors.As(err, &remoteErr) {
-		t.Fatalf("expected RemoteProfileError, got %v", err)
-	}
-	if remoteErr.Status != http.StatusUnauthorized {
-		t.Fatalf("expected status 401, got %d", remoteErr.Status)
-	}
-}
-
-func TestRemoteProfileService_RemoteLoginInvalidJSON(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/login" {
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
-			}
-			cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc"}
-			return newHTTPResponse(http.StatusOK, "{invalid", []*http.Cookie{cookie}, "application/json"), nil
-		},
-	}
-	svc := &RemoteProfileService{httpClient: client, now: time.Now}
-
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
-	if err == nil {
-		t.Fatalf("expected error for invalid JSON")
-	}
-}
-
-func TestRemoteProfileService_RemoteSessionCheckUnauthorized(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/session" {
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
-			}
-			return newHTTPResponse(http.StatusUnauthorized, `{"authenticated":false}`, nil, "application/json"), nil
-		},
-	}
-	svc := &RemoteProfileService{httpClient: client, now: time.Now}
-
-	authenticated, err := svc.remoteSessionCheck(context.Background(), "http://example.com/api/v1", "session-abc")
-	if err != nil {
-		t.Fatalf("remoteSessionCheck returned error: %v", err)
-	}
-	if authenticated {
-		t.Fatalf("expected authenticated=false")
-	}
-}
-
-func TestRemoteProfileService_RemoteSessionCheckServerError(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/session" {
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
-			}
-			return newHTTPResponse(http.StatusInternalServerError, `{"error":"boom"}`, nil, "application/json"), nil
-		},
-	}
-	svc := &RemoteProfileService{httpClient: client, now: time.Now}
-
-	_, err := svc.remoteSessionCheck(context.Background(), "http://example.com/api/v1", "session-abc")
-	var remoteErr *RemoteProfileError
-	if !errors.As(err, &remoteErr) {
-		t.Fatalf("expected RemoteProfileError, got %v", err)
-	}
-	if remoteErr.Status != http.StatusBadGateway {
-		t.Fatalf("expected status 502, got %d", remoteErr.Status)
-	}
-	if remoteErr.ErrorType != ApiErrorTypeServerError {
-		t.Fatalf("expected server_error, got %s", remoteErr.ErrorType)
-	}
-}
-
-func TestRemoteProfileService_RemoteSessionCheckInvalidJSON(t *testing.T) {
-	client := stubHTTPClient{
-		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/session" {
-				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
-			}
-			return newHTTPResponse(http.StatusOK, "{invalid", nil, "application/json"), nil
-		},
-	}
-	svc := &RemoteProfileService{httpClient: client, now: time.Now}
-
-	_, err := svc.remoteSessionCheck(context.Background(), "http://example.com/api/v1", "session-abc")
-	if err == nil {
-		t.Fatalf("expected error for invalid JSON")
+		})
 	}
 }
 
 func TestBuildRemoteURL(t *testing.T) {
-	svc := &RemoteProfileService{}
-	urlValue, err := svc.buildRemoteURL("https://example.com/api/v1", "/admin/download-storage", map[string]string{
+	svc := &administration.RemoteProfileService{}
+	urlValue, err := svc.BuildRemoteURL("https://example.com/api/v1", "/admin/download-storage", map[string]string{
 		"platform": "windows",
 		"":         "ignored",
 	})
@@ -1342,44 +1229,39 @@ func TestBuildRemoteURL(t *testing.T) {
 	}
 }
 
-func TestRemoteProfileRecord_ToProfile_ExpiredSession(t *testing.T) {
+func TestRemoteProfileService_GetByIDMapsSessionExpiry(t *testing.T) {
+	db, ctx := setupRemoteProfileTest(t)
 	now := time.Date(2025, 2, 1, 8, 0, 0, 0, time.UTC)
-	rec := &remoteProfileRecord{
-		ID:               1,
-		Tag:              "prod",
-		APIBase:          "https://example.com/api/v1",
-		Status:           remoteProfileStatusActive,
-		EncryptedSession: sql.NullString{Valid: true, String: "session"},
-		SessionExpiresAt: sql.NullTime{Valid: true, Time: now.Add(-1 * time.Hour)},
-		CreatedAt:        now.Add(-2 * time.Hour),
-		UpdatedAt:        now.Add(-2 * time.Hour),
-	}
+	svc := newRemoteProfileServiceForTest(db, nil)
+	svc.Now = func() time.Time { return now }
 
-	profile := rec.toProfile(now)
-	if profile.Status != remoteProfileStatusExpired {
-		t.Fatalf("expected status expired, got %s", profile.Status)
-	}
-	if !profile.HasSession {
-		t.Fatalf("expected HasSession true when encrypted session present")
-	}
-}
+	for _, tc := range []struct {
+		name      string
+		expiresAt time.Time
+		want      string
+	}{
+		{name: "expired", expiresAt: now.Add(-time.Hour), want: remoteProfileStatusExpired},
+		{name: "active", expiresAt: now.Add(time.Hour), want: remoteProfileStatusActive},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			profile, err := svc.Create(ctx, RemoteProfileCreateRequest{
+				Tag: tc.name, Label: tc.name, APIBase: "https://example.com/api/v1",
+			}, defaultAdminEmail)
+			if err != nil {
+				t.Fatalf("Create returned error: %v", err)
+			}
+			if err := svc.SetSession(ctx, profile.ID, "session", "", &tc.expiresAt); err != nil {
+				t.Fatalf("SetSession returned error: %v", err)
+			}
 
-func TestRemoteProfileRecord_ToProfile_NotExpired(t *testing.T) {
-	now := time.Date(2025, 2, 1, 8, 0, 0, 0, time.UTC)
-	rec := &remoteProfileRecord{
-		ID:               2,
-		Tag:              "staging",
-		APIBase:          "https://example.com/api/v1",
-		Status:           remoteProfileStatusActive,
-		EncryptedSession: sql.NullString{Valid: true, String: "session"},
-		SessionExpiresAt: sql.NullTime{Valid: true, Time: now.Add(1 * time.Hour)},
-		CreatedAt:        now.Add(-2 * time.Hour),
-		UpdatedAt:        now.Add(-2 * time.Hour),
-	}
-
-	profile := rec.toProfile(now)
-	if profile.Status != remoteProfileStatusActive {
-		t.Fatalf("expected status active, got %s", profile.Status)
+			got, err := svc.GetByID(ctx, profile.ID)
+			if err != nil {
+				t.Fatalf("GetByID returned error: %v", err)
+			}
+			if got.Status != tc.want || !got.HasSession {
+				t.Fatalf("GetByID = status %q, has session %v; want %q and session", got.Status, got.HasSession, tc.want)
+			}
+		})
 	}
 }
 
@@ -1458,8 +1340,41 @@ func TestIsAllowedRemoteProxyPath(t *testing.T) {
 	if !isAllowedRemoteProxyPath("/admin/download-storage/subpath") {
 		t.Fatalf("expected allowlisted prefix")
 	}
+	for _, path := range []string{
+		"/admin/download-channels/head",
+		"/admin/download-channels/promote",
+		"/admin/download-channels/halt",
+		"/admin/download-channels/recover",
+	} {
+		if !isAllowedRemoteProxyPath(path) {
+			t.Fatalf("expected channel path %q to be allowlisted for release promotion", path)
+		}
+	}
+	for _, path := range []string{
+		"/admin/mfa/reset",
+		"/admin/admin-credentials/reset",
+	} {
+		if !isAllowedRemoteProxyPath(path) {
+			t.Fatalf("expected operator recovery path %q to be allowlisted", path)
+		}
+	}
+	if isAllowedRemoteProxyPath("/admin/admin-credentials") {
+		t.Fatalf("expected the recovery parent path to remain disallowed")
+	}
 	if isAllowedRemoteProxyPath("/admin/users") {
 		t.Fatalf("expected disallowed path")
+	}
+	if isAllowedRemoteProxyPath("/admin/download-channels-evil") {
+		t.Fatalf("expected sibling path to remain disallowed")
+	}
+	if !administration.IsAllowedRemoteProxyRequest(http.MethodPost, "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys") {
+		t.Fatalf("expected API-key Connect procedure to be allowed")
+	}
+	if administration.IsAllowedRemoteProxyRequest(http.MethodGet, "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys") {
+		t.Fatalf("expected API-key Connect procedure to require POST")
+	}
+	if isAllowedRemoteProxyPath("/landing_page_business_suite.v1.AdministrationService/RevealSecret") {
+		t.Fatalf("expected unknown Connect procedure to remain disallowed")
 	}
 }
 
@@ -1488,9 +1403,9 @@ func TestDoJSONRequestSetsHeadersAndCookies(t *testing.T) {
 			return newHTTPResponse(http.StatusOK, `{}`, nil, "application/json"), nil
 		},
 	}
-	svc := &RemoteProfileService{httpClient: client}
+	svc := &administration.RemoteProfileService{HTTPClient: client}
 
-	_, _, err := svc.doJSONRequest(context.Background(), http.MethodPost, "http://example.com/api/v1/admin/login",
+	_, _, err := svc.DoJSONRequest(context.Background(), http.MethodPost, "http://example.com/api/v1/admin/login",
 		[]byte(`{"email":"admin@example.com"}`), []*http.Cookie{{Name: remoteProfileCookieName, Value: "session-xyz"}})
 	if err != nil {
 		t.Fatalf("doJSONRequest returned error: %v", err)

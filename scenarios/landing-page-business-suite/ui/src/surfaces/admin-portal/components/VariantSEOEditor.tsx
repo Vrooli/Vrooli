@@ -1,7 +1,7 @@
 import { Save, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import type { SiteBranding } from '../../../shared/api';
 import { useVariantSEOEditor } from '../hooks/useVariantSEOEditor';
@@ -59,7 +59,7 @@ export function VariantSEOEditor({
               Saved
             </div>
           )}
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={() => { void handleSave(); }} disabled={saving} className="gap-2">
             <Save className="h-4 w-4" />
             {saving ? 'Saving...' : 'Save SEO'}
           </Button>
@@ -84,7 +84,7 @@ export function VariantSEOEditor({
             <input
               type="text"
               value={seoConfig.title || ''}
-              onChange={(e) => updateField('title', e.target.value || undefined)}
+              onChange={(e) => { updateField('title', e.target.value || undefined); }}
               placeholder={siteBranding?.default_title || 'Use site default'}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -100,7 +100,7 @@ export function VariantSEOEditor({
             </label>
             <Textarea
               value={seoConfig.description || ''}
-              onChange={(e) => updateField('description', e.target.value || undefined)}
+              onChange={(e) => { updateField('description', e.target.value || undefined); }}
               placeholder={siteBranding?.default_description || 'Use site default'}
               rows={3}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -118,7 +118,7 @@ export function VariantSEOEditor({
             <input
               type="text"
               value={seoConfig.og_title || ''}
-              onChange={(e) => updateField('og_title', e.target.value || undefined)}
+              onChange={(e) => { updateField('og_title', e.target.value || undefined); }}
               placeholder="Same as page title"
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -131,7 +131,7 @@ export function VariantSEOEditor({
             </label>
             <Textarea
               value={seoConfig.og_description || ''}
-              onChange={(e) => updateField('og_description', e.target.value || undefined)}
+              onChange={(e) => { updateField('og_description', e.target.value || undefined); }}
               placeholder="Same as meta description"
               rows={2}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -145,7 +145,7 @@ export function VariantSEOEditor({
             </label>
             <ImageUploader
               value={seoConfig.og_image_url}
-              onChange={(url) => updateField('og_image_url', url || undefined)}
+              onChange={(url) => { updateField('og_image_url', url || undefined); }}
               category="og_image"
               placeholder={siteBranding?.default_og_image_url || 'No image set'}
               uploadLabel="Upload OG Image"
@@ -163,7 +163,7 @@ export function VariantSEOEditor({
             </label>
             <select
               value={seoConfig.twitter_card || 'summary_large_image'}
-              onChange={(e) => updateField('twitter_card', e.target.value as 'summary' | 'summary_large_image')}
+              onChange={(e) => { updateField('twitter_card', e.target.value as 'summary' | 'summary_large_image'); }}
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value="summary_large_image">Large Image Card</option>
@@ -179,7 +179,7 @@ export function VariantSEOEditor({
             <input
               type="text"
               value={seoConfig.canonical_path || ''}
-              onChange={(e) => updateField('canonical_path', e.target.value || undefined)}
+              onChange={(e) => { updateField('canonical_path', e.target.value || undefined); }}
               placeholder="/"
               className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
@@ -194,7 +194,7 @@ export function VariantSEOEditor({
               type="checkbox"
               id="noindex"
               checked={seoConfig.noindex || false}
-              onChange={(e) => updateField('noindex', e.target.checked)}
+              onChange={(e) => { updateField('noindex', e.target.checked); }}
               className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
             />
             <label htmlFor="noindex" className="text-sm text-slate-300">

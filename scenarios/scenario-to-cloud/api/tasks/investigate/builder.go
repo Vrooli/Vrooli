@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // BuildPromptAndContext generates the investigation prompt and context attachments.
@@ -99,81 +99,10 @@ func buildBasePrompt(input shared.TaskInput) string {
 func buildAttachments(input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
 	var attachments []*domainpb.ContextAttachment
 
-	vps := input.Manifest.Target.VPS
-	sshUser, sshPort := shared.GetSSHDetails(vps)
-
-	// Task Metadata (high priority)
-	if shared.ContainsContext(includeContexts, "task-metadata") {
-		mode := fmt.Sprintf("investigate:%s", input.Request.Effort)
-		attachments = append(attachments, shared.BuildTaskMetadataAttachment(input.Deployment, input.Manifest, mode))
-	}
-
-	// Error Information (high priority)
-	if shared.ContainsContext(includeContexts, "error-info") {
-		if att := shared.BuildErrorInfoAttachment(input.Deployment); att != nil {
-			attachments = append(attachments, att)
-		}
-	}
-
-	// Safety Rules (high priority)
-	if shared.ContainsContext(includeContexts, "safety-rules") {
-		attachments = append(attachments, shared.BuildSafetyRulesAttachment())
-	}
-
-	// Diagnostic Checklist (medium priority, only for logs/trace effort)
-	if shared.ContainsContext(includeContexts, "diagnostic-checklist") {
-		if input.Request.Effort == domain.EffortLogs || input.Request.Effort == domain.EffortTrace {
-			attachments = append(attachments, shared.BuildDiagnosticChecklistAttachment())
-		}
-	}
-
-	// Output Format (medium priority)
-	if shared.ContainsContext(includeContexts, "output-format") {
-		attachments = append(attachments, shared.BuildOutputFormatAttachment(false))
-	}
-
-	// VPS Connection (medium priority)
-	if shared.ContainsContext(includeContexts, "vps-connection") {
-		attachments = append(attachments, shared.BuildVPSConnectionAttachment(vps, sshUser, sshPort, input.Manifest))
-	}
-
-	// Deployment Manifest (medium priority)
-	if shared.ContainsContext(includeContexts, "deployment-manifest") {
-		attachments = append(attachments, shared.BuildManifestAttachment(input.Manifest))
-	}
-
-	// Deploy Results (medium priority)
-	if shared.ContainsContext(includeContexts, "deploy-results") && input.Deployment.DeployResult.Valid {
-		attachments = append(attachments, shared.BuildDeployResultsAttachment(input.Deployment))
-	}
-
-	// Deployment History (low priority)
-	if shared.ContainsContext(includeContexts, "deployment-history") {
-		if att := shared.BuildDeploymentHistoryAttachment(input.Deployment); att != nil {
-			attachments = append(attachments, att)
-		}
-	}
-
-	// Preflight Results (low priority)
-	if shared.ContainsContext(includeContexts, "preflight-results") {
-		if att := shared.BuildPreflightResultsAttachment(input.Deployment); att != nil {
-			attachments = append(attachments, att)
-		}
-	}
-
-	// Setup Results (low priority)
-	if shared.ContainsContext(includeContexts, "setup-results") {
-		if att := shared.BuildSetupResultsAttachment(input.Deployment); att != nil {
-			attachments = append(attachments, att)
-		}
-	}
-
-	// Architecture Guide (low priority, only for trace effort)
-	if shared.ContainsContext(includeContexts, "architecture-guide") {
-		if input.Request.Effort == domain.EffortTrace {
-			attachments = append(attachments, shared.BuildArchitectureGuideAttachment())
-		}
-	}
+	attachments = append(attachments, buildCoreAttachments(input, includeContexts)...)
+	attachments = append(attachments, buildDiagnosticAttachments(input, includeContexts)...)
+	attachments = append(attachments, buildResultAttachments(input, includeContexts)...)
+	attachments = append(attachments, buildTraceAttachments(input, includeContexts)...)
 
 	// Focus-specific attachments
 	attachments = append(attachments, buildFocusAttachments(input)...)
@@ -186,6 +115,72 @@ func buildAttachments(input shared.TaskInput, includeContexts []string) []*domai
 	}
 
 	return attachments
+}
+
+func buildCoreAttachments(input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
+	var attachments []*domainpb.ContextAttachment
+	if shared.ContainsContext(includeContexts, "task-metadata") {
+		mode := fmt.Sprintf("investigate:%s", input.Request.Effort)
+		attachments = append(attachments, shared.BuildTaskMetadataAttachment(input.Deployment, input.Manifest, mode))
+	}
+	if shared.ContainsContext(includeContexts, "error-info") {
+		if att := shared.BuildErrorInfoAttachment(input.Deployment); att != nil {
+			attachments = append(attachments, att)
+		}
+	}
+	if shared.ContainsContext(includeContexts, "safety-rules") {
+		attachments = append(attachments, shared.BuildSafetyRulesAttachment())
+	}
+	return attachments
+}
+
+func buildDiagnosticAttachments(input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
+	var attachments []*domainpb.ContextAttachment
+	if shared.ContainsContext(includeContexts, "diagnostic-checklist") && (input.Request.Effort == domain.EffortLogs || input.Request.Effort == domain.EffortTrace) {
+		attachments = append(attachments, shared.BuildDiagnosticChecklistAttachment())
+	}
+	if shared.ContainsContext(includeContexts, "output-format") {
+		attachments = append(attachments, shared.BuildOutputFormatAttachment(false))
+	}
+	if shared.ContainsContext(includeContexts, "vps-connection") {
+		vps := input.Manifest.Target.VPS
+		sshUser, sshPort := shared.GetSSHDetails(vps)
+		attachments = append(attachments, shared.BuildVPSConnectionAttachment(vps, sshUser, sshPort, input.Manifest))
+	}
+	if shared.ContainsContext(includeContexts, "deployment-manifest") {
+		attachments = append(attachments, shared.BuildManifestAttachment(input.Manifest))
+	}
+	return attachments
+}
+
+func buildResultAttachments(input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
+	var attachments []*domainpb.ContextAttachment
+	if shared.ContainsContext(includeContexts, "deploy-results") && input.Deployment.DeployResult.Valid {
+		attachments = append(attachments, shared.BuildDeployResultsAttachment(input.Deployment))
+	}
+	if shared.ContainsContext(includeContexts, "deployment-history") {
+		if att := shared.BuildDeploymentHistoryAttachment(input.Deployment); att != nil {
+			attachments = append(attachments, att)
+		}
+	}
+	if shared.ContainsContext(includeContexts, "preflight-results") {
+		if att := shared.BuildPreflightResultsAttachment(input.Deployment); att != nil {
+			attachments = append(attachments, att)
+		}
+	}
+	if shared.ContainsContext(includeContexts, "setup-results") {
+		if att := shared.BuildSetupResultsAttachment(input.Deployment); att != nil {
+			attachments = append(attachments, att)
+		}
+	}
+	return attachments
+}
+
+func buildTraceAttachments(input shared.TaskInput, includeContexts []string) []*domainpb.ContextAttachment {
+	if shared.ContainsContext(includeContexts, "architecture-guide") && input.Request.Effort == domain.EffortTrace {
+		return []*domainpb.ContextAttachment{shared.BuildArchitectureGuideAttachment()}
+	}
+	return nil
 }
 
 // buildFocusAttachments adds focus-specific context attachments.
@@ -215,7 +210,7 @@ When investigating the deployment harness (scenario-to-cloud), examine:
    - Health check execution
 
 2. Key Paths
-   - ~/Vrooli/scenarios/scenario-to-cloud/
+   - scenario-to-cloud scenario root in the deployed workdir
    - Deployment manifest generation
    - VPS setup scripts
 
@@ -254,8 +249,8 @@ When investigating the target scenario (%s), examine:
    - Environment configuration
 
 2. Key Paths
-   - ~/Vrooli/scenarios/%s/
-   - .vrooli/service.json
+   - Target scenario root for %s in the deployed workdir
+   - The target scenario's .vrooli/service.json
    - Application entry points
 
 3. Common Subject Issues

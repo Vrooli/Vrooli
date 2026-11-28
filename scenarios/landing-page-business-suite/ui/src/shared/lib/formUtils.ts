@@ -24,10 +24,10 @@ export function isFormDirty<T>(current: T, original: T): boolean {
  * @param normalizer - Function to normalize form values before comparison
  * @returns True if the normalized forms differ
  */
-export function isFormDirtyNormalized<T, N>(
+export function isFormDirtyNormalized<T>(
   current: T,
   original: T,
-  normalizer: (form: T) => N
+  normalizer: (form: T) => unknown
 ): boolean {
   return JSON.stringify(normalizer(current)) !== JSON.stringify(normalizer(original));
 }

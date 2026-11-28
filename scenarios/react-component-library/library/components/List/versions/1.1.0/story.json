@@ -1,0 +1,173 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Activity list",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContent",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "A descriptive activity"
+        }
+      ],
+      "id": "long-content",
+      "mode": "live",
+      "name": "Long content",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty collection",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PlainEvidence",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Unreadable file evidence",
+          "role": "list"
+        },
+        {
+          "kind": "text",
+          "value": "Permission denied"
+        },
+        {
+          "attribute": "data-variant",
+          "kind": "attribute",
+          "selector": "[data-rcl-list]",
+          "value": "plain"
+        }
+      ],
+      "id": "plain-evidence",
+      "mode": "live",
+      "name": "Compact evidence",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "items": [
+          {
+            "id": "deploy",
+            "label": "Deploy completed"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "id": "one",
+      "mode": "pinned",
+      "name": "One list item",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "items": [
+          {
+            "id": "one",
+            "label": "Deploy completed"
+          },
+          {
+            "id": "two",
+            "label": "Review queued"
+          },
+          {
+            "id": "three",
+            "label": "Evidence captured"
+          },
+          {
+            "id": "four",
+            "label": "Release published"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "id": "many",
+      "mode": "pinned",
+      "name": "Many list items",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "items": [
+          {
+            "id": "long",
+            "label": "A deliberately long list item label that must wrap without clipping"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long list item",
+      "role": "boundary"
+    }
+  ],
+  "title": "List"
+}

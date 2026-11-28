@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -19,11 +20,12 @@ func TestRun_CheckRunSandboxInvariant(t *testing.T) {
 
 	sandboxID := uuid.New()
 
-	tests := []struct {
+	type testCase struct {
 		name string
 		run  *Run
 		want bool
-	}{
+	}
+	tests := []testCase{
 		{
 			name: "in_place mode - no sandbox required",
 			run: &Run{
@@ -33,47 +35,37 @@ func TestRun_CheckRunSandboxInvariant(t *testing.T) {
 			},
 			want: true,
 		},
-		{
-			name: "sandboxed mode - before sandbox creation",
-			run: &Run{
-				ID:        uuid.New(),
-				RunMode:   RunModeSandboxed,
-				Phase:     RunPhaseQueued,
-				SandboxID: nil,
-			},
-			want: true,
-		},
-		{
-			name: "sandboxed mode - during sandbox creation",
-			run: &Run{
-				ID:        uuid.New(),
-				RunMode:   RunModeSandboxed,
-				Phase:     RunPhaseSandboxCreating,
-				SandboxID: nil,
-			},
-			want: true,
-		},
-		{
-			name: "sandboxed mode - after sandbox creation with ID",
-			run: &Run{
-				ID:        uuid.New(),
-				RunMode:   RunModeSandboxed,
-				Phase:     RunPhaseExecuting,
-				SandboxID: &sandboxID,
-			},
-			want: true,
-		},
-		{
-			name: "sandboxed mode - after sandbox creation without ID (violation)",
-			run: &Run{
-				ID:        uuid.New(),
-				RunMode:   RunModeSandboxed,
-				Phase:     RunPhaseExecuting,
-				SandboxID: nil,
-			},
-			want: false,
-		},
 	}
+
+	// A missing sandbox is permitted through sandbox_creating and required at
+	// every later phase. Listing the declared order makes an off-by-one
+	// threshold change visible at runner_acquiring as well as executing.
+	for _, phaseCase := range []struct {
+		phase RunPhase
+		want  bool
+	}{
+		{RunPhaseQueued, true},
+		{RunPhaseInitializing, true},
+		{RunPhaseSandboxCreating, true},
+		{RunPhaseRunnerAcquiring, false},
+		{RunPhaseExecuting, false},
+		{RunPhaseCollectingResults, false},
+		{RunPhaseAwaitingReview, false},
+		{RunPhaseApplying, false},
+		{RunPhaseCleaningUp, false},
+		{RunPhaseCompleted, false},
+	} {
+		tests = append(tests, testCase{
+			name: "sandboxed mode - missing sandbox at " + string(phaseCase.phase),
+			run:  &Run{ID: uuid.New(), RunMode: RunModeSandboxed, Phase: phaseCase.phase},
+			want: phaseCase.want,
+		})
+	}
+	tests = append(tests, testCase{
+		name: "sandboxed mode - after sandbox creation with ID",
+		run:  &Run{ID: uuid.New(), RunMode: RunModeSandboxed, Phase: RunPhaseExecuting, SandboxID: &sandboxID},
+		want: true,
+	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -174,10 +166,10 @@ func TestRun_CheckTerminalTransition(t *testing.T) {
 	}{
 		{"pending to running - valid", RunStatusPending, RunStatusRunning, true},
 		{"running to complete - valid", RunStatusRunning, RunStatusComplete, true},
-		{"complete to running - invalid", RunStatusComplete, RunStatusRunning, false},
+		{"complete to running - explicit continuation", RunStatusComplete, RunStatusRunning, true},
 		{"failed to pending - invalid", RunStatusFailed, RunStatusPending, false},
-		{"cancelled to running - invalid", RunStatusCancelled, RunStatusRunning, false},
-		{"complete to failed - valid (terminal to terminal)", RunStatusComplete, RunStatusFailed, true},
+		{"cancelled to running - explicit continuation", RunStatusCancelled, RunStatusRunning, true},
+		{"complete to failed - invalid terminal rewrite", RunStatusComplete, RunStatusFailed, false},
 	}
 
 	for _, tt := range tests {
@@ -564,10 +556,7 @@ func TestTask_AssertCanCancel(t *testing.T) {
 // =============================================================================
 
 func TestRun_GetLifecycleState(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   LifecycleState
-	}{
+	cases := []enumPolicyCase[RunStatus, LifecycleState]{
 		{RunStatusPending, LifecycleStateNew},
 		{RunStatusStarting, LifecycleStateActive},
 		{RunStatusRunning, LifecycleStateActive},
@@ -576,22 +565,11 @@ func TestRun_GetLifecycleState(t *testing.T) {
 		{RunStatusFailed, LifecycleStateFinished},
 		{RunStatusCancelled, LifecycleStateFinished},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			run := &Run{Status: tt.status}
-			if got := run.GetLifecycleState(); got != tt.want {
-				t.Errorf("GetLifecycleState() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) LifecycleState { return (&Run{Status: value}).GetLifecycleState() })
 }
 
 func TestRun_CanReceiveEvents(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[RunStatus, bool]{
 		{RunStatusPending, false},
 		{RunStatusStarting, true},
 		{RunStatusRunning, true},
@@ -599,37 +577,18 @@ func TestRun_CanReceiveEvents(t *testing.T) {
 		{RunStatusComplete, false},
 		{RunStatusFailed, false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			run := &Run{Status: tt.status}
-			if got := run.CanReceiveEvents(); got != tt.want {
-				t.Errorf("CanReceiveEvents() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) bool { return (&Run{Status: value}).CanReceiveEvents() })
 }
 
 func TestRun_CanReceiveHeartbeats(t *testing.T) {
-	tests := []struct {
-		status RunStatus
-		want   bool
-	}{
+	cases := []enumPolicyCase[RunStatus, bool]{
 		{RunStatusPending, false},
 		{RunStatusStarting, true},
 		{RunStatusRunning, true},
 		{RunStatusNeedsReview, false},
 		{RunStatusComplete, false},
 	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.status), func(t *testing.T) {
-			run := &Run{Status: tt.status}
-			if got := run.CanReceiveHeartbeats(); got != tt.want {
-				t.Errorf("CanReceiveHeartbeats() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	assertEnumPolicy(t, cases, func(value RunStatus) bool { return (&Run{Status: value}).CanReceiveHeartbeats() })
 }
 
 // =============================================================================
@@ -661,31 +620,6 @@ func TestClassifyScopeConflict(t *testing.T) {
 // =============================================================================
 // PHASE ORDINAL TESTS
 // =============================================================================
-
-func TestPhaseOrdinal(t *testing.T) {
-	// Verify phases are in strictly increasing order
-	phases := []RunPhase{
-		RunPhaseQueued,
-		RunPhaseInitializing,
-		RunPhaseSandboxCreating,
-		RunPhaseRunnerAcquiring,
-		RunPhaseExecuting,
-		RunPhaseCollectingResults,
-		RunPhaseAwaitingReview,
-		RunPhaseApplying,
-		RunPhaseCleaningUp,
-		RunPhaseCompleted,
-	}
-
-	for i := 0; i < len(phases)-1; i++ {
-		current := phaseOrdinal(phases[i])
-		next := phaseOrdinal(phases[i+1])
-		if current >= next {
-			t.Errorf("phase %s (ord=%d) should be < phase %s (ord=%d)",
-				phases[i], current, phases[i+1], next)
-		}
-	}
-}
 
 // =============================================================================
 // INVARIANT MODE TESTS
@@ -751,9 +685,9 @@ func TestTask_CheckTerminalTransition(t *testing.T) {
 		{"running to needs_review - valid", TaskStatusRunning, TaskStatusNeedsReview, true},
 		{"approved to running - invalid (terminal)", TaskStatusApproved, TaskStatusRunning, false},
 		{"rejected to queued - invalid (terminal)", TaskStatusRejected, TaskStatusQueued, false},
-		{"failed to running - invalid (terminal)", TaskStatusFailed, TaskStatusRunning, false},
+		{"failed to running - valid new attempt", TaskStatusFailed, TaskStatusRunning, true},
 		{"cancelled to running - invalid (terminal)", TaskStatusCancelled, TaskStatusRunning, false},
-		{"approved to failed - valid (terminal to terminal)", TaskStatusApproved, TaskStatusFailed, true},
+		{"approved to failed - invalid (failed can be retried)", TaskStatusApproved, TaskStatusFailed, false},
 	}
 
 	for _, tt := range tests {
@@ -847,42 +781,16 @@ func TestInvariantViolationError(t *testing.T) {
 	if errString == "" {
 		t.Error("Error() returned empty string")
 	}
-	if !contains(errString, "INV_TEST") {
+	if !strings.Contains(errString, "INV_TEST") {
 		t.Error("Error() should contain invariant name")
 	}
-	if !contains(errString, "Run") {
+	if !strings.Contains(errString, "Run") {
 		t.Error("Error() should contain entity type")
 	}
-	if !contains(errString, "abc-123") {
+	if !strings.Contains(errString, "abc-123") {
 		t.Error("Error() should contain entity ID")
 	}
-	if !contains(errString, "test description") {
+	if !strings.Contains(errString, "test description") {
 		t.Error("Error() should contain description")
-	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-// =============================================================================
-// PHASE ORDINAL EDGE CASE TESTS
-// =============================================================================
-
-func TestPhaseOrdinal_UnknownPhase(t *testing.T) {
-	// Test that unknown phase returns 0
-	unknownPhase := RunPhase("unknown_phase")
-	if got := phaseOrdinal(unknownPhase); got != 0 {
-		t.Errorf("phaseOrdinal(unknown) = %d, want 0", got)
 	}
 }

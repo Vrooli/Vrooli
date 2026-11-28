@@ -1,0 +1,3 @@
+// This minimal process-independent bootstrap is serialized into Electron's
+// browser-process snapshot and confirms that the custom snapshot was loaded.
+globalThis.__VROOLI_STARTUP_SNAPSHOT_READY__ = true;

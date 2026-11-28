@@ -2,7 +2,9 @@
 // Test Execution & Tidiness Manager — Types + API Functions
 // ============================================================================
 
-import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
+import { create } from "@bufbuild/protobuf";
+import { GetScenarioDetailRequestSchema, GetScoreRequestSchema, GetStalenessRequestSchema, ListIssuesRequestSchema, TriggerLightScanRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/tidiness/tidiness_pb";
+import { tidinessClient } from "./connect";
 
 // ── Test Execution Types ───────────────────────────────────────────────
 
@@ -55,47 +57,6 @@ export interface TestObservation {
 export interface TestExecutionListResponse {
   items: TestExecutionResult[];
   count: number;
-}
-
-// ── Test Execution API Functions ───────────────────────────────────────
-
-export async function triggerTestExecution(
-  request: TestExecutionRequest,
-  repoId?: string
-): Promise<TestExecutionResult> {
-  const url = buildApiUrl("/repo/test-execution", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildRepoHeaders(repoId),
-    body: JSON.stringify(request),
-  });
-  return handleResponse<TestExecutionResult>(res);
-}
-
-export async function fetchTestExecutions(
-  scenarioName: string,
-  limit = 10,
-  repoId?: string
-): Promise<TestExecutionListResponse> {
-  const params = new URLSearchParams({ scenarioName, limit: String(limit) });
-  const url = buildApiUrl(`/repo/test-executions?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TestExecutionListResponse>(res);
-}
-
-export async function fetchTestExecution(
-  id: string,
-  repoId?: string
-): Promise<TestExecutionResult> {
-  const url = buildApiUrl(`/repo/test-executions/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TestExecutionResult>(res);
 }
 
 // ── Tidiness Manager Types ─────────────────────────────────────────────
@@ -202,15 +163,26 @@ export interface TidinessScenarioDetail {
 
 export async function fetchTidinessScore(
   scenarioName: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessScoreResponse> {
-  const params = new URLSearchParams({ scenarioName });
-  const url = buildApiUrl(`/repo/tidiness-score?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TidinessScoreResponse>(res);
+  const response = await tidinessClient.getScore(create(GetScoreRequestSchema, { scenarioName, repositoryId: repoId ?? "" }), { signal });
+  return {
+    scenario: response.scenario,
+    score: response.score,
+    violations: response.violations,
+    last_scan: response.lastScan || undefined,
+    breakdown: response.breakdown ? {
+      lint_issues: response.breakdown.lintIssues, type_issues: response.breakdown.typeIssues,
+      long_files: response.breakdown.longFiles, complex_functions: response.breakdown.complexFunctions,
+      tech_debt_markers: response.breakdown.techDebtMarkers, duplication_issues: response.breakdown.duplicationIssues,
+    } : undefined,
+    metrics: response.metrics ? {
+      total_files: response.metrics.totalFiles, total_lines: response.metrics.totalLines,
+      avg_file_length: response.metrics.avgFileLength, max_complexity: response.metrics.maxComplexity,
+      avg_complexity: response.metrics.avgComplexity, duplication_pct: response.metrics.duplicationPct,
+    } : undefined,
+  };
 }
 
 export async function fetchTidinessIssues(
@@ -219,56 +191,62 @@ export async function fetchTidinessIssues(
   category?: string,
   severity?: string,
   limit?: number,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessIssue[]> {
-  const params = new URLSearchParams({ scenarioName });
-  if (file) params.set("file", file);
-  if (category) params.set("category", category);
-  if (severity) params.set("severity", severity);
-  if (limit) params.set("limit", String(limit));
-  const url = buildApiUrl(`/repo/tidiness-issues?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TidinessIssue[]>(res);
+  const response = await tidinessClient.listIssues(create(ListIssuesRequestSchema, {
+    scenarioName, repositoryId: repoId ?? "", file: file ?? "", category: category ?? "",
+    severity: severity ?? "", limit: limit ?? 0,
+  }), { signal });
+  return response.issues.map((issue) => ({
+    id: Number(issue.id), scenario: issue.scenario, file_path: issue.filePath, category: issue.category,
+    severity: issue.severity, title: issue.title, description: issue.description,
+    line_number: issue.lineNumber, column_number: issue.columnNumber,
+    agent_notes: issue.agentNotes || undefined, remediation_steps: issue.remediationSteps || undefined,
+    status: issue.status, created_at: issue.createdAt,
+  }));
 }
 
 export async function fetchTidinessStaleness(
   scenarioName: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessStalenessInfo> {
-  const params = new URLSearchParams({ scenarioName });
-  const url = buildApiUrl(`/repo/tidiness-staleness?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TidinessStalenessInfo>(res);
+  const response = await tidinessClient.getStaleness(create(GetStalenessRequestSchema, { scenarioName, repositoryId: repoId ?? "" }), { signal });
+  return {
+    last_scan_at: response.lastScanAt || undefined, is_stale: response.isStale,
+    modified_files: response.modifiedFiles || undefined, stale_reason: response.staleReason || undefined,
+    rescan_command: response.rescanCommand || undefined,
+  };
 }
 
 export async function triggerTidinessLightScan(
   request: TidinessLightScanRequest,
   repoId?: string
 ): Promise<TidinessLightScanResult> {
-  const url = buildApiUrl("/repo/tidiness-scan", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildRepoHeaders(repoId),
-    body: JSON.stringify(request),
-  });
-  return handleResponse<TidinessLightScanResult>(res);
+  const response = await tidinessClient.triggerLightScan(create(TriggerLightScanRequestSchema, {
+    repositoryId: repoId ?? "", scenarioName: request.scenario_name,
+    timeoutSec: request.timeout_sec ?? 0, incremental: request.incremental ?? false,
+  }));
+  return {
+    scenario: response.scenario, started_at: response.startedAt, completed_at: response.completedAt,
+    duration_ms: Number(response.durationMs),
+    file_metrics: response.fileMetrics.map((item) => ({ path: item.path, lines: item.lines, extension: item.extension })),
+    long_files: response.longFiles.map((item) => ({ path: item.path, lines: item.lines, threshold: item.threshold })),
+    total_files: response.totalFiles, total_lines: response.totalLines, lint_issues: response.lintIssues,
+    type_issues: response.typeIssues, long_files_count: response.longFilesCount,
+  };
 }
 
 export async function fetchTidinessScenarioDetail(
   scenarioName: string,
-  repoId?: string
+  repoId?: string,
+  signal?: AbortSignal,
 ): Promise<TidinessScenarioDetail> {
-  const params = new URLSearchParams({ scenarioName });
-  const url = buildApiUrl(`/repo/tidiness-scenario?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TidinessScenarioDetail>(res);
+  const response = await tidinessClient.getScenarioDetail(create(GetScenarioDetailRequestSchema, { scenarioName, repositoryId: repoId ?? "" }), { signal });
+  return {
+    scenario: response.scenario, lightIssues: response.lightIssues, aiIssues: response.aiIssues,
+    longFiles: response.longFiles,
+    files: response.files.map((item) => ({ path: item.path, lines: item.lines, totalIssues: item.totalIssues, visitCount: item.visitCount })),
+  };
 }

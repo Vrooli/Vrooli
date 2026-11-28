@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
-import { Button } from "../ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import { fetchUsageStats, UsageStats as UsageStatsType, ModelUsage } from "../../lib/api";
 
 interface UsageStatsProps {
@@ -151,9 +151,7 @@ export function UsageStats({ isOpen, onClose }: UsageStatsProps) {
         )}
       </DialogBody>
       <DialogFooter>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
+        <OverlayActionBar actions={[{ id: "close", label: "Close", onSelect: onClose, primary: true }]} />
       </DialogFooter>
     </Dialog>
   );

@@ -3,14 +3,40 @@ package discovery
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
+	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/demand"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
-func TestResolveScenarioPortCallsCLIEachTime(t *testing.T) {
-	t.Parallel()
+type demandClientFixture struct {
+	acquires []demand.AcquireRequest
+	releases []string
+}
 
+func (f *demandClientFixture) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
+	f.acquires = append(f.acquires, req)
+	return demand.Lease{LeaseID: req.LeaseID, Scenario: req.Scenario, ConsumerID: req.ConsumerID, Kind: req.Kind, Status: "active"}, nil
+}
+
+func (f *demandClientFixture) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
+	return demand.Lease{}, nil
+}
+
+func (f *demandClientFixture) Release(_ context.Context, leaseID, _ string) (demand.Lease, error) {
+	f.releases = append(f.releases, leaseID)
+	return demand.Lease{LeaseID: leaseID, Status: "released"}, nil
+}
+
+func TestResolveScenarioPortCachesWithinTTL(t *testing.T) {
 	callCount := 0
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
 	runner := func(ctx context.Context, name string, args ...string) ([]byte, error) {
 		callCount++
 		if name != "vrooli" {
@@ -28,15 +54,50 @@ func TestResolveScenarioPortCallsCLIEachTime(t *testing.T) {
 		return []byte("12345\n"), nil
 	}
 
-	resolver := NewResolver(ResolverConfig{CommandRunner: runner})
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner, CacheTTL: time.Second, Now: func() time.Time { return now }})
 	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if callCount != 1 {
+		t.Fatalf("expected 1 call within TTL, got %d", callCount)
+	}
+	now = now.Add(2 * time.Second)
+	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
+		t.Fatalf("unexpected error after TTL: %v", err)
 	}
 	if callCount != 2 {
-		t.Fatalf("expected 2 calls, got %d", callCount)
+		t.Fatalf("expected 2 calls after TTL, got %d", callCount)
+	}
+}
+
+func TestResolveScenarioPortInvalidatesCacheOnFailure(t *testing.T) {
+	responses := []struct {
+		out []byte
+		err error
+	}{
+		{out: []byte("1234"), err: nil},
+		{out: []byte("stopped"), err: errors.New("stopped")},
+		{out: []byte("5678"), err: nil},
+	}
+	calls := 0
+	runner := func(context.Context, string, ...string) ([]byte, error) {
+		response := responses[calls]
+		calls++
+		return response.out, response.err
+	}
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner, CacheTTL: -time.Second})
+	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT"); err == nil {
+		t.Fatal("expected failed refresh")
+	}
+	port, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+	if err != nil || port != 5678 {
+		t.Fatalf("port=%d err=%v, want 5678 and nil", port, err)
 	}
 }
 
@@ -53,6 +114,53 @@ func TestResolveScenarioPortInvalidOutput(t *testing.T) {
 	var discoveryErr *Error
 	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidPort {
 		t.Fatalf("expected ErrInvalidPort, got %v", err)
+	}
+}
+
+func TestResolveScenarioPortStructuredNoRuntimePortsIsNotRunning(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(ResolverConfig{
+		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return []byte(`{"success":false,"scenario":"my-scenario","port_name":"API_PORT","port":0,"error":"no running runtime ports found","error_code":"scenario_not_running"}`), nil
+		},
+	})
+
+	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+	if !IsScenarioNotRunning(err) {
+		t.Fatalf("expected structured no-runtime-ports output to classify as stopped, got %v", err)
+	}
+}
+
+func TestLegacyUncodedMissingResponseIsUnclassifiedAndNotCached(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+		calls++
+		return []byte(`{"success":false,"error":"no running runtime ports found"}`), nil
+	}})
+	for i := 0; i < 2; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "legacy-target"); err == nil || IsScenarioNotRunning(err) {
+			t.Fatalf("legacy response error=%v, want unclassified failure", err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2 because legacy response has no structured missing-target code", calls)
+	}
+}
+
+func TestNoncanonicalCodeAliasIsNotTreatedAsStoppedTarget(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+		calls++
+		return []byte(`{"success":false,"code":"scenario_not_running","error":"scenario is not running"}`), nil
+	}})
+	for i := 0; i < 2; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "legacy-target"); err == nil || IsScenarioNotRunning(err) {
+			t.Fatalf("code alias response error=%v, want unclassified failure", err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2 because `code` is not the canonical error_code field", calls)
 	}
 }
 
@@ -81,7 +189,7 @@ func TestResolveScenarioPortNotRunning(t *testing.T) {
 
 	resolver := NewResolver(ResolverConfig{
 		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return []byte("scenario not running"), errors.New("exit 1")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("exit 1")
 		},
 	})
 
@@ -89,6 +197,21 @@ func TestResolveScenarioPortNotRunning(t *testing.T) {
 	var discoveryErr *Error
 	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrScenarioNotRunning {
 		t.Fatalf("expected ErrScenarioNotRunning, got %v", err)
+	}
+}
+
+func TestResolveScenarioPortNoRuntimePortsIsNotRunning(t *testing.T) {
+	t.Parallel()
+
+	resolver := NewResolver(ResolverConfig{
+		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"no running runtime ports found"}`), errors.New("exit status 1")
+		},
+	})
+
+	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
+	if !IsScenarioNotRunning(err) {
+		t.Fatalf("expected no-runtime-ports output to classify as stopped, got %v", err)
 	}
 }
 
@@ -123,6 +246,51 @@ func TestResolveScenarioURLDefaults(t *testing.T) {
 	}
 	if url != "http://localhost:8080" {
 		t.Fatalf("unexpected url: %q", url)
+	}
+}
+
+func TestResolveScenarioURLForNodeUsesOneTargetAwareShape(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{RemoteBaseURL: "http://bridge:18000"})
+	got, err := resolver.ResolveScenarioURLForTarget(context.Background(), "system-monitor", "API_PORT", Target{NodeID: "node-123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "http://bridge:18000/api/v1/targets/node-123/scenarios/system-monitor"
+	if got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+}
+
+func TestResolveScenarioURLForNodeUsesNodeReachEscaping(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{RemoteBaseURL: "http://bridge:18000/"})
+	got, err := resolver.ResolveScenarioURLForTarget(context.Background(), "scenario/name", "API_PORT", Target{NodeID: "node/id"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "http://bridge:18000/api/v1/targets/node%2Fid/scenarios/scenario%2Fname"
+	if got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+}
+
+func TestResolveScenarioURLWithOptionsKeepsLocalDefault(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{
+		RemoteBaseURL: "http://bridge:18000",
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) { return []byte("18181"), nil },
+	})
+	local, err := resolver.ResolveScenarioURLWithOptions(context.Background(), "system-monitor", "API_PORT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if local != "http://localhost:18181" {
+		t.Fatalf("local URL = %q, want local ladder result", local)
+	}
+	remote, err := resolver.ResolveScenarioURLWithOptions(context.Background(), "system-monitor", "API_PORT", WithTarget(Target{NodeID: "node-123"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if remote != "http://bridge:18000/api/v1/targets/node-123/scenarios/system-monitor" {
+		t.Fatalf("remote URL = %q, want target proxy", remote)
 	}
 }
 
@@ -183,6 +351,62 @@ func TestNewStaticResolver(t *testing.T) {
 	}
 }
 
+func TestNewResolverWithOptionalStaticOverride(t *testing.T) {
+	t.Parallel()
+
+	static := NewResolverWithOptionalStaticOverride(" https://services.example.net/v2/runtime/ ")
+	got, err := static.ResolveScenarioURLDefault(context.Background(), "offer-desk")
+	if err != nil || got != "https://services.example.net/v2/runtime" {
+		t.Fatalf("static override URL = %q, %v", got, err)
+	}
+	if fallback := NewResolverWithOptionalStaticOverride(" \t "); fallback != DefaultResolver() {
+		t.Fatal("empty static override did not reuse the shared local resolver")
+	}
+}
+
+func TestStaticResolverPreservesQueryAndFragmentWhileNormalizingPath(t *testing.T) {
+	t.Parallel()
+
+	base := "https://services.example.net/v2/runtime/?tenant=/&mode=full#/route/"
+	resolver := NewResolver(ResolverConfig{StaticBaseURL: base})
+	got, err := resolver.ResolveScenarioURLDefault(context.Background(), "offer-desk")
+	want := "https://services.example.net/v2/runtime?tenant=/&mode=full#/route/"
+	if err != nil || got != want {
+		t.Fatalf("static URL = %q, %v; want %q", got, err, want)
+	}
+}
+
+func TestStaticResolversRejectInvalidScenarioBaseURL(t *testing.T) {
+	t.Parallel()
+
+	for _, base := range []string{"file:///tmp/api", "://broken", "relative/path", "http://bad host"} {
+		t.Run(base, func(t *testing.T) {
+			for name, resolver := range map[string]*Resolver{
+				"NewResolver":       NewResolver(ResolverConfig{StaticBaseURL: base}),
+				"optional override": NewResolverWithOptionalStaticOverride(base),
+			} {
+				t.Run(name, func(t *testing.T) {
+					_, err := resolver.ResolveScenarioURLDefault(context.Background(), "offer-desk")
+					var discoveryErr *Error
+					if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidBaseURL {
+						t.Fatalf("error = %#v; want structured %s error", err, ErrInvalidBaseURL)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestOptionalStaticOverrideDoesNotReplaceExplicitBridgeTarget(t *testing.T) {
+	staticURL := "https://local.example.test/api"
+	resolver := NewResolverWithOptionalStaticOverride(staticURL)
+	resolver.remoteBaseURL = "://invalid-bridge-url"
+	got, err := resolver.ResolveScenarioURLDefaultForTarget(context.Background(), "offer-desk", Target{NodeID: "remote-node"})
+	if err != nil || got == staticURL || !strings.HasPrefix(got, resolver.remoteBaseURL) {
+		t.Fatalf("explicit Bridge target did not remain Bridge-routed: url=%q err=%v", got, err)
+	}
+}
+
 func TestStaticResolverBypassesCLI(t *testing.T) {
 	t.Parallel()
 
@@ -204,6 +428,17 @@ func TestStaticResolverBypassesCLI(t *testing.T) {
 	}
 	if cliCalled {
 		t.Fatal("CLI should not be called in static mode")
+	}
+}
+
+func TestStaticResolverPreservesDeploymentBasePath(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{StaticBaseURL: "https://services.example.net/v2/runtime"})
+	got, err := resolver.ResolveScenarioURLDefault(context.Background(), "any-scenario")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://services.example.net/v2/runtime" {
+		t.Fatalf("static deployment URL = %q, want configured base path preserved", got)
 	}
 }
 
@@ -271,14 +506,594 @@ func TestStaticResolverIgnoresScenarioSlug(t *testing.T) {
 	}
 }
 
-func TestStaticResolverUnknownSchemeNoPort(t *testing.T) {
+func TestStaticResolverRejectsUnknownScheme(t *testing.T) {
 	t.Parallel()
 
 	resolver := NewStaticResolver("ftp://localhost")
 	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
 
 	var discoveryErr *Error
-	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidPort {
-		t.Fatalf("expected ErrInvalidPort for unknown scheme without port, got %v", err)
+	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrInvalidBaseURL {
+		t.Fatalf("expected ErrInvalidBaseURL for unknown scheme, got %v", err)
+	}
+}
+
+// TestPackageWrappersShareOneResolver is the test whose absence let the fork
+// storm ship. The Resolver always had a working cache, but the package-level
+// wrappers rebuilt the Resolver per call, so the cache could never hit. Asserting
+// cache behavior on a hand-built Resolver passes either way; the defect is only
+// visible through the public entry point.
+func TestPackageWrappersShareOneResolver(t *testing.T) {
+	if DefaultResolver() != DefaultResolver() {
+		t.Fatal("DefaultResolver returned distinct instances; the package cache cannot hit")
+	}
+}
+
+func TestPackageWrapperCacheActuallyHits(t *testing.T) {
+	// Drives the real production path: the wrappers route through the shared
+	// cliutil seam, so the fake is installed there rather than on the Resolver.
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(context.Context, string, string) cliutil.ScenarioPortOutcome {
+		calls++
+		return cliutil.ScenarioPortOutcome{Port: "4321", Output: "4321"}
+	})
+	t.Cleanup(restore)
+
+	ctx, observation := ObserveResolverCache(context.Background())
+	for i := 0; i < 5; i++ {
+		port, err := ResolveScenarioPortDefault(ctx, "wrapper-cache-scenario")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if port != 4321 {
+			t.Fatalf("port=%d, want 4321", port)
+		}
+	}
+	hits, misses := observation.Snapshot()
+
+	if calls != 1 {
+		t.Fatalf("5 wrapper calls performed %d lookups, want 1", calls)
+	}
+	if hits != 4 || misses != 1 {
+		t.Fatalf("query cache observation = hits:%d misses:%d; want hits:4 misses:1", hits, misses)
+	}
+}
+
+func TestDemandInvalidationClearsSharedVariantCache(t *testing.T) {
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(_ context.Context, target, portVar string) cliutil.ScenarioPortOutcome {
+		calls++
+		if target != "cache-invalidation-peer@shadow" || portVar != "API_PORT" {
+			return cliutil.ScenarioPortOutcome{Err: errors.New("unexpected lookup target")}
+		}
+		if calls == 1 {
+			return cliutil.ScenarioPortOutcome{
+				Output: `{"success":false,"error_code":"scenario_not_running","error":"stopped"}`,
+				Err:    errors.New("scenario stopped"),
+			}
+		}
+		return cliutil.ScenarioPortOutcome{Port: "18181", Output: "18181"}
+	})
+	t.Cleanup(restore)
+
+	resolver := NewResolver(ResolverConfig{})
+	ctx := context.Background()
+	if _, err := resolver.ResolveScenarioPort(ctx, "cache-invalidation-peer@shadow", "API_PORT"); err == nil {
+		t.Fatal("first lookup should report stopped target")
+	}
+	if err := resolver.invalidateScenarioCache(ctx, "cache-invalidation-peer@shadow", "API_PORT"); err != nil {
+		t.Fatalf("invalidate after startup: %v", err)
+	}
+	port, err := resolver.ResolveScenarioPort(ctx, "cache-invalidation-peer@shadow", "API_PORT")
+	if err != nil || port != 18181 {
+		t.Fatalf("resolved port=%d err=%v, want 18181 after shared-cache invalidation", port, err)
+	}
+	if calls != 2 {
+		t.Fatalf("lookup calls=%d, want stopped lookup plus post-invalidation lookup", calls)
+	}
+}
+
+func TestResolverCacheObservationIsScopedToConcurrentCallers(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			close(started)
+			<-release
+			return []byte("4321\n"), nil
+		},
+	})
+
+	firstCtx, firstObservation := ObserveResolverCache(context.Background())
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := resolver.ResolveScenarioPortDefault(firstCtx, "observed-concurrent")
+		firstDone <- err
+	}()
+	<-started
+
+	secondCtx, secondObservation := ObserveResolverCache(context.Background())
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := resolver.ResolveScenarioPortDefault(secondCtx, "observed-concurrent")
+		secondDone <- err
+	}()
+	close(release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+	firstHits, firstMisses := firstObservation.Snapshot()
+	secondHits, secondMisses := secondObservation.Snapshot()
+	if firstHits != 0 || firstMisses != 1 || secondHits != 1 || secondMisses != 0 {
+		t.Fatalf("first observation hits:%d misses:%d; second hits:%d misses:%d", firstHits, firstMisses, secondHits, secondMisses)
+	}
+}
+
+// TestSharedSeamIsUsedByBothCallers is the regression test for the durable fix.
+// Two independent implementations of `vrooli scenario port` used to exist; a
+// lookup done through the CLI helper and one done through the discovery
+// resolver each paid their own process. They must now share one.
+func TestSharedSeamIsUsedByBothCallers(t *testing.T) {
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(_ context.Context, target, portVar string) cliutil.ScenarioPortOutcome {
+		calls++
+		return cliutil.ScenarioPortOutcome{Port: "8080", Output: "8080"}
+	})
+	t.Cleanup(restore)
+
+	// The CLI-facing detector resolves first.
+	if got := cliutil.DetectPortFromVrooli("shared-seam-scenario", "API_PORT")(); got != "8080" {
+		t.Fatalf("cliutil detector returned %q, want 8080", got)
+	}
+	// The discovery resolver then asks for the same scenario and port.
+	port, err := ResolveScenarioPortDefault(context.Background(), "shared-seam-scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if port != 8080 {
+		t.Fatalf("port=%d, want 8080", port)
+	}
+
+	if calls != 1 {
+		t.Fatalf("two callers performed %d lookups, want 1 shared between them", calls)
+	}
+}
+
+// The shared cache must not lengthen this Resolver's staleness window. A
+// resolver whose TTL has expired re-looks-up even though a CLI caller with a
+// 60s tolerance would still consider the cached entry fresh.
+func TestSharedCacheHonorsPerCallerStaleness(t *testing.T) {
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(context.Context, string, string) cliutil.ScenarioPortOutcome {
+		calls++
+		return cliutil.ScenarioPortOutcome{Port: "7000", Output: "7000"}
+	})
+	t.Cleanup(restore)
+
+	now := time.Now()
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: 2 * time.Second,
+		Now:      func() time.Time { return now },
+	})
+
+	if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "staleness-scenario"); err != nil {
+		t.Fatal(err)
+	}
+	// Past this resolver's tolerance but well inside the CLI default of 60s.
+	now = now.Add(30 * time.Second)
+	cliutil.SetPortCacheNowForTest(func() time.Time { return now })
+	t.Cleanup(func() { cliutil.SetPortCacheNowForTest(nil) })
+
+	if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "staleness-scenario"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("lookups=%d, want 2: the shared cache extended this resolver's staleness window", calls)
+	}
+}
+
+// TestConcurrentLookupsCollapseToOneFork pins the per-key lock. A burst of
+// callers for one scenario must cost one process, not one process each.
+func TestConcurrentLookupsCollapseToOneFork(t *testing.T) {
+	var mu sync.Mutex
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			mu.Lock()
+			calls++
+			mu.Unlock()
+			time.Sleep(20 * time.Millisecond) // widen the window a stampede would exploit
+			return []byte("9876\n"), nil
+		},
+	})
+
+	const callers = 64
+	var wg sync.WaitGroup
+	wg.Add(callers)
+	for i := 0; i < callers; i++ {
+		go func() {
+			defer wg.Done()
+			if port, err := resolver.ResolveScenarioPortDefault(context.Background(), "burst"); err != nil || port != 9876 {
+				t.Errorf("port=%d err=%v, want 9876 and nil", port, err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("%d concurrent callers forked %d times, want 1", callers, calls)
+	}
+}
+
+func TestConcurrentLookupWaitHonorsCallerDeadline(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	calls := 0
+	var callsMu sync.Mutex
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			callsMu.Lock()
+			calls++
+			callsMu.Unlock()
+			close(started)
+			<-release // Deliberately ignore context to hold the in-flight gate.
+			return []byte("9876\n"), nil
+		},
+	})
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := resolver.ResolveScenarioPortDefault(context.Background(), "blocked-peer")
+		firstDone <- err
+	}()
+	<-started
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	_, err := resolver.ResolveScenarioPortDefault(ctx, "blocked-peer")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("waiting lookup error = %v, want caller deadline", err)
+	}
+
+	close(release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("in-flight lookup error = %v", err)
+	}
+	callsMu.Lock()
+	defer callsMu.Unlock()
+	if calls != 1 {
+		t.Fatalf("lookup calls = %d, want one shared evaluation", calls)
+	}
+}
+
+func TestScenarioCacheInvalidationHonorsCallerDeadline(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			close(started)
+			<-release
+			return []byte("9876\n"), nil
+		},
+	})
+	lookupDone := make(chan error, 1)
+	go func() {
+		_, err := resolver.ResolveScenarioPortDefault(context.Background(), "invalidate-deadline")
+		lookupDone <- err
+	}()
+	<-started
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	invalidated := make(chan error, 1)
+	go func() {
+		invalidated <- resolver.invalidateScenarioCache(ctx, "invalidate-deadline", defaultPortKey)
+	}()
+	if err := <-invalidated; !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("invalidation error = %v, want caller deadline", err)
+	}
+	close(release)
+	if err := <-lookupDone; err != nil {
+		t.Fatalf("in-flight lookup error = %v", err)
+	}
+}
+
+// TestFailedLookupIsNegativeCached covers the other half of the storm: a stopped
+// scenario previously cost one fork per caller per attempt, forever.
+func TestFailedLookupIsNegativeCached(t *testing.T) {
+	now := time.Now()
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL:         time.Minute,
+		NegativeCacheTTL: 500 * time.Millisecond,
+		Now:              func() time.Time { return now },
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			calls++
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario is not running"}`), errors.New("exit status 1")
+		},
+	})
+
+	for i := 0; i < 4; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "stopped"); err == nil {
+			t.Fatal("expected a discovery error")
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("4 failing calls forked %d times, want 1 within the negative TTL", calls)
+	}
+
+	// Past the negative TTL the scenario gets another chance — a scenario that
+	// has since started must not stay pinned to its failure.
+	now = now.Add(time.Second)
+	if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "stopped"); err == nil {
+		t.Fatal("expected a discovery error")
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2 after the negative TTL expired", calls)
+	}
+}
+
+// TestTimeoutIsNotCached guards the one result that must never be shared: a
+// context deadline belongs to its caller, not to the target scenario.
+func TestTimeoutIsNotCached(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL:         time.Minute,
+		NegativeCacheTTL: time.Minute,
+		CommandRunner: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+			calls++
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	})
+
+	for i := 0; i < 2; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		_, err := resolver.ResolveScenarioPortDefault(ctx, "slow")
+		cancel()
+		if err == nil {
+			t.Fatal("expected a timeout error")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2: a cached timeout would deny an unrelated caller", calls)
+	}
+}
+
+func TestInjectedLookupRejectsLateResultsWithOrWithoutCache(t *testing.T) {
+	for _, cacheTTL := range []time.Duration{-1, time.Minute} {
+		for _, lateNotRunning := range []bool{false, true} {
+			name := "late success"
+			if lateNotRunning {
+				name = "late stopped-target result"
+			}
+			t.Run(fmt.Sprintf("cache=%s/%s", cacheTTL, name), func(t *testing.T) {
+				started := make(chan struct{})
+				release := make(chan struct{})
+				calls := 0
+				resolver := NewResolver(ResolverConfig{
+					CacheTTL:         cacheTTL,
+					NegativeCacheTTL: time.Minute,
+					CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+						calls++
+						if calls == 1 {
+							close(started)
+							<-release // Deliberately ignore context and return after timeout.
+							if lateNotRunning {
+								return []byte(`{"success":false,"error_code":"scenario_not_running"}`), errors.New("exit status 1")
+							}
+							return []byte("4321\n"), nil
+						}
+						return []byte("5432\n"), nil
+					},
+				})
+
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+				defer cancel()
+				firstDone := make(chan error, 1)
+				go func() {
+					_, err := resolver.ResolveScenarioPortDefault(ctx, "late-injected")
+					firstDone <- err
+				}()
+				<-started
+				<-ctx.Done()
+				close(release)
+				if err := <-firstDone; !errors.Is(err, context.DeadlineExceeded) {
+					t.Fatalf("late result error = %v, want caller deadline", err)
+				}
+				if port, err := resolver.ResolveScenarioPortDefault(context.Background(), "late-injected"); err != nil || port != 5432 {
+					t.Fatalf("fresh lookup = port %d, err %v; late result poisoned cache", port, err)
+				}
+				if calls != 2 {
+					t.Fatalf("runner calls = %d, want 2 after discarding late result", calls)
+				}
+			})
+		}
+	}
+}
+
+func TestInjectedLookupDoesNotStartForCanceledContext(t *testing.T) {
+	for _, cacheTTL := range []time.Duration{-1, time.Minute} {
+		t.Run(cacheTTL.String(), func(t *testing.T) {
+			calls := 0
+			resolver := NewResolver(ResolverConfig{
+				CacheTTL: cacheTTL,
+				CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+					calls++
+					return []byte("4321\n"), nil
+				},
+			})
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			_, err := resolver.ResolveScenarioPortDefault(ctx, "already-canceled")
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("lookup error = %v, want context cancellation", err)
+			}
+			if calls != 0 {
+				t.Fatalf("runner calls = %d, want 0 for an already-canceled context", calls)
+			}
+		})
+	}
+}
+
+func TestTransientCommandFailureIsNotNegativeCached(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL:         time.Minute,
+		NegativeCacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			calls++
+			return []byte("permission denied"), errors.New("permission denied")
+		},
+	})
+
+	for i := 0; i < 2; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "transient"); err == nil {
+			t.Fatal("expected a command failure")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2: transient command failures must not be cached", calls)
+	}
+}
+
+// A hung lookup with no caller deadline is bounded by the shared seam. That
+// bound must still surface as a timeout, not as a generic command failure.
+func TestInternalBoundClassifiesAsTimeout(t *testing.T) {
+	restore := cliutil.SetPortLookupRunner(func(context.Context, string, string) cliutil.ScenarioPortOutcome {
+		return cliutil.ScenarioPortOutcome{Err: context.DeadlineExceeded}
+	})
+	t.Cleanup(restore)
+
+	resolver := NewResolver(ResolverConfig{})
+	_, err := resolver.ResolveScenarioPortDefault(context.Background(), "hung-scenario")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	var derr *Error
+	if !errors.As(err, &derr) {
+		t.Fatalf("error is not a discovery error: %v", err)
+	}
+	if derr.Kind != ErrTimeout {
+		t.Fatalf("kind=%q, want %q", derr.Kind, ErrTimeout)
+	}
+}
+
+func TestResolveScenarioURLWithDemandAcquiresOnlyAfterResolution(t *testing.T) {
+	fixture := &demandClientFixture{}
+	resolver := NewResolver(ResolverConfig{
+		StaticBaseURL: "http://127.0.0.1:18181",
+	})
+	url, lease, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{Client: fixture, ConsumerID: "session-1", Kind: demand.KindProgram, RequestID: "call-1", TTL: time.Minute})
+	if err != nil {
+		t.Fatalf("resolve with demand: %v", err)
+	}
+	if url != "http://127.0.0.1:18181" || lease.Status != "active" {
+		t.Fatalf("url=%q lease=%#v", url, lease)
+	}
+	if len(fixture.acquires) != 1 || fixture.acquires[0].Scenario != "search-hub" || fixture.acquires[0].Kind != demand.KindProgram {
+		t.Fatalf("acquires=%#v", fixture.acquires)
+	}
+	if _, err := fixture.Release(context.Background(), lease.LeaseID, "done"); err != nil || len(fixture.releases) != 1 {
+		t.Fatalf("release err=%v releases=%v", err, fixture.releases)
+	}
+}
+
+func TestResolveScenarioURLWithDemandRequiresExplicitConsumer(t *testing.T) {
+	resolver := NewStaticResolver("http://127.0.0.1:18181")
+	_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{Client: &demandClientFixture{}})
+	if err == nil || !strings.Contains(err.Error(), "consumer id") {
+		t.Fatalf("error=%v", err)
+	}
+}
+
+type scenarioStarterFixture struct{ starts []string }
+
+func (s *scenarioStarterFixture) StartScenario(_ context.Context, scenario, variant string) error {
+	s.starts = append(s.starts, scenario+"@"+variant)
+	return nil
+}
+
+type failingScenarioStarter struct{}
+
+func (failingScenarioStarter) StartScenario(context.Context, string, string) error {
+	return errors.New("start rejected")
+}
+
+func TestResolveScenarioURLWithDemandCanStartStoppedTarget(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		calls++
+		if calls == 1 {
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("stopped")
+		}
+		return []byte("18181"), nil
+	}})
+	leaseClient := &demandClientFixture{}
+	starter := &scenarioStarterFixture{}
+	url, lease, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{
+		Client: leaseClient, Starter: starter, AutoStart: true, ConsumerID: "session-1", Kind: demand.KindProgram, RequestID: "call-1",
+	})
+	if err != nil {
+		t.Fatalf("resolve with startup: %v", err)
+	}
+	if url != "http://localhost:18181" || lease.LeaseID == "" {
+		t.Fatalf("url=%q lease=%#v", url, lease)
+	}
+	if len(starter.starts) != 1 || starter.starts[0] != "search-hub@" || len(leaseClient.acquires) != 1 {
+		t.Fatalf("starts=%v acquires=%v", starter.starts, leaseClient.acquires)
+	}
+}
+
+func TestResolveScenarioURLWithDemandReleasesWhenStartupFails(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+		return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("stopped")
+	}})
+	leaseClient := &demandClientFixture{}
+	_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{
+		Client: leaseClient, Starter: failingScenarioStarter{}, AutoStart: true, ConsumerID: "session-1",
+	})
+	if err == nil || !strings.Contains(err.Error(), "start rejected") {
+		t.Fatalf("error=%v", err)
+	}
+	if len(leaseClient.releases) != 1 {
+		t.Fatalf("releases=%v, want one cleanup release", leaseClient.releases)
+	}
+}
+
+func TestDemandDiscoveryScopesIndependentCallsAndVariants(t *testing.T) {
+	var commands []string
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		commands = append(commands, strings.Join(args, " "))
+		return []byte("18181"), nil
+	}})
+	fixture := &demandClientFixture{}
+	for _, variant := range []string{"", "", "shadow"} {
+		_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{Client: fixture, ConsumerID: "caller", Variant: variant})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if fixture.acquires[0].LeaseID == fixture.acquires[1].LeaseID {
+		t.Fatal("independent scopes share a releasable hold")
+	}
+	if fixture.acquires[2].Variant != "shadow" || !strings.Contains(strings.Join(commands, ";"), "search-hub@shadow") {
+		t.Fatalf("variant not resolved: %v %+v", commands, fixture.acquires)
+	}
+}
+
+func TestResolveScenarioURLDefaultNoCLIReportsFallbackDisabled(t *testing.T) {
+	_, err := ResolveScenarioURLDefaultNoCLI(context.Background(), "ac5-unknown-no-cli-fallback-target")
+	if err == nil || !strings.Contains(err.Error(), "no local CLI fallback") {
+		t.Fatalf("ResolveScenarioURLDefaultNoCLI() error = %v, want disabled CLI fallback", err)
 	}
 }

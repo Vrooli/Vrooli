@@ -1,0 +1,7 @@
+# Whole native Lighting source G — completed checkpoint
+
+Whole report: resources/openrgb/docs/ADVERSARIAL-NATIVE-LIFECYCLE-G.md. G is finding-bearing: G1 Windows role/boot Task uncertain or queued extinction/cancellation; G2 scoped manual Off blocks normal global-Off UI controls for uncovered controllers. Parent notified before edits; all product source remains unchanged. OS/consumer RESULT.md retained under .vrooli/work/reviews/native-lifecycle-g-{os,consumer}.
+
+All1169entry-bound inputs remain unchanged. Manifest36f62dbf; final comparisonbb076024. Fixed Proto f9e80/sourcefa918/descriptorba614; private canonical verifier exit0, no generation/publication. All tests explicit3absolute roots/private fixture state. New history race28.711, broad resource160.351(180pass/8optional skips), runtime27.244(56pass/1unrelated skip), lightingruntime26pass2.499, hostreqkit41pass3.223; full API20tested+4no-tests/CLI6/UI192/32/tsc pass. Expected new OS3boundary failures/UI2desired-behavior failures retained. No production, MAIN, Git, deps, account, root, native service/vendor/target/device/grant/SDK effects. All test commands/processes ended.
+
+Remaining: coherent retained-owner repairs/independent afterchecks/affected proof and fresh whole clean reviews, parent-coordinated integration and full native/hardware/physical acceptance. G never becomes clean retroactively. Parent owns shared journal and actual effects.

@@ -1,0 +1,107 @@
+{
+  "edges": [
+    {
+      "id": "edge-navigate-decision-to-assert-decision-question",
+      "source": "navigate-decision",
+      "target": "assert-decision-question"
+    },
+    {
+      "id": "edge-assert-decision-question-to-wait-decision-form",
+      "source": "assert-decision-question",
+      "target": "wait-decision-form"
+    },
+    {
+      "id": "edge-wait-decision-form-to-capture-decision",
+      "source": "wait-decision-form",
+      "target": "capture-decision"
+    }
+  ],
+  "metadata": {
+    "description": "Given the leased disposable decision, when the owner opens it at phone width, then the cover shows the question and the answer form is available, and the page is captured.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "decision",
+      "surface": "experience-decision"
+    },
+    "name": "experience-decision-routed-smoke",
+    "requirement": "OT-P0-001",
+    "version": "2"
+  },
+  "nodes": [
+    {
+      "id": "navigate-decision",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/asks/ask-e1-disposable?vrooli_test_mode=1&e4_fixture=decision-links-phone",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the routed disposable decision"
+        }
+      }
+    },
+    {
+      "id": "assert-decision-question",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "phone-ready project brief"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The disposable decision shows its question"
+        },
+        "metadata": {
+          "label": "Read the decision's question"
+        }
+      }
+    },
+    {
+      "id": "wait-decision-form",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/packet.form",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The answer form is visible"
+        }
+      }
+    },
+    {
+      "id": "capture-decision",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the decision at 390 pixel phone width"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    },
+    "viewport_height": 844,
+    "viewport_width": 390
+  }
+}

@@ -1,0 +1,4 @@
+[data-rcl-unknown-value] {
+  color: var(--rcl-unknown-value-color, var(--color-muted-foreground));
+  font-style: italic;
+}

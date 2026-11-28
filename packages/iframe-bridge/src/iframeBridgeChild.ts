@@ -1,3 +1,5 @@
+import { shimStorage } from './storageShim.js';
+
 export type BridgeCapability =
   | 'history'
   | 'hash'
@@ -41,6 +43,11 @@ export interface BridgeInspectElementMeta {
   title?: string;
   text?: string;
   label?: string;
+  fontFamily?: string;
+  fontSize?: string;
+  fontWeight?: string;
+  color?: string;
+  backgroundColor?: string;
 }
 
 export interface BridgeInspectAncestorMeta extends BridgeInspectElementMeta {
@@ -129,73 +136,11 @@ export interface BridgeChildController {
   dispose: () => void;
 }
 
-export type BridgeShortcutOutcome = 'handled' | 'unhandled' | 'noop';
-
-export interface BridgeShortcutIntent {
-  action: string;
-  outcome?: BridgeShortcutOutcome;
-  chord?: string;
-  source?: 'keyboard' | 'programmatic';
-  requestId?: string;
-  ts?: number;
-  detail?: Record<string, unknown> | null;
-}
-
-export const HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER = 'host.open-global-switcher';
-
-export function emitShortcutIntent(
-  intent: BridgeShortcutIntent,
-  options?: { parentOrigin?: string },
-): boolean {
-  if (typeof window === 'undefined' || window.parent === window) {
-    return false;
-  }
-  const action = typeof intent.action === 'string' ? intent.action.trim() : '';
-  if (!action) {
-    return false;
-  }
-
-  const payload = {
-    v: 1 as const,
-    t: 'SHORTCUT' as const,
-    intent: {
-      action,
-      outcome: intent.outcome ?? 'unhandled',
-      chord: intent.chord ?? undefined,
-      source: intent.source ?? 'keyboard',
-      requestId: intent.requestId,
-      ts: typeof intent.ts === 'number' ? intent.ts : Date.now(),
-      detail: intent.detail ?? null,
-    },
-  };
-
-  const targetOrigin = options?.parentOrigin ?? '*';
-
-  try {
-    window.parent.postMessage(payload, targetOrigin);
-    return true;
-  } catch (error) {
-    console.warn('[BridgeChild] Shortcut intent postMessage failed', error);
-    return false;
-  }
-}
-
-/**
- * Describes the result of attempting to shim a storage type.
- */
-export interface StorageShimEntry {
-  /** Which storage was checked */
-  prop: 'localStorage' | 'sessionStorage';
-  /** Whether the storage was successfully shimmed */
-  patched: boolean;
-  /** Reason for the outcome */
-  reason: string;
-}
+export { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER, type BridgeShortcutIntent, type BridgeShortcutOutcome } from './shortcutIntent.js';
 
 declare global {
   interface Window {
     __vrooliBridgeChildInstalled?: boolean;
-    __VROOLI_UI_SMOKE_STORAGE_PATCH__?: StorageShimEntry[];
     html2canvas?: Html2CanvasFn;
   }
 
@@ -223,6 +168,7 @@ type SnapshotOptions = {
 type LogSetCommand = {
   enable?: boolean;
   streaming?: boolean;
+  requestId?: string;
   levels?: BridgeLogLevel[];
   bufferSize?: number;
 };
@@ -288,213 +234,20 @@ const MIN_BUFFER_SIZE = 50;
 const SERIALIZE_MAX_DEPTH = 3;
 const SERIALIZE_MAX_KEYS = 20;
 const SERIALIZE_MAX_STRING = 10_000;
+const SENSITIVE_BRIDGE_KEY = /^(?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|cookie|set-cookie|private[_-]?key|credential|plaintext|ciphertext|body|notes)$/i;
+const SENSITIVE_BRIDGE_TEXT = /((?:password|passphrase|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|cookie|set-cookie|private[_-]?key|credential|plaintext|ciphertext|body|notes)\s*[:=]\s*)(["']?)([^"'\s,}&]+)(\2)/gi;
+const BEARER_BRIDGE_TEXT = /(\bbearer\s+)[^\s,]+/gi;
+// Incoming bridge messages are control-plane input. Keep their processing
+// bounded so an embedded child cannot make the host spend unbounded time
+// parsing or handling a hostile payload.
+const MAX_BRIDGE_MESSAGE_BYTES = 64 * 1024;
 const LOG_LEVELS: BridgeLogLevel[] = ['log', 'info', 'warn', 'error', 'debug'];
 
 // ============================================================================
 // Storage Shimming
 // ============================================================================
 
-/**
- * Creates an in-memory Storage implementation that mimics localStorage/sessionStorage.
- * Implements the full Storage interface including length, key(), and indexed access.
- */
-function createMemoryStorage(): Storage {
-  const data = new Map<string, string>();
-
-  // Use a Proxy to handle indexed access (storage['key'] and storage[0])
-  const handler: ProxyHandler<Storage> = {
-    get(target, prop) {
-      if (prop === 'length') {
-        return data.size;
-      }
-      if (prop === 'key') {
-        return (index: number): string | null => {
-          const keys = Array.from(data.keys());
-          return keys[index] ?? null;
-        };
-      }
-      if (prop === 'getItem') {
-        return (key: string): string | null => data.get(key) ?? null;
-      }
-      if (prop === 'setItem') {
-        return (key: string, value: string): void => {
-          data.set(key, String(value));
-        };
-      }
-      if (prop === 'removeItem') {
-        return (key: string): void => {
-          data.delete(key);
-        };
-      }
-      if (prop === 'clear') {
-        return (): void => {
-          data.clear();
-        };
-      }
-      // Handle numeric index access (storage[0])
-      if (typeof prop === 'string' && /^\d+$/.test(prop)) {
-        const keys = Array.from(data.keys());
-        return keys[parseInt(prop, 10)] ?? undefined;
-      }
-      // Handle string key access (storage['myKey'])
-      if (typeof prop === 'string') {
-        return data.get(prop) ?? undefined;
-      }
-      return undefined;
-    },
-    set(target, prop, value) {
-      if (typeof prop === 'string' && !['length', 'key', 'getItem', 'setItem', 'removeItem', 'clear'].includes(prop)) {
-        data.set(prop, String(value));
-        return true;
-      }
-      return false;
-    },
-    deleteProperty(target, prop) {
-      if (typeof prop === 'string') {
-        data.delete(prop);
-        return true;
-      }
-      return false;
-    },
-    has(target, prop) {
-      if (['length', 'key', 'getItem', 'setItem', 'removeItem', 'clear'].includes(String(prop))) {
-        return true;
-      }
-      return data.has(String(prop));
-    },
-    ownKeys() {
-      return Array.from(data.keys());
-    },
-    getOwnPropertyDescriptor(target, prop) {
-      if (data.has(String(prop))) {
-        return {
-          value: data.get(String(prop)),
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        };
-      }
-      return undefined;
-    },
-  };
-
-  // Create base object with required methods (will be intercepted by proxy)
-  const baseStorage: Storage = {
-    length: 0,
-    key: () => null,
-    getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-    clear: () => {},
-  };
-
-  return new Proxy(baseStorage, handler);
-}
-
-/**
- * Tests if a storage type is accessible and functional.
- */
-function testStorageAccess(type: 'localStorage' | 'sessionStorage'): { accessible: boolean; error?: string } {
-  try {
-    // Even accessing the property can throw in sandboxed contexts
-    const storage = type === 'localStorage' ? window.localStorage : window.sessionStorage;
-    if (!storage) {
-      return { accessible: false, error: 'storage-undefined' };
-    }
-    const testKey = '__vrooli_storage_test__';
-    storage.setItem(testKey, 'test');
-    const retrieved = storage.getItem(testKey);
-    storage.removeItem(testKey);
-    if (retrieved !== 'test') {
-      return { accessible: false, error: 'storage-corrupted' };
-    }
-    return { accessible: true };
-  } catch (e) {
-    return {
-      accessible: false,
-      error: e instanceof Error ? e.message : String(e),
-    };
-  }
-}
-
-/**
- * Attempts to shim a specific storage type with an in-memory implementation.
- */
-function shimStorageType(type: 'localStorage' | 'sessionStorage'): StorageShimEntry {
-  const testResult = testStorageAccess(type);
-
-  if (testResult.accessible) {
-    return { prop: type, patched: false, reason: 'native-storage-accessible' };
-  }
-
-  try {
-    const memoryStorage = createMemoryStorage();
-    Object.defineProperty(window, type, {
-      value: memoryStorage,
-      writable: true,
-      configurable: true,
-    });
-
-    // Verify the shim works
-    const verifyResult = testStorageAccess(type);
-    if (verifyResult.accessible) {
-      return { prop: type, patched: true, reason: 'shimmed-successfully' };
-    } else {
-      return {
-        prop: type,
-        patched: false,
-        reason: `shim-verification-failed: ${verifyResult.error}`,
-      };
-    }
-  } catch (e) {
-    return {
-      prop: type,
-      patched: false,
-      reason: `shim-failed: ${e instanceof Error ? e.message : String(e)}`,
-    };
-  }
-}
-
-/**
- * Shims localStorage and sessionStorage with in-memory implementations if they are
- * blocked (common in sandboxed iframe contexts like Browserless).
- *
- * This function should be called as early as possible in your application,
- * before any code that might access localStorage or sessionStorage.
- *
- * Results are stored in window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ for inspection
- * by UI smoke tests.
- *
- * @returns Array of shim results for each storage type
- *
- * @example
- * ```typescript
- * import { shimStorage } from '@vrooli/iframe-bridge';
- *
- * // Call at the very top of your entry point, before other imports if possible
- * shimStorage();
- * ```
- */
-export function shimStorage(): StorageShimEntry[] {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-
-  // Don't re-shim if already done (idempotent)
-  if (window.__VROOLI_UI_SMOKE_STORAGE_PATCH__) {
-    return window.__VROOLI_UI_SMOKE_STORAGE_PATCH__;
-  }
-
-  const results: StorageShimEntry[] = [
-    shimStorageType('localStorage'),
-    shimStorageType('sessionStorage'),
-  ];
-
-  // Record results for smoke test inspection
-  window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ = results;
-
-  return results;
-}
+export { shimStorage, type StorageShimEntry } from './storageShim.js';
 
 // ============================================================================
 // HTML2Canvas Loading
@@ -705,6 +458,21 @@ const collectElementMeta = (element: Element): BridgeInspectElementMeta => {
   const ariaDescription = element.getAttribute?.('aria-description')?.trim() || undefined;
   const title = element.getAttribute?.('title')?.trim() || undefined;
   const text = truncateText(element.textContent, 180);
+  let fontFamily: string | undefined;
+  let fontSize: string | undefined;
+  let fontWeight: string | undefined;
+  let color: string | undefined;
+  let backgroundColor: string | undefined;
+  try {
+    const style = window.getComputedStyle(element);
+    fontFamily = truncateText(style.fontFamily, 120);
+    fontSize = truncateText(style.fontSize, 32);
+    fontWeight = truncateText(style.fontWeight, 16);
+    color = truncateText(style.color, 64);
+    backgroundColor = truncateText(style.backgroundColor, 64);
+  } catch {
+    // Owner inspection is best-effort; DOM identity and geometry remain useful.
+  }
 
   const label = (() => {
     if (ariaLabel) {
@@ -736,6 +504,11 @@ const collectElementMeta = (element: Element): BridgeInspectElementMeta => {
     title,
     text,
     label,
+    fontFamily,
+    fontSize,
+    fontWeight,
+    color,
+    backgroundColor,
   };
 };
 
@@ -1719,7 +1492,8 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
   }
 
   if (typeof value === 'string') {
-    return value.length > SERIALIZE_MAX_STRING ? `${value.slice(0, SERIALIZE_MAX_STRING)}…` : value;
+    const redacted = redactBridgeText(value);
+    return redacted.length > SERIALIZE_MAX_STRING ? `${redacted.slice(0, SERIALIZE_MAX_STRING)}…` : redacted;
   }
 
   if (typeof value === 'bigint') {
@@ -1737,8 +1511,8 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
   if (value instanceof Error) {
     return {
       name: value.name,
-      message: value.message,
-      stack: value.stack,
+      message: redactBridgeText(value.message),
+      stack: value.stack ? redactBridgeText(value.stack) : undefined,
     };
   }
 
@@ -1779,7 +1553,7 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
     const output: Record<string, unknown> = {};
     let count = 0;
     for (const [key, val] of Object.entries(obj)) {
-      output[key] = serializeBridgeValue(val, depth + 1, seenSet);
+      output[key] = SENSITIVE_BRIDGE_KEY.test(key) ? '[REDACTED]' : serializeBridgeValue(val, depth + 1, seenSet);
       count += 1;
       if (count >= SERIALIZE_MAX_KEYS) {
         output.__truncated__ = true;
@@ -1790,6 +1564,24 @@ const serializeBridgeValue = (value: unknown, depth = 0, seen?: WeakSet<object>)
   }
 
   return value;
+};
+
+const redactBridgeText = (value: string): string => {
+  return value.replace(SENSITIVE_BRIDGE_TEXT, '$1$2[REDACTED]$4').replace(BEARER_BRIDGE_TEXT, '$1[REDACTED]');
+};
+
+const sanitizeNetworkURL = (raw: string): string => {
+  try {
+    const parsed = new URL(raw, window.location.href);
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      if (SENSITIVE_BRIDGE_KEY.test(key)) {
+        parsed.searchParams.set(key, '[REDACTED]');
+      }
+    }
+    return parsed.toString();
+  } catch {
+    return redactBridgeText(raw);
+  }
 };
 
 const describeError = (error: unknown): string => {
@@ -1858,6 +1650,7 @@ const setupLogCapture = (post: PostFn, options: NormalizedLogOptions): LogCaptur
   const buffer = createRingBuffer<BridgeLogEvent>(options.bufferSize);
   let bufferLimit = options.bufferSize;
   let seq = 0;
+  let streamRequestId = '';
   let enabled = options.enabled;
   let streaming = options.streaming;
   let levelFilter = options.levels ? new Set(options.levels) : undefined;
@@ -1888,12 +1681,12 @@ const setupLogCapture = (post: PostFn, options: NormalizedLogOptions): LogCaptur
       level,
       args: args.map(arg => serializeBridgeValue(arg)),
       source,
-      message,
-      context,
+      message: message ? redactBridgeText(message) : undefined,
+      context: context ? serializeBridgeValue(context) as Record<string, unknown> : undefined,
     };
     buffer.push(event);
     if (streaming) {
-      post({ v: 1, t: 'LOG_EVENT', event });
+      post({ v: 1, t: 'LOG_EVENT', requestId: streamRequestId, event });
     }
   };
 
@@ -1963,6 +1756,10 @@ const setupLogCapture = (post: PostFn, options: NormalizedLogOptions): LogCaptur
     }
     if (typeof command.streaming === 'boolean') {
       streaming = command.streaming;
+      if (!streaming) streamRequestId = '';
+    }
+    if (typeof command.requestId === 'string' && command.requestId.length > 0 && command.requestId.length <= 128) {
+      streamRequestId = command.requestId;
     }
     if (typeof command.bufferSize === 'number') {
       bufferLimit = sanitizeBufferSize(command.bufferSize, bufferLimit);
@@ -2091,7 +1888,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'fetch',
           requestId,
           method: upperMethod,
-          url,
+          url: sanitizeNetworkURL(url),
           status: response.status,
           ok: response.ok,
           durationMs: Math.round(elapsedMs(start)),
@@ -2102,7 +1899,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'fetch',
           requestId,
           method: upperMethod,
-          url,
+          url: sanitizeNetworkURL(url),
           ok: false,
           error: describeError(error),
           durationMs: Math.round(elapsedMs(start)),
@@ -2156,7 +1953,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'xhr',
           requestId: meta.requestId,
           method: meta.method,
-          url: meta.url,
+          url: sanitizeNetworkURL(meta.url),
           ok: false,
           error,
           durationMs: Math.round(elapsedMs(meta.startTime)),
@@ -2169,7 +1966,7 @@ const setupNetworkCapture = (post: PostFn, options: NormalizedNetworkOptions): N
           kind: 'xhr',
           requestId: meta.requestId,
           method: meta.method,
-          url: meta.url,
+          url: sanitizeNetworkURL(meta.url),
           status,
           ok: status >= 200 && status < 400,
           durationMs: Math.round(elapsedMs(meta.startTime)),
@@ -2234,10 +2031,22 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
 
   const caps: BridgeCapability[] = ['history', 'hash', 'title', 'deeplink', 'screenshot', 'shortcuts'];
   let resolvedOrigin = options.parentOrigin ?? inferParentOrigin() ?? '*';
+  // Runtime validators embed the child with a per-run nonce. Echo it in the
+  // initial bridge messages so the parent can distinguish this frame from an
+  // unrelated same-origin postMessage sender.
+  let nonce: string | undefined;
+  let requireNonce = false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    nonce = params.get('__vrooli_bridge_nonce') || undefined;
+    requireNonce = params.get('__vrooli_bridge_require_nonce') === '1' && Boolean(nonce);
+  } catch {
+    // A malformed location must not prevent the bridge from starting.
+  }
 
   const post: PostFn = payload => {
     try {
-      window.parent.postMessage(payload, resolvedOrigin);
+      window.parent.postMessage(nonce ? { ...payload, nonce } : payload, resolvedOrigin);
     } catch (error) {
       console.warn('[BridgeChild] postMessage failed', error);
     }
@@ -2296,6 +2105,12 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
   };
 
   const handleMessage = (event: MessageEvent) => {
+    // Origin alone does not identify the admitted parent: another window can
+    // legitimately share that origin. Accept control messages only from the
+    // exact parent window that owns this child frame.
+    if (event.source !== window.parent) {
+      return;
+    }
     if (resolvedOrigin !== '*' && event.origin !== resolvedOrigin) {
       return;
     }
@@ -2305,6 +2120,21 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
 
     const message = event.data;
     if (!message || typeof message !== 'object' || message.v !== 1) {
+      return;
+    }
+    // A per-embed nonce binds commands to the Portal viewer session. The
+    // parent-window and origin checks above remain required as well.
+    if (requireNonce && message.nonce !== nonce) {
+      return;
+    }
+
+    try {
+      const encoded = JSON.stringify(message);
+      if (typeof encoded !== 'string' || encoded.length > MAX_BRIDGE_MESSAGE_BYTES) {
+        return;
+      }
+    } catch {
+      // Cyclic or otherwise unserialisable data is not a valid bridge message.
       return;
     }
 
@@ -2683,6 +2513,7 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     v: 1,
     t: 'HELLO',
     appId: options.appId,
+    nonce,
     title: document.title,
     caps,
     logs: logCapture ? logCapture.getState() : undefined,
@@ -2693,7 +2524,7 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
   const observer = setupObservers();
 
   queueMicrotask(() => {
-    post({ v: 1, t: 'READY' });
+    post({ v: 1, t: 'READY', nonce });
     logCapture?.emitState();
     networkCapture?.emitState();
   });

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "model_id": "archimickey/SubRoformer",
+  "revision": "daeffbe5a4f5e4dc8ac0bb7f68d3a6f7e0088c40",
+  "architecture": "sub_roformer",
+  "config": {
+    "path": "configs/sbroformer_base_4stem.yaml",
+    "sha256": "f0523d18524f97d71071a33097d186b25becb5ddf87ebc11c1fa27135db6bc57",
+    "source": "https://huggingface.co/archimickey/SubRoformer/resolve/daeffbe5a4f5e4dc8ac0bb7f68d3a6f7e0088c40/configs/sbroformer_base_4stem.yaml"
+  },
+  "checkpoint": {
+    "path": "models/subroformer/subroformer_base_4stem_1400000_ema_fp16.safetensors",
+    "size_bytes": 207349744,
+    "sha256": "1cdcafa9fd84a0a78df71b159c8896040a57d1ab5d6c783154c078952521ad0b",
+    "source": "https://huggingface.co/archimickey/SubRoformer/resolve/daeffbe5a4f5e4dc8ac0bb7f68d3a6f7e0088c40/checkpoints/subroformer_base_4stem_1400000_ema_fp16.safetensors",
+    "license": "Not stated in the model card; local personal analysis only until clarified."
+  },
+  "stems": ["vocals", "drums", "bass", "other"],
+  "device_policy": "cuda-required-no-cpu-fallback",
+  "published_evaluation": {
+    "dataset": "MUSDB18-HQ test",
+    "track_count": 50,
+    "sdr_db": {"vocals": 12.636, "bass": 9.189, "drums": 11.451, "other": 8.389},
+    "source": "https://github.com/ZFTurbo/Music-Source-Separation-Training/releases/tag/v1.0.23",
+    "scope_note": "Upstream metric only; not a measurement on the operator's references."
+  }
+}

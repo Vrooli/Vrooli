@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/prose-studio/book-brief/v1",
+  "title": "Prose Studio book brief v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "title", "creative_direction", "audience", "reader_promise", "structure", "chapter_intent", "production_metadata"],
+  "properties": {
+    "schema_version": {"const": "book-brief/v1"},
+    "title": {"type": "string", "minLength": 1},
+    "creative_direction": {"type": "string", "minLength": 1},
+    "audience": {"type": "string", "minLength": 1},
+    "reader_promise": {"type": "string", "minLength": 1},
+    "structure": {"type": "string", "minLength": 1},
+    "chapter_intent": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "front_matter_intent": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "back_matter_intent": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "additional_direction": {"type": "string"},
+    "evidence_boundary": {
+      "type": "object",
+      "description": "Creative intent is not evidence. Concrete claims are allowed only when supported by approved_facts; omitted boundary defaults time, location, and source identity to unknown.",
+      "properties": {
+        "approved_facts": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "unknown_details": {"type": "array", "uniqueItems": true, "items": {"enum": ["time", "location", "source_identity"]}}
+      },
+      "additionalProperties": false
+    },
+    "production_metadata": {
+      "type": "object",
+      "required": ["subtitle", "language", "trim_width_in", "trim_height_in", "margin_in", "content_origin", "generated_with_ai"],
+      "properties": {
+        "subtitle": {"type": "string", "minLength": 1},
+        "language": {"type": "string", "minLength": 1},
+        "trim_width_in": {"type": "number", "exclusiveMinimum": 0},
+        "trim_height_in": {"type": "number", "exclusiveMinimum": 0},
+        "margin_in": {"type": "number", "exclusiveMinimum": 0},
+        "content_origin": {"type": "string", "minLength": 1},
+        "generated_with_ai": {"type": "boolean"},
+        "external_asset_refs": {"type": "array", "items": {"type": "string"}},
+        "generation_runs": {
+          "type": "array",
+          "items": {"type": "object", "required": ["date", "model", "prompt_sha256", "output_sha256"], "properties": {
+            "date": {"type": "string", "minLength": 1}, "model": {"type": "string", "minLength": 1},
+            "prompt_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+          }, "additionalProperties": false}
+        }
+      },
+      "allOf": [{
+        "if": {"properties": {"generated_with_ai": {"const": true}}},
+        "then": {"required": ["generation_runs"], "properties": {"generation_runs": {"minItems": 1}}}
+      }],
+      "additionalProperties": false
+    }
+  }
+}

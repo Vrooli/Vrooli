@@ -1,0 +1,142 @@
+{
+  "metadata": {
+    "name": "perf-long-session",
+    "description": "Operator-authorized real-data performance journey: heartbeat investigation with hundreds of events; scroll, open a long reply, find in reply, session search, and restore the previous pane/view. No session creation, terminal input, send, archive, deletion, or conversation control. May advance the seen cursor. Never bind as requirement automation. Prefer the supported ?session=<existing-id> deep link when the shared active pane or sidebar visibility differs.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-existing-session",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-console",
+          "scenario_path": "/?session=af38f804-b18f-4fcd-b910-49bd44bed50b",
+          "timeout_ms": 45000
+        }
+      }
+    },
+    {
+      "id": "select-real-session",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => {\n const wait = async (find) => { const until=Date.now()+45000; while(Date.now()<until){const v=find();if(v)return v;await new Promise(r=>setTimeout(r,100));}throw new Error('long-session control unavailable'); };\n window.__longSessionWait=wait;\n const toggle=await wait(()=>document.querySelector('[data-testid=\"workspace-toggle-view\"]'));\n window.__longSessionInitialMode=toggle.dataset.viewMode;\n const title=document.querySelector('[data-testid=\"workspace-sidebar-active-title\"]');\n window.__longSessionInitialTitle=title?.getAttribute('title');\n if(!window.__longSessionInitialTitle?.includes('Investigate prompt-manager heartbeat')){\n  if(!document.querySelector('[data-testid^=\"sidebar-session-\"]'))document.querySelector('[data-testid=\"workspace-sidebar-toggle\"]')?.click();\n  const target=await wait(()=>[...document.querySelectorAll('[data-testid^=\"sidebar-session-\"]')].find(e=>e.textContent.includes('Investigate prompt-manager heartbeat')));\n  target.click();await new Promise(r=>setTimeout(r,300));\n }\n const selectedToggle=document.querySelector('[data-testid=\"workspace-toggle-view\"]');\n if(selectedToggle.dataset.viewMode!=='messages')selectedToggle.click();\n const scroller=await wait(()=>document.querySelector('[data-testid=\"messages-scroll\"]'));\n await wait(()=>scroller.querySelector('[data-event-id]'));\n await new Promise(r=>setTimeout(r,1000));\n scroller.dispatchEvent(new WheelEvent('wheel',{bubbles:true,deltaY:-1}));\n scroller.scrollTop=Math.max(0,scroller.scrollHeight-scroller.clientHeight-32000);\n await new Promise(r=>setTimeout(r,800));\n return {session:document.querySelector('[data-testid=\"workspace-sidebar-active-title\"]')?.getAttribute('title'),count:document.querySelector('[data-testid=\"messages-search-field\"]')?.dataset.count,viewport:[innerWidth,innerHeight]};\n})()"
+        },
+        "metadata": {
+          "label": "select-real-session"
+        }
+      }
+    },
+    {
+      "id": "scroll-history",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const el=document.querySelector('[data-testid=\"messages-scroll\"]');let maxNodes=0;performance.mark('long-session:scroll:start');for(const direction of [-1,1]){for(let i=0;i<45;i++){el.dispatchEvent(new WheelEvent('wheel',{bubbles:true,deltaY:direction*240}));el.scrollTop+=direction*240;await new Promise(r=>requestAnimationFrame(r));maxNodes=Math.max(maxNodes,el.querySelectorAll('*').length);}}performance.mark('long-session:scroll:end');await new Promise(r=>setTimeout(r,500));return {maxNodes,top:el.scrollTop,rows:el.querySelectorAll('[data-event-id]').length};})()"
+        },
+        "metadata": {
+          "label": "scroll-history"
+        }
+      }
+    },
+    {
+      "id": "read-long-message",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{let buttons=[...document.querySelectorAll('[data-testid^=\"msg-open-reader-\"]')];const button=buttons.sort((a,b)=>b.closest('[data-event-id]').textContent.length-a.closest('[data-event-id]').textContent.length)[0];if(!button)throw new Error('No long message in captured window');performance.mark('long-session:reader:start');button.click();const reader=await window.__longSessionWait(()=>document.querySelector('[data-testid=\"reader-scroll\"]'));for(let i=0;i<15;i++){reader.scrollTop+=180;await new Promise(r=>requestAnimationFrame(r));}const input=document.querySelector('[data-testid=\"reader-find-input\"]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;for(const value of ['a','au','auth','authentication']){set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,100));}await new Promise(r=>setTimeout(r,300));const chars=document.querySelector('[data-testid=\"messages-reader-body\"]').textContent.length;document.querySelector('[data-testid=\"reader-back\"]').click();performance.mark('long-session:reader:end');return {chars};})()"
+        },
+        "metadata": {
+          "label": "read-long-message"
+        }
+      }
+    },
+    {
+      "id": "search-session",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{(await window.__longSessionWait(()=>document.querySelector('[data-testid=\"messages-search-field\"]'))).click();const input=await window.__longSessionWait(()=>document.querySelector('[data-testid=\"msg-nav-search\"]'));const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;performance.mark('long-session:search:start');for(const value of ['h','he','hea','heart','heartbeat']){set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,100));}await new Promise(r=>setTimeout(r,600));set.call(input,'');input.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>setTimeout(r,150));input.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));performance.mark('long-session:search:end');return {closed:!document.querySelector('[data-testid=\"msg-nav-search\"]')};})()"
+        },
+        "metadata": {
+          "label": "search-session"
+        }
+      }
+    },
+    {
+      "id": "type-unsent-mobile-draft",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{if(innerWidth>=768)return {mobile:false};const input=await window.__longSessionWait(()=>document.querySelector('[data-testid=\"mobile-command-input\"]'));const original=input.value;const set=Object.getOwnPropertyDescriptor(input.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set;performance.mark('long-session:draft:start');input.focus();const draft='Unsent performance audit draft: checking long-session typing without sending.';for(let i=1;i<=draft.length;i++){set.call(input,draft.slice(0,i));input.dispatchEvent(new Event('input',{bubbles:true}));await new Promise(r=>requestAnimationFrame(r));}set.call(input,original);input.dispatchEvent(new Event('input',{bubbles:true}));input.blur();performance.mark('long-session:draft:end');return {mobile:true,characters:draft.length,restored:input.value===original};})()"
+        },
+        "metadata": {
+          "label": "Type and restore an unsent draft on mobile; never press Enter or Submit"
+        }
+      }
+    },
+    {
+      "id": "restore-pane",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{const want=window.__longSessionInitialTitle;const prior=[...document.querySelectorAll('[data-testid^=\"sidebar-session-\"]')].find(e=>want&&e.textContent.includes(want));if(prior)prior.click();await new Promise(r=>setTimeout(r,200));const toggle=document.querySelector('[data-testid=\"workspace-toggle-view\"]');if(toggle&&toggle.dataset.viewMode!==window.__longSessionInitialMode)toggle.click();return {restored:document.querySelector('[data-testid=\"workspace-sidebar-active-title\"]')?.getAttribute('title')===want};})()"
+        },
+        "metadata": {
+          "label": "restore-pane"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "existing-session-start",
+      "source": "navigate-existing-session",
+      "target": "select-real-session",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e0",
+      "source": "select-real-session",
+      "target": "scroll-history",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e1",
+      "source": "scroll-history",
+      "target": "read-long-message",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "read-long-message",
+      "target": "search-session",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "search-session",
+      "target": "type-unsent-mobile-draft",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "type-unsent-mobile-draft",
+      "target": "restore-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

@@ -1,8 +1,7 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +9,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 type SearchRequest struct {
@@ -320,32 +322,6 @@ func sortByRelevance(places []Place) {
 		// Third priority: alphabetical by name
 		return places[i].Name < places[j].Name
 	})
-}
-
-func fetchRealTimeData(req SearchRequest) []Place {
-	// Try to fetch from SearXNG if available
-	searxHost := os.Getenv("SEARXNG_HOST")
-	if searxHost == "" {
-		searxHost = "http://localhost:8280"
-	}
-
-	// Build search query
-	searchQuery := fmt.Sprintf("%s near lat:%f lon:%f", req.Query, req.Lat, req.Lon)
-	if req.Category != "" {
-		searchQuery = fmt.Sprintf("%s %s", req.Category, searchQuery)
-	}
-
-	// Try SearXNG search
-	searchURL := fmt.Sprintf("%s/search?q=%s&format=json&categories=map", searxHost, searchQuery)
-	resp, err := http.Get(searchURL)
-	if err != nil || resp.StatusCode != 200 {
-		return []Place{} // Return empty, will fallback to mock data
-	}
-	defer resp.Body.Close()
-
-	// For now, return empty as SearXNG integration would need more complex parsing
-	// In production, this would parse the search results and convert to Place objects
-	return []Place{}
 }
 
 func categoriesHandler(w http.ResponseWriter, r *http.Request) {
@@ -775,9 +751,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Initialize loggers after lifecycle check
-	initLoggers()
-
 	// Validate required API_PORT environment variable
 	port := getEnv("API_PORT", getEnv("PORT", ""))
 	if port == "" {
@@ -786,7 +759,7 @@ func main() {
 	}
 
 	// Initialize database connections
-	initDB()
+	initDB(context.Background())
 	initRedis()
 
 	// Initialize multi-source aggregator
@@ -799,7 +772,7 @@ func main() {
 		mainLogger.Info("Personalized recommendations enabled", nil)
 	}
 
-	http.HandleFunc("/health", enableCORS(health.Handler()))
+	http.HandleFunc("/health", enableCORS(healthHandler))
 	http.HandleFunc("/api/search", enableCORS(searchHandler))
 	http.HandleFunc("/api/categories", enableCORS(categoriesHandler))
 	http.HandleFunc("/api/places/", enableCORS(placeDetailsHandler))
@@ -847,3 +820,6 @@ func clearCacheHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+// healthHandler serves the standardized api-core health response.
+var healthHandler = health.Handler()

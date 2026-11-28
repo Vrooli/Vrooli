@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.edge;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-cloud/v1/errors/errors.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/edge;edgev1";
+
+// =============================================================================
+// EDGE — public exposure, DNS, TLS and private listener observations
+// =============================================================================
+//
+// @stability beta
+//
+// An EdgeObservation records what a deployment exposes at its edge and what
+// the world sees of it: the routed public hosts and their upstreams, the
+// listeners the policy keeps private, the DNS binding of every public host to
+// the target's addresses (IPv4 and IPv6 independently), the certificate
+// lifecycle per host, the ACME environment in use, and the local vs external
+// readiness verdicts. It never carries a DNS provider token, a private key,
+// or any other secret; the DNS provider is referenced by credential
+// descriptor address only.
+//
+// External readiness is a separate verdict from local readiness and is
+// "blocked" whenever DNS does not bind the host to the target, so a wrong
+// record can never yield an external-ready claim.
+//
+// USAGE CONTEXTS:
+//   - api/edge, api/edgesvc: build and serve the observation.
+//   - deployment-manager, ui: render exposure and certificate status.
+//
+// =============================================================================
+
+service EdgeService {
+  // GetEdgeObservation produces a fresh observation for one deployment.
+  rpc GetEdgeObservation(GetEdgeObservationRequest) returns (GetEdgeObservationResponse);
+}
+
+// EdgeRoute is one public host forwarded to one loopback upstream.
+message EdgeRoute {
+  string host = 1;
+  int32 upstream_port = 2;
+  // Closure listener id, e.g. "app/ui".
+  string listener_id = 3;
+}
+
+// PrivateListener is a listener the edge never routes.
+message PrivateListener {
+  string id = 1;
+  string owner = 2;
+  string port_name = 3;
+  int32 port = 4;
+  // declared_private, undeclared, management, database, metrics, resource_owned.
+  string reason = 5;
+}
+
+// AddressBinding compares one address family of a host with the target.
+message AddressBinding {
+  repeated string expected = 1;
+  repeated string observed = 2;
+  // match, mismatch, absent, unresolved, proxied.
+  string state = 3;
+}
+
+// DNSBinding is the DNS observation for one public host.
+message DNSBinding {
+  string host = 1;
+  AddressBinding ipv4 = 2;
+  AddressBinding ipv6 = 3;
+  bool match = 4;
+  string reason_code = 5;
+}
+
+// TLSState is the certificate lifecycle for one public host.
+message TLSState {
+  string host = 1;
+  string issuer = 2;
+  string not_after = 3;
+  int32 days_left = 4;
+  // valid, renewal_window, expiring_soon, expired, renewal_failed,
+  // not_observed, invalid_chain, hostname_mismatch.
+  string renewal_state = 5;
+  string reason_code = 6;
+  string detail = 7;
+  string acme_environment = 8;
+}
+
+// ReadinessCheck is one readiness verdict.
+message ReadinessCheck {
+  // passed, failed, blocked, not_checked.
+  string status = 1;
+  string reason_code = 2;
+  string detail = 3;
+}
+
+// Readiness separates local from external readiness.
+message Readiness {
+  ReadinessCheck local = 1;
+  ReadinessCheck external = 2;
+}
+
+// EdgeObservation is the secret-free exposure record for one deployment.
+message EdgeObservation {
+  // @default "1"
+  string schema_version = 1;
+  string deployment_id = 2;
+  string domain = 3;
+  // Digest of the declared edge spec the observation was made against.
+  string spec_digest = 4;
+  repeated EdgeRoute routes = 5;
+  repeated PrivateListener private_listeners = 6;
+  repeated DNSBinding dns = 7;
+  repeated TLSState tls = 8;
+  // staging or production.
+  string acme_environment = 9;
+  Readiness readiness = 10;
+  google.protobuf.Timestamp observed_at = 11;
+  // @example "scenario-to-cloud:edge:v1"
+  string producer_ref = 12;
+  repeated errors.NextAction next_actions = 13;
+}
+
+message GetEdgeObservationRequest {
+  // @format uuid
+  string deployment_id = 1;
+}
+
+message GetEdgeObservationResponse {
+  // @default "1"
+  string schema_version = 1;
+  EdgeObservation observation = 2;
+}

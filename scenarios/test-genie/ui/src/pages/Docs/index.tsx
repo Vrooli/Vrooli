@@ -44,8 +44,7 @@ export function DocsPage() {
             <p className="text-sm text-slate-300 mb-2">Available documents:</p>
             <ul className="list-disc list-inside text-sm text-slate-400 space-y-1">
               <li>QUICKSTART.md - Getting started guide</li>
-              <li>synchronous-execution-guide.md - Execution patterns</li>
-              <li>sync-execution-cheatsheet.md - Quick reference</li>
+              <li>guides/sync-execution.md - Server-owned execution patterns</li>
               <li>RESEARCH.md - Research notes</li>
               <li>SEAMS.md - Architecture seams</li>
               <li>PROBLEMS.md - Known issues</li>

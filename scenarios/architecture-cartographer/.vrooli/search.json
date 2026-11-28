@@ -1,0 +1,386 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "architecture-cartographer.slice-anatomy",
+      "lifecycle": "experimental",
+      "provider_group": "architecture-cartographer",
+      "bucket": "BUCKET_KNOW",
+      "type": "domain",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Scenario-scoped implementation slice evidence across proto, API handler, internal domain, CLI, and UI. Uses one cached graph snapshot and returns explicit DERIVED/PARTIAL attestation; no graph extraction or fleet sweep occurs in the search path.",
+      "routing_profile": {
+        "answer_spaces": ["slice_anatomy", "implementation_flow", "api_cli_ui_composition"],
+        "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
+        "positive_examples": [
+          "show the API CLI UI implementation slice for a scenario domain",
+          "how does the validation slice connect protocol handler internal command and UI files",
+          "which files and layer edges implement a domain end to end"
+        ],
+        "exclusions": ["fleet-wide scenario inventory", "runtime call graph", "symbol-level execution flow"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "architecture-cartographer",
+          "path": "/api/v1/slices/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scope\":\"{{scope}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "The experimental slice ranking and compact projection are owner-defined; no query tuning is exposed until direct and federated relevance is independently reviewed.",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path",
+        "locations_field": "paths",
+        "attestation_field": "slice.attestation",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 2, "negative": 2},
+        "suite_id": "architecture-cartographer.slice-anatomy.primary",
+        "name": "Scenario-scoped domain slice anatomy (owner contract examples)",
+        "description": "Direct owner handler cases verify bounded per-scenario slice ranking and explicit partial attestation. These are source contract examples, not live provider-direct or federated grades.",
+        "cases": [
+          {"id": "search-hub-routing-slice", "query": "provider selection routing and bounded query fanout", "scope": "scenario:search-hub", "expect_ids": ["search-hub/routing"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "slice-anatomy"], "note": "The owner endpoint returns the cached Search Hub routing slice and its five rung evidence summary when a graph snapshot is available."},
+          {"id": "search-hub-eval-slice", "query": "independent retrieval grading and evaluation cases", "scope": "scenario:search-hub", "expect_ids": ["search-hub/eval"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "slice-anatomy"], "note": "This expected ID is owner contract evidence only; it has not been queried against a live Search Hub provider."},
+          {"id": "slice-negative-gibberish", "query": "quartz ferret submarine greenhouse", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "slice-negative-unrelated", "query": "which domain computes lunar soil recipes", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
+      "provider_id": "architecture-cartographer.domain-map",
+      "lifecycle": "production",
+      "provider_group": "architecture-cartographer",
+      "bucket": "BUCKET_KNOW",
+      "type": "domain",
+      "description": "Scenario domains across the whole fleet, searchable by what each domain DOES — its responsibility and purpose — not by Vrooli jargon. Route here for: what domains/subsystems a scenario has and what each owns; how a feature works inside a scenario; which part owns a responsibility. e.g. 'how does authoring work in plan-manager', 'what are the domains of search-hub', 'which domain owns plan validation'.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "lastReconcileAt",
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.05, "telemetry_required": true, "minimum_samples": 8},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "architecture-cartographer",
+          "path": "/vrooli.architecture_cartographer.v1.search.SearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"mode\":\"MODE_AI\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "architecture-cartographer",
+          "path": "/vrooli.architecture_cartographer.v1.search.SearchService/Status",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "id",
+        "score_field": "score",
+        "snippet_field": "responsibility",
+        "path_field": "paths.0",
+        "locations_field": "paths",
+        "weak_field": "weak",
+        "regime_field": "regime",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "architecture-cartographer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "architecture-cartographer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": true,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+    "tests": {
+      "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "architecture-cartographer domain-map — primary golden corpus",
+        "description": "RANK-CENTRIC golden corpus for the cross-fleet domain-map index. Positive cases assert expect_ids (the '<scenario>/<domain>' leaf, e.g. 'plan-manager/authoring') landing within expect_within_top_k. The corpus is deliberately TERM-AGNOSTIC: queries describe what a domain DOES (its responsibility/purpose prose) without naming the domain, since the headline value of this provider is answering natural-language intent from a caller who does not know Vrooli's vocabulary. NO absolute expect_min_score is set on positives by design (the sweep compares arms across dense-cosine / cross-encoder / RRF-blend regimes). Difficulty: strong (intended leaf at rank 1-3), weak-real (contested by sibling domains or generic inventory intent). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
+        "cases": [
+          {
+            "id": "authoring-in-plan-manager",
+            "query": "how does authoring work in plan-manager",
+            "tags": [
+              "strong",
+              "term-agnostic",
+              "headline"
+            ],
+            "expect_ids": [
+              "plan-manager/authoring"
+            ],
+            "expect_within_top_k": 3,
+            "note": "The headline validation of this whole effort: term-agnostic NL intent → the authoring domain, matched on responsibility prose."
+          },
+          {
+            "id": "domains-of-plan-manager",
+            "query": "what are the domains in plan-manager",
+            "tags": [
+              "weak-real",
+              "inventory"
+            ],
+            "expect_ids": [
+              "plan-manager/plans",
+              "plan-manager/authoring",
+              "plan-manager/execution"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Inventory intent: any genuine plan-manager domain landing in top-5 counts."
+          },
+          {
+            "id": "owns-plan-validation",
+            "query": "which domain owns plan validation and staleness checks",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "plan-manager/validation"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "plan-execution-runner",
+            "query": "where does step-by-step plan execution and phase transitions happen",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "plan-manager/execution"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "execution-log-ledger",
+            "query": "a durable ledger for typed work like decisions and findings",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "plan-manager/log"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "classify-and-route-query",
+            "query": "classify a free-text query and fan it out to providers",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/routing"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "search-quality-baselines",
+            "query": "per-provider search quality baselines and A/B evaluation",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/eval"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "fuse-shortlists-ranked",
+            "query": "fuse multiple result shortlists into one ranked list",
+            "tags": [
+              "weak-real",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/rerank"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "store-provider-descriptors",
+            "query": "persist provider descriptors and serve registration",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/registry"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "semantic-command-search",
+            "query": "semantic and text search for CLI commands across scenarios",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "cli-health/search"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "infer-domain-archetype",
+            "query": "infer a domain's archetype role from structural code evidence",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "architecture-cartographer/archetype"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "detect-graph-domain-drift",
+            "query": "detect drift between the actual code graph and the intended domain map",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "architecture-cartographer/conflicts"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "vertical-slice-walker",
+            "query": "trace a domain end to end from proto to handler to cli",
+            "tags": [
+              "weak-real",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "architecture-cartographer/slice"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "apply-brand-to-scenario",
+            "query": "apply a brand's CSS custom properties to a target scenario",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "brand-manager/apply"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "ai-generate-brand",
+            "query": "generate a brand palette typography and images with AI",
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "brand-manager/generation"
+            ],
+            "expect_within_top_k": 3
+          },
+          {
+            "id": "color-contrast-accessibility",
+            "query": "compute WCAG color contrast ratios for accessibility",
+            "tags": [
+              "weak-real",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "brand-manager/contrast"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "gibberish-1",
+            "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true,
+            "note": "Junk rejection: no domain should surface as a confident hit for nonsense."
+          },
+          {
+            "id": "gibberish-2",
+            "query": "wibble snorp gleurgh ffffzzzz plover",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true
+          }
+        ]
+      }
+    }
+    ,{
+      "provider_id":"architecture-cartographer.docs-code-drift",
+      "lifecycle":"experimental","provider_group":"architecture-cartographer","bucket":"BUCKET_KNOW","type":"doc_code_drift","class":"local_live","scope":"SCOPE_PROJECT",
+      "description":"Compares curated DOMAINS.md API Source Paths with bounded Go source and links only supported literal HTTP route → handler → direct internal call → target declaration chains. Generated Connect or dynamic routes, duplicate chains, low-confidence documentation, parser failures and scan caps remain UNKNOWN/PARTIAL; no semantic or runtime conformance is inferred.",
+      "routing_profile":{"answer_spaces":["documentation","architecture","conformance","implementation"],"intents":["explain","locate","verify_conformance"],"positive_examples":["does the domains path connect to a literal HTTP route and direct handler call","does the graph domain's documented API source path exist in its Go implementation","find documented API paths with no matching source candidate"],"exclusions":["fleet inventory","semantic correctness","runtime reachability","UI CLI or protobuf source claims","generated Connect route reachability"]},
+      "endpoint":{"http_json":{"scenario_id":"architecture-cartographer","path":"/api/v1/doc-code-drift/search","method":"HTTP_METHOD_POST","body_template":"{\"query\":\"{{query}}\",\"scope\":\"{{scope}}\",\"limit\":{{limit}}}","headers":{"Content-Type":"application/json"}}},
+      "result_mapping":{"results_path":"results","id_field":"id","score_field":"score","snippet_field":"summary","title_field":"title","path_field":"documentation.path","score_scale":"SCORE_SCALE_RAW","metadata_fields":{"domain":"domain","claim":"claim","classification":"classification","status":"status","documentation":"documentation","code":"code","api_status":"api_status","api":"api","limits":"limits"}},
+      "performance":{"p95_ms":3000,"minimum_samples":1,"telemetry_required":false},
+      "scoring":{"recall_at":5,"recall_target":0.75,"mrr_at":3,"deep_k":12},
+      "tuning":{"engine":"lexical","floor":{"hard_floor":0,"max_gap":0}},
+      "tests":{"minimum":{"reviewed_positive":1,"negative":2},"suite_id":"architecture-cartographer.docs-code-drift.primary","name":"Scoped docs/API-source structural comparison","description":"Owner contracts distinguish path presence, missing candidates and unknown authority; no semantic behavior or independent serving grade is implied.","cases":[
+        {"id":"documented-domain-to-http-chain","query":"domains api internal direct HTTP route handler call source path","scope":"scenario:architecture-cartographer","expect_ids":["cartographer:doc-code:domains:api-internal-domains"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","api-call-chain-positive"]},
+        {"id":"documented-graph-api-path","query":"graph api internal source path responsibility","scope":"scenario:architecture-cartographer","expect_ids":["cartographer:doc-code:graph:api-internal-graph"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","docs-code-positive"]},
+        {"id":"docs-code-negative-1","query":"underwater penguin telescope","scope":"scenario:architecture-cartographer","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]},
+        {"id":"docs-code-negative-2","query":"lunar chlorophyll invoice","scope":"scenario:architecture-cartographer","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]}
+      ]}
+    }
+  ]
+}

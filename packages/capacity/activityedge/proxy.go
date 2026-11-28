@@ -1,0 +1,1276 @@
+// Package activityedge provides the shared host-side reverse proxy used by
+// accelerated resources to report request and stream activity to the capacity
+// broker.
+//
+// Why the edge and not the caller (plan §2, internal/capacity/doc.go
+// activity-source contract): whisper is request/response HTTP, and the two
+// consumers that dominate live use — the host dictation tool and the browser
+// WhisperProvider — are clients Vrooli does not own and cannot instrument
+// caller-side. The ONE place that sees every `POST /asr` is whisper's own request
+// boundary. The proxy brackets each transcription (active on request-in, idle
+// after a debounce on the last response-out) via the sanctioned
+// `vrooli capacity activity` CLI, so the broker can protect whisper while it is
+// working and reclaim its VRAM when it is idle.
+//
+// It is FAIL-OPEN and transparent: it forwards every request/response unchanged
+// (headers, status, streaming, multipart) and swallows every capacity error —
+// transcription must never break because the broker is down. Capacity calls run
+// OFF the request path (a background reporter goroutine), so the proxy adds
+// negligible latency.
+//
+// The edge owns the canonical client port (8090). The native server listens on
+// the internal host port (18090), so "server healthy but 8090 down" means the
+// companion is down: STT is unavailable and Whisper capacity demand is not
+// being reported until the companion is respawned. Whisper's resource owner
+// keeps this edge alive across model-server restart and controls its drain state
+// through the private companion socket; the edge can wake a stopped model only
+// by invoking ordinary resource start through current capacity admission.
+package activityedge
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"os/exec"
+	"os/signal"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/callerid"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
+)
+
+const (
+	// These defaults preserve Whisper's historical command contract. Other
+	// resources construct a handler with New.
+	defaultListen      = "127.0.0.1:8090"
+	defaultUpstream    = "127.0.0.1:18090"
+	defaultResource    = "whisper"
+	defaultListenEnv   = "WHISPER_PROXY_LISTEN"
+	defaultUpstreamEnv = "WHISPER_PROXY_UPSTREAM"
+	activityActive     = "active"
+	activityIdle       = "idle"
+)
+
+// RequestMatcher identifies work at a resource's public request boundary. A
+// WebSocket matcher remains true for the lifetime of the upgraded connection,
+// so the same tracker covers request/response and streaming resources.
+type RequestMatcher func(*http.Request) bool
+
+type resourceSpec struct {
+	listen   string
+	upstream string
+	// routes maps each work method to the endpoint paths it matches.
+	routes map[string][]string
+	native bool
+}
+
+var resourceSpecs = map[string]resourceSpec{
+	"whisper":              {listen: "127.0.0.1:8090", upstream: "127.0.0.1:18090", routes: map[string][]string{http.MethodPost: {"/asr"}}, native: true},
+	"kokoro":               {listen: "127.0.0.1:8880", upstream: "127.0.0.1:18880", routes: map[string][]string{http.MethodPost: {"/v1/audio/speech"}}},
+	"kyutai-stt":           {listen: "127.0.0.1:8094", upstream: "127.0.0.1:18094", routes: map[string][]string{http.MethodGet: {"/v1/stream"}}},
+	"ace-step":             {listen: "127.0.0.1:8895", upstream: "127.0.0.1:18895", routes: map[string][]string{http.MethodPost: {"/v1/compose", "/v1/capacity/degrade"}}},
+	"stable-audio-3":       {listen: "127.0.0.1:8896", upstream: "127.0.0.1:18896", routes: map[string][]string{http.MethodPost: {"/v1/compose"}}},
+	"songgen":              {listen: "127.0.0.1:8897", upstream: "127.0.0.1:18897", routes: map[string][]string{http.MethodPost: {"/v1/compose"}}},
+	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", routes: map[string][]string{http.MethodPost: {"/v1/profiles", "/v1/verify", "/v1/extract"}}},
+	// Track supported API operations that can use or mutate model state: the
+	// native API, every OpenAI/Anthropic-compatible /v1 endpoint (they load
+	// models too), and DELETE /api/delete (Ollama serves delete only on
+	// DELETE). Direct pulls are rejected separately until the edge can provide
+	// disk admission; the admitted ensure owner reaches the private daemon
+	// under its disk lease.
+	"ollama": {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", routes: map[string][]string{
+		http.MethodPost:   {"/api/generate", "/api/chat", "/api/embed", "/api/embeddings", "/api/create", "/api/copy", "/api/push", "/v1"},
+		http.MethodDelete: {"/api/delete"},
+	}},
+	"ollaya":       {listen: "127.0.0.1:11435", upstream: "127.0.0.1:21435", routes: map[string][]string{http.MethodPost: {"/api/decide"}}},
+	"reranker":     {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", routes: map[string][]string{http.MethodPost: {"/rerank", "/v1/rerank"}}},
+	"pii-detector": {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", routes: map[string][]string{http.MethodPost: {"/detect"}}},
+}
+
+// matcher combines a spec's per-method routes into one request matcher.
+func (s resourceSpec) matcher() RequestMatcher {
+	matchers := make([]RequestMatcher, 0, len(s.routes))
+	for method, paths := range s.routes {
+		matchers = append(matchers, MatchPaths([]string{method}, paths...))
+	}
+	return func(r *http.Request) bool {
+		for _, match := range matchers {
+			if match(r) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// Handlers owns the proxy's dependencies. Tests inject the seams so no real
+// server, exec, or clock is needed.
+type Handlers struct {
+	diagnosticMu    sync.Mutex
+	trackerMu       sync.Mutex
+	wakeMu          sync.Mutex
+	startupMu       sync.Mutex
+	tracker         *tracker
+	models          *modelGate
+	startupUpstream Upstream
+	Stdout          io.Writer
+	Stderr          io.Writer
+	GetEnv          func(string) string
+	// Exec runs a `vrooli capacity …` call and returns its stdout. Tests inject a
+	// fake; production shells the on-PATH vrooli binary.
+	Exec func(ctx context.Context, name string, args ...string) ([]byte, error)
+	// Debounce overrides the idle debounce (default mirrors idle_grace's spirit:
+	// long enough that back-to-back dictation segments don't flap the signal).
+	Debounce time.Duration
+	// Listen is the network-listener seam. Production uses net.Listen.
+	Listen func(network, address string) (net.Listener, error)
+	// SignalCh overrides OS signal delivery in tests.
+	SignalCh <-chan os.Signal
+	// HeartbeatInterval overrides the liveness log interval. Production uses 60s.
+	HeartbeatInterval time.Duration
+	// ParentPID makes the activity edge terminate when its owning process exits.
+	// Zero defaults to the process parent in Run.
+	ParentPID int
+	// ParentAlive is injectable for deterministic parent-death tests.
+	ParentAlive func(int) bool
+	// Now is the wall-clock seam for liveness logs.
+	Now func() time.Time
+	// Native enables the compatibility adapter from the historical /asr form to
+	// whisper.cpp's /inference form. Compatibility tests and attach-only users can
+	// keep the transparent proxy by leaving it false.
+	Native bool
+	// Resource is the capacity owner whose active claim receives transitions.
+	Resource string
+	// DefaultListen and DefaultUpstream are the public and private host sockets.
+	DefaultListen   string
+	DefaultUpstream string
+	ListenEnv       string
+	UpstreamEnv     string
+	// Match selects requests or streams that represent real resource work.
+	Match RequestMatcher
+	// Reject stops unsupported public mutations before activity tracking or
+	// proxying. Resource owners use this when an operation needs stronger
+	// admission than the transparent edge can provide.
+	Reject        RequestMatcher
+	RejectMessage string
+	// ControlSocket enables the private Unix-socket drain/resume API used by the
+	// owning resource lifecycle. The socket is filesystem-protected and is not
+	// exposed on the public request listener.
+	ControlSocket string
+	// Wake is invoked only when a matched work request cannot connect to the
+	// upstream. A successful owner lifecycle call is followed by one retry.
+	Wake func(context.Context) error
+	// Rewrite lets the resource owner normalize a public request before
+	// activity tracking and proxying (Ollama strips caller-supplied runner load
+	// options). An error rejects the request with 400. A non-nil Completion
+	// runs after the response has been proxied (see Completion).
+	Rewrite func(*http.Request) (Completion, error)
+	// StartupReconcile repairs resource-owned runtime state against the
+	// upstream. The edge invokes it at process start, and the resource lifecycle
+	// may invoke it again after backend readiness. It must be safe to retry and
+	// must not start work the resource is not already running. Startup errors
+	// are logged; lifecycle-triggered errors are returned to the owner.
+	StartupReconcile func(context.Context, Upstream) error
+	// ModelStore enables per-model usage recording, per-caller attribution and
+	// the per-model eviction fence (model_usage.go, caller.go) for a resource
+	// whose requests name a model.
+	ModelStore string
+	// IdentifyCaller names the process behind a connection for model usage
+	// attribution. nil uses the loopback /proc lookup (caller_linux.go).
+	IdentifyCaller func(local, remote net.Addr) string
+}
+
+// Completion is follow-up work a resource owner schedules for a request it
+// rewrote. It runs on the request goroutine after the response is proxied,
+// so it must return promptly (schedule, don't wait).
+type Completion func(Upstream)
+
+// Upstream lets a Completion reach the private backend directly: requests do
+// not pass the public edge again, so they are neither counted as use nor
+// rewritten. The client refuses while the edge is drained and never wakes a
+// stopped backend; follow-up work must not undo a capacity transition.
+type Upstream struct {
+	BaseURL string
+	Client  *http.Client
+}
+
+// errEdgeDrained is returned by the Upstream client while the edge is drained.
+var errEdgeDrained = errors.New("activity edge is drained")
+
+type drainGatedTransport struct {
+	base    http.RoundTripper
+	tracker *tracker
+}
+
+func (t drainGatedTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if t.tracker.isDraining() {
+		return nil, errEdgeDrained
+	}
+	return t.base.RoundTrip(r)
+}
+
+// Default returns Handlers wired to the real shell.
+func Default() *Handlers {
+	return &Handlers{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		GetEnv: os.Getenv,
+		Exec: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return exec.CommandContext(ctx, name, args...).Output()
+		},
+		Resource:        defaultResource,
+		DefaultListen:   defaultListen,
+		DefaultUpstream: defaultUpstream,
+		ListenEnv:       defaultListenEnv,
+		UpstreamEnv:     defaultUpstreamEnv,
+		Match:           isTranscription,
+	}
+}
+
+// New returns a production activity edge for one resource.
+func New(resource, listen, upstream string, match RequestMatcher) *Handlers {
+	h := Default()
+	h.Resource = strings.TrimSpace(resource)
+	h.DefaultListen = strings.TrimSpace(listen)
+	h.DefaultUpstream = strings.TrimSpace(upstream)
+	prefix := strings.ToUpper(strings.ReplaceAll(h.Resource, "-", "_"))
+	h.ListenEnv = prefix + "_ACTIVITY_EDGE_LISTEN"
+	h.UpstreamEnv = prefix + "_ACTIVITY_EDGE_UPSTREAM"
+	h.Match = match
+	h.Native = false
+	return h
+}
+
+// ForResource returns the reviewed request/stream edge for an accelerator
+// resource. Keeping this table beside the shared implementation makes the six
+// transition tests exercise the exact configuration used by every CLI.
+func ForResource(resource string) (*Handlers, error) {
+	name := strings.TrimSpace(resource)
+	spec, ok := resourceSpecs[name]
+	if !ok {
+		return nil, fmt.Errorf("activity edge: no request boundary declared for resource %q", resource)
+	}
+	h := New(name, spec.listen, spec.upstream, spec.matcher())
+	h.Native = spec.native
+	if name == "ollama" {
+		// Missing-model acquisition must use resource-ollama ensure, which
+		// preflights an immutable manifest and holds a shared disk-job lease.
+		// The public transparent edge cannot provide those guarantees itself.
+		h.Reject = MatchPaths([]string{http.MethodPost}, "/api/pull")
+		h.RejectMessage = "direct Ollama model pulls are unsupported on the public edge; use resource-ollama ensure for shared disk admission"
+	}
+	if name == "ollama" || name == "ollaya" {
+		h.ModelStore = name
+	}
+	// Recover through the ordinary resource lifecycle owner for every edge that
+	// observes an accelerated workload. A stopped or draining upstream must not
+	// leave the shared broker edge unable to wake that resource merely because it
+	// is not Whisper. The control plane still owns admission, placement recovery,
+	// and transition reconciliation; this edge never starts a model server or
+	// bypasses those lifecycle gates itself.
+	h.Wake = func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_, err := h.Exec(ctx, "vrooli", "resource", "start", name)
+		return err
+	}
+	return h, nil
+}
+
+// MatchPaths matches the listed methods and exact or nested endpoint paths.
+func MatchPaths(methods []string, paths ...string) RequestMatcher {
+	allowed := make(map[string]struct{}, len(methods))
+	for _, method := range methods {
+		allowed[strings.ToUpper(strings.TrimSpace(method))] = struct{}{}
+	}
+	return func(r *http.Request) bool {
+		if r == nil {
+			return false
+		}
+		if _, ok := allowed[strings.ToUpper(r.Method)]; !ok {
+			return false
+		}
+		path := strings.ToLower(strings.TrimSuffix(r.URL.Path, "/"))
+		for _, candidate := range paths {
+			candidate = strings.ToLower(strings.TrimSuffix(candidate, "/"))
+			if path == candidate || strings.HasPrefix(path, candidate+"/") {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// defaultDebounce is the dwell after the last in-flight /asr completes before the
+// edge reports idle. It coalesces back-to-back dictation segments so the signal
+// does not flap; the broker still waits its own idle_grace on top of this before
+// the claim becomes reclaim-eligible.
+var defaultDebounce = tuning.ActivityDebounce()
+
+// Command returns the `activity-proxy` command for registration.
+func Command(h *Handlers) cliapp.Command {
+	if h == nil {
+		h = Default()
+	}
+	return cliapp.Command{
+		Name:        "activity-edge",
+		Description: "Run the fail-open reverse proxy that brackets resource work and reports capacity activity",
+		Usage:       "activity-edge [--listen host:port] [--upstream host:port] [--debounce 5s] (--parent-pid pid | --control-socket path)",
+		Run:         h.Run,
+	}
+}
+
+// Run parses flags and serves until signaled.
+func (h *Handlers) Run(args []string) error {
+	fs := flag.NewFlagSet("activity-proxy", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	listen := fs.String("listen", h.env(h.listenEnv(), h.defaultListen()), "public host:port the activity edge listens on")
+	upstream := fs.String("upstream", h.env(h.upstreamEnv(), h.defaultUpstream()), "private host:port of the managed resource server")
+	debounce := fs.Duration("debounce", h.debounce(), "idle debounce after the last in-flight /asr completes")
+	native := fs.Bool("native", h.Native, "adapt the historical /asr multipart contract to whisper.cpp")
+	parent := fs.Int("parent-pid", h.ParentPID, "PID of the supervised resource process; omit only with --control-socket")
+	controlSocket := fs.String("control-socket", h.ControlSocket, "private Unix socket for resource lifecycle drain/resume")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	parentPID := *parent
+	if parentPID <= 1 && strings.TrimSpace(*controlSocket) == "" {
+		return fmt.Errorf("activity edge: an owning parent PID or private control socket is required")
+	}
+
+	started := h.now()
+	srv, tr, err := h.serverWithTrackerMode(*listen, *upstream, *debounce, *native)
+	if err != nil {
+		h.errorf("activity-edge exit: reason=server-build err=%v\n", err)
+		return err
+	}
+	if h.StartupReconcile != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		h.startupMu.Lock()
+		upstream := h.startupUpstream
+		h.startupMu.Unlock()
+		if err := h.StartupReconcile(ctx, upstream); err != nil {
+			h.errorf("activity-edge startup reconciliation failed: %v\n", err)
+		}
+		cancel()
+	}
+	controlServer, controlListener, err := serveControlSocket(*controlSocket, h)
+	if err != nil {
+		return fmt.Errorf("activity edge control socket: %w", err)
+	}
+	if controlServer != nil {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_ = controlServer.Shutdown(ctx)
+			_ = controlListener.Close()
+			_ = os.Remove(*controlSocket)
+		}()
+		go func() { _ = controlServer.Serve(controlListener) }()
+	}
+
+	ln, err := h.listen("tcp", *listen)
+	if err != nil {
+		err = fmt.Errorf("listen on %s: %w", *listen, err)
+		h.errorf("activity-edge exit: reason=listen-error err=%v\n", err)
+		return err
+	}
+	fmt.Fprintf(h.Stdout, "%s activity edge: %s -> %s (idle debounce %s)\n", h.resource(), *listen, *upstream, *debounce)
+
+	sigCh, stopSignals := h.signals()
+	if stopSignals != nil {
+		defer stopSignals()
+	}
+	h.startModelGate()
+	defer h.stopModelGate()
+	heartbeatStop, _ := h.startHeartbeat(tr, started, parentPID)
+	defer heartbeatStop()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve(ln) }()
+	parentTicker := time.NewTicker(h.livenessInterval())
+	defer parentTicker.Stop()
+
+	for {
+		select {
+		case <-parentTicker.C:
+			if h.parentGone(parentPID) {
+				shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = srv.Shutdown(shutCtx)
+				h.errorf("%s\n", "activity-edge exit: reason=parent_gone")
+				return nil
+			}
+			continue
+		case sig := <-sigCh:
+			shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			err := srv.Shutdown(shutCtx)
+			if err != nil {
+				h.errorf("activity-edge exit: reason=signal sig=%s shutdown_error=%v\n", sig, err)
+				return err
+			}
+			h.errorf("activity-edge exit: reason=signal sig=%s\n", sig)
+			return nil
+		case err := <-errCh:
+			if err == http.ErrServerClosed {
+				h.errorf("%s\n", "activity-edge exit: reason=server-closed")
+				return nil
+			}
+			h.errorf("activity-edge exit: reason=serve-error err=%v\n", err)
+			return err
+		}
+	}
+}
+
+func (h *Handlers) parentGone(pid int) bool {
+	if pid <= 1 {
+		return false
+	}
+	if h.ParentAlive != nil {
+		return !h.ParentAlive(pid)
+	}
+	return !processAlive(pid)
+}
+
+// server builds the transparent reverse proxy + the /asr bracketing handler.
+func (h *Handlers) server(listen, upstream string, debounce time.Duration) (*http.Server, error) {
+	srv, _, err := h.serverWithTracker(listen, upstream, debounce)
+	return srv, err
+}
+
+func (h *Handlers) serverWithTracker(listen, upstream string, debounce time.Duration) (*http.Server, *tracker, error) {
+	return h.serverWithTrackerMode(listen, upstream, debounce, h.Native)
+}
+
+func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.Duration, native bool) (*http.Server, *tracker, error) {
+	unixUpstream := strings.HasPrefix(upstream, "unix://")
+	var target *url.URL
+	var err error
+	if unixUpstream {
+		privateURL, parseErr := url.Parse(upstream)
+		if parseErr != nil {
+			return nil, nil, fmt.Errorf("parse Unix activity upstream: %w", parseErr)
+		}
+		socketPath := privateURL.Path
+		if !strings.HasPrefix(socketPath, "/") {
+			return nil, nil, fmt.Errorf("Unix activity upstream must use an absolute socket path")
+		}
+		targetHost := privateURL.Query().Get("host")
+		if targetHost == "" {
+			targetHost = "activity-upstream"
+		}
+		target = &url.URL{Scheme: "http", Host: targetHost}
+	} else {
+		target, err = url.Parse("http://" + strings.TrimPrefix(upstream, "http://"))
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse upstream %q: %w", upstream, err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if unixUpstream {
+		privateURL, _ := url.Parse(upstream)
+		socketPath := privateURL.Path
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
+		}
+	}
+	if h.Wake != nil {
+		proxy.Transport = wakeRoundTripper{
+			Base: transport, Wake: h.Wake,
+			WakeContext: func(parent context.Context) (context.Context, func(), bool) {
+				h.trackerMu.Lock()
+				tr := h.tracker
+				h.trackerMu.Unlock()
+				if tr == nil {
+					return parent, func() {}, true
+				}
+				return tr.beginWake(parent)
+			},
+		}
+	} else {
+		proxy.Transport = transport
+	}
+	// FlushInterval -1 streams responses (and SSE/chunked) through immediately
+	// rather than buffering — transparency for any streaming transcription.
+	proxy.FlushInterval = -1
+	// A dead upstream must not crash the proxy: surface 502 and keep serving.
+	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, _ error) {
+		w.WriteHeader(http.StatusBadGateway)
+	}
+
+	tr := &tracker{
+		debounce:   debounce,
+		drained:    make(chan struct{}),
+		markActive: func() { h.report(h.resource(), "active") },
+		markIdle:   func() { h.report(h.resource(), "idle") },
+	}
+	close(tr.drained)
+	h.trackerMu.Lock()
+	h.tracker = tr
+	h.trackerMu.Unlock()
+	upstreamHandle := Upstream{BaseURL: target.String(), Client: &http.Client{Transport: drainGatedTransport{base: transport, tracker: tr}, Timeout: 30 * time.Second}}
+	// Resource-owned reconciliation runs only before serving or over the
+	// private lifecycle socket after admission is closed. It must reach the
+	// backend while drained, so the reconciliation handle uses the raw
+	// transport; request completions remain behind drainGatedTransport.
+	reconcileUpstream := Upstream{BaseURL: target.String(), Client: &http.Client{Transport: transport, Timeout: 30 * time.Second}}
+	h.startupMu.Lock()
+	h.startupUpstream = reconcileUpstream
+	h.startupMu.Unlock()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if h.Reject != nil && h.Reject(r) {
+			message := strings.TrimSpace(h.RejectMessage)
+			if message == "" {
+				message = "operation is not supported on this resource edge"
+			}
+			http.Error(w, message, http.StatusForbidden)
+			return
+		}
+		if h.Rewrite != nil {
+			complete, err := h.Rewrite(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if complete != nil {
+				// Registered first, so it runs after the work release below.
+				defer complete(upstreamHandle)
+			}
+		}
+		if h.isWork(r) {
+			if gate := h.modelGateFor(); gate != nil {
+				var releaseModel func()
+				var fenceErr error
+				if r, releaseModel, fenceErr = gate.enter(r); fenceErr != nil {
+					gate.reject(w, fenceErr)
+					return
+				}
+				defer releaseModel()
+			}
+			if !tr.begin() {
+				if err := h.recoverDrainedDemand(r.Context()); err != nil {
+					http.Error(w, "resource is draining and wake recovery did not complete", http.StatusServiceUnavailable)
+					return
+				}
+				if !tr.begin() {
+					http.Error(w, "resource remains unavailable after placement recovery", http.StatusServiceUnavailable)
+					return
+				}
+			}
+			defer tr.end()
+			r = r.WithContext(context.WithValue(r.Context(), wakeRequestKey{}, true))
+			if unixUpstream {
+				woke, wakeErr := h.ensurePrivateUpstream(r.Context(), strings.TrimPrefix(strings.SplitN(upstream, "?", 2)[0], "unix://"))
+				if wakeErr != nil {
+					http.Error(w, "private resource bridge wake failed", http.StatusServiceUnavailable)
+					return
+				} else if woke {
+					r = r.WithContext(context.WithValue(r.Context(), wakeAlreadyAttemptedKey{}, true))
+				}
+			}
+		}
+		if native && isNativeWhisperRequest(r) {
+			adapted, err := adaptNativeRequest(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if strings.Contains(strings.ToLower(r.URL.Path), "detect-language") {
+				rec := httptest.NewRecorder()
+				proxy.ServeHTTP(rec, adapted)
+				copyRecordedResponse(w, rec, true)
+				return
+			}
+			proxy.ServeHTTP(w, adapted)
+			return
+		}
+		proxy.ServeHTTP(w, r)
+	})
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ActivityReadHeaderTimeout()}
+	if strings.TrimSpace(h.ModelStore) != "" {
+		identify := h.IdentifyCaller
+		if identify == nil {
+			identify = callerid.NewResolver().Identify
+		}
+		srv.ConnContext = func(ctx context.Context, conn net.Conn) context.Context {
+			return withPeer(ctx, conn, identify)
+		}
+	}
+	return srv, tr, nil
+}
+
+func (h *Handlers) ensurePrivateUpstream(ctx context.Context, socketPath string) (bool, error) {
+	h.wakeMu.Lock()
+	defer h.wakeMu.Unlock()
+	conn, err := (&net.Dialer{Timeout: 150 * time.Millisecond}).DialContext(ctx, "unix", socketPath)
+	if conn != nil {
+		_ = conn.Close()
+	}
+	if err == nil || !isRefusedUpstreamConnection(err) || h.Wake == nil {
+		return false, nil
+	}
+	wakeCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := h.Wake(wakeCtx); err != nil {
+		return true, err
+	}
+	return true, nil
+}
+
+func (h *Handlers) recoverDrainedDemand(parent context.Context) error {
+	h.wakeMu.Lock()
+	defer h.wakeMu.Unlock()
+	h.trackerMu.Lock()
+	tr := h.tracker
+	h.trackerMu.Unlock()
+	if tr == nil || !tr.isDraining() {
+		return nil
+	}
+	if h.Wake == nil {
+		return fmt.Errorf("drained resource has no governed wake owner")
+	}
+	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+	defer cancel()
+	return h.Wake(ctx)
+}
+
+// Drain rejects new work and waits for in-flight work to finish. The caller
+// must persist a transition before changing placement and call Resume after
+// either a successful or failed placement attempt.
+func (h *Handlers) Drain(ctx context.Context) error {
+	h.trackerMu.Lock()
+	tr := h.tracker
+	h.trackerMu.Unlock()
+	if tr == nil {
+		return fmt.Errorf("activity edge is not serving")
+	}
+	return tr.drain(ctx)
+}
+
+// Resume reopens the work boundary after placement has been reconciled.
+func (h *Handlers) Resume() {
+	h.trackerMu.Lock()
+	tr := h.tracker
+	h.trackerMu.Unlock()
+	if tr != nil {
+		tr.resume()
+	}
+}
+
+// adaptNativeRequest preserves the public audio_file multipart field and
+// /asr path while translating to whisper.cpp's /inference endpoint. Query
+// controls from the historical API are promoted into the native multipart
+// fields because whisper.cpp does not consume them from the query string.
+func adaptNativeRequest(r *http.Request) (*http.Request, error) {
+	if !isNativeWhisperRequest(r) {
+		return r, nil
+	}
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		return nil, fmt.Errorf("native whisper requires multipart audio: %w", err)
+	}
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for key, values := range r.MultipartForm.Value {
+		for _, value := range values {
+			if err := writer.WriteField(key, value); err != nil {
+				return nil, fmt.Errorf("copy whisper form field %q: %w", key, err)
+			}
+		}
+	}
+	for key, headers := range r.MultipartForm.File {
+		for _, header := range headers {
+			file, err := header.Open()
+			if err != nil {
+				return nil, fmt.Errorf("open uploaded audio: %w", err)
+			}
+			targetKey := key
+			if key == "audio_file" {
+				targetKey = "file"
+			}
+			part, err := writer.CreateFormFile(targetKey, header.Filename)
+			if err == nil {
+				_, err = io.Copy(part, file)
+			}
+			closeErr := file.Close()
+			if err != nil {
+				return nil, fmt.Errorf("copy uploaded audio: %w", err)
+			}
+			if closeErr != nil {
+				return nil, fmt.Errorf("close uploaded audio: %w", closeErr)
+			}
+		}
+	}
+	if _, ok := r.MultipartForm.Value["response_format"]; !ok {
+		format := nativeResponseFormat(r.URL.Query().Get("output"))
+		if err := writer.WriteField("response_format", format); err != nil {
+			return nil, fmt.Errorf("set native response format: %w", err)
+		}
+	}
+	for _, key := range []string{"task", "language", "prompt", "initial_prompt"} {
+		if _, inBody := r.MultipartForm.Value[key]; inBody {
+			continue
+		}
+		if value := r.URL.Query().Get(key); value != "" {
+			if err := writer.WriteField(key, value); err != nil {
+				return nil, fmt.Errorf("copy native query field %q: %w", key, err)
+			}
+		}
+	}
+	if strings.Contains(strings.ToLower(r.URL.Path), "detect-language") {
+		if err := writer.WriteField("detect_language", "true"); err != nil {
+			return nil, fmt.Errorf("set native language detection: %w", err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("close native whisper form: %w", err)
+	}
+	adapted := r.Clone(r.Context())
+	adapted.URL.Path = "/inference"
+	adapted.URL.RawPath = ""
+	adapted.URL.RawQuery = ""
+	bodyBytes := append([]byte(nil), body.Bytes()...)
+	adapted.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	adapted.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+	}
+	adapted.ContentLength = int64(len(bodyBytes))
+	adapted.Header = adapted.Header.Clone()
+	adapted.Header.Set("Content-Type", writer.FormDataContentType())
+	adapted.Header.Set("Content-Length", fmt.Sprintf("%d", len(bodyBytes)))
+	return adapted, nil
+}
+
+func nativeResponseFormat(output string) string {
+	switch strings.ToLower(strings.TrimSpace(output)) {
+	case "text", "srt", "vtt":
+		return strings.ToLower(strings.TrimSpace(output))
+	default:
+		return "verbose_json"
+	}
+}
+
+func copyRecordedResponse(w http.ResponseWriter, rec *httptest.ResponseRecorder, detectLanguage bool) {
+	body := rec.Body.Bytes()
+	if detectLanguage && rec.Code >= http.StatusOK && rec.Code < http.StatusMultipleChoices {
+		body = adaptDetectLanguageResponse(body)
+		w.Header().Set("Content-Type", "application/json")
+	}
+	for key, values := range rec.Header() {
+		if key == "Content-Length" || (detectLanguage && key == "Content-Type") {
+			continue
+		}
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(rec.Code)
+	_, _ = w.Write(body)
+}
+
+func adaptDetectLanguageResponse(body []byte) []byte {
+	var payload map[string]any
+	if json.Unmarshal(body, &payload) != nil {
+		return body
+	}
+	language, _ := payload["detected_language"].(string)
+	if language == "" {
+		language, _ = payload["language"].(string)
+	}
+	if _, ok := payload["language_code"]; !ok {
+		payload["language_code"] = languageCode(language)
+	}
+	if _, ok := payload["confidence"]; !ok {
+		if probability, ok := payload["detected_language_probability"].(float64); ok {
+			payload["confidence"] = probability
+		}
+	}
+	adapted, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return adapted
+}
+
+func languageCode(language string) string {
+	switch strings.ToLower(strings.TrimSpace(language)) {
+	case "english":
+		return "en"
+	case "spanish":
+		return "es"
+	case "french":
+		return "fr"
+	case "german":
+		return "de"
+	case "italian":
+		return "it"
+	case "portuguese":
+		return "pt"
+	case "dutch":
+		return "nl"
+	default:
+		return strings.ToLower(strings.TrimSpace(language))
+	}
+}
+
+// isTranscription reports whether a request is a unit of transcription work that
+// should hold whisper active. The webservice exposes POST /asr (transcribe) and
+// POST /detect-language; GET / is the health/docs path and must NOT bracket.
+func isTranscription(r *http.Request) bool {
+	if r.Method != http.MethodPost {
+		return false
+	}
+	p := strings.ToLower(r.URL.Path)
+	return p == "/asr" || strings.HasPrefix(p, "/asr/")
+}
+
+// isNativeWhisperRequest includes language detection for API compatibility.
+// It is deliberately broader than isTranscription: language-detection probes
+// are adapted and served but do not renew real transcription demand.
+func isNativeWhisperRequest(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	p := strings.ToLower(strings.TrimSuffix(r.URL.Path, "/"))
+	return p == "/asr" || strings.HasPrefix(p, "/asr/") || p == "/detect-language" || strings.HasPrefix(p, "/detect-language/")
+}
+
+// report emits only a demand signal (active/idle) for the current claim. These
+// request-boundary observations do not prove placement, transition completion,
+// model identity, or released footprint. Best-effort: a missing vrooli binary,
+// no live claim, or any CLI error is swallowed — the edge never lets capacity
+// reporting affect transcription.
+// report tells the broker this resource started or stopped working.
+//
+// Finding the active claim and setting its state is the half every capacity
+// companion shares, so it comes from packages/capacity/companion rather than
+// being copied here. What stays local is the edge's own contract: this runs off
+// the request path, and every failure is swallowed so a broker outage can never
+// affect a transcription.
+func (h *Handlers) report(resource, state string) {
+	if state != "active" && state != "idle" {
+		h.errorf("activity-edge capacity report ignored: unsupported demand state %q\n", state)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	companion.Reporter{Resource: resource, Exec: h.Exec}.ReportActivity(ctx, state)
+}
+
+func (h *Handlers) env(key, fallback string) string {
+	if h.GetEnv == nil {
+		return fallback
+	}
+	if v := strings.TrimSpace(h.GetEnv(key)); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func (h *Handlers) resource() string {
+	if value := strings.TrimSpace(h.Resource); value != "" {
+		return value
+	}
+	return defaultResource
+}
+
+func (h *Handlers) defaultListen() string {
+	if value := strings.TrimSpace(h.DefaultListen); value != "" {
+		return value
+	}
+	return defaultListen
+}
+
+func (h *Handlers) defaultUpstream() string {
+	if value := strings.TrimSpace(h.DefaultUpstream); value != "" {
+		return value
+	}
+	return defaultUpstream
+}
+
+func (h *Handlers) listenEnv() string {
+	if value := strings.TrimSpace(h.ListenEnv); value != "" {
+		return value
+	}
+	return defaultListenEnv
+}
+
+func (h *Handlers) upstreamEnv() string {
+	if value := strings.TrimSpace(h.UpstreamEnv); value != "" {
+		return value
+	}
+	return defaultUpstreamEnv
+}
+
+func (h *Handlers) isWork(r *http.Request) bool {
+	if h.Match != nil {
+		return h.Match(r)
+	}
+	return isTranscription(r)
+}
+
+func (h *Handlers) debounce() time.Duration {
+	if h.Debounce > 0 {
+		return h.Debounce
+	}
+	return defaultDebounce
+}
+
+func (h *Handlers) listen(network, address string) (net.Listener, error) {
+	if h.Listen != nil {
+		return h.Listen(network, address)
+	}
+	return net.Listen(network, address)
+}
+
+func (h *Handlers) signals() (<-chan os.Signal, func()) {
+	if h.SignalCh != nil {
+		return h.SignalCh, nil
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	return ch, func() {
+		signal.Stop(ch)
+		close(ch)
+	}
+}
+
+func (h *Handlers) heartbeatInterval() time.Duration {
+	if h.HeartbeatInterval > 0 {
+		return h.HeartbeatInterval
+	}
+	return tuning.CompanionHeartbeatInterval()
+}
+
+func (h *Handlers) now() time.Time {
+	if h.Now != nil {
+		return h.Now()
+	}
+	return time.Now()
+}
+
+// livenessInterval is separate from the diagnostic alive-log interval: a
+// resident must renew before the canonical TTL even when it receives no work.
+func (h *Handlers) livenessInterval() time.Duration {
+	interval := tuning.CapacityHeartbeatTTL() / 3
+	if h.HeartbeatInterval > 0 && h.HeartbeatInterval < interval {
+		interval = h.HeartbeatInterval
+	}
+	return interval
+}
+
+func (h *Handlers) startHeartbeat(tr *tracker, since time.Time, parentPIDs ...int) (func(), <-chan struct{}) {
+	parentPID := h.ParentPID
+	if len(parentPIDs) > 0 {
+		parentPID = parentPIDs[0]
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		liveTicker := time.NewTicker(h.livenessInterval())
+		defer liveTicker.Stop()
+		logTicker := time.NewTicker(h.heartbeatInterval())
+		defer logTicker.Stop()
+		renew := func() bool {
+			if h.parentGone(parentPID) {
+				return false
+			}
+			if h.Exec == nil {
+				return true
+			}
+			callCtx, stop := context.WithTimeout(ctx, h.livenessInterval())
+			defer stop()
+			if err := (companion.Reporter{Resource: h.resource(), Exec: h.Exec}).Heartbeat(callCtx); err != nil && ctx.Err() == nil {
+				h.errorf("activity-edge capacity renewal (%s): %v\n", h.resource(), err)
+			}
+			return true
+		}
+		if !renew() {
+			return
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-liveTicker.C:
+				if !renew() {
+					return
+				}
+			case <-logTicker.C:
+				h.logHeartbeat(tr, since)
+			}
+		}
+	}()
+	var once sync.Once
+	return func() { once.Do(func() { cancel(); <-done }) }, done
+}
+
+func (h *Handlers) logHeartbeat(tr *tracker, since time.Time) {
+	requests, active := tr.snapshot()
+	fmt.Fprintf(h.Stdout, "activity-edge alive: resource=%s requests=%d active=%t since=%s\n", h.resource(), requests, active, since.Format(time.RFC3339))
+}
+
+// tracker refcounts concurrent in-flight transcriptions and fires the activity
+// transitions on the edges: active on the first concurrent request, idle after
+// the last one finishes plus a debounce (so back-to-back segments don't flap).
+// markActive/markIdle run on their own goroutines so the request path never
+// blocks on a capacity call.
+type tracker struct {
+	mu        sync.Mutex
+	inflight  int
+	draining  bool
+	drained   chan struct{}
+	active    bool
+	requests  uint64
+	idleTimer *time.Timer
+	debounce  time.Duration
+
+	markActive func()
+	markIdle   func()
+	sequence   uint64
+	reportMu   sync.Mutex
+	reportCond *sync.Cond
+	nextReport uint64
+	wakeSeq    uint64
+	wakeCancel map[uint64]context.CancelFunc
+}
+
+func (t *tracker) begin() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.draining {
+		return false
+	}
+	if t.inflight == 0 {
+		t.drained = make(chan struct{})
+	}
+	if t.idleTimer != nil {
+		t.idleTimer.Stop()
+		t.idleTimer = nil
+	}
+	t.requests++
+	t.inflight++
+	if !t.active {
+		t.active = true
+		t.sequence++
+		seq := t.sequence
+		go t.report(seq, activityActive)
+	}
+	return true
+}
+
+func (t *tracker) end() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.inflight > 0 {
+		t.inflight--
+	}
+	if t.inflight == 0 && t.drained != nil {
+		select {
+		case <-t.drained:
+		default:
+			close(t.drained)
+		}
+	}
+	if t.inflight > 0 {
+		return
+	}
+	if t.idleTimer != nil {
+		t.idleTimer.Stop()
+	}
+	t.idleTimer = time.AfterFunc(t.debounce, func() {
+		t.mu.Lock()
+		if t.inflight > 0 { // a new segment arrived during the debounce — stay active
+			t.mu.Unlock()
+			return
+		}
+		t.active = false
+		t.sequence++
+		seq := t.sequence
+		t.mu.Unlock()
+		go t.report(seq, activityIdle)
+	})
+}
+
+func (t *tracker) drain(ctx context.Context) error {
+	t.mu.Lock()
+	t.draining = true
+	drained := t.drained
+	cancelWake := make([]context.CancelFunc, 0, len(t.wakeCancel))
+	for _, cancel := range t.wakeCancel {
+		cancelWake = append(cancelWake, cancel)
+	}
+	t.mu.Unlock()
+	for _, cancel := range cancelWake {
+		cancel()
+	}
+	select {
+	case <-drained:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	t.mu.Lock()
+	if t.idleTimer != nil {
+		t.idleTimer.Stop()
+		t.idleTimer = nil
+	}
+	var reportSequence uint64
+	emitIdle := false
+	if t.active && t.inflight == 0 {
+		t.active = false
+		t.sequence++
+		emitIdle = true
+	}
+	// The debounce callback may already have changed active=false and queued
+	// its idle report before drain acquired the lock. In that case drain must
+	// still wait for that sequence to reach the broker before the owner proceeds
+	// with unload/transition work. Capturing the latest sequence handles both
+	// the timer-won and drain-won orderings.
+	reportSequence = t.sequence
+	t.mu.Unlock()
+	if reportSequence == 0 {
+		return nil
+	}
+	if emitIdle {
+		go t.report(reportSequence, activityIdle)
+	}
+	return t.waitForReport(ctx, reportSequence)
+}
+
+// drainIfIdle closes the request gate only when no request is already in
+// flight. Resource-owned reconciliation uses this instead of Drain: a request
+// may be waiting for the lifecycle operation that invokes reconciliation, so
+// waiting for that request would deadlock. The caller resumes after the
+// reconciliation attempt.
+func (t *tracker) drainIfIdle(ctx context.Context) (bool, error) {
+	t.mu.Lock()
+	if t.inflight > 0 {
+		t.mu.Unlock()
+		return false, nil
+	}
+	t.draining = true
+	t.mu.Unlock()
+	return true, t.drain(ctx)
+}
+
+// beginWake reserves a context-bound wake attempt. Drain cancels every
+// outstanding permit after closing the gate, so a wake waiting on the
+// resource lifecycle lock cannot hold the drain open indefinitely.
+func (t *tracker) beginWake(parent context.Context) (context.Context, func(), bool) {
+	t.mu.Lock()
+	if t.draining || parent.Err() != nil {
+		t.mu.Unlock()
+		return nil, func() {}, false
+	}
+	if t.wakeCancel == nil {
+		t.wakeCancel = make(map[uint64]context.CancelFunc)
+	}
+	t.wakeSeq++
+	sequence := t.wakeSeq
+	ctx, cancel := context.WithCancel(parent)
+	t.wakeCancel[sequence] = cancel
+	t.mu.Unlock()
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			cancel()
+			t.mu.Lock()
+			delete(t.wakeCancel, sequence)
+			t.mu.Unlock()
+		})
+	}
+	return ctx, release, true
+}
+
+func (t *tracker) waitForReport(ctx context.Context, sequence uint64) error {
+	t.reportMu.Lock()
+	if t.reportCond == nil {
+		t.reportCond = sync.NewCond(&t.reportMu)
+	}
+	stopWake := context.AfterFunc(ctx, func() {
+		t.reportMu.Lock()
+		t.reportCond.Broadcast()
+		t.reportMu.Unlock()
+	})
+	defer stopWake()
+	for t.nextReport < sequence && ctx.Err() == nil {
+		t.reportCond.Wait()
+	}
+	t.reportMu.Unlock()
+	return ctx.Err()
+}
+
+func (t *tracker) resume() {
+	t.mu.Lock()
+	t.draining = false
+	t.mu.Unlock()
+}
+
+func (t *tracker) isDraining() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.draining
+}
+
+// report serializes asynchronous edge events by their tracker sequence. The
+// report callbacks remain off the request/timer path, while a delayed active
+// callback cannot land after the newer idle callback.
+func (t *tracker) report(sequence uint64, state string) {
+	t.reportMu.Lock()
+	if t.reportCond == nil {
+		t.reportCond = sync.NewCond(&t.reportMu)
+	}
+	for sequence != t.nextReport+1 {
+		t.reportCond.Wait()
+	}
+	callback := t.markIdle
+	if state == activityActive {
+		callback = t.markActive
+	}
+	t.reportMu.Unlock()
+	if callback != nil {
+		callback()
+	}
+	t.reportMu.Lock()
+	t.nextReport = sequence
+	t.reportCond.Broadcast()
+	t.reportMu.Unlock()
+}
+
+func (t *tracker) snapshot() (uint64, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.requests, t.active
+}
+
+// Renewal and shutdown diagnostics can run concurrently. Writers supplied by
+// callers (including buffers) need not be concurrency-safe.
+func (h *Handlers) errorf(format string, args ...any) {
+	h.diagnosticMu.Lock()
+	defer h.diagnosticMu.Unlock()
+	if h.Stderr != nil {
+		fmt.Fprintf(h.Stderr, format, args...)
+	}
+}

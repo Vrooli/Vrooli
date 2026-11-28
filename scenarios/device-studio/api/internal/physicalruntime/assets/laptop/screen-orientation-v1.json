@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "source_glb_sha256": "3005e1e8b12e2017565292712aaad20dfb35cda2c42519a937d2c74afb6f5925",
+  "source_glb_bytes": 4638060,
+  "source_bin_sha256": "d87cb752fde16d2144da4ac1a94e520cb68146f372cf9b65f536a4c16d5b4980",
+  "derivative_glb_sha256": "20c9224deafefa48af2d2be5e48ca4fce484d167522c4762d2f1669cec78883b",
+  "derivative_glb_bytes": 4638984,
+  "derivation_script": "scenarios/device-studio/assets/sources/laptop-starter/derive_screen_orientation.py",
+  "derivation_script_sha256": "97bbc9e63daef3cfb84e3984330ad7b0f8628a2b822a52595e7edd89debcaffb",
+  "creator": "Jack Baeten",
+  "source_license": "CC BY 4.0",
+  "attribution_required": true,
+  "source_identity": "MacBook Pro M3 16 inch 2024 creator model title; not manufacturer CAD or endorsement",
+  "correction": {
+    "node": "LaptopScreenSurface",
+    "node_index": 5,
+    "mesh": 3,
+    "primitive": 0,
+    "source_uv_accessor": 96,
+    "derived_uv_accessor": 97,
+    "vertex_count": 95,
+    "mapping": "(u,v) -> (1-u,1-v)"
+  },
+  "preservation": "The complete original BIN chunk is an exact prefix. POSITION 92, NORMAL 93, indices 95, all non-display accessor references, node hierarchy, transforms, geometry, material payload and motion remain unchanged.",
+  "reference_result": "Parent rejected the actual 10-second 24fps composite as upside down; only the display UV chart is changed. The new candidate requires a fresh parent-reviewed still."
+}

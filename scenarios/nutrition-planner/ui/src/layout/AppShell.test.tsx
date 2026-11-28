@@ -1,0 +1,139 @@
+/**
+ * AppShell tests verify the warm-kitchen navigation, appearance control, and
+ * landmarks. Page content is exercised in the per-page tests.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import { renderWithProviders } from "../test-utils";
+import { selectors } from "../consts/selectors";
+import { setLocale } from "../i18n";
+import en from "../i18n/locales/en.json";
+import ja from "../i18n/locales/ja.json";
+import ar from "../i18n/locales/ar.json";
+import { TestAppRouter } from "../app/routes";
+
+vi.mock("../api/recipes", () => ({ listRecipes: () => new Promise(() => undefined), createRecipe: vi.fn() }));
+vi.mock("../api/workspace", () => ({ ensureWorkspace: () => new Promise(() => undefined) }));
+
+const renderShell = (path = "/") =>
+  renderWithProviders(<TestAppRouter initialEntries={[path]} />, { withoutRouter: true });
+
+describe("AppShell structure (cimode)", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the shell landmarks, the brand, and the main outlet", () => {
+    renderShell();
+    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.navigation)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.tabs)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.brand)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.skip)).toHaveAttribute("href", `#${selectors.layout.main}`);
+  });
+
+  it("keeps preferences out of the shell chrome", () => {
+    renderShell();
+    expect(screen.queryByTestId(selectors.settingsPage.localeSelect)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.settingsPage.themeSelect)).not.toBeInTheDocument();
+  });
+
+  it("renders the five core destinations in the RCL shell and Settings as a utility link", () => {
+    renderShell("/settings");
+    for (const key of [
+      "today",
+      "week",
+      "groceries",
+      "meals",
+      "kitchen",
+      "settings",
+    ] as const) {
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+    }
+    for (const key of ["today", "week", "groceries", "meals", "kitchen"] as const) expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
+    const destinations = [
+      ["today", "/"],
+      ["week", "/week"],
+      ["meals", "/meals"],
+      ["groceries", "/groceries"],
+      ["kitchen", "/kitchen"],
+    ] as const;
+    for (const [key, href] of destinations) {
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toHaveAttribute("href", href);
+      expect(screen.getByTestId(selectors.layout.navTab({ key }))).toHaveAttribute("href", href);
+    }
+  });
+
+  it("marks the current route on settings and keeps Today unselected", () => {
+    renderShell("/settings");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("aria-current", "page");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "today" }))).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks each selected destination active in both desktop and phone navigation", () => {
+    const cases = [
+      ["/week", "week"],
+      ["/meals", "meals"],
+      ["/groceries", "groceries"],
+      ["/kitchen", "kitchen"],
+    ] as const;
+    for (const [path, key] of cases) {
+      cleanup();
+      renderShell(path);
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toHaveAttribute("aria-current", "page");
+      expect(screen.getByTestId(selectors.layout.navTab({ key }))).toHaveAttribute("aria-current", "page");
+    }
+  });
+
+  it("exposes Settings as the active utility link when its route is open", () => {
+    renderShell("/settings");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("href", "/settings");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("aria-current", "page");
+    expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+});
+
+describe("Locale switching through the shell (real locales)", () => {
+  beforeEach(async () => {
+    await setLocale("en");
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders English copy by default and reflects it on <html>", async () => {
+    renderShell();
+    // The desktop link and the phone tab both render the label, so there will be ≥1 match.
+    expect((await screen.findAllByText(en.layout.nav.today)).length).toBeGreaterThan(0);
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.documentElement.dir).toBe("ltr");
+  });
+
+  it("switches to Japanese when 日本語 is selected", async () => {
+    const user = userEvent.setup();
+    renderShell("/settings");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(screen.getByRole("option", { name: "日本語" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText(ja.layout.nav.today).length).toBeGreaterThan(0);
+    });
+    expect(document.documentElement.lang).toBe("ja");
+  });
+
+  it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
+    const user = userEvent.setup();
+    renderShell("/settings");
+    await user.click(screen.getByTestId(selectors.settingsPage.localeSelect));
+    await user.click(screen.getByRole("option", { name: "العربية" }));
+
+    await waitFor(() => {
+      expect(document.documentElement.dir).toBe("rtl");
+      expect(screen.getAllByText(ar.layout.nav.today).length).toBeGreaterThan(0);
+    });
+  });
+});

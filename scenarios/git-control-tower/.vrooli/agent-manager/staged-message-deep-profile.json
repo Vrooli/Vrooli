@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "git-control-tower-staged-message-deep",
+  "profileKey": "git-control-tower/staged-message-deep",
+  "description": "Investigate remaining immutable staged blob evidence through the scoped GCT read CLI; protected empty write policy and read-only API scope. Native localhost containment can be advisory on unsupported runners.",
+  "roleRef": "code.default",
+  "maxTurns": 96,
+  "allowedTools": [
+    "read",
+    "glob",
+    "grep",
+    "shell"
+  ],
+  "deniedTools": [
+    "write",
+    "edit",
+    "web_search",
+    "web_fetch"
+  ],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "networkAccess": "NETWORK_ACCESS_LOCALHOST",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED",
+    "writePolicy": {
+      "paths": []
+    },
+    "networkMode": "NETWORK_ACCESS_FULL",
+    "manualReview": true,
+    "autoApply": false,
+    "applyOnFailure": false
+  },
+  "createdBy": "git-control-tower",
+  "declaredScopes": [
+    "git-control-tower:read"
+  ],
+  "spawnPolicy": {
+    "axisOrder": [
+      "executionMode",
+      "sandboxMode"
+    ],
+    "executionMode": {
+      "prefer": [
+        "codec_pipe"
+      ]
+    },
+    "sandboxMode": {
+      "prefer": [
+        "protected"
+      ]
+    },
+    "require": [
+      {
+        "executionMode": "codec_pipe",
+        "sandboxMode": "protected"
+      }
+    ]
+  }
+}

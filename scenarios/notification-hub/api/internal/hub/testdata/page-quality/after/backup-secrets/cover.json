@@ -1,0 +1,21 @@
+{
+ "question": "Should I back up all 45 secret-holding places and include new ones automatically, back up selected groups, or leave them out?",
+ "big_picture": "Data Backup Manager found 45 places holding sign-ins, keys or private history with no backup. This is the third request because new secret-holding places keep appearing and there is no standing rule. Backing up all 45 adds 3.1 GiB to each encrypted backup; after a restore, you may sign in again once. Choose all with a standing rule, choose groups for today only, or leave them out. If you do not answer within 7 days, nothing is added.",
+ "recommend": "standing",
+ "reason": "It protects irreplaceable histories and secrets and prevents this same decision from returning whenever new places are found.",
+ "options": [
+  {
+   "key": "standing",
+   "label": "Back up all 45 now and automatically add future secret-holding places with a weekly additions note"
+  },
+  {
+   "key": "groups",
+   "label": "Back up only the groups I select; ask me again about future secret-holding places"
+  },
+  {
+   "key": "skip",
+   "label": "Leave all 45 out for now; new secret-holding places still wait for my answer"
+  }
+ ],
+ "technical_details": "Case: Data Backup Manager scan summarized in Notification Hub ask ba03832a, 15 Nov 2026. Current groups: AI tools/local services, 12 items, 2.9 GiB; Vrooli apps’ keys and records, 10 items, 222.5 MiB; host settings written by setup, 23 files, 10.9 KiB. No evidence files or exact paths were supplied. Worker should resolve paths through Data Backup Manager’s supported inventory workflow. Preserve Swarm Manager database with its live sidecar. No answer within 7 days means no changes."
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "test-genie.run-evidence",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Read bounded Test Genie run evidence or stream one catalog-selected artifact into the admitted workspace through the trusted Program Runtime file effect.",
+  "inputs": {
+    "view": {"type": "string", "required": true, "enum": ["show", "artifacts", "findings", "artifact", "download"]},
+    "scenario": {"type": "string", "required": true},
+    "run_id": {"type": "string", "required": true},
+    "artifact_id": {"type": "string", "default": ""},
+    "kinds": {"type": "string", "default": ""},
+    "phase": {"type": "string", "default": ""},
+    "path": {"type": "string", "default": "", "description": "Relative file path inside the already-admitted Program Runtime workspace; required for download."},
+    "overwrite": {"type": "boolean", "default": false, "description": "Replace an existing destination only when explicitly true."}
+  },
+  "assumptions": [
+    "Scenario and run IDs are exact owner-issued identities; artifact_id is copied from this run's typed catalog.",
+    "Download requires an active test-genie.run-evidence execution with an admitted workspace and the required Test Genie read grant.",
+    "The host bridge re-resolves the exact artifact identity/path, enforces declared size and the 64 MiB cap, streams to a same-directory temporary file, and atomically publishes without clobber unless overwrite=true.",
+    "The receiver computes SHA-256; Test Genie publishes no source digest, so the receipt hash is not source-cross-verified."
+  ],
+  "invariants": [
+    "Never guess an artifact ID or construct an owner/private endpoint.",
+    "Before download, read the exact scenario/run/artifact metadata and require matching ID, a non-negative declared size within 64 MiB, and stream capability.",
+    "Download writes bytes only through program.write_artifact into the admitted workspace; bytes never pass through Python output or JSON.",
+    "Destination is relative and traversal-free; overwrite defaults false and remains explicit.",
+    "Return only exact identity, kind, relative path, declared/received byte count, receiver SHA-256, and legacy-discovery metadata; omit owner access paths and arbitrary metadata.",
+    "If the stream effect does not return a verifiable receipt, report effect_uncertain and do not retry automatically."
+  ],
+  "bindings": [
+    {"id": "test-genie/runs/show", "effect": "read"},
+    {"id": "test-genie/runs/artifacts", "effect": "read"},
+    {"id": "test-genie/runs/findings", "effect": "read"},
+    {"id": "test-genie/runs/artifact", "effect": "read"}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "unavailable", "refused", "failed", "partial"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {
+      "view": "selected owner projection",
+      "result": "bounded owner response; artifact views are explicitly projected and omit access paths",
+      "metadata": "catalog count, truncation, and legacy-discovery status",
+      "receipt": "download only: {scenario,run_id,artifact_id,kind,output_path,bytes,sha256,legacy_discovered,source_digest_verified:false}; no bytes or source path",
+      "source_digest_verified": "receipt field, always false because the owner catalog supplies no expected SHA-256"
+    },
+    "errors": {"classes": ["invalid_input", "invalid_response", "effect_uncertain", "remote_error", "no_governed_binding", "scenario_unreachable", "no_grant", "not_run_eligible", "binding_error", "kernel_runtime"]},
+    "evidence": "owner metadata binding invocation"
+  },
+  "budget": {"wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 100, "output_bytes": 4096},
+  "fixtures": [
+    {"id": "artifact-catalog", "inputs": {"view": "artifacts", "scenario": "demo", "run_id": "run-1"}, "expect": {"status": ["ok"]}, "requires": ["test-genie"]},
+    {"id": "missing-artifact-id", "inputs": {"view": "download", "scenario": "demo", "run_id": "run-1", "path": "outputs/result.bin"}, "expect": {"status": ["failed"]}},
+    {"id": "download-rejects-traversal", "inputs": {"view": "download", "scenario": "demo", "run_id": "run-1", "artifact_id": "artifact-1", "path": "../outside.bin"}, "expect": {"status": ["failed"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "test-genie",
+  "verbs": ["tasks.get", "validate"]
+}

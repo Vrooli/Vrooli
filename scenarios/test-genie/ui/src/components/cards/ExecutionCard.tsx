@@ -1,5 +1,5 @@
 import type { SuiteExecutionResult } from "../../lib/api";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { StatusPill } from "./StatusPill";
 import { formatRelative, formatDuration } from "../../lib/formatters";
 
@@ -40,13 +40,13 @@ export function ExecutionCard({ execution, onPrefill, onFocus }: ExecutionCardPr
       {(onPrefill || onFocus) && (
         <div className="mt-4 flex flex-wrap gap-2">
           {onPrefill && (
-            <Button variant="outline" size="sm" onClick={onPrefill}>
+            <Button variant="secondary" size="sm" onClick={onPrefill}>
               Rerun tests
             </Button>
           )}
           {onFocus && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className="border-transparent text-slate-200 hover:border-white/40"
               onClick={onFocus}

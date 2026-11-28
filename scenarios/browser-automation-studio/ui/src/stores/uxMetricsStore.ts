@@ -9,8 +9,9 @@
  *
  * UX metrics are gated to Pro tier and above.
  */
+import { Code, ConnectError } from '@connectrpc/connect';
 import { create } from 'zustand';
-import { getApiBase } from '../config';
+import { uxmetricsClient } from '../api/uxmetrics';
 import { logger } from '../utils/logger';
 import { safeParse } from '../shared/api/safeParse';
 import {
@@ -144,50 +145,32 @@ interface UXMetricsState {
 // API Helpers
 // =============================================================================
 
-interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-  status: number;
-}
+const PRO_TIER_REQUIRED_MESSAGE = 'UX metrics requires Pro plan or higher';
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
+type ApiCallResult<T> =
+  | { kind: 'ok'; data: T }
+  | { kind: 'not_found' }
+  | { kind: 'pro_required' }
+  | { kind: 'error'; message: string };
+
+async function callApi<T>(invoke: () => Promise<T>): Promise<ApiCallResult<T>> {
   try {
-    const apiBase = getApiBase();
-    // Ensure proper URL construction with trailing slash handling
-    const normalizedBase = apiBase.endsWith('/') ? apiBase : `${apiBase}/`;
-    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-    const url = `${normalizedBase}${normalizedEndpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
-
-    if (response.status === 403) {
-      return { status: 403, error: 'UX metrics requires Pro plan or higher' };
-    }
-
-    if (response.status === 404) {
-      return { status: 404, error: 'Not found' };
-    }
-
-    if (!response.ok) {
-      const errorData: unknown = await response.json().catch(() => null);
-      const errorMessage =
-        errorData && typeof errorData === 'object' && typeof (errorData as Record<string, unknown>).error === 'string'
-          ? String((errorData as Record<string, unknown>).error)
-          : 'Request failed';
-      return { status: response.status, error: errorMessage };
-    }
-
-    const data: unknown = await response.json();
-    return { status: response.status, data: data as T };
+    const data = await invoke();
+    return { kind: 'ok', data };
   } catch (err: unknown) {
+    if (err instanceof ConnectError) {
+      if (err.code === Code.PermissionDenied) {
+        return { kind: 'pro_required' };
+      }
+      if (err.code === Code.NotFound) {
+        return { kind: 'not_found' };
+      }
+      logger.error('UX metrics API error:', { code: err.code, message: err.rawMessage });
+      return { kind: 'error', message: err.rawMessage || 'Request failed' };
+    }
     logger.error('UX metrics API error:', { error: err });
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return { status: 0, error: message };
+    return { kind: 'error', message };
   }
 }
 
@@ -307,39 +290,28 @@ export const useUXMetricsStore = create<UXMetricsState>((set) => ({
   fetchExecutionMetrics: async (executionId: string) => {
     set({ isLoading: true, error: null });
 
-    const result = await fetchApi<Record<string, unknown>>(
-      `executions/${executionId}/ux-metrics`
-    );
+    const result = await callApi(async () => {
+      const response = await uxmetricsClient.getExecutionMetrics({ executionId });
+      return (response.metrics ?? {}) as Record<string, unknown>;
+    });
 
-    if (result.status === 403) {
-      set({ error: result.error, isLoading: false });
+    if (result.kind === 'pro_required') {
+      set({ error: PRO_TIER_REQUIRED_MESSAGE, isLoading: false });
       return null;
     }
-
-    if (result.status === 404) {
+    if (result.kind === 'not_found') {
       // Metrics not yet computed - not an error
       set({ isLoading: false });
       return null;
     }
-
-    if (result.error || !result.data) {
-      set({ error: result.error ?? 'Failed to fetch metrics', isLoading: false });
+    if (result.kind === 'error') {
+      set({ error: result.message, isLoading: false });
       return null;
     }
 
-    // Validate with schema first
-    const validation = safeParse(ExecutionMetricsSchema, result.data, 'ExecutionMetrics');
-    if (!validation.success) {
-      // Fall back to manual mapping if schema validation fails (handles snake_case -> camelCase)
-      const metrics = mapExecutionMetrics(result.data);
-      set((state) => ({
-        executionMetrics: new Map(state.executionMetrics).set(executionId, metrics),
-        isLoading: false,
-      }));
-      return metrics;
-    }
+    // Validate with schema (logs warnings but doesn't fail)
+    safeParse(ExecutionMetricsSchema, result.data, 'ExecutionMetrics');
 
-    // Map validated data to local types
     const metrics = mapExecutionMetrics(result.data);
 
     set((state) => ({
@@ -353,24 +325,22 @@ export const useUXMetricsStore = create<UXMetricsState>((set) => ({
   computeMetrics: async (executionId: string) => {
     set({ isComputing: true, error: null });
 
-    const result = await fetchApi<Record<string, unknown>>(
-      `executions/${executionId}/ux-metrics/compute`,
-      { method: 'POST' }
-    );
+    const result = await callApi(async () => {
+      const response = await uxmetricsClient.computeExecutionMetrics({ executionId });
+      return (response.metrics ?? {}) as Record<string, unknown>;
+    });
 
-    if (result.status === 403) {
-      set({ error: result.error, isComputing: false });
+    if (result.kind === 'pro_required') {
+      set({ error: PRO_TIER_REQUIRED_MESSAGE, isComputing: false });
+      return null;
+    }
+    if (result.kind === 'not_found' || result.kind === 'error') {
+      const message = result.kind === 'error' ? result.message : 'Failed to compute metrics';
+      set({ error: message, isComputing: false });
       return null;
     }
 
-    if (result.error || !result.data) {
-      set({ error: result.error ?? 'Failed to compute metrics', isComputing: false });
-      return null;
-    }
-
-    // Validate with schema (logs warnings but doesn't fail)
     safeParse(ExecutionMetricsSchema, result.data, 'ComputeMetrics');
-
     const metrics = mapExecutionMetrics(result.data);
 
     set((state) => ({
@@ -384,23 +354,22 @@ export const useUXMetricsStore = create<UXMetricsState>((set) => ({
   fetchWorkflowAggregate: async (workflowId: string, limit = 10) => {
     set({ isLoading: true, error: null });
 
-    const result = await fetchApi<Record<string, unknown>>(
-      `workflows/${workflowId}/ux-metrics/aggregate?limit=${limit}`
-    );
+    const result = await callApi(async () => {
+      const response = await uxmetricsClient.getWorkflowAggregate({ workflowId, limit });
+      return (response.aggregate ?? {}) as Record<string, unknown>;
+    });
 
-    if (result.status === 403) {
-      set({ error: result.error, isLoading: false });
+    if (result.kind === 'pro_required') {
+      set({ error: PRO_TIER_REQUIRED_MESSAGE, isLoading: false });
+      return null;
+    }
+    if (result.kind === 'not_found' || result.kind === 'error') {
+      const message = result.kind === 'error' ? result.message : 'Failed to fetch workflow aggregate';
+      set({ error: message, isLoading: false });
       return null;
     }
 
-    if (result.error || !result.data) {
-      set({ error: result.error ?? 'Failed to fetch workflow aggregate', isLoading: false });
-      return null;
-    }
-
-    // Validate with schema (logs warnings but doesn't fail)
     safeParse(WorkflowMetricsAggregateSchema, result.data, 'WorkflowMetricsAggregate');
-
     const aggregate = mapWorkflowAggregate(result.data);
 
     set((state) => ({

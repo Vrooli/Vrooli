@@ -1,0 +1,148 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "name": "simple-test",
+    "displayName": "Simple Test App",
+    "description": "Minimal test app for lifecycle validation",
+    "version": "1.0.0",
+    "tags": [
+      "application",
+      "testing",
+      "test",
+      "minimal",
+      "framework-validation",
+      "nodejs-ui",
+      "postgres-storage"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/simple-test"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main application port",
+      "range": "15000-19999"
+    }
+  },
+  "cli": {
+    "enabled": false
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Simple Test health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Simple Test App",
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
+          "description": "Generate code embeddings for AI assistance"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "test data storage",
+        "startup_policy": "must_start"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
+      }
+    },
+    "scenarios": {}
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "node_bundle",
+        "dir": ".",
+        "output": "server.js"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "port": "api",
+        "cwd": "."
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  }
+}

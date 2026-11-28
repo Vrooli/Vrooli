@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package vrooli.research_desk.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared;shared_v1";
+
+// =============================================================================
+// EVIDENCE — where a derived value came from
+// =============================================================================
+//
+// @stability beta
+//
+// Every value the desk derives from the research home or the Codex session
+// records carries Evidence. A value that cannot be derived has known=false and
+// a reason; it is never guessed (charter invariant I6). See
+// scenarios/research-desk/docs/concepts/SYSTEM.md §1.
+// =============================================================================
+
+// Evidence names the source of one derived value.
+message Evidence {
+  // False when the value could not be derived; reason then says why.
+  bool known = 1;
+  // Absolute file path, or a lens such as "proc" or "mission_check.py".
+  string source = 2;
+  // Modification time of the source file, or the read time for a lens.
+  google.protobuf.Timestamp as_of = 3;
+  // Why the value is unknown, or how it was derived when that is not obvious.
+  string reason = 4;
+}
+
+// DerivedText is a text value with its evidence.
+message DerivedText {
+  string value = 1;
+  Evidence evidence = 2;
+}
+
+// DerivedTime is a time value with its evidence.
+message DerivedTime {
+  google.protobuf.Timestamp value = 1;
+  Evidence evidence = 2;
+  // A lower bound: the walk that found the value stopped early, so a newer
+  // write may exist. Clients show "at least" from this, never from the reason.
+  bool at_least = 3;
+}
+
+// FileFact is one file's size and modification time.
+message FileFact {
+  // File name relative to its folder (e.g. "STATE.md").
+  string name = 1;
+  string path = 2;
+  int64 bytes = 3;
+  google.protobuf.Timestamp modified = 4;
+}
+
+// DerivedFlag is a yes/no value with its evidence; value is meaningless when
+// evidence.known is false.
+message DerivedFlag {
+  bool value = 1;
+  Evidence evidence = 2;
+}

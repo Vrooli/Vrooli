@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.live-announcer",
+    "name": "Live Announcer",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The single announcement service used by forms, drag operations, navigation, loading states, and async results, queueing and timing messages through one live region.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "satisfies": [
+    "live-announcer"
+  ],
+  "requiredCapabilities": [
+    "status-announced"
+  ],
+  "rationale": "Multiple live regions are worse than none, because screen readers interleave them unpredictably. This must be host-provided rather than a per-component concern."
+}

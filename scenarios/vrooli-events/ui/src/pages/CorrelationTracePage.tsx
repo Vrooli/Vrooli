@@ -6,7 +6,7 @@ import { GitBranch, Search } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { fetchEvents, type EventEnvelope } from "../lib/api";
 import { INPUT_CLASS } from "../lib/constants";
@@ -74,7 +74,7 @@ export function CorrelationTracePage() {
       setCorrelationId(cid);
       setActiveSearch(cid);
     }
-  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeSearch, location.search]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["trace", activeSearch],
@@ -90,7 +90,7 @@ export function CorrelationTracePage() {
 
   return (
     <div className="space-y-4" data-testid="correlation-trace-page">
-      <PageHeader icon={GitBranch} title="Correlation Traces" />
+      <PageHeader leading={<GitBranch className="h-5 w-5 text-[var(--text-accent)]" />} level={2} title="Correlation Traces" />
 
       <div className="flex gap-3">
         <div className="relative flex-1">

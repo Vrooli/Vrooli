@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +17,24 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/health"
 )
+
+func chdirToTemp(t *testing.T) string {
+	t.Helper()
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("change to temp directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+	return tempDir
+}
 
 // TestGetAllowedOrigins tests CORS origin configuration [REQ:VT-REQ-001]
 func TestGetAllowedOrigins(t *testing.T) {
@@ -106,26 +125,15 @@ func TestIsOriginAllowed(t *testing.T) {
 // TestInitFileStoragePermissions tests directory creation [REQ:VT-REQ-001]
 func TestInitFileStoragePermissions(t *testing.T) {
 	// Create a temporary test directory
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	// Change to temp directory
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Initialize logger (needed by initFileStorage)
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	// Test successful initialization
-	if err := initFileStorage(); err != nil {
-		t.Errorf("initFileStorage() error = %v, want nil", err)
-	}
-
 	// Verify directory was created
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	dataPath := storageDataPath()
 	if info, err := os.Stat(dataPath); err != nil {
 		t.Errorf("Data directory not created: %v", err)
 	} else if !info.IsDir() {
@@ -144,13 +152,7 @@ func TestSyncCampaignFilesExclusionPatterns(t *testing.T) {
 	defer cleanup()
 
 	// Create temporary directory with test files
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// Create test files
 	testFiles := []string{"include.go", "data/nested.go"}
@@ -193,13 +195,7 @@ func TestSyncCampaignFilesMaxFilesLimit(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 
 	// Create 5 test files
 	for i := 0; i < 5; i++ {
@@ -240,13 +236,7 @@ func TestSyncCampaignFilesDeduplication(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// Create a test file
 	testFile := "duplicate.go"
@@ -277,13 +267,7 @@ func TestSyncCampaignFilesSkipsDirectories(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// Create a directory and a file with similar names
 	os.Mkdir("testdir", 0o755)
@@ -313,13 +297,7 @@ func TestSyncCampaignFilesIdempotent(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	testFile := "idempotent.go"
 	os.WriteFile(testFile, []byte("test"), 0o644)
@@ -359,13 +337,7 @@ func TestSyncCampaignFilesMetadata(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	testFile := "metadata.go"
 	content := []byte("package main\n")
@@ -428,25 +400,15 @@ func TestLoadAllCampaignsWithReadOnlyFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-
-	// Initialize storage
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign file
 	testCampaign := &Campaign{
 		ID:   uuid.New(),
 		Name: "test-readonly",
 	}
-	if err := saveCampaign(testCampaign); err != nil {
+	if err := saveCampaign(context.Background(), testCampaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -470,15 +432,8 @@ func TestCreateCampaignHandlerMissingName(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create request with missing name
 	reqBody := map[string]interface{}{
@@ -520,15 +475,8 @@ func TestAdjustVisitHandlerErrors(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	validFileID := uuid.New().String()
 
@@ -579,15 +527,8 @@ func TestStructureSyncHandlerErrors(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	tests := []struct {
 		name           string
@@ -630,15 +571,8 @@ func TestLoadCampaignMissingFile(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Try to load a campaign that doesn't exist
 	nonexistentID := uuid.New()
@@ -657,18 +591,11 @@ func TestSaveCampaignWriteError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Make the data directory read-only
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	dataPath := storageDataPath()
 	os.Chmod(dataPath, 0o555)
 	defer os.Chmod(dataPath, 0o755)
 
@@ -678,7 +605,7 @@ func TestSaveCampaignWriteError(t *testing.T) {
 	}
 
 	// Should fail to save due to read-only directory
-	err := saveCampaign(campaign)
+	err := saveCampaign(context.Background(), campaign)
 	if err == nil {
 		t.Error("Expected error when saving to read-only directory, got nil")
 	}
@@ -867,12 +794,13 @@ func TestSyncCampaignFilesPermissionError(t *testing.T) {
 		TrackedFiles: []TrackedFile{},
 	}
 
-	// Should handle permission error gracefully
-	result, _ := syncCampaignFiles(campaign, []string{"*.go"})
-
-	// The sync should either fail or find no files
-	if result.Added < 0 {
-		t.Error("Added should not be negative")
+	// An incomplete scan must not be interpreted as a successful empty snapshot.
+	result, err := syncCampaignFiles(campaign, []string{"*.go"})
+	if os.Geteuid() != 0 && (err == nil || result != nil) {
+		t.Fatalf("unreadable scan must fail: result=%+v err=%v", result, err)
+	}
+	if len(campaign.StructureSnapshots) != 0 && err != nil {
+		t.Fatal("failed scan persisted a snapshot")
 	}
 }
 
@@ -934,13 +862,8 @@ func TestHealthHandlerDegradedStatus(t *testing.T) {
 	defer cleanup()
 
 	// Create a test environment where data directory doesn't exist
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	setTestStorageRoot(t, tempDir)
 
 	// Don't initialize storage - leave data directory missing
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -985,15 +908,8 @@ func TestCreateCampaignHandlerAutoSyncError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create request with pattern that will fail sync (exceeds max_files)
 	// First create many files
@@ -1028,15 +944,8 @@ func TestVisitHandlerCampaignNotFound(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	nonExistentID := uuid.New()
 	reqBody := VisitRequest{
@@ -1060,15 +969,8 @@ func TestVisitHandlerFileNotInCampaign(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign with no tracked files
 	campaign := &Campaign{
@@ -1076,7 +978,7 @@ func TestVisitHandlerFileNotInCampaign(t *testing.T) {
 		Name:         "test-no-files",
 		TrackedFiles: []TrackedFile{},
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1138,22 +1040,15 @@ func TestStructureSyncHandlerEmptyPatterns(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign
 	campaign := &Campaign{
 		ID:   uuid.New(),
 		Name: "test-empty-patterns",
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1180,15 +1075,8 @@ func TestStructureSyncHandlerSuccess(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create test files
 	os.WriteFile("test1.go", []byte("test"), 0o644)
@@ -1202,7 +1090,7 @@ func TestStructureSyncHandlerSuccess(t *testing.T) {
 		Patterns:     []string{"*.go"},
 		TrackedFiles: []TrackedFile{},
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1241,15 +1129,8 @@ func TestLoadCampaignCorruptedJSON(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign file with invalid JSON
 	campaignID := uuid.New()
@@ -1269,22 +1150,15 @@ func TestLoadAllCampaignsWithCorruptedFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a valid campaign
 	validCampaign := &Campaign{
 		ID:   uuid.New(),
 		Name: "valid-campaign",
 	}
-	if err := saveCampaign(validCampaign); err != nil {
+	if err := saveCampaign(context.Background(), validCampaign); err != nil {
 		t.Fatalf("Failed to save valid campaign: %v", err)
 	}
 
@@ -1293,28 +1167,10 @@ func TestLoadAllCampaignsWithCorruptedFiles(t *testing.T) {
 	corruptedPath := getCampaignPath(corruptedID)
 	os.WriteFile(corruptedPath, []byte("corrupted"), 0o644)
 
-	// loadAllCampaigns should skip corrupted files and return valid ones
-	campaigns, err := loadAllCampaigns()
-	// Should succeed despite corrupted file
-	if err != nil {
-		t.Errorf("loadAllCampaigns should handle corrupted files gracefully, got error: %v", err)
-	}
-
-	// Should have at least the valid campaign
-	if len(campaigns) < 1 {
-		t.Error("Expected at least 1 valid campaign")
-	}
-
-	// Verify we got the valid campaign
-	found := false
-	for _, c := range campaigns {
-		if c.ID == validCampaign.ID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Valid campaign not found in results")
+	// Incomplete catalogs cannot safely establish unique campaign identity.
+	_, err := loadAllCampaigns()
+	if err == nil {
+		t.Fatal("corrupt campaign must make catalog lookup fail")
 	}
 }
 
@@ -1323,22 +1179,15 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign
 	campaign := &Campaign{
 		ID:   uuid.New(),
 		Name: "test-delete",
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1349,7 +1198,7 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 	}
 
 	// Delete it
-	if err := deleteCampaignFile(campaign.ID); err != nil {
+	if err := deleteCampaignFile(context.Background(), campaign.ID); err != nil {
 		t.Errorf("deleteCampaignFile should succeed, got error: %v", err)
 	}
 
@@ -1359,7 +1208,7 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 	}
 
 	// Should be idempotent - deleting again should not error
-	if err := deleteCampaignFile(campaign.ID); err != nil {
+	if err := deleteCampaignFile(context.Background(), campaign.ID); err != nil {
 		t.Errorf("deleteCampaignFile should be idempotent, got error: %v", err)
 	}
 }
@@ -1369,12 +1218,7 @@ func TestInitFileStorageMultipleCalls(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// First call
 	if err := initFileStorage(); err != nil {
@@ -1387,7 +1231,7 @@ func TestInitFileStorageMultipleCalls(t *testing.T) {
 	}
 
 	// Verify directory exists
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	dataPath := storageDataPath()
 	if info, err := os.Stat(dataPath); err != nil {
 		t.Errorf("Data directory should exist: %v", err)
 	} else if !info.IsDir() {
@@ -1400,15 +1244,8 @@ func TestImportHandlerMissingCampaignData(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Import with missing campaign data
 	reqBody := map[string]interface{}{
@@ -1432,15 +1269,8 @@ func TestAdjustVisitHandlerFileNotFound(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign with no files
 	campaign := &Campaign{
@@ -1448,7 +1278,7 @@ func TestAdjustVisitHandlerFileNotFound(t *testing.T) {
 		Name:         "test-no-files",
 		TrackedFiles: []TrackedFile{},
 	}
-	if err := saveCampaign(campaign); err != nil {
+	if err := saveCampaign(context.Background(), campaign); err != nil {
 		t.Fatalf("Failed to save campaign: %v", err)
 	}
 
@@ -1497,15 +1327,8 @@ func TestCreateCampaignHandlerWithMetadata(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init storage: %v", err)
-	}
+	tempDir := chdirToTemp(t)
+	initTestStorageRoot(t, tempDir)
 
 	// Create test file
 	os.WriteFile("test.go", []byte("test"), 0o644)

@@ -1,0 +1,42 @@
+{
+  "id": "deployment_readiness",
+  "label": "Command Center readiness",
+  "description": "Latest recorded Deployment Manager readiness projection for the Command Center profile.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:deployment-manager",
+    "read": "/api/v1/readiness/state?scenario=command-center",
+    "select": "deployment_readiness",
+    "ttlSeconds": 300,
+    "integrationId": "deployment-manager",
+    "featureId": "deployment_readiness",
+    "contractVersion": "legacy.v1",
+    "selector": "deployment_readiness",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

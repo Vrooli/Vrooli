@@ -1,4 +1,6 @@
 // REQ-UI-006: Policy management — rule list
+// DOC: docs/reference/api-endpoints.md#policies
+// DOC: docs/guides/managing-policies.md
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Plus, Trash2, RefreshCw } from "lucide-react";
@@ -6,10 +8,10 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorAlert } from "../components/ErrorAlert";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { Spinner } from "../components/Spinner";
-import { StatusBadge } from "../components/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import {
   fetchPolicies,
   createPolicy,
@@ -109,7 +111,7 @@ export function PoliciesPage() {
   return (
     <div className="space-y-4" data-testid="policies-page">
       <PageHeader
-        icon={Shield}
+        leading={<Shield className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Policy Rules"
         actions={
           <div className="flex gap-2">
@@ -223,7 +225,7 @@ export function PoliciesPage() {
                     <td className="px-3 py-2 text-[var(--text-secondary)]">{rule.priority}</td>
                     <td className="px-3 py-2">
                       <button onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}>
-                        <StatusBadge active={rule.enabled} />
+                        <StatusBadge tone={rule.enabled ? "success" : "neutral"}>{rule.enabled ? "On" : "Off"}</StatusBadge>
                       </button>
                     </td>
                     <td className="px-3 py-2">

@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "release-ladder",
+    "title": "Release ladder",
+    "routes": ["/release-ladder"],
+    "purpose": "Let an operator schedule marketed deliverables, inspect transitive stream prerequisites, and see the goals whose priority follows the schedule.",
+    "prd_refs": ["OT-P0-001", "OT-P1-001"]
+  },
+  "priorities": [
+    { "statement": "Which marketed deliverable ships at each rank" },
+    { "statement": "What must be true before a selected stream earns, including enabling work" },
+    { "statement": "Which goals will re-prioritize when a rank or derived urgency changes" },
+    { "statement": "Whether the ladder or goal source is unavailable, and why" }
+  ],
+  "states": [
+    { "id": "default", "description": "The ladder and its prerequisite source are available.", "setup": { "route": "/release-ladder" } },
+    { "id": "loading", "description": "The ladder is being read and its layout is reserved.", "setup": { "route": "/release-ladder", "query": { "fixture": "loading" }, "settleMs": 0 } },
+    { "id": "empty", "description": "The ladder request succeeds but no marketed deliverables or stream prerequisites exist.", "setup": { "route": "/release-ladder", "query": { "fixture": "empty" } } },
+    { "id": "partial", "description": "The ladder is readable but the goal source is unavailable; the missing source is named.", "setup": { "route": "/release-ladder", "query": { "fixture": "partial" } } },
+    { "id": "degraded", "description": "The ladder or goal source cannot be read; the source and reason remain visible.", "setup": { "route": "/release-ladder", "query": { "fixture": "degraded" } } },
+    { "id": "request-error", "description": "The ladder request fails and the reason is stated.", "setup": { "route": "/release-ladder", "query": { "fixture": "request-error" } } },
+    { "id": "stale", "description": "Displayed ladder data is older than its freshness window and its age is visible.", "setup": { "route": "/release-ladder", "query": { "fixture": "stale" } } },
+    { "id": "mobile", "description": "The schedule, tree, and reverse impact rows remain readable in the mobile viewport.", "setup": { "route": "/release-ladder" }, "viewports": ["mobile"] }
+  ],
+  "elements": [
+    { "id": "schedule-table", "role": "table", "description": "Ranked marketed deliverables with class and finish bar." },
+    { "id": "stream-selector", "role": "combobox", "description": "Selects the revenue stream whose prerequisites are shown." },
+    { "id": "prerequisite-tree", "role": "generic", "description": "Indented prerequisite rows with depth, status, class, finish bar, and urgency." },
+    { "id": "reverse-goal-list", "role": "generic", "description": "Goals affected by a deliverable rank or urgency change." },
+    { "id": "source-degraded", "role": "alert", "description": "Names an unavailable source and its reason." }
+  ],
+  "claims": [
+    { "id": "tree-carries-typed-work", "type": "element-present", "statement": "Each reached prerequisite shows its depth, class, finish bar, status, and derived urgency.", "tier": "manual", "elements": ["prerequisite-tree"], "states": ["default"] },
+    { "id": "reverse-lists-goals", "type": "element-present", "statement": "The reverse view lists goals that re-prioritize when a deliverable's urgency changes.", "tier": "manual", "elements": ["reverse-goal-list"], "states": ["default"] },
+    { "id": "degraded-names-source", "type": "element-present", "statement": "An unavailable source is named with its reason rather than rendered as an empty result.", "tier": "manual", "elements": ["source-degraded"], "states": ["degraded"] },
+    { "id": "mobile-readable", "type": "element-present", "statement": "The release ladder exposes its schedule and impact regions in the mobile state.", "tier": "manual", "elements": ["schedule-table", "prerequisite-tree", "reverse-goal-list"], "states": ["mobile"] }
+  ],
+  "bindings": {
+    "elements": {
+      "schedule-table": { "testid": "release-ladder-schedule" },
+      "stream-selector": { "testid": "release-ladder-stream" },
+      "prerequisite-tree": { "testid": "release-ladder-prerequisites" },
+      "reverse-goal-list": { "testid": "release-ladder-goals" },
+      "source-degraded": { "testid": "release-ladder-source-degraded" }
+    }
+  }
+}

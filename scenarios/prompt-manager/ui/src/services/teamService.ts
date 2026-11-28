@@ -22,8 +22,8 @@ import type {
   TeamSharedFileEntry,
   TeamSharedFileCreateRequest,
   TeamSharedFileRenameRequest,
-  AvailableCCTeam,
-  ExportCCResponse,
+  EffortWorkspaceListResponse,
+  EffortWorkspaceContentResponse,
   ExclusiveMember,
 } from '@/lib/schemas'
 
@@ -41,7 +41,7 @@ export function invalidateCache(): void {
  * Get all teams with caching.
  *
  * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all teams (empty array on validation errors)
+ * @returns Array of all teams; invalid owner data rejects with ValidationError
  */
 export async function getTeams(forceRefresh = false): Promise<Team[]> {
   const cached = teamsCache.getIfValid(forceRefresh)
@@ -49,17 +49,10 @@ export async function getTeams(forceRefresh = false): Promise<Team[]> {
     return cached
   }
 
-  try {
-    const data = await api.getTeams()
-    teamsCache.set(data)
-    return data
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      console.warn('[teamService] Invalid API response for getTeams:', error.message)
-      return []
-    }
-    throw error
-  }
+  // Invalid owner data is unavailable registry coverage, never an empty list.
+  const data = await api.getTeams()
+  teamsCache.set(data)
+  return data
 }
 
 /**
@@ -220,7 +213,27 @@ export async function listTeamSharedFiles(teamId: string): Promise<TeamSharedFil
  */
 export async function getTeamSharedFileContent(teamId: string, path: string): Promise<string> {
   const response = await api.getTeamSharedFileContent(teamId, path)
-  return response.content
+  return markPreviewTruncated(response.previewDataUrl || materializeFileContent(response.content, response.contentBytes, response.contentType), response.contentTruncated)
+}
+
+/** List the protected effort workspaces linked by the team's canonical refs. */
+export async function listEffortWorkspaces(teamId: string): Promise<EffortWorkspaceListResponse> {
+  return api.listEffortWorkspaces(teamId)
+}
+
+/** Read one bounded effort workspace file. This projection is read-only. */
+export async function getEffortWorkspaceContent(effortRef: string, path: string): Promise<EffortWorkspaceContentResponse> {
+  const response = await api.getEffortWorkspaceContent(effortRef, path)
+  return { ...response, content: markPreviewTruncated(response.previewDataUrl || materializeFileContent(response.content, response.contentBytes, response.contentType), response.contentTruncated) }
+}
+
+function materializeFileContent(content: string, contentBytes?: string, contentType?: string): string {
+  if (!contentBytes) return content
+  return `data:${contentType || 'application/octet-stream'};base64,${contentBytes}`
+}
+
+function markPreviewTruncated(content: string, truncated?: boolean): string {
+  return truncated && content.startsWith('data:') && !content.endsWith('#truncated') ? `${content}#truncated` : content
 }
 
 /**
@@ -249,35 +262,4 @@ export async function renameTeamSharedFile(teamId: string, request: TeamSharedFi
  */
 export async function deleteTeamSharedFile(teamId: string, path: string): Promise<void> {
   await api.deleteTeamSharedFile(teamId, path)
-}
-
-/**
- * List available Claude Code teams on disk.
- */
-export async function listAvailableCCTeams(): Promise<AvailableCCTeam[]> {
-  try {
-    return await api.listAvailableCCTeams()
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      console.warn('[teamService] Invalid API response for listAvailableCCTeams:', error.message)
-      return []
-    }
-    throw error
-  }
-}
-
-/**
- * Import a Claude Code team into prompt-manager.
- */
-export async function importClaudeCodeTeam(teamName: string): Promise<TeamDetails> {
-  const team = await api.importClaudeCodeTeam(teamName)
-  invalidateCache()
-  return team
-}
-
-/**
- * Export a prompt-manager team as Claude Code config.
- */
-export async function exportClaudeCodeTeam(teamId: string): Promise<ExportCCResponse> {
-  return api.exportClaudeCodeTeam(teamId)
 }

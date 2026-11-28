@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Run detail usage panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1d4ed8}a:hover{color:#1e3a8a}
+</style>
+</helmet>
+<div style="width: 880px; height: 620px; box-sizing: border-box; background: #f8fafc; font-family: Inter, system-ui, sans-serif; color: #0f172a; padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+  <div style="display: flex; flex-direction: column; gap: 2px;">
+    <div style="font-size: 12px; color: #64748b;">Runs › Vega E1 Overview and shared shell exemplar</div>
+    <div role="tablist" aria-label="Run sections" style="display: flex; gap: 4px; border-bottom: 1px solid #e2e8f0; margin-top: 8px;">
+      <button type="button" role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: none; font-size: 14px; color: #475569; font-family: inherit;">Timeline</button>
+      <button type="button" role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: none; font-size: 14px; color: #475569; font-family: inherit;">Friction</button>
+      <button type="button" role="tab" aria-selected="true" style="height: 40px; padding: 0 14px; border: 0; border-bottom: 2px solid #2563eb; background: none; font-size: 14px; font-weight: 600; color: #1d4ed8; font-family: inherit;">Usage</button>
+      <button type="button" role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: none; font-size: 14px; color: #475569; font-family: inherit;">Changes</button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;"><div style="font-size: 12px; color: #64748b;">Quota used</div><div style="font-size: 22px; font-weight: 700;">≈ 2.2 pts</div><div style="font-size: 12px; color: #475569;">of Codex weekly</div></div>
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;"><div style="font-size: 12px; color: #64748b;">Cached input</div><div style="font-size: 22px; font-weight: 700;">1.14 B</div><div style="font-size: 12px; color: #475569;">re-read context</div></div>
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;"><div style="font-size: 12px; color: #64748b;">New input</div><div style="font-size: 22px; font-weight: 700;">4.6 M</div><div style="font-size: 12px; color: #475569;">not cached</div></div>
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px;"><div style="font-size: 12px; color: #64748b;">Output</div><div style="font-size: 22px; font-weight: 700;">0.85 M</div><div style="font-size: 12px; color: #475569;">incl. 0.12 M reasoning</div></div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 13px; color: #166534;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M20 6L9 17l-5-5"></path></svg>
+    Matches the session file's own counter (1,147,786,266 tokens) · model terra · 3,335 turns
+  </div>
+
+  <section aria-labelledby="ru-where" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+    <h2 id="ru-where" style="margin: 0; font-size: 15px; font-weight: 600;">Where the tokens went</h2>
+    <div role="img" aria-label="Token breakdown: tool output kept in context 61 percent, fixed preamble 22 percent, compaction 9 percent, assistant output 5 percent, unattributed 3 percent" style="display: flex; height: 14px; border-radius: 9999px; overflow: hidden;">
+      <span style="width: 61%; background: #2563eb;"></span><span style="width: 22%; background: #93c5fd;"></span><span style="width: 9%; background: #0f172a;"></span><span style="width: 5%; background: #64748b;"></span><span style="width: 3%; background: #e2e8f0;"></span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; font-size: 12px; color: #334155;">
+      <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #2563eb;"></span> Tool output kept in context 61%</span>
+      <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #93c5fd;"></span> Instructions and tools 22%</span>
+      <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #0f172a;"></span> Compaction 9%</span>
+      <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #64748b;"></span> Agent output 5%</span>
+      <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #e2e8f0; border: 1px solid #cbd5e1;"></span> Unattributed 3%</span>
+    </div>
+    <div style="font-size: 13px; color: #475569;">Largest contributors: <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">ui-health capture</code> results kept for 40+ turns · repeated reads of <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">STATUS.md</code></div>
+  </section>
+
+  <section aria-labelledby="ru-rec" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+    <h2 id="ru-rec" style="margin: 0; font-size: 15px; font-weight: 600;">Recommendations for this run</h2>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 14px;">
+      <span style="flex: 1 1 400px;">Trim <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">ui-health</code> output to the failing rules before it enters context</span>
+      <span style="font-weight: 700; color: #166534;">−0.6 pts per similar run</span>
+      <a href="Main.dc.html" style="font-size: 13px; font-weight: 600;">All recommendations →</a>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":880,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

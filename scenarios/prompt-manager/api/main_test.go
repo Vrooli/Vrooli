@@ -1,10 +1,69 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/gorilla/mux"
 )
+
+func TestHeartbeatFunctionalStatusHealthyFleet(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{{Enabled: true, HasExecution: true, ConsecutiveFailures: 1}})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusSingleFailureDoesNotTrip(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 2, LastError: "run refused"},
+	})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy with one failing member", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusFleetFailureReportsReason(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 2, LastError: "run identity refused"},
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 3},
+	})
+	if status.Healthy || !strings.Contains(status.Reason, "2 enabled heartbeat members") || !strings.Contains(status.Reason, "run identity refused") {
+		t.Fatalf("status = %#v, want unhealthy fleet reason", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusIgnoresNeverFiredMember(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{{Enabled: true, HasExecution: false, ConsecutiveFailures: 99}})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy for never-fired member", status)
+	}
+}
+
+func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
+	router := mux.NewRouter()
+	gorillaMuxAdapter{router: router}.Handle("/service/", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/service/operation", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("service prefix status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
+
+func TestPromptManagerServerWriteTimeoutOutlivesCLIRequestBudget(t *testing.T) {
+	cfg := promptManagerServerConfig(http.NotFoundHandler(), nil, nil)
+	if cfg.WriteTimeout <= 120*time.Second {
+		t.Fatalf("write timeout = %s, want more than the CLI's 120s request budget", cfg.WriteTimeout)
+	}
+}
 
 func TestDiscoverScenarioNames(t *testing.T) {
 	// Create a temporary directory structure mimicking scenarios/<name>/store
@@ -33,13 +92,7 @@ func TestDiscoverScenarioNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// storeDir mimics scenarios/alpha/store
-	storeDir := filepath.Join(scenariosDir, "alpha", "store")
-	if err := os.MkdirAll(storeDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	names := discoverScenarioNames(storeDir)
+	names := discoverScenarioNames(scenariosDir)
 
 	expected := map[string]bool{"alpha": true, "beta": true, "gamma": true}
 	if len(names) != len(expected) {
@@ -53,7 +106,7 @@ func TestDiscoverScenarioNames(t *testing.T) {
 }
 
 func TestDiscoverScenarioNames_NonexistentDir(t *testing.T) {
-	names := discoverScenarioNames("/nonexistent/path/store")
+	names := discoverScenarioNames("/nonexistent/path/scenarios")
 	if len(names) != 0 {
 		t.Fatalf("expected 0 names for nonexistent dir, got %d", len(names))
 	}

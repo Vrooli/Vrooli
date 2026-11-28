@@ -1,33 +1,25 @@
-type KnownStatusVariant =
-  | "pending"
-  | "starting"
-  | "running"
-  | "needs_review"
-  | "complete"
-  | "failed"
-  | "cancelled";
+import type { StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 
-type StatusBadgeVariant = KnownStatusVariant | "secondary";
+// One mapping from a run/task/check status word to the shared status-badge tone.
+const STATUS_TONES: Record<string, StatusTone> = {
+  complete: "success",
+  completed: "success",
+  approved: "success",
+  succeeded: "success",
+  ok: "success",
+  pending: "neutral",
+  queued: "neutral",
+  cancelled: "neutral",
+  starting: "info",
+  running: "info",
+  needs_review: "warning",
+  rejected: "warning",
+  parked: "warning",
+  failed: "danger",
+};
 
-const KNOWN_STATUS_VARIANTS: readonly KnownStatusVariant[] = [
-  "pending",
-  "starting",
-  "running",
-  "needs_review",
-  "complete",
-  "failed",
-  "cancelled",
-];
-
-function isKnownStatusVariant(status: string): status is KnownStatusVariant {
-  return KNOWN_STATUS_VARIANTS.includes(status as KnownStatusVariant);
-}
-
-export function statusBadgeVariant(status: string): StatusBadgeVariant {
-  if (isKnownStatusVariant(status)) {
-    return status;
-  }
-  return "secondary";
+export function statusTone(status: string): StatusTone {
+  return STATUS_TONES[status] ?? "neutral";
 }
 
 export function formatStatusLabel(status: string): string {

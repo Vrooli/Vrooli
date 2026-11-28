@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -18,16 +17,13 @@ type StagingDeps struct {
 // Returns (repoDir, validPaths, originalPaths, error). If originalPaths is empty,
 // the caller should return a success-with-empty-list response.
 func validateStagingDeps(deps StagingDeps, paths []string, scope string) (string, []string, []string, error) {
-	if deps.Git == nil {
-		return "", nil, nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return "", nil, nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return "", nil, nil, err
 	}
 
 	if scope != "" && len(paths) == 0 {
-		paths = expandScope(scope)
+		paths = expandScope(repoDir, scope)
 	}
 
 	if len(paths) == 0 {
@@ -51,6 +47,9 @@ func filterValidPaths(paths []string) []string {
 
 // StageFiles stages the specified files
 func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*StageResponse, error) {
+	if err := requireHumanMutation(ctx, "stage files"); err != nil {
+		return nil, err
+	}
 	repoDir, validPaths, origPaths, err := validateStagingDeps(deps, req.Paths, req.Scope)
 	if err != nil {
 		return nil, err
@@ -74,6 +73,9 @@ func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*Stage
 
 // UnstageFiles unstages the specified files
 func UnstageFiles(ctx context.Context, deps StagingDeps, req UnstageRequest) (*UnstageResponse, error) {
+	if err := requireHumanMutation(ctx, "unstage files"); err != nil {
+		return nil, err
+	}
 	repoDir, validPaths, origPaths, err := validateStagingDeps(deps, req.Paths, req.Scope)
 	if err != nil {
 		return nil, err
@@ -95,8 +97,8 @@ func UnstageFiles(ctx context.Context, deps StagingDeps, req UnstageRequest) (*U
 	return &UnstageResponse{Success: true, Unstaged: validPaths, Timestamp: time.Now().UTC()}, nil
 }
 
-// expandScope converts a scope (scenario:name, resource:name) to a glob pattern
-func expandScope(scope string) []string {
+// expandScope converts a scope (scenario:name, resource:name) to a repo-relative path prefix.
+func expandScope(repoDir, scope string) []string {
 	parts := strings.SplitN(scope, ":", 2)
 	if len(parts) != 2 {
 		return nil
@@ -104,17 +106,15 @@ func expandScope(scope string) []string {
 
 	scopeType := parts[0]
 	scopeName := parts[1]
-
-	switch scopeType {
-	case "scenario":
-		return []string{fmt.Sprintf("scenarios/%s/", scopeName)}
-	case "resource":
-		return []string{fmt.Sprintf("resources/%s/", scopeName)}
-	case "package":
-		return []string{fmt.Sprintf("packages/%s/", scopeName)}
-	default:
+	if strings.TrimSpace(scopeName) == "" {
 		return nil
 	}
+
+	path, err := resolveScopePath(repoDir, scopeType, scopeName)
+	if err != nil {
+		return nil
+	}
+	return []string{path}
 }
 
 // cleanFilePath sanitizes a file path for git operations

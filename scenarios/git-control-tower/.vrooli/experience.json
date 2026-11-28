@@ -1,0 +1,14 @@
+{
+  "capabilities": [
+    {
+      "id": "stage-queue",
+      "label": "Queue files during a suggestion",
+      "testId": "stage-during-suggestion-queue"
+    },
+    {
+      "id": "queue-extras",
+      "label": "Queue extras",
+      "name": "Queue extras"
+    }
+  ]
+}

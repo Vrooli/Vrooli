@@ -1,0 +1,138 @@
+{
+ "scenario": "*",
+ "description": "Host, network, fleet and platform operations: plain requests an operator makes about the machine and the ecosystem's runtime.",
+ "cases": [
+  {
+   "id": "dns-filter",
+   "owner": "network-manager",
+   "query": "block ads and unwanted sites with DNS filtering"
+  },
+  {
+   "id": "network-diagnose",
+   "owner": "network-manager",
+   "query": "diagnose why my internet is slow"
+  },
+  {
+   "id": "autoheal-status",
+   "owner": "vrooli-autoheal",
+   "query": "is the system healing itself, what was repaired"
+  },
+  {
+   "id": "autoheal-repair",
+   "owner": "vrooli-autoheal",
+   "query": "automatically repair broken vrooli infrastructure"
+  },
+  {
+   "id": "run-on-node",
+   "owner": "vrooli-bridge",
+   "query": "run a command on another machine in my fleet"
+  },
+  {
+   "id": "onboard-host",
+   "owner": "vrooli-bridge",
+   "query": "connect a new computer to my vrooli fleet"
+  },
+  {
+   "id": "rent-compute",
+   "owner": "compute-manager",
+   "query": "rent a remote gpu server"
+  },
+  {
+   "id": "compute-cost",
+   "owner": "compute-manager",
+   "query": "how much is my remote compute costing"
+  },
+  {
+   "id": "sandbox-copy",
+   "owner": "workspace-sandbox",
+   "query": "give an agent a safe copy of a project folder to work in",
+   "expect_ids": [
+    "sandbox"
+   ],
+   "expect_types": [
+    "skill"
+   ]
+  },
+  {
+   "id": "sandbox-discard",
+   "owner": "workspace-sandbox",
+   "query": "throw away the sandbox changes",
+   "expect_ids": [
+    "sandbox"
+   ],
+   "expect_types": [
+    "skill"
+   ]
+  },
+  {
+   "id": "publish-event",
+   "owner": "vrooli-events",
+   "query": "publish an event for other scenarios to react to"
+  },
+  {
+   "id": "subscribe-events",
+   "owner": "vrooli-events",
+   "query": "stream events from the event bus"
+  },
+  {
+   "id": "scenario-maturity",
+   "owner": "scenario-completeness-scoring",
+   "query": "how complete is a scenario and what should I work on next"
+  },
+  {
+   "id": "scenario-status-fast",
+   "owner": "scenario-completeness-scoring",
+   "query": "show a scenario's maturity score"
+  },
+  {
+   "id": "ios-app",
+   "owner": "scenario-to-ios",
+   "query": "turn a scenario into an iOS app"
+  },
+  {
+   "id": "ios-simulator",
+   "owner": "scenario-to-ios",
+   "query": "test an app on the iOS simulator"
+  },
+  {
+   "id": "agent-plugin",
+   "owner": "scenario-to-plugin",
+   "query": "package a scenario as an agent plugin and publish it"
+  },
+  {
+   "id": "plugin-sign",
+   "owner": "scenario-to-plugin",
+   "query": "sign and publish a skills plugin"
+  },
+  {
+   "id": "export-repo",
+   "owner": "scenario-to-repository",
+   "query": "export a scenario as a standalone source repository"
+  },
+  {
+   "id": "repo-distribution",
+   "owner": "scenario-to-repository",
+   "query": "publish scenario source to its own repo"
+  },
+  {
+   "id": "message-agent",
+   "owner": "switchboard",
+   "query": "reach my agents over a messaging app"
+  },
+  {
+   "id": "channel-permissions",
+   "owner": "switchboard",
+   "query": "control what an agent may do for someone on a messaging channel"
+  },
+  {
+   "id": "save-bookmark",
+   "owner": "signal-inbox",
+   "query": "save a bookmark or article to read later"
+  },
+  {
+   "id": "find-signal",
+   "owner": "signal-inbox",
+   "query": "find a link I captured earlier"
+  }
+ ]
+}

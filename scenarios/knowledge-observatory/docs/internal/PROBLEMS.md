@@ -1,28 +1,60 @@
-# Problems and Solutions Log
+# Problems
 
-## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code
+Known issues, technical debt, and deferred work for Knowledge Observatory.
+
+## Entries
+
+### 2026-06-08 — Self-registers docs provider — registration contract complete 2026-11-24
+
+KO idempotently registers `knowledge-observatory.docs` from `.vrooli/search.json`
+through `packages/searchregister-go`; Search Hub is optional, so local docs search
+continues if it is unavailable. **Resolved:** registry `ProviderDescriptor` now
+carries `tuning` (field 15) and `tests_minimum` (field 17); the helper maps tuning,
+maps the declared minimum, mirrors eval cases through the separate suite API, and
+presents/captures the control token (request field 2,
+response field 3). KO caches that token for authorized reindex calls. No retrieval
+quality change is claimed. The shared mapper has no focused assertion for the
+`tests_minimum` field yet.
+
+**Evidence:** KO API `GOWORK=off go test ./... -count=1`; shared descriptor and
+control-token tests; `api/server.go`, `registry.proto`, and `searchregister-go`.
+
+## Architecture Drift
+
+### 2026-05-08: Retired Standalone Screaming Architecture Audit Report
 
 ### Problem
-The `avg_quality` generated column in `quality_metrics` (schema.sql) uses a different formula than the Go code in `metrics.go`.
+`docs/internal/SCREAMING_ARCHITECTURE_AUDIT.md` duplicated architecture memory that belongs in stable docs. Standalone audit reports are easy to orphan because future agents read `ARCHITECTURE.md`, `SEAMS.md`, and `PROBLEMS.md` first.
 
-- **Schema**: `avg_quality = (coherence + freshness + redundancy + coverage) / 4` — treats redundancy as a positive signal and divides by 4.
-- **Code** (metrics.go ~line 398): `score = (coherence + freshness + coverage - redundancy) / 3.0` — subtracts redundancy (higher redundancy = worse) and divides by 3.
+### Resolution
+Durable findings from the report were folded into:
+- `docs/concepts/ARCHITECTURE.md` for domain map, shared infrastructure, and maturity.
+- `docs/internal/SEAMS.md` for boundary decisions and alignment notes.
+- this file for the retirement record.
 
-### Impact
-The database-computed `avg_quality` and the API-returned overall score will diverge for any collection with non-zero redundancy. Dashboard metrics may show inconsistent values depending on which path is read.
+### Follow-up
+Do not create new standalone screaming-architecture reports by default. Record future architecture drift here, and update `ARCHITECTURE.md` / `SEAMS.md` when the model or boundary registry changes.
 
-### Recommended Fix
-Align the schema generated column with the code formula, or vice versa. The code formula (`- redundancy / 3`) is likely correct since high redundancy is undesirable.
+## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code — resolved 2026-11-24
 
-[CODE: api/metrics.go]
-[CODE: initialization/postgres/schema.sql]
+**Disposition:** Resolved for repository-owned reads. Redundancy is a penalty,
+so `avg_quality = (coherence + freshness + coverage - redundancy) / 3`. The
+schema, dashboard view, and `LatestMetric` query now use this formula; missing
+score components remain null. `LatestMetric` computes the result in its query
+so existing SQLite files with the older generated-column expression also
+return the correct value. The physical generated value in existing files is
+not rewritten, but no repository read consumes it after this fix.
+
+**Evidence:** `api/internal/quality/schema.sql`, `api/internal/quality/sqlite.go`,
+and `api/internal/quality/sqlite_test.go`. `GOWORK=off go test ./...` passed on
+2026-11-24, including mixed-score, dashboard, and legacy-schema regressions.
 
 ---
 
 ## 2026-01-26: Schema Re-apply Emits Index/Trigger Errors
 
 ### Problem
-Running `make test` applies `initialization/postgres/schema.sql` and logs errors for indexes and triggers that already exist.
+Running `make test` applies `api/internal/<domain>/schema.sql` and logs errors for indexes and triggers that already exist.
 
 ### Root Cause
 The schema used non-idempotent `CREATE INDEX` and `CREATE TRIGGER` statements without guards.
@@ -60,13 +92,13 @@ cmd := exec.CommandContext(ctx, s.config.ResourceCLI, args...)
 ## 2025-09-28: Missing Ollama Models
 
 ### Problem
-Health check reported missing required models: `llama3.2` and `nomic-embed-text`
+Health check reported a missing generation model and embedding role.
 
 ### Solution
 Installed the models using:
 ```bash
 ollama pull llama3.2
-ollama pull nomic-embed-text
+resource-ollama ensure --role embedding.default
 ```
 
 ### Impact
@@ -1180,3 +1212,52 @@ Target for Phase 2 (implementing P0 requirements):
 ---
 
 _This document tracks unresolved issues and solutions for the knowledge-observatory scenario. Update as problems are discovered and resolved._
+
+## Work ladder
+
+- Rung: W0–W2 contracts and traceability validated; W3 agent knowledge implementation delivered. Whole-scenario unit policy remains below its target.
+- Scope: OT-P0-007–010 cover bounded agent workflows, outcome-linked learning, source authority/applicability, and targeted documentation validation. Existing product promises and uncovered targets remain visible.
+- Validation (2026-09-05): API and CLI `go test ./...` passed. Twelve workflow behavior tests passed. Program Runtime validated all five contracts with execution enabled and no findings; Prompt Manager skill-set validation passed at L2. Requirements validation passed with existing KO-API-005, P1/P2 orphan-target, and receipt-sync warnings.
+- Server-owned run `20260905-060548-6590b397`: programs and skill-set passed; unit failed. Its API failure was the old 23-case corpus assertion, repaired and revalidated across all API packages. Existing UI discovery/projection findings remain; Scenario QA entry `knw-1788590048249264878` tracks them. No threshold or waiver was relaxed.
+- Follow-up Unit Health execution `uh-20260905-063440`: CLI/UI commands passed; API coverage execution encountered missing shared Go cache files. Direct API package tests passed. Infrastructure evidence is filed as `knw-1788590160078021352`; no cache cleanup or policy bypass was attempted.
+- Live API validation also found byte truncation splitting UTF-8 snippets. Snippet/rerank truncation now preserves character boundaries; the Unicode regression and API tests pass.
+- Learning: duplicate test-attempt capture returned the same Memory entry; measurement excluded that test attempt. Real operator outcome bands remain pending comparable observations.
+- Federation: raw Search Hub API and current-source CLI preserve knowledge metadata. The installed Search Hub CLI omitted it; Scenario QA entry `knw-1788589894306002451` tracks the stale-client behavior. Do not infer authority from a response that omits metadata.
+- Retrieval: immutable provider-direct run `ee71b976-b10c-4ef6-a26b-51e1539a4085` met 22/26 expectations (84.6%); all three new agent usage, supplemental-artifact authority, and OS/machine applicability cases ranked the expected source first. The four remaining misses are config-resources, config-secrets, deployment-storage, and agent-layers. Configuration records a cross-encoder reranker and mixed embedding models; this is not a controlled improvement claim against historical runs. No failing expectation was removed.
+- Index: available with 18,207 chunks at final measurement. The larger pass cleared deferred work, and the normal per-pass cap was restored. The final reconcile still reported 66 per-item errors; availability does not certify whole-corpus freshness. Scenario QA entry `knw-1788590562166713303` retains this follow-up.
+- Guide: removed the obsolete ingest walkthrough, verified the documented typed search request against the live API, and checked the two-document guide family with zero link/reference findings.
+- Portability: repository-relative paths and source-root confinement are tested; the source-evidence package cross-compiles for Windows amd64 and macOS arm64. OS support declarations remain separate from native verification; this change does not certify the entire application on every OS.
+- Deferred ownership: Plan Manager owns artifact placement/closeout and source owners approve policy changes. This implementation does not delete or retire project documents.
+
+- Maintenance extension (2026-09-06): user-approved Option B adds a focused maintenance skill and preservation/move/retirement checks. OT-P0-011 now states that obligation. Named goal review found KO referenced as an existing federation exemplar in search-hub-corpus-buildout and search-hub-federation-adoption; archived design-language-foundation retains documentation placement concerns covered by OT-P0-010. No conflicting instruction found. Existing whole-scenario validation debt remains visible above.
+
+- Maintenance delivery (2026-09-06): OT-P0-011 / KO-KB-005 now have the scenario-owned `knowledge-observatory-maintenance` feature skill and a registered maintenance guide. Existing usage/improve/documentation-health guidance routes to the same disposition and preservation workflow. CLI reference no longer advertises removed ingest commands. Programs remain read-only; no project documents were retired.
+- Maintenance mechanics: prepare-change v2 returns source dispositions, preservation obligations and a complete bounded reference baseline. verify-change v2 checks intended revisions, explicitly absent paths, forbidden retrieval paths, revision-pinned excerpts with caller editorial evidence, and new/retained reference findings. Unresolved review remains partial; excerpt equality and program success do not establish semantic task completion. Review now includes Markdown definitions, HTML attributes, DOC/CODE markers and common code/configuration consumers; pruned directories, dynamic references, arbitrary manifest fields, headings and external consumers remain explicit limits.
+- Maintenance validation: final API and CLI package tests passed; 18 Python behavior tests passed. Program Runtime executed the declared fixtures/admission cases, including lost knowledge and unresolved editorial review, with no findings. Prompt Manager skill-set validation passed. Source-evidence package cross-compilation passed for Windows amd64 and macOS arm64; native cross-OS runtime verification remains unclaimed. A live CLI probe caught and fixed boolean flag forwarding for allow-missing and skip-external-links; request-level regression tests cover both.
+- Final server-owned suite `20260906-134408-b1a02636`: programs and skill-set passed at L2. Unit test execution is clean, but unit phase remains failed on the existing UI discovery/projection policy findings (including UNIT_REQUIRED_ROLE_MISSING); the prior QA follow-up remains applicable. The queued wait connection ended with unexpected EOF; the terminal durable snapshot was recovered through the documented wait command. No threshold, expectation, or waiver was weakened.
+- Live maintenance exercise: preparation program `prog_45c96a4d-d42f-4b4d-b9bc-fb6a7d381115` captured the two-document family and reference baseline; source preconditions were checked before adding baseline-provenance guidance. Verification `prog_5b80699b-fe27-40aa-b0e5-4701e18f86f8` passed intended revisions, preserved uncertainty guidance and two lexical reader questions, with zero new and 45 retained reference findings across the selected docs scope. The guides-only links/refs check has zero findings. This bounded exercise does not establish whole-repository reference closure or measured fleet-wide task improvement.
+- Retrieval run `174070b0-27eb-4d32-b207-53fa9afe94b1`: 23/27 expectations met; knowledge-document-maintenance ranked the guide first. The same four older misses remain: config-resources, config-secrets, deployment-storage, agent-layers. Preserve the changed denominator and recorded mixed-embedding/cross-encoder configuration; this is not a controlled before/after improvement claim. Program library search for documentation maintenance consolidation now returns prepare-change and verify-change first.
+- Follow-ups: Prompt Manager topic discovery still omitted the registered maintenance skill for an explicit cleanup query (QA `knw-1788702357634533797`); direct loading and documentation-health routing work. Its body-update operation also dropped SKILL.md metadata while retaining the sidecar (`knw-1788702919315972078`); restored the current metadata and synchronized it. One post-restart fixture pass observed transient KO port-discovery failures; settled-runtime execution passed without weakening fixtures.
+- Validation infrastructure: business-health initially could not build because its module omitted the existing generated-proto protovalidate dependency. Scenario Dependency Analyzer installed the already-approved pinned dependency; business-health then started and contract/requirements validation passed with retained advisory debt. No raw package-manager, Git checkout/reset/clean, or branch operation was used.
+
+## Maintenance inventory availability — 2026-09-07
+
+The installed CLI exposes `inventory`, `proposals`, and `route` at top level.
+The former documented `knowledge inventory` spelling is invalid and has been
+corrected in the maintenance guide and canonical skill source.
+
+During documentation cleanup, `knowledge-observatory inventory
+--roots=docs,scenarios --max-files=100` reached the API but returned HTTP 404.
+The source registers `/api/v1/knowledge/maintenance/inventory` in `api/server.go`;
+the CLI requests `/knowledge/maintenance/inventory` through its API client.
+The cause (including running-service revision or routing) is unverified.
+Reconcile the running owner surface before treating inventory as available.
+Direct source inspection and the prepare-change program remained usable.
+This cleanup changed guidance, not the API implementation.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: `tools/mermaid-lint/lint.mjs` reproduced on Node v24.22.3 with `TypeError: Cannot set property navigator of #<Object> which has only a getter`; replacing the property descriptor in the sidecar restores real Mermaid verdicts, and `node --test tools/mermaid-lint/lint.test.mjs` passes.
+- Blocker: none for this localized defect; the parser now returns `mermaid@11.13.0` verdicts on Node 24.
+- Measured: 2026-11-14

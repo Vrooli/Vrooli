@@ -1,50 +1,45 @@
+import { Check, Pipette, Plus, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import ColorPicker from "@vrooli/react-component-library/ColorPicker/1";
 import { HEADER_COLORS } from "../../consts/config";
-import { cn } from "../../lib/classnames";
+import { strings } from "../../consts/strings";
+import { parsePaneColor, serializePaneColor } from "../../lib/paneColor";
+import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 
 interface HeaderColorPickerProps {
+  /** The stored pane encoding: transparent, one hex color, or a two-color gradient. */
   currentColor: string;
   onSelectColor: (color: string) => void;
   testIdPrefix?: string;
 }
 
-export default function HeaderColorPicker({
-  currentColor,
-  onSelectColor,
-  testIdPrefix = "appearance",
-}: HeaderColorPickerProps) {
-  return (
-    <section>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
-        Header Color
-      </h3>
-      <div className="flex flex-wrap gap-1.5">
-        {/* Transparent option */}
-        <button
-          type="button"
-          data-testid={`${testIdPrefix}-header-color-transparent`}
-          className={cn(
-            "h-6 w-6 rounded-full border",
-            currentColor === "transparent" ? "border-wc-accent ring-1 ring-wc-accent" : "border-wc-default",
-          )}
-          style={{ background: "rgb(var(--wc-surface-input))" }}
-          onClick={() => onSelectColor("transparent")}
-          title="No color"
-        />
-        {HEADER_COLORS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            data-testid={`${testIdPrefix}-header-color-${color}`}
-            className={cn(
-              "h-6 w-6 rounded-full border",
-              currentColor === color ? "border-wc-accent ring-1 ring-wc-accent" : "border-wc-default",
-            )}
-            style={{ backgroundColor: color }}
-            onClick={() => onSelectColor(color)}
-            title={color}
-          />
-        ))}
-      </div>
-    </section>
-  );
+/**
+ * Scenario seam for the adopted ColorPicker. The library owns presentation,
+ * controlled input timing, and accessibility; web-console owns workspace
+ * recents, translations, palette selection, and its pane-color encoding.
+ */
+export default function HeaderColorPicker({ currentColor, onSelectColor, testIdPrefix = "appearance" }: HeaderColorPickerProps) {
+  const { t } = useTranslation();
+  const recentColors = useWorkspaceStore((state) => state.recentHeaderColors) ?? [];
+  const recordRecent = useWorkspaceStore((state) => state.addRecentHeaderColor);
+  const normalizedValue = serializePaneColor(parsePaneColor(currentColor).colors);
+
+  return <ColorPicker
+    palette={HEADER_COLORS}
+    value={normalizedValue}
+    onChange={(next) => onSelectColor(serializePaneColor(parsePaneColor(next).colors))}
+    recentColors={recentColors}
+    onRecordRecent={recordRecent}
+    allowGradient
+    testIdPrefix={`${testIdPrefix}-header-color`}
+    icons={{ check: Check, custom: Pipette, add: Plus, remove: X }}
+    labels={{
+      heading: t(strings.appearance.headerColorHeading),
+      transparent: t(strings.appearance.noColorTitle),
+      custom: t(strings.appearance.customColorTitle),
+      recents: t(strings.appearance.recentColorsHeading),
+      addGradient: t(strings.appearance.gradientLabel),
+      removeGradient: t(strings.appearance.removeSecondaryColor),
+    }}
+  />;
 }

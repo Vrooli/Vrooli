@@ -187,7 +187,7 @@ type ExtendedInvestigationDetails struct {
 	Source                string  `json:"source"`
 	RunID                 string  `json:"run_id,omitempty"`
 	DurationSecs          int     `json:"duration_seconds,omitempty"`
-	TokensUsed            int32   `json:"tokens_used,omitempty"`
+	TokensUsed            int64   `json:"tokens_used,omitempty"`
 	CostEstimate          float64 `json:"cost_estimate,omitempty"`
 	OperationMode         string  `json:"operation_mode"`
 	TriggerReason         string  `json:"trigger_reason"`

@@ -4,12 +4,13 @@
   "app": {
     "name": "Hello Desktop",
     "version": "0.1.0",
-    "description": "Minimal scenario for validating desktop deployment pipeline"
+    "description": "Minimal scenario for validating desktop deployment pipeline",
+    "scenario": "hello-desktop"
   },
   "ipc": {
     "mode": "loopback-http",
     "host": "127.0.0.1",
-    "port": 39200,
+    "port": 0,
     "auth_token_path": "runtime/auth_token"
   },
   "telemetry": {
@@ -120,14 +121,9 @@
       },
       "assets": [
         {
-          "path": "ui/dist",
-          "sha256": "pending",
-          "size_bytes": 0
-        },
-        {
           "path": "ui/dist/index.html",
-          "sha256": "pending",
-          "size_bytes": 0
+          "sha256": "8c4d54fc43bf0a11ffabe981bc378f969bc92a7a88cb2c3b366fce4806a78d6a",
+          "size_bytes": 863
         }
       ],
       "critical": true

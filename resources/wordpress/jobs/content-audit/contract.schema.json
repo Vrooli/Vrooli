@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/contracts/wordpress/content-audit/v1",
+  "title": "Vrooli WordPress synthetic content audit v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "siteId",
+    "contract",
+    "postCount",
+    "readyCount",
+    "reviewCount",
+    "posts",
+    "status"
+  ],
+  "properties": {
+    "siteId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "contract": {
+      "const": "vrooli.wordpress.content-audit.v1"
+    },
+    "postCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "readyCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reviewCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "posts": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "slug",
+          "wordCount",
+          "headingCount",
+          "score",
+          "disposition",
+          "findings"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "wordCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "headingCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "disposition": {
+            "enum": [
+              "ready",
+              "needs-review"
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "code",
+                "action"
+              ],
+              "properties": {
+                "code": {
+                  "enum": [
+                    "short_title",
+                    "missing_excerpt",
+                    "short_excerpt",
+                    "sparse_body",
+                    "missing_heading",
+                    "missing_category",
+                    "missing_tag"
+                  ]
+                },
+                "action": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "graded",
+        "empty"
+      ]
+    }
+  }
+}

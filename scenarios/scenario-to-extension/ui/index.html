@@ -269,60 +269,11 @@
             <!-- Testing Tab -->
             <section id="tab-testing" class="tab-content">
                 <div class="card">
-                    <h2>Extension Testing</h2>
-                    <p>Test browser extensions with automated validation and screenshot capture.</p>
-                    
-                    <form id="testing-form" class="testing-form">
-                        <div class="form-group">
-                            <label for="test-extension-path">Extension Path *</label>
-                            <div class="input-group">
-                                <input type="text" id="test-extension-path" name="extension_path" required
-                                       placeholder="Path to extension directory">
-                                <button type="button" class="btn btn-secondary" id="browse-extension-btn">
-                                    Browse
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="test-sites">Test Sites</label>
-                            <textarea id="test-sites" name="test_sites" rows="4"
-                                      placeholder="https://example.com&#10;https://google.com">https://example.com</textarea>
-                            <span class="help-text">One URL per line</span>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="checkbox">
-                                    <input type="checkbox" id="test-screenshot" name="screenshot" checked>
-                                    <span class="checkmark"></span>
-                                    Capture screenshots
-                                </label>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="checkbox">
-                                    <input type="checkbox" id="test-headless" name="headless">
-                                    <span class="checkmark"></span>
-                                    Headless mode
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary" id="test-btn">
-                                <span class="btn-icon" data-lucide="test-tube-2" aria-hidden="true"></span>
-                                <span>Run Tests</span>
-                                <div class="spinner hidden" id="test-spinner"></div>
-                            </button>
-                        </div>
-                    </form>
-                    
-                    <!-- Test Results -->
-                    <div id="test-results" class="test-results hidden">
-                        <h3>Test Results</h3>
-                        <div id="test-results-content"></div>
-                    </div>
+                    <h2>Managed Extension Validation</h2>
+                    <p>Extension validation runs only inside an existing Agent Manager authorized BAS session. This page has no browser grant and cannot install or launch an extension.</p>
+                    <p>From the authorized run, validate a ready build with the production owner path:</p>
+                    <pre><code>scenario-to-extension extension test --build-id BUILD_ID --session-id BAS_SESSION_ID</code></pre>
+                    <p>The resulting owner receipt binds the generated artifact and manifest digests to the BAS session, permission profile, lease, install, reload, validation, and permission inventory.</p>
                 </div>
             </section>
         </div>
@@ -370,15 +321,15 @@
 
     <!-- Scripts -->
     <!-- API Resolver must load first (provides proxy detection) -->
-    <script src="api-resolver.js"></script>
-
     <script type="importmap">
       {
         "imports": {
+          "@vrooli/api-base": "./node_modules/@vrooli/api-base/dist/client/resolve.js",
           "@vrooli/iframe-bridge/child": "./node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js"
         }
       }
     </script>
+    <script type="module" src="api-resolver.js"></script>
     <script type="module" src="bridge-init.js"></script>
     <script type="module" src="app.js"></script>
 </body>

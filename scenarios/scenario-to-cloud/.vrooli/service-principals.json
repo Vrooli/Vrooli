@@ -1,0 +1,16 @@
+{
+  "principals": [
+    {
+      "name": "scenario-to-cloud-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "scenario-to-cloud-lpbs-profile-reconciler",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:remote-profiles.reconcile"]
+    }
+  ]
+}

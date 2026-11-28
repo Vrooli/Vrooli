@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { apiService } from '../services/api'
-import { Badge } from './common/Badge'
+import { Badge } from './common/BadgeAdapter'
 import { Card } from './common/Card'
 import type { StatCardProps } from './common/StatCard'
 import { StatCard } from './common/StatCard'

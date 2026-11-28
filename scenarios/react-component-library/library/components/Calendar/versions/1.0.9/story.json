@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-calendar]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"No selected date","args":{"value":null},"expect":[{"kind":"visible","selector":"[data-rcl-calendar]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long month labels","args":{"monthLabel":"September 2026 with an intentionally long localized label"},"expect":[{"kind":"visible","selector":"[data-rcl-calendar]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

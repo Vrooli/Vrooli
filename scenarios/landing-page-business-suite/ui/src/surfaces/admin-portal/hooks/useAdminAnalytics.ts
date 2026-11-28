@@ -136,13 +136,13 @@ export function useAdminAnalytics(): UseAdminAnalyticsReturn {
 
   // Initial load and time range changes
   useEffect(() => {
-    fetchAnalytics();
+    void fetchAnalytics();
   }, [fetchAnalytics]);
 
   // Fetch variant details when selection changes
   useEffect(() => {
     if (selectedVariant !== 'all') {
-      fetchVariantDetails(selectedVariant);
+      void fetchVariantDetails(selectedVariant);
     } else {
       setVariantDetails([]);
     }
@@ -283,7 +283,7 @@ export function useAdminAnalytics(): UseAdminAnalyticsReturn {
     selectedVariant !== 'all' ? variantNameLookup.get(selectedVariant) ?? selectedVariant : null;
 
   const bestVariantStat = useMemo(() => {
-    if (!summary?.variant_stats?.length) {
+    if (summary === null || summary.variant_stats.length === 0) {
       return null;
     }
     return summary.variant_stats.reduce<VariantStats | null>((best, stat) => {
@@ -293,7 +293,7 @@ export function useAdminAnalytics(): UseAdminAnalyticsReturn {
   }, [summary]);
 
   const weakestVariantStat = useMemo(() => {
-    if (!summary?.variant_stats?.length) {
+    if (summary === null || summary.variant_stats.length === 0) {
       return null;
     }
     return summary.variant_stats.reduce<VariantStats | null>((worst, stat) => {

@@ -1,0 +1,130 @@
+{
+  "_metadata": {
+    "module": "foundation",
+    "description": "Portal v0 foundation requirements linked to PRD operational targets.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PORTAL-P0-001",
+      "title": "Healthy Portal scaffold",
+      "status": "implemented",
+      "prd_ref": "OT-P0-001",
+      "category": "foundation",
+      "criticality": "P0",
+      "description": "Portal starts through the Vrooli scenario lifecycle, exposes API/UI/CLI health, and degrades cleanly when optional integrations are unavailable.",
+      "tags": ["lifecycle", "health"],
+      "validation": [
+        {
+          "type": "command",
+          "status": "passing",
+          "notes": "Lifecycle checks pass: `vrooli scenario status portal` and `vrooli scenario status search-hub` report healthy after the degradation drill; focused Portal API and CLI tests pass."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P0-002",
+      "title": "Chat-ready contract foundation",
+      "status": "implemented",
+      "prd_ref": "OT-P0-002",
+      "category": "contracts",
+      "criticality": "P0",
+      "description": "Portal owns typed Connect/proto seams for health, chat, message tree, integration status, and search suggestion behavior.",
+      "tags": ["connect", "proto"],
+      "validation": [
+        {
+          "type": "command",
+          "status": "passing",
+          "notes": "Generated Portal Connect contracts, Portal API Go tests, and Portal UI type-check and coverage checks pass after proto generation."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P1-001",
+      "title": "OpenRouter chat path",
+      "status": "implemented",
+      "prd_ref": "OT-P1-001",
+      "category": "chat",
+      "criticality": "P1",
+      "description": "Portal streams OpenRouter completions with model selection, optional web search, usage capture, and missing-key status instead of boot failure.",
+      "tags": ["openrouter", "streaming"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "in_progress",
+          "notes": "The OpenRouter completion path is implemented and covered by Portal completion tests. A live streamed-completion smoke requires an operator-provided OpenRouter credential and is not claimed here."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P1-002",
+      "title": "Agent-mode bridge",
+      "status": "implemented",
+      "prd_ref": "OT-P1-002",
+      "category": "agents",
+      "criticality": "P1",
+      "description": "Portal can start and display agent-manager backed conversations without making agent-manager a required boot dependency.",
+      "tags": ["agent-manager", "degradation"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "in_progress",
+          "notes": "Agent-mode brief assembly and degradation behavior are implemented and covered by Portal agent-chat tests. An authenticated live agent-manager stream is not claimed because the current environment rejects owned-context requests without an account."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P2-001",
+      "title": "Passive ecosystem search",
+      "status": "implemented",
+      "prd_ref": "OT-P2-001",
+      "category": "search",
+      "criticality": "P2",
+      "description": "Portal requests search-hub suggestions and PASSIVE search attachments without blocking the LLM send path.",
+      "tags": ["search-hub", "passive-mode"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "in_progress",
+          "notes": "The current-turn brief path is implemented and covered by Portal message/completion tests; the previous-turn attachment path is no longer used for brief assembly. A live authenticated chat smoke remains unclaimed."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P2-002",
+      "title": "Readiness ladder controls",
+      "status": "implemented",
+      "prd_ref": "OT-P2-002",
+      "category": "integrations",
+      "criticality": "P2",
+      "description": "Portal measures optional integration readiness, applies OFF/PASSIVE/FULL-reserved policy, and surfaces override/status controls.",
+      "tags": ["readiness", "integrations"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "passing",
+          "notes": "The lifecycle degradation drill observed Search Hub OFF, persisted withheld brief verdicts, silent hook no-op behavior, recovery to PASSIVE, and a delivered recovery brief."
+        }
+      ]
+    },
+    {
+      "id": "PORTAL-P2-003",
+      "title": "One Portal-owned context brief path",
+      "status": "implemented",
+      "prd_ref": "OT-P2-003",
+      "category": "context",
+      "criticality": "P2",
+      "description": "Portal builds one threshold-gated, trust-labelled brief from the current prompt and serves the persisted verdict to LLM, agent, and canary-verified external-harness consumers without a legacy recent-context injection path.",
+      "tags": ["brief", "trust", "degradation", "hooks"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "passing",
+          "notes": "agentbrief-go unit tests and Portal API tests cover normalization, trust policy, all gate verdicts, withheld persistence, current-turn LLM assembly, and agent prompt assembly. Live hook canary and end-to-end inspector evidence remain release gates."
+        }
+      ]
+    }
+  ]
+}

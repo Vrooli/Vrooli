@@ -1,0 +1,265 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-paced-2026-11-24T081443548Z",
+  "observedAt": {
+    "startedAt": "2026-11-24T08:14:43.548Z",
+    "finishedAt": "2026-11-24T08:14:53.519Z"
+  },
+  "qualification": "diagnostic_only",
+  "cohort": {
+    "consumer": "audio-tools Dictation Studio",
+    "profile": "synthetic browser fake microphone",
+    "browser": "Chrome/150.0.7871.128",
+    "host": "linux-x64",
+    "capture": "Chrome file-backed fake microphone, paced by browser media device",
+    "injectedInterruption": "Product WebSocket closed with code 4001 while Chrome was offline for 1500 ms after the first visible partial on attempt 2",
+    "route": "http://127.0.0.1:23345/dictation-studio",
+    "providerId": "sherpa-stt",
+    "fixture": "dictation-reference.wav",
+    "fixturePath": "bas/fixtures/dictation-reference.wav",
+    "fixtureSha256": "0c789111bdca878622c2db7f8097f7597dd42ee3eb6a1aefee416ef2504bef7d"
+  },
+  "buildIdentity": {
+    "api": "sha256:f46bb1649b99cbe09b6183fc0157e09cc9a1995eea2f7086a71d686a545dfe8a"
+  },
+  "attemptCount": 3,
+  "completedFinalCount": 2,
+  "failedOrIncompleteCount": 1,
+  "latencyMs": {
+    "signalToFirstVisiblePartial": {
+      "n": 2,
+      "p50": 782.4749994277954,
+      "p95_nearest_rank": 791.0749998092651,
+      "max": 791.0749998092651,
+      "min": 782.4749994277954
+    },
+    "signalToPartialDiagnostic": {
+      "n": 2,
+      "p50": 781.9749994277954,
+      "p95_nearest_rank": 790.375,
+      "max": 790.375,
+      "min": 781.9749994277954
+    },
+    "clickToFirstVisiblePartial": {
+      "n": 2,
+      "p50": 830.8999996185303,
+      "p95_nearest_rank": 951,
+      "max": 951,
+      "min": 830.8999996185303
+    },
+    "postOnsetAudioAvailableAtFirstPartial": {
+      "n": 2,
+      "p50": 761.125,
+      "p95_nearest_rank": 770.4375,
+      "max": 770.4375,
+      "min": 761.125
+    },
+    "excessAfterAvailableAudio": {
+      "n": 2,
+      "p50": 19.9375,
+      "p95_nearest_rank": 20.84999942779541,
+      "max": 20.84999942779541,
+      "min": 19.9375
+    },
+    "clickToCaptureReady": {
+      "n": 2,
+      "p50": 2.90000057220459,
+      "p95_nearest_rank": 74.30000019073486,
+      "max": 74.30000019073486,
+      "min": 2.90000057220459
+    },
+    "stopToFinalTail": {
+      "n": 2,
+      "p50": 71.89999961853027,
+      "p95_nearest_rank": 75,
+      "max": 75,
+      "min": 71.89999961853027
+    },
+    "visibleUpdateGap": {
+      "n": 10,
+      "p50": 320.0999994277954,
+      "p95_nearest_rank": 344.9000005722046,
+      "max": 344.9000005722046,
+      "min": 296.9000005722046
+    }
+  },
+  "accounting": {
+    "attemptsWithCapturedSamplesEqualCommittedSamples": 2,
+    "attemptsWithAllSentSequenceProcessed": 2,
+    "attemptsWithDoneSent": 2,
+    "attemptsWithAtLeastTwoVisibleRevisions": 2,
+    "attemptsWithCompleteVisibleUpdateGaps": 2,
+    "attemptsWithFirstVisiblePartial": 2,
+    "attemptsWithVisibleFinal": 2,
+    "maxVisibleRevisionCount": 6,
+    "allPageErrors": []
+  },
+  "limitations": [
+    "Synthetic media browser run; not a physical microphone/device qualification.",
+    "Repeated WAV fixture supports timing and cursor accounting only; no independent speech-quality score was calculated.",
+    "One cohort does not establish performance on other hosts, profiles, cold starts, or routes.",
+    "The product WebSocket is explicitly closed while Chrome is offline because CDP offline emulation alone does not interrupt an established WebSocket. Reconnect/replay must be observed after connectivity returns. This is not a physical network or browser/device recovery qualification."
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "startedAt": "2026-11-24T08:14:43.551Z",
+      "finishedAt": "2026-11-24T08:14:46.131Z",
+      "sessionId": "30a9d6fe-bd28-4171-925b-b7989bacd6de",
+      "state": "completed",
+      "terminalReason": "final",
+      "providerId": "sherpa-stt",
+      "providerTier": "local",
+      "modelId": "sherpa-onnx/streaming-zipformer-en-2023-06-26",
+      "signalToFirstVisiblePartialMs": 791.0749998092651,
+      "signalToPartialDiagnosticMs": 790.375,
+      "firstPartialAvailableAudioMs": 770.4375,
+      "firstPartialExcessLatencyMs": 19.9375,
+      "startToCaptureReadyMs": 74.30000019073486,
+      "stopToFinalTailMs": 71.89999961853027,
+      "capturedSequence": 47,
+      "sentSequence": 47,
+      "processedSequence": 47,
+      "capturedSamples": 37888,
+      "committedSamples": 37888,
+      "retainedBytes": 0,
+      "durability": "reduced",
+      "visibleRevisionCount": 6,
+      "visibleUpdateGapsMs": [
+        339.1000003814697,
+        297.69999980926514,
+        321.5,
+        340.30000019073486,
+        319.3999996185303
+      ],
+      "visibleGapsComplete": true,
+      "injectedOfflineDurationMs": 0,
+      "injectedOfflineAttempt": false,
+      "injectedWebSocketClose": false,
+      "injectedInterruptionObserved": true,
+      "visiblePartialObserved": true,
+      "visibleFinalObserved": true,
+      "doneSent": true,
+      "statusCodes": [
+        "capture_starting",
+        "stream_connected",
+        "session_ready",
+        "processed_acknowledgement"
+      ],
+      "errorCodes": [],
+      "clickToFirstVisiblePartialMs": 951,
+      "startedAtMs": 274,
+      "passed": true
+    },
+    {
+      "attempt": 2,
+      "startedAt": "2026-11-24T08:14:46.381Z",
+      "finishedAt": "2026-11-24T08:14:50.813Z",
+      "sessionId": "0b559cd0-732c-4bc4-81b6-72af77320245",
+      "state": "failed",
+      "terminalReason": "stream_internal",
+      "providerId": "sherpa-stt",
+      "providerTier": "local",
+      "modelId": "sherpa-onnx/streaming-zipformer-en-2023-06-26",
+      "signalToFirstVisiblePartialMs": 799.5875005722046,
+      "signalToPartialDiagnosticMs": 785.9875001907349,
+      "firstPartialAvailableAudioMs": 781.75,
+      "firstPartialExcessLatencyMs": 4.237500190734863,
+      "startToCaptureReadyMs": 2.8999996185302734,
+      "stopToFinalTailMs": null,
+      "capturedSequence": 78,
+      "sentSequence": 78,
+      "processedSequence": 78,
+      "capturedSamples": 61781,
+      "committedSamples": null,
+      "retainedBytes": 0,
+      "durability": "reduced",
+      "visibleRevisionCount": 8,
+      "visibleUpdateGapsMs": [
+        331.69999980926514,
+        3119,
+        15.199999809265137,
+        15.200000762939453,
+        15.199999809265137,
+        14.800000190734863,
+        15
+      ],
+      "visibleGapsComplete": true,
+      "injectedOfflineDurationMs": 1500,
+      "injectedOfflineAttempt": true,
+      "injectedWebSocketClose": true,
+      "injectedInterruptionObserved": true,
+      "visiblePartialObserved": true,
+      "visibleFinalObserved": false,
+      "doneSent": true,
+      "statusCodes": [
+        "capture_starting",
+        "session_accepted",
+        "stream_connected",
+        "session_ready",
+        "processed_acknowledgement",
+        "reconnecting",
+        "stream_admission_failed",
+        "replaying"
+      ],
+      "errorCodes": [
+        "stream_internal"
+      ],
+      "clickToFirstVisiblePartialMs": 848.7000007629395,
+      "startedAtMs": 3104,
+      "passed": false,
+      "failure": "terminal failed (stream_internal)"
+    },
+    {
+      "attempt": 3,
+      "startedAt": "2026-11-24T08:14:51.064Z",
+      "finishedAt": "2026-11-24T08:14:53.519Z",
+      "sessionId": "7d9ec79b-4e21-4825-b5d0-9446bfc09082",
+      "state": "completed",
+      "terminalReason": "final",
+      "providerId": "sherpa-stt",
+      "providerTier": "local",
+      "modelId": "sherpa-onnx/streaming-zipformer-en-2023-06-26",
+      "signalToFirstVisiblePartialMs": 782.4749994277954,
+      "signalToPartialDiagnosticMs": 781.9749994277954,
+      "firstPartialAvailableAudioMs": 761.125,
+      "firstPartialExcessLatencyMs": 20.84999942779541,
+      "startToCaptureReadyMs": 2.90000057220459,
+      "stopToFinalTailMs": 75,
+      "capturedSequence": 47,
+      "sentSequence": 47,
+      "processedSequence": 47,
+      "capturedSamples": 37888,
+      "committedSamples": 37888,
+      "retainedBytes": 0,
+      "durability": "reduced",
+      "visibleRevisionCount": 6,
+      "visibleUpdateGapsMs": [
+        340.5,
+        296.9000005722046,
+        320.0999994277954,
+        344.9000005722046,
+        318.30000019073486
+      ],
+      "visibleGapsComplete": true,
+      "injectedOfflineDurationMs": 0,
+      "injectedOfflineAttempt": false,
+      "injectedWebSocketClose": false,
+      "injectedInterruptionObserved": true,
+      "visiblePartialObserved": true,
+      "visibleFinalObserved": true,
+      "doneSent": true,
+      "statusCodes": [
+        "capture_starting",
+        "session_accepted",
+        "stream_connected",
+        "session_ready",
+        "processed_acknowledgement"
+      ],
+      "errorCodes": [],
+      "clickToFirstVisiblePartialMs": 830.8999996185303,
+      "startedAtMs": 7786.60000038147,
+      "passed": true
+    }
+  ]
+}

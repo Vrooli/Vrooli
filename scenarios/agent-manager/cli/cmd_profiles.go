@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 	"time"
+
+	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
@@ -20,7 +25,7 @@ import (
 
 func (a *App) cmdProfile(args []string) error {
 	if len(args) == 0 {
-		return a.profileHelp()
+		return nil
 	}
 
 	switch args[0] {
@@ -36,35 +41,13 @@ func (a *App) cmdProfile(args []string) error {
 		return a.profileDelete(args[1:])
 	case "ensure":
 		return a.profileEnsure(args[1:])
+	case "reconcile-scenario":
+		return a.profileReconcileScenario(args[1:])
 	case "help", "-h", "--help":
-		return a.profileHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown profile subcommand: %s\n\nRun 'agent-manager profile help' for usage", args[0])
 	}
-}
-
-func (a *App) profileHelp() error {
-	fmt.Println(`Usage: agent-manager profile <subcommand> [options]
-
-Subcommands:
-  list              List all agent profiles
-  get <id>          Get profile details
-  create            Create a new profile
-  update <id>       Update an existing profile
-  delete <id>       Delete a profile
-  ensure            Resolve profile by key, creating with defaults if needed
-
-Options:
-  --json            Output raw JSON
-  --quiet           Output only IDs (for piping)
-
-Examples:
-  agent-manager profile list
-  agent-manager profile get abc123
-  agent-manager profile create --name "My Agent" --runner-type claude-code
-  agent-manager profile delete abc123
-  agent-manager profile ensure --key "my-agent" --name "My Agent" --runner-type claude-code`)
-	return nil
 }
 
 // =============================================================================
@@ -109,23 +92,19 @@ func (a *App) profileList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", "ID", "NAME", "RUNNER", "SANDBOX", "APPROVE")
-	fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", strings.Repeat("-", 36), strings.Repeat("-", 20), strings.Repeat("-", 12), strings.Repeat("-", 8), strings.Repeat("-", 7))
+	fmt.Printf("%-36s  %-20s  %-16s  %-10s  %-12s\n", "ID", "NAME", "ROLE", "SANDBOX", "MANUAL_REVIEW")
+	fmt.Printf("%-36s  %-20s  %-16s  %-10s  %-12s\n", strings.Repeat("-", 36), strings.Repeat("-", 20), strings.Repeat("-", 16), strings.Repeat("-", 10), strings.Repeat("-", 12))
 	for _, p := range profiles {
 		name := p.Name
 		if len(name) > 20 {
 			name = name[:17] + "..."
 		}
-		sandbox := "no"
-		if p.RequiresSandbox {
-			sandbox = "yes"
+		sandbox := profileSandboxMode(p)
+		manualReview := "no"
+		if p.SandboxConfig != nil && p.SandboxConfig.ManualReview {
+			manualReview = "yes"
 		}
-		approval := "no"
-		if p.RequiresApproval {
-			approval = "yes"
-		}
-		runner := formatEnumValue(p.RunnerType, "RUNNER_TYPE_", "-")
-		fmt.Printf("%-36s  %-20s  %-12s  %-8s  %-7s\n", p.Id, name, runner, sandbox, approval)
+		fmt.Printf("%-36s  %-20s  %-16s  %-10s  %-12s\n", p.Id, name, p.RoleRef, sandbox, manualReview)
 	}
 
 	return nil
@@ -138,18 +117,39 @@ func (a *App) profileList(args []string) error {
 func (a *App) profileGet(args []string) error {
 	fs := flag.NewFlagSet("profile get", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
+	key := fs.String("key", "", "Profile key")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	remaining := fs.Args()
-	if len(remaining) == 0 {
-		return fmt.Errorf("usage: agent-manager profile get <id>")
+	if len(remaining) == 0 && strings.TrimSpace(*key) == "" {
+		return fmt.Errorf("usage: agent-manager profile get <id> | --key <profile-key>")
+	}
+	if len(remaining) > 0 && strings.TrimSpace(*key) != "" {
+		return fmt.Errorf("profile get accepts either an id or --key, not both")
 	}
 
-	id := remaining[0]
-	body, profile, err := a.services.Profiles.Get(id)
+	var body []byte
+	var profile *domainpb.AgentProfile
+	var err error
+	if strings.TrimSpace(*key) != "" {
+		var profiles []*domainpb.AgentProfile
+		body, profiles, err = a.services.Profiles.List(0, 0)
+		for _, candidate := range profiles {
+			if candidate.GetProfileKey() == strings.TrimSpace(*key) {
+				profile = candidate
+				body, err = protoMarshalOptions.Marshal(&apipb.GetProfileResponse{Profile: candidate})
+				break
+			}
+		}
+		if err == nil && profile == nil {
+			err = fmt.Errorf("profile key %q not found", strings.TrimSpace(*key))
+		}
+	} else {
+		body, profile, err = a.services.Profiles.Get(remaining[0])
+	}
 	if err != nil {
 		return err
 	}
@@ -167,18 +167,20 @@ func (a *App) profileGet(args []string) error {
 	if profile.ProfileKey != "" {
 		fmt.Printf("Profile Key:    %s\n", profile.ProfileKey)
 	}
-	fmt.Printf("Runner Type:    %s\n", formatEnumValue(profile.RunnerType, "RUNNER_TYPE_", "-"))
-	if profile.Model != "" {
-		fmt.Printf("Model:          %s\n", profile.Model)
-	}
+	fmt.Printf("Role:           %s\n", profile.RoleRef)
 	if profile.MaxTurns > 0 {
 		fmt.Printf("Max Turns:      %d\n", profile.MaxTurns)
 	}
 	if timeout := formatDuration(profile.Timeout); timeout != "" {
 		fmt.Printf("Timeout:        %s\n", timeout)
 	}
-	fmt.Printf("Requires Sandbox:  %v\n", profile.RequiresSandbox)
-	fmt.Printf("Requires Approval: %v\n", profile.RequiresApproval)
+	if profile.Effort != "" {
+		fmt.Printf("Effort:         %s\n", profile.Effort)
+	}
+	fmt.Printf("Sandbox Mode:      %s\n", profileSandboxMode(profile))
+	if profile.SandboxConfig != nil && profile.SandboxConfig.ManualReview {
+		fmt.Printf("Manual Review:     yes (apply gated by operator approval)\n")
+	}
 	if profile.SandboxConfig != nil {
 		fmt.Printf("Sandbox Config:   %s\n", marshalProtoJSON(profile.SandboxConfig))
 	}
@@ -208,12 +210,11 @@ func (a *App) profileCreate(args []string) error {
 	name := fs.String("name", "", "Profile name (required)")
 	profileKey := fs.String("profile-key", "", "Stable profile key (defaults to name)")
 	description := fs.String("description", "", "Profile description")
-	runnerType := fs.String("runner-type", "claude-code", "Runner type (claude-code, codex, opencode)")
-	model := fs.String("model", "", "Model to use")
+	roleRef := fs.String("role-ref", "", "Portable role from the active role-policy catalog (required)")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 30m)")
-	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
-	requiresApproval := fs.Bool("approval", true, "Require approval before applying changes")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
+	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
 	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
@@ -222,29 +223,81 @@ func (a *App) profileCreate(args []string) error {
 	allowedTools := fs.String("allowed-tools", "", "Comma-separated list of allowed tools")
 	deniedTools := fs.String("denied-tools", "", "Comma-separated list of denied tools")
 	createdBy := fs.String("created-by", "", "Creator identifier")
+	browserLocalOrigin := fs.String("browser-local-origin", "", "Enable a bounded observe/control browser task scoped to one exact localhost origin (requires role-ref browser.agent)")
 
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 
 	if *name == "" {
 		return fmt.Errorf("--name is required")
 	}
+	if strings.TrimSpace(*roleRef) == "" {
+		return fmt.Errorf("--role-ref is required")
+	}
 
 	req := &domainpb.AgentProfile{
 		Name:                 *name,
 		ProfileKey:           strings.TrimSpace(*profileKey),
 		Description:          *description,
-		RunnerType:           parseRunnerType(*runnerType),
-		Model:                *model,
+		RoleRef:              strings.TrimSpace(*roleRef),
 		MaxTurns:             int32(*maxTurns),
-		RequiresSandbox:      *requiresSandbox,
-		RequiresApproval:     *requiresApproval,
 		SkipPermissionPrompt: *skipPermissions,
 		CreatedBy:            *createdBy,
 	}
 	if req.ProfileKey == "" {
 		req.ProfileKey = strings.TrimSpace(*name)
+	}
+	if strings.TrimSpace(*browserLocalOrigin) != "" {
+		if req.RoleRef != "browser.agent" {
+			return fmt.Errorf("--browser-local-origin requires --role-ref browser.agent")
+		}
+		if *skipPermissions {
+			return fmt.Errorf("browser task profiles cannot skip runner permission prompts")
+		}
+		if *sandboxConfig != "" || *sandboxConfigFile != "" || *sandboxMode != "" || *sandboxRetentionMode != "" || *sandboxRetentionTTL != "" {
+			return fmt.Errorf("browser task profiles use the fixed protected, read-only sandbox policy")
+		}
+		if *allowedTools != "" {
+			for _, tool := range strings.Split(*allowedTools, ",") {
+				switch strings.TrimSpace(tool) {
+				case "read", "glob", "grep", "shell":
+				default:
+					return fmt.Errorf("browser task profiles allow only read, glob, grep, and shell tools")
+				}
+			}
+		} else {
+			req.AllowedTools = []string{"read", "glob", "grep", "shell"}
+		}
+		req.NetworkAccess = domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+		req.SandboxConfig = &domainpb.SandboxConfig{
+			Mode:        domainpb.SandboxMode_SANDBOX_MODE_PROTECTED,
+			NetworkMode: domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST,
+			WritePolicy: &domainpb.WorkspaceWritePolicy{},
+		}
+		if req.MaxTurns == 0 {
+			req.MaxTurns = 8
+		} else if req.MaxTurns > 12 {
+			return fmt.Errorf("browser task profile max-turns cannot exceed 12")
+		} else if req.MaxTurns < 0 {
+			return fmt.Errorf("browser task profile max-turns must be positive")
+		}
+		if *timeout == "" {
+			req.Timeout = durationpb.New(15 * time.Minute)
+		} else {
+			requestedTimeout, err := time.ParseDuration(*timeout)
+			if err != nil {
+				return fmt.Errorf("invalid timeout: %w", err)
+			}
+			if requestedTimeout <= 0 || requestedTimeout > 15*time.Minute {
+				return fmt.Errorf("browser task profile timeout must be positive and cannot exceed 15m")
+			}
+		}
+		capabilityJSON, err := buildLocalBrowserTaskCapability(req.ProfileKey, *browserLocalOrigin)
+		if err != nil {
+			return err
+		}
+		req.Features = &domainpb.FeatureFlags{BrowserCapabilityJson: capabilityJSON}
 	}
 	if *timeout != "" {
 		parsed, err := time.ParseDuration(*timeout)
@@ -253,10 +306,17 @@ func (a *App) profileCreate(args []string) error {
 		}
 		req.Timeout = durationpb.New(parsed)
 	}
+	if *effort != "" {
+		req.Effort = *effort
+	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
 	} else {
 		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
+		}
+		cfg, err = applySandboxModeOverride(cfg, *sandboxMode)
 		if err != nil {
 			return err
 		}
@@ -286,6 +346,115 @@ func (a *App) profileCreate(args []string) error {
 	return nil
 }
 
+// localBrowserTaskCapability is deliberately narrower than the general BAS
+// capability contract. The CLI exposes one exact loopback origin, view/control,
+// and fixed budgets; callers cannot supply grants, identity overrides, history,
+// extensions, or additional effects through this owner path.
+type localBrowserTaskCapability struct {
+	Enabled      bool   `json:"enabled"`
+	Mode         string `json:"mode"`
+	GrantReceipt string `json:"grantReceipt,omitempty"`
+	Candidates   []struct {
+		Harness      string `json:"harness"`
+		ResourceRole string `json:"resourceRole"`
+	} `json:"candidates"`
+	Permissions struct {
+		ProfileID         string    `json:"profileId"`
+		Level             string    `json:"level"`
+		AllowedOrigins    []string  `json:"allowedOrigins"`
+		View              bool      `json:"view"`
+		Control           bool      `json:"control"`
+		AllowHistory      bool      `json:"allowHistory,omitempty"`
+		CredentialRefs    []string  `json:"credentialRefs,omitempty"`
+		ExtensionIDs      []string  `json:"extensionIds,omitempty"`
+		ExtensionInstall  bool      `json:"extensionInstall,omitempty"`
+		ExtensionLoad     bool      `json:"extensionLoad,omitempty"`
+		PerformanceTrace  bool      `json:"performanceTrace,omitempty"`
+		AppMonitorMetrics bool      `json:"appMonitorMetrics,omitempty"`
+		AppMonitorTrace   bool      `json:"appMonitorTrace,omitempty"`
+		AudioMode         string    `json:"audioMode,omitempty"`
+		IdentityProfile   *struct{} `json:"identity_profile,omitempty"`
+	} `json:"permissions"`
+	Budget struct {
+		SessionMinutes  int64 `json:"sessionMinutes"`
+		Actions         int64 `json:"actions"`
+		Bytes           int64 `json:"bytes"`
+		InferenceTokens int64 `json:"inferenceTokens"`
+	} `json:"budget"`
+}
+
+func buildLocalBrowserTaskCapability(profileKey, origin string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(origin))
+	if err != nil || parsed == nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", fmt.Errorf("--browser-local-origin must be one exact http(s) origin without a path, query, fragment, or credentials")
+	}
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return "", fmt.Errorf("--browser-local-origin must use localhost or a loopback IP address")
+		}
+	}
+	if profileKey == "" {
+		return "", fmt.Errorf("browser task profile requires a stable profile key")
+	}
+
+	capability := localBrowserTaskCapability{Enabled: true, Mode: "managed"}
+	capability.Candidates = []struct {
+		Harness      string `json:"harness"`
+		ResourceRole string `json:"resourceRole"`
+	}{{Harness: "codex", ResourceRole: "browser.session"}}
+	capability.Permissions.ProfileID = profileKey
+	capability.Permissions.Level = "act"
+	capability.Permissions.AllowedOrigins = []string{parsed.Scheme + "://" + parsed.Host}
+	capability.Permissions.View = true
+	capability.Permissions.Control = true
+	capability.Budget.SessionMinutes = 10
+	capability.Budget.Actions = 100
+	capability.Budget.Bytes = 4 << 20
+	capability.Budget.InferenceTokens = 0
+	if err := validateLocalBrowserTaskCapability(capability); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(capability)
+	if err != nil {
+		return "", fmt.Errorf("encode browser task capability: %w", err)
+	}
+	return string(data), nil
+}
+
+func validateLocalBrowserTaskCapability(capability localBrowserTaskCapability) error {
+	if !capability.Enabled || capability.Mode != "managed" || capability.GrantReceipt != "" {
+		return fmt.Errorf("browser task capability must be enabled, managed, and contain no caller-supplied grant")
+	}
+	if len(capability.Candidates) != 1 || capability.Candidates[0].Harness != "codex" || capability.Candidates[0].ResourceRole != "browser.session" {
+		return fmt.Errorf("browser task capability requires the single qualified codex browser.session candidate")
+	}
+	permissions := capability.Permissions
+	if strings.TrimSpace(permissions.ProfileID) == "" || permissions.Level != "act" || !permissions.View || !permissions.Control || len(permissions.AllowedOrigins) != 1 {
+		return fmt.Errorf("browser task capability requires act-level view/control rights for one exact origin")
+	}
+	if permissions.AllowHistory || len(permissions.CredentialRefs) != 0 || len(permissions.ExtensionIDs) != 0 || permissions.ExtensionInstall || permissions.ExtensionLoad || permissions.PerformanceTrace || permissions.AppMonitorMetrics || permissions.AppMonitorTrace || permissions.AudioMode != "" || permissions.IdentityProfile != nil {
+		return fmt.Errorf("browser task capability cannot include history, credentials, extensions, traces, audio, or identity overrides")
+	}
+	parsed, err := url.Parse(permissions.AllowedOrigins[0])
+	if err != nil || parsed == nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+		return fmt.Errorf("browser task capability origin must be exact")
+	}
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return fmt.Errorf("browser task capability cannot include a non-loopback origin")
+		}
+	}
+	budget := capability.Budget
+	if budget.SessionMinutes <= 0 || budget.SessionMinutes > 10 || budget.Actions <= 0 || budget.Actions > 100 || budget.Bytes <= 0 || budget.Bytes > 4<<20 || budget.InferenceTokens != 0 {
+		return fmt.Errorf("browser task capability exceeds its fixed session, action, byte, or inference budget")
+	}
+	return nil
+}
+
 // =============================================================================
 // Profile Update
 // =============================================================================
@@ -296,12 +465,11 @@ func (a *App) profileUpdate(args []string) error {
 	name := fs.String("name", "", "Profile name")
 	profileKey := fs.String("profile-key", "", "Stable profile key")
 	description := fs.String("description", "", "Profile description")
-	runnerType := fs.String("runner-type", "", "Runner type")
-	model := fs.String("model", "", "Model to use")
+	roleRef := fs.String("role-ref", "", "Portable role from the active role-policy catalog")
 	maxTurns := fs.Int("max-turns", 0, "Maximum turns")
 	timeout := fs.String("timeout", "", "Execution timeout")
-	requiresSandbox := fs.Bool("sandbox", true, "Require sandbox execution")
-	requiresApproval := fs.Bool("approval", true, "Require approval")
+	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
+	sandboxMode := fs.String("sandbox-mode", "", "Sandbox mode (off/tracking/protected); empty preserves the existing SandboxConfig")
 	sandboxConfig := fs.String("sandbox-config", "", "Sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Sandbox retention mode (keep_active, stop_on_terminal, delete_on_terminal)")
@@ -344,11 +512,8 @@ func (a *App) profileUpdate(args []string) error {
 	if *description != "" {
 		req.Description = *description
 	}
-	if *runnerType != "" {
-		req.RunnerType = parseRunnerType(*runnerType)
-	}
-	if *model != "" {
-		req.Model = *model
+	if *roleRef != "" {
+		req.RoleRef = strings.TrimSpace(*roleRef)
 	}
 	if *maxTurns > 0 {
 		req.MaxTurns = int32(*maxTurns)
@@ -360,6 +525,9 @@ func (a *App) profileUpdate(args []string) error {
 		}
 		req.Timeout = durationpb.New(parsed)
 	}
+	if *effort != "" {
+		req.Effort = *effort
+	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
 	} else {
@@ -367,12 +535,21 @@ func (a *App) profileUpdate(args []string) error {
 		if err != nil {
 			return err
 		}
+		cfg, err = applySandboxModeOverride(cfg, *sandboxMode)
+		if err != nil {
+			return err
+		}
 		if cfg != nil {
+			req.SandboxConfig = cfg
+		} else if mode := strings.ToLower(strings.TrimSpace(*sandboxMode)); mode != "" {
+			// --sandbox-mode set but no SandboxConfig present yet: build one.
+			cfg, err = applySandboxModeOverride(&domainpb.SandboxConfig{}, *sandboxMode)
+			if err != nil {
+				return err
+			}
 			req.SandboxConfig = cfg
 		}
 	}
-	req.RequiresSandbox = *requiresSandbox
-	req.RequiresApproval = *requiresApproval
 
 	body, profile, err := a.services.Profiles.Update(id, req)
 	if err != nil {
@@ -414,7 +591,7 @@ func (a *App) profileDelete(args []string) error {
 	if !*force {
 		fmt.Printf("Delete profile %s? [y/N]: ", id)
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
 			fmt.Println("Cancelled")
 			return nil
@@ -440,12 +617,11 @@ func (a *App) profileEnsure(args []string) error {
 	updateExisting := fs.Bool("update", false, "Update existing profile with provided defaults")
 	name := fs.String("name", "", "Default profile name")
 	description := fs.String("description", "", "Default profile description")
-	runnerType := fs.String("runner-type", "claude-code", "Default runner type (claude-code, codex, opencode)")
-	model := fs.String("model", "", "Default model to use")
+	roleRef := fs.String("role-ref", "", "Default portable role from the active role-policy catalog (required)")
 	maxTurns := fs.Int("max-turns", 0, "Default maximum turns")
 	timeout := fs.String("timeout", "", "Default execution timeout (e.g., 30m)")
-	requiresSandbox := fs.Bool("sandbox", true, "Default require sandbox execution")
-	requiresApproval := fs.Bool("approval", true, "Default require approval")
+	effort := fs.String("effort", "", "Default reasoning effort (low, medium, high, xhigh, max)")
+	sandboxMode := fs.String("sandbox-mode", "", "Default sandbox mode (off/tracking/protected); empty preserves the SandboxConfig default")
 	sandboxConfig := fs.String("sandbox-config", "", "Default sandbox config JSON (proto JSON)")
 	sandboxConfigFile := fs.String("sandbox-config-file", "", "Path to default sandbox config JSON")
 	sandboxRetentionMode := fs.String("sandbox-retention-mode", "", "Default sandbox retention mode")
@@ -458,16 +634,16 @@ func (a *App) profileEnsure(args []string) error {
 	if *profileKey == "" {
 		return fmt.Errorf("--key is required")
 	}
+	if strings.TrimSpace(*roleRef) == "" {
+		return fmt.Errorf("--role-ref is required")
+	}
 
 	defaults := &domainpb.AgentProfile{
-		ProfileKey:       *profileKey,
-		Name:             *name,
-		Description:      *description,
-		RunnerType:       parseRunnerType(*runnerType),
-		Model:            *model,
-		MaxTurns:         int32(*maxTurns),
-		RequiresSandbox:  *requiresSandbox,
-		RequiresApproval: *requiresApproval,
+		ProfileKey:  *profileKey,
+		Name:        *name,
+		Description: *description,
+		RoleRef:     strings.TrimSpace(*roleRef),
+		MaxTurns:    int32(*maxTurns),
 	}
 	if defaults.Name == "" {
 		defaults.Name = *profileKey
@@ -479,10 +655,17 @@ func (a *App) profileEnsure(args []string) error {
 		}
 		defaults.Timeout = durationpb.New(parsed)
 	}
+	if *effort != "" {
+		defaults.Effort = *effort
+	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
 	} else {
 		cfg, err = applySandboxRetention(cfg, *sandboxRetentionMode, *sandboxRetentionTTL)
+		if err != nil {
+			return err
+		}
+		cfg, err = applySandboxModeOverride(cfg, *sandboxMode)
 		if err != nil {
 			return err
 		}
@@ -502,7 +685,7 @@ func (a *App) profileEnsure(args []string) error {
 		return err
 	}
 
-	if *jsonOutput || resp == nil {
+	if *jsonOutput || resp == nil || resp.Profile == nil {
 		cliutil.PrintJSON(body)
 		return nil
 	}
@@ -514,5 +697,46 @@ func (a *App) profileEnsure(args []string) error {
 		action = "Updated"
 	}
 	fmt.Printf("%s profile: %s (%s)\n", action, resp.Profile.Name, resp.Profile.Id)
+	return nil
+}
+
+func (a *App) profileReconcileScenario(args []string) error {
+	fs := flag.NewFlagSet("profile reconcile-scenario", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	scenario := fs.String("scenario", "", "Scenario slug whose manifest declares profile sources")
+	dryRun := fs.Bool("dry-run", false, "Validate and report actions without writing")
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*scenario) == "" {
+		return fmt.Errorf("usage: agent-manager profile reconcile-scenario --scenario <slug>")
+	}
+
+	body, resp, err := a.services.Profiles.ReconcileScenario(&apipb.ReconcileScenarioProfilesRequest{
+		Scenario: strings.TrimSpace(*scenario),
+		DryRun:   *dryRun,
+	})
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Scenario:   %s\n", resp.Scenario)
+	fmt.Printf("Created:    %d\n", resp.Created)
+	fmt.Printf("Updated:    %d\n", resp.Updated)
+	fmt.Printf("Unchanged:  %d\n", resp.Unchanged)
+	fmt.Printf("Skipped:    %d\n", resp.Skipped)
+	fmt.Printf("Conflicted: %d\n", resp.Conflicted)
+	fmt.Printf("Failed:     %d\n", resp.Failed)
+	for _, item := range resp.Results {
+		fmt.Printf("- %s %s (%s)\n", item.ProfileKey, item.Status.String(), item.SourcePath)
+		if item.Message != "" {
+			fmt.Printf("  %s\n", item.Message)
+		}
+	}
 	return nil
 }

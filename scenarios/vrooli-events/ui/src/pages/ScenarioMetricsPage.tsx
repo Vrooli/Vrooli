@@ -6,7 +6,7 @@ import { Users, ArrowUpDown, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorAlert } from "../components/ErrorAlert";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { Spinner } from "../components/Spinner";
 import { fetchEvents, type EventEnvelope } from "../lib/api";
@@ -109,7 +109,7 @@ export function ScenarioMetricsPage() {
   return (
     <div className="space-y-4" data-testid="scenario-metrics-page">
       <PageHeader
-        icon={Users}
+        leading={<Users className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Per-Scenario Metrics"
         actions={
           <Button size="sm" variant="outline" onClick={() => refetch()}>

@@ -207,7 +207,7 @@ func (api *API) ListGraphs(c *gin.Context) {
 
 	if tag != "" {
 		argCount++
-		query += fmt.Sprintf(" AND $%d = ANY(tags)", argCount)
+		query += fmt.Sprintf(" AND jsonb_typeof(tags) = 'array' AND tags @> jsonb_build_array($%d::text)", argCount)
 		args = append(args, tag)
 	}
 

@@ -1,0 +1,192 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "notion-synthetic",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Notion service",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://notion.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/database-pages": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.notion",
+              "x-n8n-resource": "databasePage",
+              "x-n8n-operation": "getAll",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "name": "Synthetic feature one",
+                          "property_description": "Made-up description one",
+                          "property_labels": [
+                            "synthetic-label"
+                          ],
+                          "property_repository": [
+                            "synthetic-repository"
+                          ],
+                          "property_status": "To develop",
+                          "id": "synthetic-page-01"
+                        },
+                        {
+                          "name": "Synthetic feature two",
+                          "property_description": "Made-up description two",
+                          "property_labels": [
+                            "synthetic-label"
+                          ],
+                          "property_repository": [
+                            "synthetic-repository"
+                          ],
+                          "property_status": "Done",
+                          "id": "synthetic-page-02"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/users": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.notion",
+              "x-n8n-resource": "user",
+              "x-n8n-operation": "getAll",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "name": "Synthetic person one",
+                          "person": {
+                            "email": "person.one@example.invalid"
+                          },
+                          "type": "person"
+                        },
+                        {
+                          "name": "Synthetic automation",
+                          "person": {
+                            "email": "automation@example.invalid"
+                          },
+                          "type": "bot"
+                        },
+                        {
+                          "name": "Synthetic person two",
+                          "person": {
+                            "email": "person.two@example.invalid"
+                          },
+                          "type": "person"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/database-pages/update": {
+            "patch": {
+              "x-n8n-node-type": "n8n-nodes-base.notion",
+              "x-n8n-resource": "databasePage",
+              "x-n8n-operation": "update",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-page-id",
+                        "status": "updated"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "github-synthetic",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic GitHub service",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://github.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/issues": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.github",
+              "x-n8n-resource": "issue",
+              "x-n8n-operation": "create",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-issue-id",
+                        "html_url": "https://github.synthetic.invalid/issues/synthetic-issue-id"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "gmail-synthetic",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Gmail service",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://gmail.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-message-id",
+                        "status": "sent"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

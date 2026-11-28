@@ -1,0 +1,166 @@
+package facts
+
+import (
+	"strconv"
+	"strings"
+	"testing"
+
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+)
+
+func TestDeriveFeatureFlowsBuildsBoundedResolvedPath(t *testing.T) {
+	graph := &factsv1.LanguageGraph{GraphHash: "fixture-graph", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		{Id: "func:SearchComposition", Name: "SearchComposition", Path: "composition_api.go", Attributes: map[string]string{"kind": "go_method"}},
+		{Id: "func:Composition", Name: "Composition", Path: "composition_api.go", Attributes: map[string]string{"kind": "go_method"}},
+		{Id: "func:DescribeControlPlaneCLIComposition", Name: "DescribeControlPlaneCLIComposition", Path: "controlplane_cli.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "call:1", Path: "composition_api.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "SearchComposition", "callee": "s.Composition", "callee_symbol": "func:Composition", "start_line": "77"}},
+		{Id: "call:2", Path: "composition_api.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "Composition", "callee": "DescribeControlPlaneCLIComposition", "callee_symbol": "func:DescribeControlPlaneCLIComposition", "start_line": "35"}},
+	}}}
+	response := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "SearchComposition", "code-facts", 5)
+	if len(response.Results) != 1 {
+		t.Fatalf("results=%#v degradations=%#v", response.Results, response.Degradations)
+	}
+	hit := response.Results[0]
+	if hit.ID != "code-facts:flow:SearchComposition:composition_api.go" || hit.GraphHash != "fixture-graph" || hit.Attestation != "DERIVED/PARTIAL" || len(hit.Steps) != 2 {
+		t.Fatalf("unexpected flow hit: %#v", hit)
+	}
+	if hit.Steps[0].To != "Composition" || hit.Steps[1].To != "DescribeControlPlaneCLIComposition" || hit.Steps[1].Resolution != "source_symbol_resolved" || hit.Steps[0].GraphHash != "fixture-graph" || hit.Steps[1].ToGraphHash != "fixture-graph" {
+		t.Fatalf("unexpected source path: %#v", hit.Steps)
+	}
+}
+
+func TestDeriveFeatureFlowsReportsNoMatchingStartAndMissingGraph(t *testing.T) {
+	graph := &factsv1.LanguageGraph{GraphHash: "fixture-graph", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		{Id: "func:SearchComposition", Name: "SearchComposition", Path: "composition_api.go", Attributes: map[string]string{"kind": "go_method"}},
+		{Id: "call:1", Path: "composition_api.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "SearchComposition", "callee": "fmt.Println", "callee_symbol": "external:Println", "start_line": "1"}},
+	}}}
+	noMatch := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "underwater penguin", "code-facts", 5)
+	if len(noMatch.Results) != 0 || len(noMatch.Degradations) != 1 || noMatch.Degradations[0].Code != "no_matching_flow_entry" {
+		t.Fatalf("unexpected no-match response: %#v", noMatch)
+	}
+	missing := DeriveFeatureFlows(nil, "SearchComposition", "code-facts", 5)
+	if len(missing.Results) != 0 || len(missing.Degradations) != 1 || missing.Degradations[0].Code != "call_graph_unavailable" {
+		t.Fatalf("unexpected missing-graph response: %#v", missing)
+	}
+}
+
+func TestDeriveFeatureFlowsDisambiguatesSameNamedBasenameResults(t *testing.T) {
+	graph := &factsv1.LanguageGraph{GraphHash: "fixture-graph", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		{Id: "func:api:Handle", Name: "Handle", Path: "api/main.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:api:Target", Name: "apiTarget", Path: "api/main.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:cli:Handle", Name: "Handle", Path: "cli/main.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:cli:Target", Name: "cliTarget", Path: "cli/main.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "call:api", Path: "api/main.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "Handle", "callee": "apiTarget", "callee_symbol": "func:api:Target", "start_line": "10"}},
+		{Id: "call:cli", Path: "cli/main.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "Handle", "callee": "cliTarget", "callee_symbol": "func:cli:Target", "start_line": "20"}},
+	}}}
+	response := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "Handle", "sample", 5)
+	if len(response.Results) != 2 {
+		t.Fatalf("results=%#v degradations=%#v, want both source flows", response.Results, response.Degradations)
+	}
+	ids := map[string]bool{}
+	paths := map[string]bool{}
+	for _, hit := range response.Results {
+		if ids[hit.ID] {
+			t.Fatalf("duplicate flow result ID %q: %#v", hit.ID, response.Results)
+		}
+		ids[hit.ID] = true
+		paths[hit.Path] = true
+	}
+	if !ids["code-facts:flow:Handle:main.go:api/main.go:func:api:Handle"] || !ids["code-facts:flow:Handle:main.go:cli/main.go:func:cli:Handle"] || !paths["api/main.go"] || !paths["cli/main.go"] {
+		t.Fatalf("collision IDs or source paths missing: %#v", response.Results)
+	}
+}
+
+func TestDeriveFeatureFlowsReportsDepthTruncationOnlyWhenCallsRemain(t *testing.T) {
+	newGraph := func(withFourthEdge bool) *factsv1.LanguageGraph {
+		nodes := []*commonv1.CodeGraphNode{
+			{Id: "func:entry", Name: "Entry", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:b", Name: "StepB", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:c", Name: "StepC", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:d", Name: "StepD", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+			{Id: "func:e", Name: "StepE", Path: "flow.go", Attributes: map[string]string{"kind": "go_func"}},
+		}
+		call := func(id, caller, callee, target string, line int) *commonv1.CodeGraphNode {
+			return &commonv1.CodeGraphNode{Id: id, Path: "flow.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": caller, "callee": callee, "callee_symbol": target, "start_line": strconv.Itoa(line)}}
+		}
+		nodes = append(nodes,
+			call("call:1", "Entry", "StepB", "func:b", 1),
+			call("call:2", "StepB", "StepC", "func:c", 2),
+			call("call:3", "StepC", "StepD", "func:d", 3),
+		)
+		if withFourthEdge {
+			nodes = append(nodes, call("call:4", "StepD", "StepE", "func:e", 4))
+		}
+		return &factsv1.LanguageGraph{GraphHash: "fixture", Graph: &commonv1.CodeGraph{Nodes: nodes}}
+	}
+
+	t.Run("additional call after the cap is explicit", func(t *testing.T) {
+		got := DeriveFeatureFlows([]*factsv1.LanguageGraph{newGraph(true)}, "Entry", "demo", 5)
+		if len(got.Results) != 1 || len(got.Results[0].Steps) != maxFlowDepth || !got.Results[0].DepthLimited || !strings.Contains(got.Results[0].Text, "depth limit reached: additional source calls are omitted") {
+			t.Fatalf("expected explicit depth truncation: %#v", got)
+		}
+	})
+	t.Run("natural leaf at the cap is not marked truncated", func(t *testing.T) {
+		got := DeriveFeatureFlows([]*factsv1.LanguageGraph{newGraph(false)}, "Entry", "demo", 5)
+		if len(got.Results) != 1 || len(got.Results[0].Steps) != maxFlowDepth || got.Results[0].DepthLimited {
+			t.Fatalf("natural leaf should not be marked truncated: %#v", got)
+		}
+	})
+}
+
+func TestDeriveFeatureFlowsPreservesAndRanksDistinctBranches(t *testing.T) {
+	graph := &factsv1.LanguageGraph{GraphHash: "branch-graph", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		{Id: "func:entry", Name: "HandleRequest", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:users", Name: "loadUsers", Path: "api/users.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:invoice", Name: "saveInvoices", Path: "api/invoices.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "call:users", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "HandleRequest", "callee": "loadUsers", "callee_symbol": "func:users", "start_line": "20"}},
+		{Id: "call:invoice", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "HandleRequest", "callee": "saveInvoices", "callee_symbol": "func:invoice", "start_line": "30"}},
+	}}}
+
+	got := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "HandleRequest save invoices", "sample", 5)
+	if len(got.Results) != 2 {
+		t.Fatalf("results=%#v degradations=%#v; want both call branches", got.Results, got.Degradations)
+	}
+	if got.Results[0].Steps[0].To != "saveInvoices" || got.Results[1].Steps[0].To != "loadUsers" {
+		t.Fatalf("query-matching branch should rank first: %#v", got.Results)
+	}
+	ids := map[string]bool{}
+	for _, hit := range got.Results {
+		if ids[hit.ID] || hit.GraphHash != "branch-graph" {
+			t.Fatalf("branch identity/provenance is not unique and stable: %#v", got.Results)
+		}
+		ids[hit.ID] = true
+	}
+	if !strings.Contains(got.Results[0].ID, ":branch:api/handler.go:30:call:invoice:api/invoices.go:saveInvoices") || !ids["code-facts:flow:HandleRequest:handler.go"] {
+		t.Fatalf("branch IDs should retain stable primary identity and use stable call-site IDs for alternatives: %#v", got.Results)
+	}
+	withoutSpecificBranchTerm := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "HandleRequest users invoices", "sample", 5)
+	if len(withoutSpecificBranchTerm.Results) != 2 || !ids[withoutSpecificBranchTerm.Results[0].ID] || !ids[withoutSpecificBranchTerm.Results[1].ID] {
+		t.Fatalf("changing query ranking must not change branch identities: %#v", withoutSpecificBranchTerm.Results)
+	}
+}
+
+func TestDeriveFeatureFlowsMarksBoundedBranchExpansion(t *testing.T) {
+	nodes := []*commonv1.CodeGraphNode{{Id: "func:entry", Name: "HandleRequest", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_func"}}}
+	for i := 0; i < maxFlowCallsPerNode+1; i++ {
+		callee := "target" + strconv.Itoa(i)
+		nodes = append(nodes,
+			&commonv1.CodeGraphNode{Id: "func:" + callee, Name: callee, Path: "api/target.go", Attributes: map[string]string{"kind": "go_func"}},
+			&commonv1.CodeGraphNode{Id: "call:" + callee, Path: "api/handler.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "HandleRequest", "callee": callee, "callee_symbol": "func:" + callee, "start_line": strconv.Itoa(i + 1)}},
+		)
+	}
+	graph := &factsv1.LanguageGraph{GraphHash: "branch-cap", Graph: &commonv1.CodeGraph{Nodes: nodes}}
+	got := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "HandleRequest", "sample", 5)
+	if len(got.Results) != 5 {
+		t.Fatalf("results=%#v; want configured response cap", got.Results)
+	}
+	for _, hit := range got.Results {
+		if !hit.BranchTruncated || !strings.Contains(hit.Text, "branch expansion reached a configured bound") {
+			t.Fatalf("branch truncation was not explicit: %#v", hit)
+		}
+	}
+	if len(got.Degradations) == 0 || got.Degradations[len(got.Degradations)-1].Code != "flow_branch_result_limit" {
+		t.Fatalf("response result omission was not explicit: %#v", got.Degradations)
+	}
+}

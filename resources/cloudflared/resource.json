@@ -1,0 +1,272 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "cloudflared",
+  "display_name": "Cloudflare Tunnel",
+  "description": "Vrooli-supervised Cloudflare Tunnel connector using an authority-backed token file.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-cloudflared",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-cloudflared_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-cloudflared"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "bundling": "vendorable",
+  "privilege": "user",
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden"
+    },
+    "artifact": {
+      "path": "server/cloudflared",
+      "version": "2026.10.7",
+      "sha256_by_platform": {
+        "linux-amd64": "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872",
+        "linux-arm64": "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775",
+        "macos-amd64": "5c55e77da7012cebca19170357e196176c48c9647cc2ead404702fa125ddbd86",
+        "macos-arm64": "2136431d5eb467bf447d2ee514b713e192719b143aec1d9e09bf7dc290d5bb12",
+        "windows-amd64": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"
+      },
+      "bundle_artifact": "cloudflared_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "Apache-2.0",
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-amd64",
+          "sha256": "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872",
+          "archive": "none",
+          "layout": "file",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-arm64",
+          "sha256": "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775",
+          "archive": "none",
+          "layout": "file",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "darwin",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-amd64.tgz",
+          "sha256": "02f3edfd87684dd5b705607688e4eb4b323f6e777b81e7b3a85af556aa356848",
+          "archive": "tar.gz",
+          "layout": "file",
+          "mode": "0755",
+          "bin_path": "cloudflared",
+          "artifact_sha256": "5c55e77da7012cebca19170357e196176c48c9647cc2ead404702fa125ddbd86"
+        },
+        {
+          "when": {
+            "os": "darwin",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-arm64.tgz",
+          "sha256": "3586ccf397e98e5f437e60e7c307ca6ac463e110580503af8bb8e6f9ebf831bd",
+          "archive": "tar.gz",
+          "layout": "file",
+          "mode": "0755",
+          "bin_path": "cloudflared",
+          "artifact_sha256": "2136431d5eb467bf447d2ee514b713e192719b143aec1d9e09bf7dc290d5bb12"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-windows-amd64.exe",
+          "sha256": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343",
+          "archive": "none",
+          "layout": "file",
+          "mode": "0755"
+        },
+        {
+          "unsupported": "Cloudflare does not publish a pinned connector asset for this operating system and architecture."
+        }
+      ]
+    },
+    "credential_files": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-connector-token",
+        "path": "cloudflare-connector-token"
+      }
+    ],
+    "arguments": [
+      "--no-autoupdate",
+      "--metrics=127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "tunnel",
+      "run",
+      "--token-file=${RESOURCE_STATE_DIR}/cloudflare-connector-token"
+    ],
+    "shutdown": {
+      "signal": "terminate"
+    },
+    "update_policy": {
+      "strategy": "rolling-stateless",
+      "candidate_port": "http",
+      "readiness_metrics": [
+        {
+          "path": "/metrics",
+          "name": "cloudflared_tunnel_ha_connections",
+          "minimum": 4
+        }
+      ]
+    }
+  },
+  "category": "network",
+  "requirements": {
+    "class": "network",
+    "weight": 1,
+    "ram_mb": 128,
+    "disk_mb": 64,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "small",
+    "source": "manual",
+    "confidence": "medium"
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 20242,
+      "host": 20242
+    }
+  ],
+  "environment_exports": {
+    "from_ports": {
+      "CLOUDFLARED_METRICS_PORT": "http"
+    },
+    "derived": {
+      "CLOUDFLARED_METRICS_URL": {
+        "template": "http://127.0.0.1:${CLOUDFLARED_METRICS_PORT}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 850,
+    "startup_timeout_seconds": 45,
+    "recovery_attempts": 2,
+    "priority": "high"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/ready",
+      "interval_seconds": 5,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/ready",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A tunnel credential and network connectivity are required; runtime qualification is recorded separately from artifact integrity."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A tunnel credential and network connectivity are required; runtime qualification is recorded separately from artifact integrity."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "A tunnel credential and network connectivity are required; runtime qualification is recorded separately from artifact integrity."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "native-artifact-check"
+          ]
+        }
+      }
+    }
+  }
+}

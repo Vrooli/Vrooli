@@ -1,0 +1,37 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "cloudrelease",
+    "display_name": "github.com/vrooli/vrooli/packages/cloudrelease",
+    "description": "The single definition of a cloud release identity, canonical JSON form and digest rule.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": [
+      "github.com/vrooli/vrooli/packages/cloudrelease"
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "scenario_api",
+        "internal_platform"
+      ],
+      "adoption_modes": [
+        "go_module_replace"
+      ]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "Has no root-internal imports; it remains in the repository module because its consumers reach it through the root-module replace, and can become its own module when they adopt a package-level replace."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": [
+      "packages/cloudrelease/README.md",
+      "docs/package-governance.md"
+    ]
+  }
+}

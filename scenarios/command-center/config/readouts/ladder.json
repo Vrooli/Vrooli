@@ -1,0 +1,5 @@
+{
+  "id": "ladder",
+  "kind": "ladder",
+  "component": "LadderReadout"
+}

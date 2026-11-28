@@ -1,0 +1,282 @@
+// Package conversation is the HTTP-handler home for the conversation domain.
+// It exposes the generated Connect-RPC ConversationService (proto schema:
+// packages/proto/schemas/web-console/v1/conversation).
+package conversation
+
+import (
+	"context"
+	"log"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
+
+	"web-console/internal/module"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+
+	conversationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation/conversation_v1connect"
+)
+
+// Service is the seam the Connect handler depends on. The concrete
+// implementation lives in package main (adapts ConversationStore and the TTS
+// summarizer to satisfy this interface).
+type Service interface {
+	Get(ctx context.Context, sessionID string, sinceSequence int64, limit int, beforeSequence int64) (SessionState, error)
+	// CaptureStatus diagnoses one session's message capture independently of
+	// its events, so callers can explain an empty transcript without a second
+	// round trip.
+	CaptureStatus(ctx context.Context, sessionID string) CaptureStatus
+	Search(ctx context.Context, sessionID string, query SearchQuery) (SearchResult, error)
+	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
+	GetRange(ctx context.Context, sessionID string, from, to int64) (SessionState, error)
+	// Project reads the Messages projection: a thread's conversation rows
+	// interleaved with work rows summarising what happened between them.
+	Project(ctx context.Context, sessionID string, query ProjectionQuery) (SessionState, error)
+	// WorkRange returns a thread's work rows in from..to with preview text.
+	WorkRange(ctx context.Context, sessionID, threadID string, from, to int64) (SessionState, error)
+	ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) (ResolveEventsResult, error)
+	UpdateCursor(ctx context.Context, sessionID string, patch CursorPatch) (Cursor, error)
+	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
+}
+
+// OptionalSearchService adds Agent Manager and fleet-node search without
+// making either service a dependency of the base local conversation API.
+type OptionalSearchService interface {
+	SearchSemantic(context.Context, *conversationv1.SearchSemanticRequest) (*conversationv1.SearchSemanticResponse, error)
+	SearchNodeArchive(context.Context, *conversationv1.SearchNodeArchiveRequest) (*conversationv1.SearchNodeArchiveResponse, error)
+}
+
+// ResolveEventsResult reports complete events and IDs that no longer exist.
+type ResolveEventsResult struct {
+	Events          []Event
+	MissingEventIDs []string
+}
+
+// SearchQuery is one conversation search. Mode is "text" | "regex" | "fuzzy".
+type SearchQuery struct {
+	Query         string
+	Mode          string
+	CaseSensitive bool
+	WholeWord     bool
+	Role          string
+	Limit         int
+	AfterSequence int64
+	// Kinds restricts the search to these row kinds; empty searches all.
+	Kinds []string
+}
+
+// TextRange is a match inside an excerpt, in UTF-16 code units.
+type TextRange struct {
+	Start int
+	End   int
+}
+
+type SearchMatch struct {
+	EventID    string
+	Sequence   int64
+	Role       string
+	Kind       string
+	ThreadID   string
+	CreatedAt  string
+	OccurredAt string
+	Excerpt    string
+	Ranges     []TextRange
+}
+
+// SearchResult carries Error for a query that cannot run as asked (an invalid
+// regular expression); that is an answer, not a transport failure.
+type SearchResult struct {
+	Matches           []SearchMatch
+	Truncated         bool
+	TotalMatches      int64
+	Error             string
+	HasMore           bool
+	NextAfterSequence int64
+}
+
+type ArchivedSearchFilter struct {
+	SearchQuery
+	AgentType    string
+	CreatedAfter string
+}
+
+type ArchivedSearchMatch struct {
+	EventID    string
+	SessionID  string
+	Sequence   int64
+	Role       string
+	CreatedAt  string
+	OccurredAt string
+	Excerpt    string
+	Ranges     []TextRange
+}
+
+type ArchivedSearchResult struct {
+	Matches          []ArchivedSearchMatch
+	Truncated        bool
+	TotalMatches     int64
+	DistinctSessions int64
+	Error            string
+}
+
+// Event mirrors the legacy JSON shape of one stored conversation entry.
+type Event struct {
+	ID                       string
+	SessionID                string
+	Source                   string
+	Role                     string
+	Text                     string
+	SpeechParagraphs         []string
+	OriginalSpeechParagraphs []string
+	Summarized               bool
+	CreatedAt                string
+	OccurredAt               string
+	Sequence                 int64
+	DeliveryState            string
+	TTSState                 string
+	ConsumptionState         string
+	NativeProvenance         *NativeProvenance
+	Kind                     string
+	Author                   string
+	AuthorName               string
+	Label                    string
+	ThreadID                 string
+	Work                     *WorkSpan
+	TextTruncated            bool
+}
+
+// WorkSpan summarises one thread's rows hidden between conversation rows.
+type WorkSpan struct {
+	FromSequence int64
+	ToSequence   int64
+	ToolCalls    int
+	ToolResults  int
+	Reasoning    int
+	Context      int
+	StartedAt    string
+	EndedAt      string
+}
+
+// Thread is an agent thread inside a session with its row totals.
+type Thread struct {
+	ThreadID       string
+	Kind           string
+	Label          string
+	Description    string
+	ParentThreadID string
+	FirstSequence  int64
+	LastSequence   int64
+	MessageCount   int
+	WorkCount      int
+	StartedAt      string
+	EndedAt        string
+}
+
+// ProjectionQuery reads one page of the Messages projection of a thread.
+type ProjectionQuery struct {
+	ThreadID       string
+	Limit          int
+	BeforeSequence int64
+	SinceSequence  int64
+}
+
+type NativeProvenance struct {
+	Provider          string
+	SessionID         string
+	TurnID            string
+	MessageID         string
+	BoundaryID        string
+	CompactionLineage string
+}
+
+// Cursor is the transport-neutral cursor shape.
+type Cursor struct {
+	LastSeenSequence     int64
+	LastListenedSequence int64
+}
+
+// SessionState bundles a session's events and current cursor.
+type SessionState struct {
+	SessionID      string
+	Events         []Event
+	Cursor         Cursor
+	HasMore        bool
+	OldestSequence int64
+	NewestSequence int64
+	TotalCount     int64
+	// Threads lists the session's agent threads (Messages projection only).
+	Threads []Thread
+	// Capture explains the event list. Callers must not infer meaning from
+	// len(Events) alone: zero events is produced both by a session nobody has
+	// spoken in and by a session whose transcript cannot be read at all.
+	Capture CaptureStatus
+}
+
+// CaptureState classifies whether this session's messages can be recorded.
+type CaptureState string
+
+const (
+	// CaptureUnspecified is the zero value. Handlers treat it as "not yet
+	// computed" and it never reaches a client that asked for a real session.
+	CaptureUnspecified CaptureState = ""
+	// CaptureCapturing means the transcript is being read right now.
+	CaptureCapturing CaptureState = "capturing"
+	// CaptureNotApplicable means the session runs no agent.
+	CaptureNotApplicable CaptureState = "not_applicable"
+	// CapturePending means capture is wired but the agent has not yet produced
+	// anything to bind it to a transcript. It resolves without intervention.
+	CapturePending CaptureState = "pending"
+	// CaptureUnavailable means capture cannot proceed until something changes.
+	CaptureUnavailable CaptureState = "unavailable"
+)
+
+// CaptureStatus is the per-session diagnosis that accompanies every Get. It
+// exists so the Messages view can distinguish "nothing has been said" from
+// "nothing can be read", which were previously the same empty response.
+type CaptureStatus struct {
+	State          CaptureState
+	ReasonCode     string
+	Summary        string
+	Detail         string
+	Remediation    string
+	TranscriptPath string
+	LastCapturedAt string
+}
+
+// CursorPatch carries cursor field overrides; each Has* flag indicates whether
+// the paired field should be applied.
+type CursorPatch struct {
+	LastSeenSequence        int64
+	HasLastSeenSequence     bool
+	LastListenedSequence    int64
+	HasLastListenedSequence bool
+}
+
+// SummarizeResult mirrors the legacy soft-failure response: when Summarized is
+// false, Error carries the user-visible reason (model offline, empty output).
+type SummarizeResult struct {
+	Summarized       bool
+	SpeechParagraphs []string
+	Error            string
+}
+
+// Module wires the conversation domain into the API server.
+func Module(svc Service, logger *log.Logger) module.Module {
+	if logger == nil {
+		logger = log.Default()
+	}
+	var optional OptionalSearchService
+	if candidate, ok := svc.(OptionalSearchService); ok {
+		optional = candidate
+	}
+	connectPath, connectHandler := conversationconnect.NewConversationServiceHandler(NewConnectHandler(Deps{
+		Service: svc, OptionalSearch: optional, Logger: logger,
+	}))
+	return module.Module{
+		Name: "conversation",
+		Mount: func(r *mux.Router) {
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+		},
+		Endpoints: Endpoints,
+	}
+}

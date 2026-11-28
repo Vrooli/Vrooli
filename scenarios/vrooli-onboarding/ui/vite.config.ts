@@ -1,24 +1,46 @@
 // INTEROP-CRITICAL: Vite config for vrooli-onboarding UI
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
-export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
-  test: {
+export default defineConfig(({ mode }) => {
+  const isProfile = mode === "profile";
+
+  return {
+    base: './',  // Required for tunnel/proxy contexts
+    // The resolver comes from the component library's pnpm tree, so its Vite
+    // plugin has a distinct type identity despite using the same plugin API.
+    plugins: [sourceLibraryResolver({ devOnly: true }) as unknown as PluginOption, react()],
+    resolve: {
+      alias: isProfile ? {
+        "react-dom/client": "react-dom/profiling",
+        "react-dom$": "react-dom/profiling",
+      } : undefined,
+    },
+    esbuild: isProfile ? { keepNames: true } : undefined,
+    test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*_test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/test-setup.ts',
+        'src/test-utils.tsx',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**',
+      ],
       reporter: ['json-summary', 'json', 'text'],
       reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
-      }
     }
-  }
+    },
+  };
 });

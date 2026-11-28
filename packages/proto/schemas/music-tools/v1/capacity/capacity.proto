@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package vrooli.music_tools.v1.capacity;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/capacity;capacity_v1";
+
+service CapacityService {
+  rpc Status(StatusRequest) returns (CapacityStatus);
+  rpc Claim(ClaimRequest) returns (CapacityLease);
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
+}
+
+message StatusRequest { string resource = 1; }
+message CapacityStatus { string resource = 1; string applied_rung = 2; uint64 free_vram_bytes = 3; uint64 preferred_vram_bytes = 4; bool degraded = 5; }
+message ClaimRequest { string resource = 1; string resource_kind = 2; uint64 preferred_bytes = 3; uint64 floor_bytes = 4; }
+message CapacityLease { string id = 1; string verdict = 2; string applied_rung = 3; uint64 granted_bytes = 4; string reason = 5; }
+message ReleaseRequest { string lease_id = 1; }
+message ReleaseResponse { bool released = 1; }

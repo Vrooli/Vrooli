@@ -1,0 +1,28 @@
+{
+  "children": {
+    "allowedChildComponents": [],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:SwipeActions",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 3,
+    "maximumLabelCharacters": 20,
+    "primaryAction": "not-applicable",
+    "property": "actions",
+    "requiredFieldTypes": {
+      "id": "string",
+      "label": "string",
+      "onSelect": "function"
+    },
+    "requiredFields": [
+      "id",
+      "label",
+      "onSelect"
+    ],
+    "stableIdField": "id",
+    "typicalCount": 2
+  },
+  "version": "1.4.2"
+}

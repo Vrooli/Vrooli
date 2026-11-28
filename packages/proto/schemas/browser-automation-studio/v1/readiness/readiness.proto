@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.readiness;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/readiness;readiness";
+
+// ReadinessService is BAS's single reader for the compiled Experience Manager
+// readiness profile. Capture, workflows, and external experience evaluators
+// consume this service rather than fetching the profile independently.
+service ReadinessService {
+  rpc GetReadinessProfile(GetReadinessProfileRequest) returns (GetReadinessProfileResponse);
+}
+
+message GetReadinessProfileRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message GetReadinessProfileResponse {
+  string scenario = 1;
+  string profile_json = 2;
+  string profile_version = 3;
+}

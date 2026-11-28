@@ -1,0 +1,99 @@
+{
+  "id": "login-sessions-01",
+  "family": "login-sessions",
+  "family_name": "Login and sessions",
+  "difficulty": 1,
+  "title": "Login and sessions: level 1",
+  "task": "Sign in with the public synthetic practice code range-1, then extract every record in source order with id, name, category, value and active.",
+  "mechanism": "session",
+  "tags": [
+    "difficulty-1",
+    "session"
+  ],
+  "page": {
+    "title": "Login and sessions Practice 1",
+    "records": [
+      {
+        "id": "LOG-01-001",
+        "name": "Login Item 1-1",
+        "category": "gamma",
+        "value": 511,
+        "active": true
+      },
+      {
+        "id": "LOG-01-002",
+        "name": "Login Item 1-2",
+        "category": "alpha",
+        "value": 512,
+        "active": true
+      },
+      {
+        "id": "LOG-01-003",
+        "name": "Login Item 1-3",
+        "category": "beta",
+        "value": 513,
+        "active": true
+      },
+      {
+        "id": "LOG-01-004",
+        "name": "Login Item 1-4",
+        "category": "gamma",
+        "value": 514,
+        "active": false
+      },
+      {
+        "id": "LOG-01-005",
+        "name": "Login Item 1-5",
+        "category": "alpha",
+        "value": 515,
+        "active": true
+      }
+    ],
+    "page_size": 5,
+    "variant": 1,
+    "search_fields": [],
+    "requires_session": true,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": "",
+    "session_code": "range-1"
+  },
+  "answer": [
+    {
+      "id": "LOG-01-001",
+      "name": "Login Item 1-1",
+      "category": "gamma",
+      "value": 511,
+      "active": true
+    },
+    {
+      "id": "LOG-01-002",
+      "name": "Login Item 1-2",
+      "category": "alpha",
+      "value": 512,
+      "active": true
+    },
+    {
+      "id": "LOG-01-003",
+      "name": "Login Item 1-3",
+      "category": "beta",
+      "value": 513,
+      "active": true
+    },
+    {
+      "id": "LOG-01-004",
+      "name": "Login Item 1-4",
+      "category": "gamma",
+      "value": 514,
+      "active": false
+    },
+    {
+      "id": "LOG-01-005",
+      "name": "Login Item 1-5",
+      "category": "alpha",
+      "value": 515,
+      "active": true
+    }
+  ]
+}

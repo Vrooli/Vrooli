@@ -1,0 +1,70 @@
+{
+  "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "label": {
+      "optional": true,
+      "type": "string"
+    },
+    "share": {
+      "type": "number"
+    },
+    "value": {
+      "type": "number"
+    }
+  },
+  "coverage": "IN-REACH",
+  "description": "Ranked device-class breakdown of landing-page visitors.",
+  "format": "integer",
+  "id": "traffic_devices",
+  "kind": "panel",
+  "label": "Traffic by device",
+  "sample": {
+    "basis": "hand-authored structural sample, reviewed 2026-09-03",
+    "rows": [
+      {
+        "key": "desktop",
+        "label": "Desktop",
+        "share": 0.6,
+        "value": 60
+      },
+      {
+        "key": "mobile",
+        "label": "Mobile",
+        "share": 0.35,
+        "value": 35
+      },
+      {
+        "key": "tablet",
+        "label": "Tablet",
+        "share": 0.05,
+        "value": 5
+      }
+    ],
+    "series": [
+      100
+    ],
+    "value": 100
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_devices",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=DEVICE_CLASS\u0026limit=6\u0026window_days=30",
+    "select": "traffic_devices",
+    "selector": "traffic_devices",
+    "sourceTimePolicy": "producer_required",
+    "team": "marketing-crew",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
+}

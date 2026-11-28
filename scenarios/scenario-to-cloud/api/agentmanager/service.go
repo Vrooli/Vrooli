@@ -99,23 +99,22 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	Model            string
-	ModelPreset      domainpb.ModelPreset
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RoleRef         string
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	// SandboxMode selects the sandbox execution mode. scenario-to-cloud
+	// runs SSH commands against remote hosts so the sandbox is
+	// explicitly disabled. See agent-manager domain.DeriveRunMode.
+	SandboxMode domainpb.SandboxMode
 }
 
 // DefaultProfileConfig returns the default configuration for deployment investigations.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
-		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CODEX,
-		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:    75,
+		RoleRef:  "code.smart",
+		MaxTurns: 75,
 		// 10 minute timeout for thorough VPS investigation
 		TimeoutSeconds: 600,
 		AllowedTools: []string{
@@ -125,28 +124,28 @@ func DefaultProfileConfig() *ProfileConfig {
 			"analyze_code",    // Understand deployment scripts
 			"write_file",      // Write investigation report
 		},
-		SkipPermissions:  true,  // Auto-approve for automated investigations
-		RequiresSandbox:  false, // In-place execution for SSH access
-		RequiresApproval: false, // Auto-apply (report-only by default)
+		SkipPermissions: true, // Auto-approve for automated investigations
+		// In-place execution for SSH access to remote VPS hosts.
+		SandboxMode: domainpb.SandboxMode_SANDBOX_MODE_OFF,
 	}
 }
 
 func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
-	return &domainpb.AgentProfile{
+	profile := &domainpb.AgentProfile{
 		Name:                 s.profileName,
 		ProfileKey:           s.profileKey,
 		Description:          "Agent profile for scenario-to-cloud deployment investigations",
-		RunnerType:           cfg.RunnerType,
-		Model:                cfg.Model,
-		ModelPreset:          cfg.ModelPreset,
+		RoleRef:              cfg.RoleRef,
 		MaxTurns:             cfg.MaxTurns,
 		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
-		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "scenario-to-cloud",
 	}
+	if cfg.SandboxMode != domainpb.SandboxMode_SANDBOX_MODE_UNSPECIFIED {
+		profile.SandboxConfig = &domainpb.SandboxConfig{Mode: cfg.SandboxMode}
+	}
+	return profile
 }
 
 func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
@@ -177,8 +176,8 @@ type ExecuteRequest struct {
 	Prompt string
 	// Working directory for execution
 	WorkingDir string
-	// Optional override for runner type (uses profile default if empty)
-	RunnerType *domainpb.RunnerType
+	// Optional portable role override (uses profile default if empty).
+	RoleRef *string
 	// Optional override for model (uses profile default if empty)
 	Model string
 	// Context attachments for structured context (optional)
@@ -192,7 +191,7 @@ type ExecuteResult struct {
 	Output          string
 	ErrorMessage    string
 	DurationSeconds int
-	TokensUsed      int32
+	TokensUsed      int64
 	CostEstimate    float64
 	RateLimited     bool
 	Timeout         bool
@@ -204,41 +203,12 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 
-	// Create task for this investigation
-	task := &domainpb.Task{
-		Title:              fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
-		Description:        req.Prompt,
-		ScopePath:          req.WorkingDir,
-		ProjectRoot:        req.WorkingDir,
-		CreatedBy:          "scenario-to-cloud",
-		ContextAttachments: req.ContextAttachments,
-	}
-
-	createdTask, err := s.client.CreateTask(ctx, task)
+	createdTask, err := s.client.CreateTask(ctx, investigationTask(req))
 	if err != nil {
 		return nil, fmt.Errorf("create task: %w", err)
 	}
 
-	// Create run with tag for tracking
-	tag := buildRunTag(req.InvestigationID, req.AdditionalTag)
-	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: s.defaultProfileRef(),
-		Tag:        &tag,
-		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
-		Force:      true, // Bypass capacity limits for investigations
-	}
-
-	// Apply inline config overrides if provided
-	if req.RunnerType != nil || req.Model != "" {
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
-		}
-		if req.Model != "" {
-			runReq.InlineConfig.Model = &req.Model
-		}
-	}
+	runReq := investigationRunRequest(s, req, createdTask.Id)
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
@@ -251,36 +221,76 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		return nil, fmt.Errorf("wait for run: %w", err)
 	}
 
-	// Build result
+	return investigationResult(completedRun), nil
+}
+
+func investigationTask(req ExecuteRequest) *domainpb.Task {
+	return &domainpb.Task{
+		Title:              fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
+		Description:        req.Prompt,
+		ScopePath:          req.WorkingDir,
+		ProjectRoot:        req.WorkingDir,
+		CreatedBy:          "scenario-to-cloud",
+		ContextAttachments: req.ContextAttachments,
+	}
+}
+
+func investigationRunRequest(s *AgentService, req ExecuteRequest, taskID string) *apipb.CreateRunRequest {
+	tag := buildRunTag(req.InvestigationID, req.AdditionalTag)
+	runReq := &apipb.CreateRunRequest{
+		TaskId:     taskID,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
+		Force:      true, // Bypass capacity limits for investigations
+	}
+
+	if req.RoleRef != nil || req.Model != "" {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+		if req.RoleRef != nil {
+			runReq.InlineConfig.RoleRef = req.RoleRef
+		}
+		if req.Model != "" {
+			runReq.InlineConfig.Model = &req.Model
+		}
+	}
+
+	// Deployment investigations are diagnostic — the deliverable is a
+	// report on VPS state, logs, and provisioning, not repo changes.
+	// ManualReview=true defers apply at run end so any file mutations
+	// persist as pending-review for operator approval rather than
+	// auto-applying. See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	if runReq.InlineConfig == nil {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
+	return runReq
+}
+
+func investigationResult(completedRun *domainpb.Run) *ExecuteResult {
 	result := &ExecuteResult{
 		RunID:   completedRun.Id,
 		Success: completedRun.Status == domainpb.RunStatus_RUN_STATUS_COMPLETE,
 	}
-
 	if completedRun.Summary != nil {
 		result.Output = completedRun.Summary.Description
 		result.TokensUsed = completedRun.Summary.TokensUsed
 		result.CostEstimate = completedRun.Summary.CostEstimate
 	}
-
 	if completedRun.ErrorMsg != "" {
 		result.ErrorMessage = completedRun.ErrorMsg
-		// Check for rate limit in error message
-		if strings.Contains(strings.ToLower(completedRun.ErrorMsg), "rate limit") {
-			result.RateLimited = true
-		}
-		if strings.Contains(strings.ToLower(completedRun.ErrorMsg), "timeout") {
-			result.Timeout = true
-		}
+		errorText := strings.ToLower(completedRun.ErrorMsg)
+		result.RateLimited = strings.Contains(errorText, "rate limit")
+		result.Timeout = strings.Contains(errorText, "timeout")
 	}
-
-	// Calculate duration
 	if completedRun.StartedAt != nil && completedRun.EndedAt != nil {
 		duration := completedRun.EndedAt.AsTime().Sub(completedRun.StartedAt.AsTime())
 		result.DurationSeconds = int(duration.Seconds())
 	}
-
-	return result, nil
+	return result
 }
 
 // ExecuteAsync starts an agent run without waiting for completion.
@@ -315,15 +325,25 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 		Force:      true,
 	}
 
-	if req.RunnerType != nil || req.Model != "" {
+	if req.RoleRef != nil || req.Model != "" {
 		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
-		if req.RunnerType != nil {
-			runReq.InlineConfig.RunnerType = req.RunnerType
+		if req.RoleRef != nil {
+			runReq.InlineConfig.RoleRef = req.RoleRef
 		}
 		if req.Model != "" {
 			runReq.InlineConfig.Model = &req.Model
 		}
 	}
+
+	// Deployment investigations are diagnostic — see Execute() above for
+	// ManualReview=true rationale.
+	if runReq.InlineConfig == nil {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {

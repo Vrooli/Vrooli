@@ -1,0 +1,11 @@
+{
+  "gate": "stylesheet-key",
+  "assetId": "calibration.stylesheet-key",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.stylesheet-key",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "The active draft uses a literal page-global stylesheet name.",
+  "mutation": "active-draft"
+}

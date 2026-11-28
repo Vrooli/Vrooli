@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "answer-who-did-this",
+    "title": "Reconstruct an action after the fact",
+    "purpose": "The audit journey. Somebody asks what happened, and the answer must name the authorising human, the persona, and the run \u2014 including for actions that were refused."
+  },
+  "steps": [
+    {
+      "page": "journal",
+      "state": "default",
+      "intent": "See every action in one place, refusals included.",
+      "via": "Open the journal."
+    },
+    {
+      "page": "journal",
+      "state": "filtered",
+      "intent": "Narrow to one persona or one time window without losing the count of what was excluded.",
+      "via": "Apply a filter."
+    },
+    {
+      "page": "persona-detail",
+      "state": "default",
+      "intent": "Confirm the identity the action was taken as, and the basis it was authorised under.",
+      "via": "Follow the persona reference from a journal row."
+    },
+    {
+      "page": "journal",
+      "state": "default",
+      "intent": "Take the record off the machine so it can be used as evidence elsewhere.",
+      "via": "Export."
+    }
+  ]
+}

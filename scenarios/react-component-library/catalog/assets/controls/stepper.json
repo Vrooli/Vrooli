@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.stepper",
+    "name": "Stepper",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The increment and decrement control combining buttons, direct entry, constraints, press-and-hold acceleration, formatted values, and animated numeric feedback.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "controls.pressable",
+        "reason": "Pointer, touch, keyboard, press, and focus-visible behavior is owned once rather than reimplemented."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      },
+      {
+        "asset": "hooks.use-long-press",
+        "reason": "Acceleration on hold shares the long-press cancellation semantics."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "motion.animated-number",
+        "reason": "Animated value transitions suit dashboards and are noise in dense data entry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "status-announced"
+  ]
+}

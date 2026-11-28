@@ -52,6 +52,9 @@ export interface ComponentHealth {
 export interface BrowserComponent extends ComponentHealth {
   /** Chromium version (e.g., "120.0.6099.109") */
   version?: string;
+  /** Reported only when a browser process is currently connected. */
+  runtime_identity_status?: 'reported' | 'unavailable';
+  family?: 'chromium';
   /** Whether the browser process is connected */
   connected: boolean;
   /** Playwright provider being used */
@@ -285,37 +288,6 @@ export interface ObservabilityResponse {
 // Diagnostic Run Types
 // =============================================================================
 
-/**
- * Request to run diagnostics manually.
- */
-export interface DiagnosticRunRequest {
-  /** Type of diagnostic to run */
-  type: 'recording' | 'browser' | 'all';
-  /** Optional session ID for session-specific diagnostics */
-  session_id?: string;
-  /** Diagnostic options */
-  options?: {
-    /** Diagnostic level (quick, standard, full) */
-    level?: 'quick' | 'standard' | 'full';
-    /** Timeout in milliseconds */
-    timeout_ms?: number;
-  };
-}
-
-/**
- * UI-friendly diagnostic issue format.
- */
-export interface RecordingDiagnosticIssue {
-  severity: 'error' | 'warning' | 'info';
-  category: string;
-  message: string;
-  suggestion?: string;
-  docs_link?: string;
-}
-
-/**
- * Recording diagnostics formatted for UI consumption.
- */
 export interface RecordingDiagnostics {
   ready: boolean;
   timestamp: string;
@@ -323,7 +295,13 @@ export interface RecordingDiagnostics {
   level: 'quick' | 'standard' | 'full';
   /** All checks performed with their status for breakdown display */
   checks?: DiagnosticCheck[];
-  issues: RecordingDiagnosticIssue[];
+  issues: Array<{
+    severity: 'error' | 'warning' | 'info';
+    category: string;
+    message: string;
+    suggestion?: string;
+    docs_link?: string;
+  }>;
   provider?: {
     name: string;
     evaluateIsolated: boolean;
@@ -331,24 +309,6 @@ export interface RecordingDiagnostics {
   };
   /** Event flow test result with detailed diagnostics (FULL level only) */
   eventFlowTest?: EventFlowTestResult;
-}
-
-export interface DiagnosticRunResults {
-  recording?: RecordingDiagnostics;
-}
-
-/**
- * Response from a diagnostic run.
- */
-export interface DiagnosticRunResponse {
-  /** When the diagnostic started */
-  started_at: string;
-  /** When the diagnostic completed */
-  completed_at: string;
-  /** How long the diagnostic took */
-  duration_ms: number;
-  /** Results of the diagnostic run */
-  results: DiagnosticRunResults;
 }
 
 // =============================================================================
@@ -374,6 +334,8 @@ export interface SessionSummary {
  */
 export interface BrowserStatusSummary {
   healthy: boolean;
+  runtime_identity_status?: 'reported' | 'unavailable';
+  family?: 'chromium';
   version?: string;
   error?: string;
 }

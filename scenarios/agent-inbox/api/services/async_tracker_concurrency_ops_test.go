@@ -6,8 +6,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // TestAsyncTracker_NoGoroutineLeakOnStop verifies goroutines are cleaned up.
@@ -17,7 +15,7 @@ func TestAsyncTracker_NoGoroutineLeakOnStop(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	baseline := runtime.NumGoroutine()
 
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Create operations with cancel funcs
 	const ops = 10
@@ -28,8 +26,8 @@ func TestAsyncTracker_NoGoroutineLeakOnStop(t *testing.T) {
 			ToolCallID: idString("tc-leak", i),
 			ChatID:     "chat-leak",
 			Status:     "running",
-			AsyncBehavior: &toolspb.AsyncBehavior{
-				StatusPolling: &toolspb.StatusPolling{
+			AsyncBehavior: &AsyncBehavior{
+				StatusPolling: &StatusPolling{
 					PollIntervalSeconds: 1,
 				},
 			},
@@ -66,7 +64,7 @@ func TestAsyncTracker_NoGoroutineLeakOnStop(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentOperationAccess verifies concurrent read/write of operations.
 func TestAsyncTracker_ConcurrentOperationAccess(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Pre-populate some operations
 	for i := 0; i < 10; i++ {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Loader2, RefreshCw, Tag, Clock, Repeat, Infinity as InfinityIcon, ExternalLink } from 'lucide-react';
+import { Check, Loader2, RefreshCw, Tag, Clock, Repeat, Infinity as InfinityIcon } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import { cn } from '../../../../shared/lib/utils';
 import { Callout } from '../Callout';
 import type { UseCouponImportReturn } from '../../hooks/useCouponImport';
 import type { CouponImportPreviewItem } from '../../../../shared/api/billing';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 type CouponFilter = 'all' | 'active' | 'inactive' | 'assigned';
 const COUPON_FILTERS: Array<{ key: CouponFilter; label: string }> = [
@@ -31,7 +32,7 @@ interface ImportCouponModalProps {
  */
 function formatDiscount(coupon: CouponImportPreviewItem): string {
   if (typeof coupon.percent_off === 'number' && coupon.percent_off > 0) {
-    return `${coupon.percent_off}% off`;
+    return `${String(coupon.percent_off)}% off`;
   }
   if (typeof coupon.amount_off === 'number' && coupon.amount_off > 0) {
     const currency = (coupon.currency || 'usd').toUpperCase();
@@ -54,7 +55,7 @@ function getDurationBadge(coupon: CouponImportPreviewItem): { label: string; ico
       };
     case 'repeating':
       return {
-        label: `${coupon.duration_in_months ?? 0} months`,
+        label: `${String(coupon.duration_in_months ?? 0)} months`,
         icon: <Repeat className="h-3 w-3" />,
         colorClass: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
       };
@@ -111,7 +112,7 @@ export function ImportCouponModal({ couponImport }: ImportCouponModalProps) {
   }, [preview]);
 
   return (
-    <Dialog open={isModalOpen} onOpenChange={(open) => !open && closeModal()}>
+    <Dialog open={isModalOpen} onOpenChange={(open) => { if (!open) { closeModal(); } }}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -154,11 +155,11 @@ export function ImportCouponModal({ couponImport }: ImportCouponModalProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={refreshPreview}
+                  onClick={() => { void refreshPreview(); }}
                   disabled={loading}
                   className="gap-1"
                 >
-                  <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
+                  <RefreshCw className="h-3 w-3" />
                   Refresh
                 </Button>
               </div>
@@ -169,7 +170,7 @@ export function ImportCouponModal({ couponImport }: ImportCouponModalProps) {
                   <button
                     key={key}
                     type="button"
-                    onClick={() => setFilter(key)}
+                    onClick={() => { setFilter(key); }}
                     className={cn(
                       'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
                       filter === key
@@ -261,18 +262,10 @@ export function ImportCouponModal({ couponImport }: ImportCouponModalProps) {
         </div>
 
         <DialogFooter className="border-t border-slate-700/50 pt-4">
-          <Button variant="ghost" onClick={closeModal}>
-            Close
-          </Button>
-          <a
-            href="https://dashboard.stripe.com/coupons"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 rounded-md transition-colors"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Manage in Stripe
-          </a>
+          <OverlayActionBar actions={[
+            { id: 'manage-stripe', label: 'Manage in Stripe', onSelect: () => { window.open('https://dashboard.stripe.com/coupons', '_blank', 'noopener,noreferrer'); }, primary: true },
+            { id: 'close', label: 'Close', onSelect: closeModal },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

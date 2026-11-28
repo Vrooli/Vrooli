@@ -1,0 +1,284 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "readiness",
+    "title": "Release readiness",
+    "routes": [
+      "/readiness"
+    ],
+    "purpose": "Walk the owner from no account to a production listing, naming at every rung what is done, what is blocked, and what only a person can do.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-008"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Rungs are ordered, and a later rung never reports ready while an earlier one is not.",
+      "notes": "Order is the information. A ladder whose rungs can be read independently is just a checklist."
+    },
+    {
+      "statement": "Each rung states plainly whether the ramp can complete it or only the owner can.",
+      "notes": "Registration, identity verification, and payment are irreducibly human. Implying otherwise wastes the owner's time."
+    },
+    {
+      "statement": "Each rung shows its cost where one exists.",
+      "notes": "A $25 registration is a decision, not a task. The surface should not hide that it costs money."
+    },
+    {
+      "statement": "Dated obligations are shown with their dates.",
+      "notes": "Target API 36 by 31 August 2026 and developer verification from 30 September 2026 are deadlines, not preferences."
+    },
+    {
+      "statement": "Rung state is re-probed, never read from a stored flag.",
+      "notes": "A lapsed or revoked account must not continue to read as satisfied."
+    }
+  ],
+  "elements": [
+    {
+      "id": "rung-list",
+      "role": "list",
+      "name": "Readiness rungs",
+      "description": "The ordered ladder from no account to production listing. Array order is the dependency order."
+    },
+    {
+      "id": "rung-state",
+      "role": "status",
+      "name": "Rung state",
+      "description": "The probed state of one rung, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "rung-owner",
+      "role": "note",
+      "name": "Completed by",
+      "description": "Whether the ramp can complete this rung or only the owner can."
+    },
+    {
+      "id": "rung-cost",
+      "role": "note",
+      "name": "Cost",
+      "description": "The monetary cost of a rung where one exists, shown as part of the rung rather than in documentation."
+    },
+    {
+      "id": "rung-next-action",
+      "role": "button",
+      "name": "Next action",
+      "description": "The single action that advances the first unsatisfied rung."
+    },
+    {
+      "id": "rung-deadline",
+      "role": "note",
+      "name": "Deadline",
+      "description": "The dated external obligation attached to a rung, where one exists."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Live rung state as probed.",
+      "setup": {
+        "route": "/readiness"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Rung states are being probed; none are asserted yet.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No Google account has been configured at all, so no rung can even be probed. Distinct from a probed-and-unsatisfied ladder.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some rungs were probed and others could not be reached; the unprobed ones are explicitly unknown rather than assumed unsatisfied.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Rung state is from an old probe. Age is shown, because a lapsed account must not continue to read as satisfied.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The readiness probe failed. Reported as a failure rather than as an unsatisfied ladder.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "nothing-started",
+      "description": "No Play Console account exists. The first rung is the only actionable one and every later rung is explicitly blocked by it.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "nothing-started"
+        }
+      }
+    },
+    {
+      "id": "verification-pending",
+      "description": "Registration is complete and developer verification is submitted but not granted. Distinguishes 'waiting on Google' from 'waiting on you'.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "verification-pending"
+        }
+      }
+    },
+    {
+      "id": "ready-to-ship",
+      "description": "Every rung satisfied; the internal testing track is available.",
+      "setup": {
+        "route": "/readiness",
+        "query": {
+          "fixture": "ready-to-ship"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "rung-order-is-the-reading-order",
+      "type": "reading-order",
+      "elements": [
+        "rung-list",
+        "rung-state"
+      ],
+      "states": [
+        "default",
+        "nothing-started",
+        "ready-to-ship"
+      ],
+      "tier": "machine",
+      "statement": "The ladder is presented in dependency order, so the first unsatisfied rung is the first one an owner reads.",
+      "rationale": "S2A-P0-009. Order is the information. A ladder that can report a later rung ready out of order is not modelling a dependency, it is displaying independent flags."
+    },
+    {
+      "id": "every-rung-names-its-owner",
+      "type": "element-present",
+      "elements": [
+        "rung-state",
+        "rung-owner"
+      ],
+      "states": [
+        "default",
+        "nothing-started",
+        "verification-pending",
+        "ready-to-ship"
+      ],
+      "tier": "machine",
+      "statement": "Every rung shows its state and whether the ramp or the owner completes it.",
+      "rationale": "The purpose of the surface is to tell the owner what to do next; conflating 'blocked on you' with 'blocked on the system' defeats it."
+    },
+    {
+      "id": "registration-shows-its-cost",
+      "type": "element-present",
+      "elements": [
+        "rung-cost"
+      ],
+      "states": [
+        "nothing-started",
+        "default"
+      ],
+      "tier": "machine",
+      "statement": "A rung that costs money displays that cost.",
+      "rationale": "S2A-P0-009. A $25 registration is a decision, not a task. The surface should not hide that it costs money."
+    },
+    {
+      "id": "dated-obligations-show-their-dates",
+      "type": "element-present",
+      "elements": [
+        "rung-deadline"
+      ],
+      "states": [
+        "default",
+        "nothing-started",
+        "verification-pending"
+      ],
+      "tier": "machine",
+      "statement": "A rung carrying a dated external obligation displays that date.",
+      "rationale": "S2A-P0-002, S2A-P0-008. Target API 36 and developer verification are deadlines with real consequences; a rung that hides its date cannot be planned against."
+    },
+    {
+      "id": "blocked-ladder-offers-one-next-action",
+      "type": "element-present",
+      "elements": [
+        "rung-next-action"
+      ],
+      "states": [
+        "nothing-started"
+      ],
+      "tier": "machine",
+      "statement": "An unstarted ladder presents the single next action that advances it.",
+      "rationale": "The ladder exists to answer 'what do I do now'. Showing six blocked rungs without one action does not answer it."
+    },
+    {
+      "id": "waiting-on-them-differs-from-waiting-on-you",
+      "type": "state-distinct",
+      "states": [
+        "nothing-started",
+        "verification-pending"
+      ],
+      "tier": "machine",
+      "statement": "A ladder awaiting a Google decision renders distinguishably from one awaiting an owner action.",
+      "rationale": "Verification review can take days. An owner who cannot tell these apart will either wait on themselves or act on something already submitted."
+    },
+    {
+      "id": "rung-state-is-reprobed-not-stored",
+      "type": "custom",
+      "statement": "Rung state shown to the owner reflects a probe rather than a stored completion flag, so a lapsed or revoked account stops reading as satisfied.",
+      "tier": "manual",
+      "rationale": "S2A-P0-009. This is a data-provenance property that cannot be observed from the rendered tree alone; it needs a human or an integration test to attest."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "rung-list": {
+        "testid": "readiness-rung-list"
+      },
+      "rung-state": {
+        "testid": "readiness-rung-state"
+      },
+      "rung-owner": {
+        "testid": "readiness-rung-owner"
+      },
+      "rung-cost": {
+        "testid": "readiness-rung-cost"
+      },
+      "rung-next-action": {
+        "testid": "readiness-rung-next-action"
+      },
+      "rung-deadline": {
+        "testid": "readiness-rung-deadline"
+      }
+    }
+  }
+}

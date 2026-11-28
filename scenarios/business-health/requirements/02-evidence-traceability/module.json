@@ -1,0 +1,121 @@
+{
+  "_metadata": {
+    "description": "Read-only evidence composition: sync-snapshot + manual-attestation readers, the OT × requirement × validation × evidence matrix join, drift/staleness/unproven-claim derivation.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "evidence-traceability",
+    "prd_ref": "OT-P1-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-EVD-001",
+      "title": "Evidence artifacts are read-only",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "business-health reads coverage/requirements-sync/latest.json and coverage/manual-validations/log.jsonl but never writes any coverage/ path except the manual-validations ledger it owns via manual-log; test-genie remains the single writer of run evidence.",
+      "tags": [
+        "single-writer",
+        "evidence",
+        "d1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/evidence/readonly_test.go. Static assertion that the evidence package makes no write calls to sync-snapshot paths; manual-log writes only to coverage/manual-validations/."
+        }
+      ]
+    },
+    {
+      "id": "BH-EVD-002",
+      "title": "Traceability matrix join",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "One pure join implementation composes OT × requirement × validation × latest evidence and backs all four surfaces (report CLI, assessment findings, UI matrix, fleet rollups); no surface re-derives the join.",
+      "tags": [
+        "matrix",
+        "join"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/matrix/matrix_test.go. Fixture-tested joins including missing snapshot, zero-requirement scenario, and multi-module registries."
+        }
+      ]
+    },
+    {
+      "id": "BH-EVD-003",
+      "title": "Staleness and expiry model",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "Snapshot age vs latest suite run and manual-attestation expiry (policy owned by business-health) are explicit, tested models; stale evidence yields advisory findings, dishonest statuses yield required findings.",
+      "tags": [
+        "staleness",
+        "expiry",
+        "manual-validation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/evidence/staleness_test.go. Edge cases: expired manual attestation, snapshot older than latest run, missing snapshot."
+        }
+      ]
+    },
+    {
+      "id": "BH-EVD-004",
+      "title": "Unproven-claim derivation",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "An OT checked [x] with no passing linked requirement, a requirement whose only evidence is an expired manual attestation, and statuses hand-edited against the sync writer are derived as unproven claims and surfaced in matrix, findings, and fleet views.",
+      "tags": [
+        "unproven-claim",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/matrix/unproven_test.go. One fixture per unproven-claim shape."
+        }
+      ]
+    },
+    {
+      "id": "BH-EVD-005",
+      "title": "Contract-side inspection verbs",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "report (json|markdown|summary), drift, phase, and manual-log run against the new internals with output parity to the absorbed test-genie verbs; manual-log appends attestation identity to the business-health-owned ledger.",
+      "tags": [
+        "cli",
+        "report",
+        "drift",
+        "manual-log"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: cli/domains/requirements/requirements_test.go. Golden outputs for report formats; manual-log append + identity assertions."
+        }
+      ]
+    }
+  ]
+}

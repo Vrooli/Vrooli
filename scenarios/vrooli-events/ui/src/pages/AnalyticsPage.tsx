@@ -7,7 +7,7 @@ import { formatBytes } from "../lib/utils";
 import { StatCard } from "../components/StatCard";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 
 export function AnalyticsPage() {
@@ -19,7 +19,7 @@ export function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={BarChart3} title="Analytics Overview" />
+      <PageHeader leading={<BarChart3 className="h-5 w-5 text-[var(--text-accent)]" />} level={2} title="Analytics Overview" />
 
       {isLoading && <Spinner label="Loading metrics…" />}
       {error && <ErrorAlert error={error} onRetry={() => refetch()} />}

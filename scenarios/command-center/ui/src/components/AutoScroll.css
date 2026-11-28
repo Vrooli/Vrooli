@@ -1,0 +1,56 @@
+.cc-autoscroll__footer {
+  display: flex;
+  flex: 0 0 2.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-height: 2.75rem;
+}
+
+.cc-autoscroll__navigation {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.cc-autoscroll__navigation button {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--color-background) 92%, transparent);
+  color: var(--color-foreground);
+  cursor: pointer;
+  font: 600 1.6rem/1 var(--font-sans);
+}
+
+.cc-autoscroll__navigation button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.cc-autoscroll__navigation button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.cc-autoscroll__footer-position {
+  align-self: center;
+  padding: 0;
+  font: 500 var(--text-micro) var(--font-mono);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted-foreground);
+}
+
+.cc-autoscroll--subgrid > .cc-autoscroll__footer {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-autoscroll__content {
+    transition: none;
+  }
+}

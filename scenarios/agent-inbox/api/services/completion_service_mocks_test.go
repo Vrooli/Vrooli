@@ -160,7 +160,7 @@ func (m *mockCompletionRepository) GetToolCallByID(ctx context.Context, toolCall
 	return m.toolCallRecords[toolCallID], nil
 }
 
-func (m *mockCompletionRepository) UpdateToolCallStatus(ctx context.Context, id, status, errorMessage string) error {
+func (m *mockCompletionRepository) UpdateToolCallStatus(ctx context.Context, id string, status domain.ToolCallStatus, errorMessage string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -170,7 +170,7 @@ func (m *mockCompletionRepository) UpdateToolCallStatus(ctx context.Context, id,
 
 	m.updateToolCallStatusCalls = append(m.updateToolCallStatusCalls, updateToolCallStatusCall{
 		ID:           id,
-		Status:       status,
+		Status:       string(status),
 		ErrorMessage: errorMessage,
 	})
 

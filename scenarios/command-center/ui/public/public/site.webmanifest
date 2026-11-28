@@ -1,0 +1,19 @@
+{
+  "background_color": "#05070e",
+  "description": "Director Swarm instrument board",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "180x180",
+      "src": "logo.svg",
+      "type": "image/svg+xml"
+    }
+  ],
+  "id": "/command-center",
+  "name": "Command Center",
+  "scope": "../",
+  "short_name": "Command Center",
+  "start_url": "../",
+  "theme_color": "#05070e"
+}

@@ -1,0 +1,43 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "@id": "/services/company-market-scan#offer-v1",
+  "name": "Company Market Scan",
+  "description": "A cited snapshot of public company and market information.",
+  "serviceType": "Public company and market research summary",
+  "audience": "Small teams deciding whether to evaluate a market or vendor.",
+  "identifier": { "value": "company-market-scan", "version": 1 },
+  "offers": {
+    "@type": "Offer",
+    "price": "49.00",
+    "priceCurrency": "USD",
+    "url": "/services/company-market-scan",
+    "offerStatus": "staged; legal review open; operator approval pending",
+    "description": "Test checkout only. No live payment is collected."
+  },
+  "intake": {
+    "format": "one market or vendor category",
+    "field": "sector",
+      "minimumCharacters": 1,
+      "maximumCharacters": 500,
+    "required": true
+  },
+  "limits": [
+    "One market or vendor category per order; sector input is 1 to 500 characters.",
+    "Public business sources only; no personal contact data or private records.",
+    "Descriptive research only; not investment, legal, accounting, or purchasing advice."
+  ],
+  "delivery": {
+    "format": "Markdown",
+    "targetMinutes": 60,
+    "includes": ["scope", "public source links", "reported facts", "unchecked areas"]
+  },
+  "trust": {
+    "verification": "Every material factual claim includes a resolving public citation; source dates and unchecked areas are reported.",
+    "authorization": "Test authorization is captured only after delivery verification; failed citation validation releases the authorization.",
+    "refund": "A captured order is refundable if the delivered report materially misses its stated scope.",
+    "privacy": "No account or contact details are required. Do not submit passwords, payment data, personal contact data, or confidential information. The local test checkout uses a deterministic fixture and stores no real payment credentials."
+  },
+  "sample": "/samples/company-market-scan.md",
+  "checkout": "/service-checkout?offer_id=company-market-scan&offer_version=1"
+}

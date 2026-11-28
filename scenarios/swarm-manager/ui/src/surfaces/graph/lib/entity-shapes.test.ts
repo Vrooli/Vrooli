@@ -18,7 +18,7 @@ const EXPECTED_ENTITY_TYPES: GraphEntityType[] = [
   "backlog",
   "scenario",
   "execution",
-  "initiative",
+  "goal",
   "capture",
   "agent-run",
   "agent-activity",

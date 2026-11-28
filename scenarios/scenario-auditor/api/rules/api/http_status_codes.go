@@ -281,16 +281,10 @@ type statusCodeVisitor struct {
 	// Scope tracking for error blocks
 	errorBlocks      map[ast.Node]bool
 	errorBlockStmts  map[*ast.BlockStmt]bool // Track block statements that are error blocks
-	statusCalls      map[ast.Stmt]*statusCallInfo
 	writeHeaderCalls map[*ast.BlockStmt]bool // Track which error blocks have WriteHeader
 
 	// Wrapper function cache
 	wrapperFuncs map[*ast.FuncDecl]bool
-}
-
-type statusCallInfo struct {
-	hasStatusCode bool
-	position      token.Pos
 }
 
 // CheckHTTPStatusCodesAST is the AST-based implementation
@@ -326,7 +320,6 @@ func CheckHTTPStatusCodesAST(content []byte, filePath string) []Violation {
 		content:          contentStr,
 		errorBlocks:      make(map[ast.Node]bool),
 		errorBlockStmts:  make(map[*ast.BlockStmt]bool),
-		statusCalls:      make(map[ast.Stmt]*statusCallInfo),
 		writeHeaderCalls: make(map[*ast.BlockStmt]bool),
 		wrapperFuncs:     make(map[*ast.FuncDecl]bool),
 	}

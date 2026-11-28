@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/repo"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
 // StatusIcon returns an icon for the given phase status.
@@ -66,14 +67,6 @@ func parseTime(value string) (time.Time, bool) {
 		return t, true
 	}
 	return time.Time{}, false
-}
-
-// DefaultValue returns the value if non-empty, otherwise the fallback.
-func DefaultValue(val, fallback string) string {
-	if strings.TrimSpace(val) == "" {
-		return fallback
-	}
-	return val
 }
 
 // NormalizeName lowercases and trims a name.

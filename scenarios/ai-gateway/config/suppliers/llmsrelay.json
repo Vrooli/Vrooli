@@ -1,0 +1,76 @@
+{
+  "id": "llmsrelay",
+  "family": "openai-compatible",
+  "locality": "remote",
+  "endpoint": "",
+  "policy": {
+    "schema_version": "2026-11-22",
+    "provider": {
+      "id": "llmsrelay",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "manual_reseller_approval_and_explicit_written_consent_only",
+            "access_tier": "unverified",
+            "use_classes": {
+              "own_account": "allowed",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Terms §8.2 explicitly prohibits resale/redistribution/sublicensing of API access without explicit written consent; reseller guide/manual approval is not proof that Vrooli has consent or an executed agreement.",
+              "Resolve Terms §4.1's stated Claude service scope against the reseller guide's Claude plus Codex/OpenAI-compatible groups and models docs that list GPT IDs. Limit any future rule to explicitly named model groups/routes in signed current terms.",
+              "For Claude, Terms §4.5 identifies Anthropic API as upstream; independently verify downstream rights, actual serving route, provider policy and per-model access. For Codex/GPT, actual provider/supplier and terms are not established by the reseller guide or model IDs.",
+              "Guide describes entry as an application plus $90 one-time purchase adding $1,000 personal API balance; it is not a reseller wholesale rate and is separate from the funded reseller wallet. Do not purchase or treat pack/catalog prices as Vrooli quote.",
+              "Verify key-specific model availability using the official model endpoint only after separately authorized access; public docs say aliases can change and availability is key-group scoped. Review data/privacy, customer disclosures, responsibilities and current uptime/limits.",
+              "No route is eligible until explicit written consent, actual reseller approval, exact agreement, and separate human approval of rule, models, trust and Vrooli price."
+            ],
+            "clause": "Terms §§4.1–4.5 and 8.2; official reseller guide, manual approval and separate wallet/key groups",
+            "reason": "Official reseller guide describes downstream customer keys, a management API and bundled SaaS use, but Terms require explicit written consent. Terms and reseller documentation conflict on Claude-only versus Codex/OpenAI model scope; therefore this is a conditional proposal only.",
+            "source_anchors": [
+              {
+                "url": "https://llmsrelay.com/terms-and-conditions/",
+                "anchor": "Terms §§4.1–4.5 and 8.2; official reseller guide, manual approval and separate wallet/key groups",
+                "document_date": "effective 2026-05-01; updated 2026-08-04; v4.0-2026-08-04",
+                "observed_at": "2026-11-22",
+                "retrieval_status": "read_public_page",
+                "supports": "Terms §8.2 requires explicit written consent for resale/redistribution; body/header date representations conflict and described service/model scope is narrower than some reseller-guide claims.",
+                "does_not_establish": "This source does not establish executed supplier approval or agreement, the exact Vrooli account entitlement, actual upstream serving provider/model rights, a live route, customer trust terms, or a human-approved price.",
+                "claim_ref": "manual_reseller_approval_and_explicit_written_consent_only",
+                "supplier_id": "llmsrelay"
+              }
+            ]
+          }
+        ],
+        "evidence": {
+          "url": "https://llmsrelay.com/terms-and-conditions/",
+          "document_date": "effective 2026-05-01; updated 2026-08-04; v4.0-2026-08-04",
+          "read_at": "2026-11-22"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-11-22",
+        "on_expiry": "deny"
+      },
+      "hosted_routes": [],
+      "agreements": []
+    },
+    "roles": {},
+    "models": {},
+    "research": {
+      "activation": "denied_until_explicit_written_resale_consent_scope_resolution_actual_upstream_rights_entitlement_and_human_decisions_are_verified",
+      "source_scope": "public official pages only",
+      "not_an_operator_approval": true,
+      "model_reason": "Terms name Anthropic as upstream for Claude; reseller/docs mention Codex/GPT as well, whose actual serving source and contract coverage are unresolved. IDs/catalog rows do not prove entitlement.",
+      "evidence": [
+        "https://llmsrelay.com/terms-and-conditions/",
+        "https://llmsrelay.com/docs/learn/ai-api-reseller/",
+        "https://llmsrelay.com/plans/",
+        "https://llmsrelay.com/docs/getting-started/models/",
+        "https://llmsrelay.com/docs/api-reference/models/"
+      ]
+    }
+  }
+}

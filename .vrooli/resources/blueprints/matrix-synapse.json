@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "matrix-synapse",
+  "display_name": "Matrix Synapse",
+  "category": "communication",
+  "summary": "Federated messaging homeserver for real-time chat, rooms, automation hooks, and decentralized communication workflows.",
+  "why_it_matters": "Matrix Synapse preserves useful federated communication capability knowledge, but there is no current validated project-level need to actively maintain it as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs self-hosted real-time messaging or rooms.",
+    "Operators want federation-capable chat infrastructure.",
+    "The workflow depends on Matrix APIs or bot integrations."
+  ],
+  "example_scenarios": [
+    "Ops chat platforms",
+    "Agent coordination chat services",
+    "Internal messaging systems"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The service is containerizable, but federation, persistence, and auth create operational complexity beyond basic startup.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Persistent database and media storage strategy",
+    "TLS and domain setup",
+    "Defined backup and admin model"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should define whether support covers local-only use or federation as well.",
+    "Keep bot/application integration separate from homeserver operations.",
+    "Avoid claiming broad messaging-platform support without a real consumer workflow."
+  ],
+  "operational_notes": [
+    "Persistence, media retention, and upgrades are the main operator concerns.",
+    "Validation should cover API readiness and a real message flow.",
+    "Federation materially changes support complexity."
+  ],
+  "risks": [
+    "Messaging platforms are operationally heavy without active consumers.",
+    "A wrapper could imply stronger auth and federation support than exists."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "matrix-synapse"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/matrix-synapse"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

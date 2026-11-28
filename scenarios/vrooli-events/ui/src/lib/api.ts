@@ -46,6 +46,7 @@ export async function fetchHealth(): Promise<HealthResponse> {
 export interface QueryParams {
   type?: string;
   source?: string;
+  target?: string;
   correlationId?: string;
   since?: number;
   limit?: number;
@@ -55,6 +56,7 @@ export async function fetchEvents(params: QueryParams = {}): Promise<EventEnvelo
   const search = new URLSearchParams();
   if (params.type) search.set("type", params.type);
   if (params.source) search.set("source", params.source);
+  if (params.target) search.set("target", params.target);
   if (params.correlationId) search.set("correlation_id", params.correlationId);
   if (params.since !== undefined) search.set("since", String(params.since));
   if (params.limit !== undefined) search.set("limit", String(params.limit));

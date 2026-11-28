@@ -1,0 +1,268 @@
+package orchestration
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
+)
+
+func waitWorkflowDefinition() *domain.WorkflowRevision {
+	revision := relayDefinition()
+	revision.ID = uuid.New()
+	revision.Key = "owner/wait-for-signal"
+	revision.Digest = "sha256:wait-for-signal"
+	revision.Definition.Key = revision.Key
+	revision.Definition.EntryNode = "wait"
+	revision.Definition.Nodes = []domain.WorkflowNode{
+		{ID: "wait", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "continue", TimeoutSeconds: 60}},
+		{ID: "end", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	revision.Definition.Edges = []domain.WorkflowEdge{{From: "wait", To: "end"}}
+	return revision
+}
+
+func startWaitWorkflow(t *testing.T, o *Orchestrator) *domain.WorkflowExecution {
+	t.Helper()
+	execution, err := o.StartWorkflowExecution(context.Background(), StartWorkflowExecutionRequest{
+		Owner: "owner", WorkflowKey: "owner/wait-for-signal", Input: json.RawMessage(`{}`), IdempotencyKey: t.Name() + "/" + uuid.NewString(),
+	})
+	if err != nil {
+		t.Fatalf("start workflow: %v", err)
+	}
+	if execution.Status != domain.WorkflowExecutionWaiting {
+		t.Fatalf("status=%s, want waiting", execution.Status)
+	}
+	return execution
+}
+
+func TestWorkflowExecutionControlAndTriageProjections(t *testing.T) {
+	ctx := context.Background()
+	launcher := newFakeRunLauncher()
+	o, repos := newRelayOrchestrator(t, launcher)
+	revision := waitWorkflowDefinition()
+	if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	execution := startWaitWorkflow(t, o)
+	listed, err := o.ListWorkflowExecutions(ctx, ListWorkflowExecutionsRequest{Owner: "owner", WorkflowKey: revision.Key, Limit: 10})
+	if err != nil || len(listed) != 1 || listed[0].ID != execution.ID {
+		t.Fatalf("list=%+v err=%v", listed, err)
+	}
+	trace, err := o.GetWorkflowExecutionTrace(ctx, execution.ID, 0, 0)
+	if err != nil || trace.Execution.ID != execution.ID || len(trace.Journal) == 0 {
+		t.Fatalf("trace=%+v err=%v", trace, err)
+	}
+	if attempts, err := o.ListWorkflowExecutionRuns(ctx, execution.ID); err != nil || len(attempts) != 0 {
+		t.Fatalf("attempts=%+v err=%v", attempts, err)
+	}
+
+	resumed, err := o.ResumeWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: execution.ID, IdempotencyKey: "resume"})
+	if err != nil || resumed.Idempotent || resumed.Execution.Status != domain.WorkflowExecutionWaiting {
+		t.Fatalf("resume=%+v err=%v", resumed, err)
+	}
+	repeatedResume, err := o.ResumeWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: execution.ID, IdempotencyKey: "resume"})
+	if err != nil || !repeatedResume.Idempotent {
+		t.Fatalf("repeat resume=%+v err=%v", repeatedResume, err)
+	}
+
+	cancelled, err := o.CancelWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: execution.ID, IdempotencyKey: "cancel", Reason: "operator stopped the drill"})
+	if err != nil || cancelled.Execution.Status != domain.WorkflowExecutionCancelled || cancelled.Idempotent {
+		t.Fatalf("cancel=%+v err=%v", cancelled, err)
+	}
+	repeatedCancel, err := o.CancelWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: execution.ID, IdempotencyKey: "cancel"})
+	if err != nil || !repeatedCancel.Idempotent || repeatedCancel.Execution.Status != domain.WorkflowExecutionCancelled {
+		t.Fatalf("repeat cancel=%+v err=%v", repeatedCancel, err)
+	}
+
+	failed := startWaitWorkflow(t, o)
+	if _, err := o.FailWorkflowExecution(ctx, failed.ID, "injected_failure", "triage fixture"); err != nil {
+		t.Fatalf("fail workflow: %v", err)
+	}
+	retried, err := o.RetryWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: failed.ID, IdempotencyKey: "retry"})
+	if err != nil || retried.Idempotent || retried.Execution.Status != domain.WorkflowExecutionWaiting || retried.Execution.BudgetUsage.Retries != 1 {
+		t.Fatalf("retry=%+v err=%v", retried, err)
+	}
+	repeatedRetry, err := o.RetryWorkflowExecution(ctx, WorkflowExecutionOperationRequest{ExecutionID: failed.ID, IdempotencyKey: "retry"})
+	if err != nil || !repeatedRetry.Idempotent {
+		t.Fatalf("repeat retry=%+v err=%v", repeatedRetry, err)
+	}
+
+	simulation, err := o.SimulateWorkflow(ctx, SimulateWorkflowRequest{DefinitionDigest: revision.Digest, Input: json.RawMessage(`{}`)})
+	if err != nil || !simulation.Valid || len(simulation.Nodes) != 2 || simulation.Nodes[0].WaitSignal != "continue" || len(simulation.PossibleTerminalNodes) != 1 {
+		t.Fatalf("simulation=%+v err=%v", simulation, err)
+	}
+	if _, err := o.SimulateWorkflow(ctx, SimulateWorkflowRequest{DefinitionDigest: "sha256:missing", Input: json.RawMessage(`{}`)}); err == nil {
+		t.Fatal("missing revision simulation should fail")
+	}
+}
+
+func TestWorkflowExecutionLookupByIdempotencyKeyPrecedesPagination(t *testing.T) {
+	ctx := context.Background()
+	o, repos := newRelayOrchestrator(t, newFakeRunLauncher())
+	revision := waitWorkflowDefinition()
+	if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatalf("activate workflow: %v", err)
+	}
+	key := "exact-start-" + uuid.NewString()
+	execution, err := o.StartWorkflowExecution(ctx, StartWorkflowExecutionRequest{
+		Owner: "owner", WorkflowKey: revision.Key, Input: json.RawMessage(`{}`), IdempotencyKey: key,
+	})
+	if err != nil {
+		t.Fatalf("start workflow: %v", err)
+	}
+	// A key lookup is indexed and exact: ordinary list pagination must not hide
+	// an already accepted start, even when the caller's offset exceeds the list.
+	items, err := o.ListWorkflowExecutions(ctx, ListWorkflowExecutionsRequest{
+		Owner: "owner", WorkflowKey: revision.Key, IdempotencyKey: key, Limit: 1, Offset: 900,
+	})
+	if err != nil || len(items) != 1 || items[0].ID != execution.ID {
+		t.Fatalf("exact key lookup items=%+v err=%v", items, err)
+	}
+	items, err = o.ListWorkflowExecutions(ctx, ListWorkflowExecutionsRequest{Owner: "another-owner", IdempotencyKey: key, Limit: 1, Offset: 900})
+	if err != nil || len(items) != 0 {
+		t.Fatalf("foreign owner lookup items=%+v err=%v", items, err)
+	}
+}
+
+func TestCancelWorkflowExecutionByKeyReturnsTerminalStartReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		settle func(*testing.T, *Orchestrator, *domain.WorkflowExecution)
+		want   domain.WorkflowExecutionStatus
+	}{
+		{
+			name: "succeeded before cancel",
+			settle: func(t *testing.T, o *Orchestrator, execution *domain.WorkflowExecution) {
+				t.Helper()
+				if _, err := o.SignalWorkflowExecution(t.Context(), WorkflowExecutionSignalRequest{ExecutionID: execution.ID, Signal: "continue", Payload: json.RawMessage(`{}`), IdempotencyKey: "finish-before-cancel"}); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: domain.WorkflowExecutionSucceeded,
+		},
+		{
+			name: "failed before cancel",
+			settle: func(t *testing.T, o *Orchestrator, execution *domain.WorkflowExecution) {
+				t.Helper()
+				if _, err := o.FailWorkflowExecution(t.Context(), execution.ID, "fixture_failure", "terminal fixture"); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: domain.WorkflowExecutionFailed,
+		},
+		{
+			name: "cancelled before repeated cancel-by-key",
+			settle: func(t *testing.T, o *Orchestrator, execution *domain.WorkflowExecution) {
+				t.Helper()
+				if _, err := o.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: execution.ID, IdempotencyKey: "first-cancel", Reason: "fixture"}); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: domain.WorkflowExecutionCancelled,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			o, repos := newRelayOrchestrator(t, newFakeRunLauncher())
+			revision := waitWorkflowDefinition()
+			if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+				t.Fatal(err)
+			}
+			key := "terminal-key/" + uuid.NewString()
+			execution, err := o.StartWorkflowExecution(ctx, StartWorkflowExecutionRequest{Owner: revision.Owner, WorkflowKey: revision.Key, Input: json.RawMessage(`{}`), IdempotencyKey: key})
+			if err != nil || execution.Status != domain.WorkflowExecutionWaiting {
+				t.Fatalf("start execution=%+v err=%v", execution, err)
+			}
+			tc.settle(t, o, execution)
+			before, err := repos.WorkflowExecutions.ListJournal(ctx, execution.ID, 0, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cancelEntries := 0
+			for _, entry := range before {
+				if entry.Kind == domain.WorkflowJournalCancel {
+					cancelEntries++
+				}
+			}
+
+			got, err := o.CancelWorkflowExecutionByIdempotencyKey(ctx, WorkflowExecutionCancelByKeyRequest{
+				Owner: revision.Owner, WorkflowKey: revision.Key, IdempotencyKey: key,
+				OperationKey: "cancel-after-terminal", Reason: "late operator cancellation",
+			})
+			if err != nil || got == nil || !got.Fenced || got.Execution == nil || got.Execution.ID != execution.ID || got.Execution.Status != tc.want {
+				t.Fatalf("terminal fence receipt=%+v err=%v, want status=%s", got, err, tc.want)
+			}
+			after, err := repos.WorkflowExecutions.ListJournal(ctx, execution.ID, 0, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotCancelEntries := 0
+			for _, entry := range after {
+				if entry.Kind == domain.WorkflowJournalCancel {
+					gotCancelEntries++
+				}
+			}
+			if gotCancelEntries != cancelEntries {
+				t.Fatalf("terminal receipt changed cancellation journal: before=%d after=%d", cancelEntries, gotCancelEntries)
+			}
+		})
+	}
+}
+
+func TestSimulateWorkflowProjectsEachSupportedNodeStrategy(t *testing.T) {
+	ctx := context.Background()
+	o, repos := newRelayOrchestrator(t, newFakeRunLauncher())
+	revision := relayDefinition()
+	revision.ID = uuid.New()
+	revision.Key = "owner/simulation-strategies"
+	revision.Digest = "sha256:simulation-strategies"
+	revision.Definition.Key = revision.Key
+	revision.Definition.EntryNode = "run"
+	revision.Definition.Nodes = []domain.WorkflowNode{
+		{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{ProfileKey: "reviewer", RoleRef: "analysis"}},
+		{ID: "continue", Kind: domain.WorkflowNodeContinue, Continue: &domain.WorkflowContinueNode{ConversationFromNode: "run"}},
+		{ID: "child", Kind: domain.WorkflowNodeChild, Child: &domain.WorkflowChildNode{WorkflowKey: "owner/child", Version: "2.0.0"}},
+		{ID: "wait", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "approval", TimeoutSeconds: 45}},
+		{ID: "join", Kind: domain.WorkflowNodeJoin, Join: &domain.WorkflowJoinNode{Strategy: "quorum", Quorum: 2}},
+		{ID: "branch", Kind: domain.WorkflowNodeBranch, Branch: &domain.WorkflowBranchNode{Parallel: true}},
+		{ID: "end", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}},
+	}
+	if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatalf("activate: %v", err)
+	}
+
+	simulation, err := o.SimulateWorkflow(ctx, SimulateWorkflowRequest{Owner: " owner ", WorkflowKey: " owner/simulation-strategies ", Input: json.RawMessage(`{}`)})
+	if err != nil || !simulation.Valid || len(simulation.Nodes) != len(revision.Definition.Nodes) {
+		t.Fatalf("simulate = %+v, err=%v", simulation, err)
+	}
+	nodes := map[string]WorkflowNodePlan{}
+	for _, node := range simulation.Nodes {
+		nodes[node.NodeID] = node
+	}
+	if got := nodes["run"]; got.ExecutionStrategy != "fresh_run" || got.ProfileKey != "reviewer" || got.RoleRef != "analysis" {
+		t.Fatalf("run projection = %+v", got)
+	}
+	if got := nodes["continue"]; got.ExecutionStrategy != "continue" || got.ContinuationSource != "run" {
+		t.Fatalf("continue projection = %+v", got)
+	}
+	if got := nodes["child"]; got.ExecutionStrategy != "child_workflow" || got.ChildWorkflowKey != "owner/child" || got.ChildWorkflowVersion != "2.0.0" {
+		t.Fatalf("child projection = %+v", got)
+	}
+	if got := nodes["wait"]; got.WaitSignal != "approval" || got.WaitTimeoutSeconds != 45 {
+		t.Fatalf("wait projection = %+v", got)
+	}
+	if got := nodes["join"]; got.JoinStrategy != "quorum" || got.JoinQuorum != 2 {
+		t.Fatalf("join projection = %+v", got)
+	}
+	if got := nodes["branch"]; !got.Parallel {
+		t.Fatalf("branch projection = %+v", got)
+	}
+	if len(simulation.PossibleTerminalNodes) != 1 || simulation.PossibleTerminalNodes[0] != "end" {
+		t.Fatalf("terminal nodes = %+v", simulation.PossibleTerminalNodes)
+	}
+}

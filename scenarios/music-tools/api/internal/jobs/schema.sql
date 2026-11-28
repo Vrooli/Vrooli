@@ -1,0 +1,34 @@
+-- Jobs table — owned by internal/jobs/. Embedded by schema.go and applied via
+-- database.EnsureSchemas at boot through the modules.AllSchemas registry. Times
+-- are fixed-width UTC strings so indexed text ordering matches chronology.
+-- Server-owned durable jobs: rows persist across client disconnects and survive
+-- restarts (recovery marks orphaned non-terminal jobs as failed/interrupted).
+CREATE TABLE IF NOT EXISTS jobs (
+  id                TEXT PRIMARY KEY,
+  operation         TEXT NOT NULL,
+  lane              TEXT NOT NULL,
+  state             TEXT NOT NULL,
+  progress          INTEGER NOT NULL DEFAULT 0,
+  message           TEXT NOT NULL DEFAULT '',
+  error             TEXT NOT NULL DEFAULT '',
+  result_ref        TEXT NOT NULL DEFAULT '',
+  -- meta is the backend's JSON record of the run (model, tier, cost_usd). A
+  -- column rather than a side table: it is written once with the terminal
+  -- state, read whole, and never queried by key.
+  meta              TEXT NOT NULL DEFAULT '',
+  payload           BLOB,
+  estimated_seconds INTEGER NOT NULL DEFAULT 0,
+  created_at        TEXT NOT NULL,
+  started_at        TEXT NOT NULL DEFAULT '',
+  finished_at       TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
+CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
+
+-- Store-owned, idempotent startup migrations. Version 1 converts historical
+-- RFC3339Nano timestamps to the fixed-width UTC representation above.
+CREATE TABLE IF NOT EXISTS jobs_schema_migrations (
+  version INTEGER PRIMARY KEY
+);
+

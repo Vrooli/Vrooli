@@ -1,0 +1,95 @@
+{
+  "description": "The bundle-freshness check group must delegate to the canonical freshness engine via `vrooli scenario freshness --json` (content-hash based) rather than re-implementing staleness detection. False-negative cases that mtime-only checks miss \u2014 such as a `file:`-dependency change or a `NODE_ENV` flip with an unchanged `ui/src` \u2014 must be reported as stale.",
+  "module_id": "MOD-P0-014",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "The bundle-freshness check group must delegate to the canonical freshness engine by invoking `vrooli scenario freshness --json` and translating its content-hash verdict into ui-health Findings. ui-health must not maintain a parallel staleness implementation.",
+      "id": "REQ-P0-013",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Freshness check delegates to canonical engine",
+      "validation": [
+        {
+          "notes": "The freshness check group invokes the canonical freshness engine and consumes its --json output",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A stale verdict from the engine maps to a freshness Finding in the consolidated Report",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario the canonical engine reports stale and confirm a freshness Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health contains no independent mtime-walk or hash implementation for freshness; the canonical engine is authoritative",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-013"
+      ],
+      "description": "Content-hash freshness must catch false-negative cases that mtime-only detection misses. A change to a `file:`-linked dependency or a `NODE_ENV` flip, even with an unchanged `ui/src` tree, must result in a stale verdict surfaced as a freshness Finding.",
+      "id": "REQ-P0-014",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "file:-dep and NODE_ENV changes report stale",
+      "validation": [
+        {
+          "notes": "A changed file:-dependency with unchanged ui/src yields a stale verdict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A NODE_ENV flip with unchanged ui/src yields a stale verdict",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health after changing a file:-dep and confirm the freshness Finding marks the bundle stale",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health after a NODE_ENV flip and confirm the freshness Finding marks the bundle stale",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Content-hash freshness eliminates the mtime-only false-negatives for dependency and environment changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Bundle freshness via canonical engine"
+}

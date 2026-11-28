@@ -7,15 +7,6 @@ import "time"
 // IntegrationConfig controls external service connections.
 // Audience: Operators configuring service mesh.
 type IntegrationConfig struct {
-	// OllamaBaseURL is the Ollama API endpoint.
-	// Set via OLLAMA_BASE_URL env var, or derived from OLLAMA_PORT.
-	// Default: "http://localhost:11434"
-	OllamaBaseURL string
-
-	// OllamaTimeout is the HTTP timeout for Ollama requests.
-	// Default: 30s
-	OllamaTimeout time.Duration
-
 	// AgentManagerURL is the agent-manager API endpoint.
 	// Set via AGENT_MANAGER_API_URL env var, or discovered via vrooli CLI.
 	AgentManagerURL string
@@ -36,40 +27,6 @@ type IntegrationConfig struct {
 
 	// Naming configuration for Ollama-powered auto-naming.
 	Naming NamingConfig
-
-	// ToolDiscovery configuration for dynamic tool loading from scenarios.
-	ToolDiscovery ToolDiscoveryConfig
-}
-
-// ToolDiscoveryConfig controls how agent-inbox discovers tools from scenarios.
-// Audience: Operators configuring multi-scenario deployments.
-type ToolDiscoveryConfig struct {
-	// AutoDiscovery enables dynamic discovery of tool-enabled scenarios.
-	// When true, uses `vrooli scenario list` to find all running scenarios
-	// and probes each for /api/v1/tools endpoints.
-	// When false, uses the explicit Scenarios list.
-	// Set via TOOL_AUTO_DISCOVERY env var ("true" or "false").
-	// Default: true
-	AutoDiscovery bool
-
-	// Scenarios is the explicit list of scenario names to discover tools from.
-	// Only used when AutoDiscovery is false, or as fallback when discovery fails.
-	// Set via TOOL_SCENARIOS env var (comma-separated).
-	// Default: ["agent-manager", "scenario-to-cloud"]
-	Scenarios []string
-
-	// DiscoveryTimeout is the HTTP timeout for fetching tool manifests.
-	// Default: 10s
-	DiscoveryTimeout time.Duration
-
-	// CacheTTL is how long to cache tool manifests before refreshing.
-	// Higher = less network traffic, lower = faster updates when tools change.
-	// Default: 60s
-	CacheTTL time.Duration
-
-	// RefreshOnStartup controls whether to fetch tools on server startup.
-	// Default: true
-	RefreshOnStartup bool
 }
 
 // ResilienceConfig controls failure handling and graceful degradation.

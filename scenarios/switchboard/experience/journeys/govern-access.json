@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "govern-access",
+    "title": "Let somebody else reach an agent safely",
+    "purpose": "The owner gives another person access to an agent and can see, before confirming, exactly what that person will be able to make the agent do \u2014 including the effect on every room they share.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P1-001",
+      "OT-P1-002"
+    ]
+  },
+  "steps": [
+    {
+      "page": "contacts",
+      "intent": "Finds the person, who is currently a stranger by default.",
+      "state": "default"
+    },
+    {
+      "page": "contacts",
+      "intent": "Reads what the proposed tier will permit, in plain language.",
+      "state": "default",
+      "via": "tier-control"
+    },
+    {
+      "page": "contacts",
+      "intent": "Sees which group ceilings the change will move.",
+      "state": "default",
+      "via": "ceiling-warning"
+    },
+    {
+      "page": "contacts",
+      "intent": "Confirms the tier change.",
+      "state": "saving",
+      "via": "confirm-action"
+    },
+    {
+      "page": "conversations",
+      "intent": "Watches the agent refuse a request that exceeds the new tier, and state what it withheld.",
+      "state": "permission-denied"
+    }
+  ],
+  "claims": [
+    {
+      "id": "effect-is-visible-before-consent",
+      "type": "custom",
+      "statement": "The permission effect and the group-ceiling effect are both stated before the change is confirmed.",
+      "tier": "manual"
+    },
+    {
+      "id": "owner-only-unreachable",
+      "type": "custom",
+      "statement": "No path through this journey can grant an owner-only capability to a tier below owner.",
+      "tier": "manual",
+      "rationale": "OT-P0-011 requires this by construction, so the journey must not contain a path that appears to offer it."
+    }
+  ]
+}

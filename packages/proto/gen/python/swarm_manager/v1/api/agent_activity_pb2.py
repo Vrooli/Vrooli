@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from swarm_manager.v1.domain import agent_activity_pb2 as swarm__manager_dot_v1_dot_domain_dot_agent__activity__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)swarm-manager/v1/api/agent_activity.proto\x12\x10swarm_manager.v1\x1a,swarm-manager/v1/domain/agent_activity.proto\"T\n\x1bListAgentActivitiesResponse\x12\x35\n\x05items\x18\x01 \x03(\x0b\x32\x1f.swarm_manager.v1.AgentActivityR\x05items\"T\n\x15\x41gentActivityResponse\x12;\n\x08\x61\x63tivity\x18\x01 \x01(\x0b\x32\x1f.swarm_manager.v1.AgentActivityR\x08\x61\x63tivityBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)swarm-manager/v1/api/agent_activity.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a,swarm-manager/v1/domain/agent_activity.proto\"b\n\x1bListAgentActivitiesResponse\x12\x43\n\x05items\x18\x01 \x03(\x0b\x32-.vrooli.swarm_manager.v1.domain.AgentActivityR\x05items\"b\n\x15\x41gentActivityResponse\x12I\n\x08\x61\x63tivity\x18\x01 \x01(\x0b\x32-.vrooli.swarm_manager.v1.domain.AgentActivityR\x08\x61\x63tivityBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,8 +33,8 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.api.agent_
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
-  _globals['_LISTAGENTACTIVITIESRESPONSE']._serialized_start=109
-  _globals['_LISTAGENTACTIVITIESRESPONSE']._serialized_end=193
-  _globals['_AGENTACTIVITYRESPONSE']._serialized_start=195
-  _globals['_AGENTACTIVITYRESPONSE']._serialized_end=279
+  _globals['_LISTAGENTACTIVITIESRESPONSE']._serialized_start=120
+  _globals['_LISTAGENTACTIVITIESRESPONSE']._serialized_end=218
+  _globals['_AGENTACTIVITYRESPONSE']._serialized_start=220
+  _globals['_AGENTACTIVITYRESPONSE']._serialized_end=318
 # @@protoc_insertion_point(module_scope)

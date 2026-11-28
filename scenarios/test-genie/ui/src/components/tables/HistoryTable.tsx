@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { StatusPill } from "../cards/StatusPill";
 import { PhaseResultCard } from "../cards/PhaseResultCard";
 import { selectors } from "../../consts/selectors";
@@ -71,7 +71,7 @@ export function HistoryTable({
           ))}
         </div>
         {search && (
-          <Button variant="outline" size="sm" onClick={() => setSearch("")}>
+          <Button variant="secondary" size="sm" onClick={() => setSearch("")}>
             Clear
           </Button>
         )}
@@ -135,14 +135,14 @@ export function HistoryTable({
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => onRerunClick(execution)}
               >
                 Rerun tests
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 className="border-transparent text-slate-200 hover:border-white/40"
                 onClick={() => onScenarioClick(execution.scenarioName)}
               >

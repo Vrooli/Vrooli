@@ -1,4 +1,6 @@
 // REQ-UI-008: Circuit breaker dashboard
+// DOC: docs/reference/api-endpoints.md#circuit-breaker-override
+// DOC: docs/guides/managing-policies.md
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -6,9 +8,9 @@ import { Zap, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
-import { StatusBadge } from "../components/StatusBadge";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { fetchPolicies, overrideCircuitBreaker, type PolicyRule } from "../lib/api";
 import { HEALTH_POLL_INTERVAL_MS, INPUT_CLASS } from "../lib/constants";
 
@@ -43,7 +45,7 @@ export function CircuitBreakerPage() {
   return (
     <div className="space-y-4" data-testid="circuit-breakers-page">
       <PageHeader
-        icon={Zap}
+        leading={<Zap className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title="Circuit Breakers"
         actions={
           <Button size="sm" variant="outline" onClick={() => refetch()}>
@@ -127,7 +129,7 @@ export function CircuitBreakerPage() {
                     <td className="px-3 py-2 text-[var(--text-secondary)]">{rule.cooldown_seconds ?? 0}</td>
                     <td className="px-3 py-2 text-[var(--text-secondary)]">{rule.success_threshold ?? 0}</td>
                     <td className="px-3 py-2">
-                      <StatusBadge active={rule.enabled} />
+                      <StatusBadge tone={rule.enabled ? "success" : "neutral"}>{rule.enabled ? "On" : "Off"}</StatusBadge>
                     </td>
                     <td className="px-3 py-2">
                       <button

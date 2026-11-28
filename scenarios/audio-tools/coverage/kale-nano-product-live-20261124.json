@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "runId": "kale-nano-product-live-20261124",
+  "observedAt": "2026-11-24T03:16:12Z",
+  "qualification": "diagnostic_only",
+  "route": {
+    "selection": "AUDIO_TTS_BACKEND=auto",
+    "providerId": "kale-tts",
+    "modelId": "kale-tts-1-nano",
+    "modelRevision": "b6ce1887268c3667994fc3b0b2c82887c069915c",
+    "resource": "kale-tts",
+    "resourceVersion": "b6ce1887268c3667994fc3b0b2c82887c069915c"
+  },
+  "primaryRequest": {
+    "voice": "kenzie",
+    "speed": 1.25,
+    "sampleRateHz": 24000,
+    "format": "wav/pcm16/mono",
+    "bytes": 97574,
+    "durationMs": 2031,
+    "wallMs": 163,
+    "completeRiffWave": true
+  },
+  "cacheRepeats": [
+    {"hit": true, "byteAndContentTypeMatch": true, "wallMs": 3.285},
+    {"hit": true, "byteAndContentTypeMatch": true, "wallMs": 1.621}
+  ],
+  "repeatRun": {
+    "observedAt": "2026-11-23T22:41:22Z",
+    "primaryRequest": {"bytes": 97618, "durationMs": 2032, "wallMs": 830},
+    "cacheRepeatHits": 2,
+    "canonicalVoiceWallMs": {
+      "voice.feminine.warm": 271,
+      "voice.feminine.neutral": 155,
+      "voice.masculine.warm": 50,
+      "voice.masculine.neutral": 46,
+      "voice.neutral.default": 42
+    },
+    "note": "Separate rerun with a slower first request; timings are single-run observations, not latency distributions."
+  },
+  "canonicalVoiceRuns": [
+    {"voice": "voice.feminine.warm", "backendVoice": "kenzie", "bytes": 102044, "durationMs": 2125, "wallMs": 35, "completeRiffWave": true},
+    {"voice": "voice.feminine.neutral", "backendVoice": "simone", "bytes": 105644, "durationMs": 2200, "wallMs": 38, "completeRiffWave": true},
+    {"voice": "voice.masculine.warm", "backendVoice": "earl", "bytes": 112844, "durationMs": 2350, "wallMs": 39, "completeRiffWave": true},
+    {"voice": "voice.masculine.neutral", "backendVoice": "owen", "bytes": 96044, "durationMs": 2000, "wallMs": 42, "completeRiffWave": true},
+    {"voice": "voice.neutral.default", "backendVoice": "kenzie", "bytes": 102044, "durationMs": 2125, "wallMs": 43, "completeRiffWave": true}
+  ],
+  "method": {
+    "test": "scenarios/audio-tools/api/internal/bootstrap/TestBuildKaleTTSLiveProductRoute",
+    "resourceStatus": "healthy, model nano loaded",
+    "limits": [
+      "Runtime was healthy and already loaded; these are separate warm-path test runs, not controlled cold-start or sustained-load evidence.",
+      "The first request differed across runs (163 ms and 830 ms); no latency distribution, threshold, or representative steady-state claim is inferred.",
+      "WAV structure, route identity, canonical voice mapping, and cache bytes were checked; no human speech-quality review was done.",
+      "No peak-memory, cross-platform, lifecycle-restart, corpus-quality, or license-provenance qualification is claimed.",
+      "Kale remains a conditional auto candidate; Kokoro remains the catalog default."
+    ]
+  }
+}

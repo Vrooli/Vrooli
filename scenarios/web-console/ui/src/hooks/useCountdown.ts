@@ -1,6 +1,6 @@
-// DOC: docs/concepts/GLOSSARY.md#policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 import { useState, useEffect } from "react";
-import type { PolicyMode } from "../lib/api";
+import type { PolicyMode } from "../api/sessions";
 import { parseDurationMs, formatCountdown } from "../lib/format";
 
 // [REQ:P1-001b] Policy Configuration UI - countdown display
@@ -13,7 +13,9 @@ export function useCountdown(createdAt: string, mode: PolicyMode, duration?: str
   const [remaining, setRemaining] = useState<string | null>(null);
 
   useEffect(() => {
-    if (mode === "never") {
+    // An idle policy has no deadline: it is measured from the agent's last
+    // work on the server, not from creation.
+    if (mode === "never" || mode === "idle") {
       setRemaining(null);
       return;
     }

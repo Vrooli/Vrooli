@@ -21,7 +21,7 @@ import {
   useContext,
   type MutableRefObject,
 } from "react";
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import type { ReplayFrame, ReplayStyleProps } from "@/domains/exports/replay/types";
 import type {
   ExportDimensionPreset,

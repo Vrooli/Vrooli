@@ -15,12 +15,6 @@
     {
       "id": "e7",
       "source": "drag-wait-node",
-      "target": "wait-node-render",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "wait-node-render",
       "target": "verify-wait-node",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -93,11 +87,15 @@
   ],
   "metadata": {
     "description": "Validates Wait node configuration with dynamic fields based on wait type selection",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Node Config Wait",
+    "version": "1"
   },
   "nodes": [
     {
@@ -127,16 +125,14 @@
           "timeout_ms": 15000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 600
-      },
       "id": "wait-builder"
     },
     {
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.wait",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -148,22 +144,10 @@
     },
     {
       "action": {
-        "metadata": {
-          "label": "Wait for node to render"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1500
-        }
-      },
-      "id": "wait-node-render"
-    },
-    {
-      "action": {
         "assert": {
           "failure_message": "Wait node should appear",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node",
+          "selector": ".react-flow__node.workflow-node--wait",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -176,7 +160,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type"
+          "selector": ".react-flow__node.workflow-node--wait"
         },
         "metadata": {
           "label": "Select Wait node"
@@ -190,7 +174,7 @@
         "assert": {
           "failure_message": "Wait type dropdown should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected select",
+          "selector": ".react-flow__node.workflow-node--wait.selected select",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -206,8 +190,7 @@
           "label": "Change wait type to 'element'"
         },
         "select_option": {
-          "label": "Change wait type to 'element'",
-          "selector": ".react-flow__node.selected select /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected select /*dup-1*/",
           "value": "element"
         },
         "type": "ACTION_TYPE_SELECT"
@@ -219,7 +202,7 @@
         "assert": {
           "failure_message": "Selector input should appear when wait type is 'element'",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[placeholder*=\"Selector\" i]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -232,16 +215,13 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
           "value": "#test-element"
         },
         "metadata": {
           "label": "Type selector value"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "type-selector"
     },
@@ -255,23 +235,17 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "blur-selector-input"
     },
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--wait /*dup-1*/"
         },
         "metadata": {
           "label": "Re-select node"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "switch-to-time-wait"
     },
@@ -281,8 +255,7 @@
           "label": "Switch back to time mode"
         },
         "select_option": {
-          "label": "Switch back to time mode",
-          "selector": ".react-flow__node.selected select /*dup-2*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected select /*dup-2*/",
           "value": "time"
         },
         "type": "ACTION_TYPE_SELECT"
@@ -294,7 +267,7 @@
         "assert": {
           "failure_message": "Duration input should appear when wait type is 'time'",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[type=\"number\"]",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[type=\"number\"]",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -307,16 +280,13 @@
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input[type=\"number\"] /*dup-1*/",
+          "selector": ".react-flow__node.workflow-node--wait.selected input[type=\"number\"] /*dup-1*/",
           "value": "3000"
         },
         "metadata": {
           "label": "Enter duration value"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "enter-duration"
     },
@@ -329,9 +299,6 @@
           "label": "Click canvas to save duration"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "save-duration"
     }

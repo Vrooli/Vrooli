@@ -1,0 +1,116 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "plan",
+    "title": "Plan",
+    "routes": [
+      "/plan"
+    ],
+    "purpose": "Review strategy and content mix, human work and publication intentions while keeping native authorities distinct.",
+    "prd_refs": [
+      "OT-P0-025",
+      "OT-P0-026",
+      "OT-P0-027",
+      "OT-P0-028"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "strategy",
+      "description": "The strategy state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "content-mix",
+      "description": "The content mix state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "publication",
+      "description": "The publication state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "work",
+      "description": "The work state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "unreserved",
+      "description": "The unreserved state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial-application",
+      "description": "The partial application state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale-basis",
+      "description": "The stale basis state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "time-conflict",
+      "description": "The time conflict state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "provider-held",
+      "description": "The provider held state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "plan-outcome-1",
+      "type": "custom",
+      "statement": "The owner can distinguish accepted content work, Planner reservation, publication intention and provider schedule.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "plan-outcome-2",
+      "type": "custom",
+      "statement": "Partial application names each admitted owner receipt and resumes only unresolved work; shared effort is counted once.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M02-strategy-v03-desktop.png",
+      "design-source/screens/M02-strategy-v03-phone.png",
+      "design-source/screens/M05-plan-v04-desktop.png",
+      "design-source/screens/M05-plan-v04-phone.png",
+      "design-source/screens/M17-work-v02-desktop.png",
+      "design-source/screens/M17-work-v02-phone.png"
+    ]
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "description": "A favicon / webmanifest / viewport standard. Static checks verify `<link rel=\"manifest\">`, icon links, a viewport meta tag, and `\"display\":\"standalone\"` in the webmanifest. Auto-fix can insert the standard tags (safe fixer).",
+  "module_id": "MOD-P1-022",
+  "prd_ref": "OT-P1-008",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Static checks must verify the presence of `<link rel=\"manifest\">`, icon links, a viewport meta tag, and `\"display\":\"standalone\"` in the webmanifest. Each missing element must produce a Finding.",
+      "id": "REQ-P1-013",
+      "prd_ref": "OT-P1-008",
+      "status": "draft",
+      "title": "Static favicon/manifest/viewport checks",
+      "validation": [
+        {
+          "notes": "A missing <link rel=\"manifest\"> produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Missing icon links or viewport meta tag each produce a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A webmanifest missing \"display\":\"standalone\" produces a Finding",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario missing the viewport meta and confirm the Finding is emitted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The favicon/manifest/viewport standard ensures installable, correctly-scaled UIs",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-013"
+      ],
+      "description": "A safe auto-fixer must be able to insert the standard favicon/manifest/viewport tags into the document. The fixer must be idempotent: re-running it does not duplicate tags.",
+      "id": "REQ-P1-014",
+      "prd_ref": "OT-P1-008",
+      "status": "draft",
+      "title": "Safe insert-tags fixer idempotent",
+      "validation": [
+        {
+          "notes": "The insert-tags fixer adds missing manifest, icon, and viewport tags",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Re-running the fixer does not duplicate already-present tags (idempotent)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The insert-tags fixer is marked safe with autofix_available true",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run the fixer and confirm the favicon/manifest/viewport Findings clear on re-validate with no duplicate tags",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Safe tag insertion makes the favicon/manifest/viewport standard auto-remediable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "favicon / webmanifest / viewport standard"
+}

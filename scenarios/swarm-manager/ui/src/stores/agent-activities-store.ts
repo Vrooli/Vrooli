@@ -14,10 +14,11 @@ interface AgentActivitiesStoreState {
 }
 
 /**
- * Statuses that represent an agent still doing work or awaiting human input.
- * Activities in these states appear in the "running agents" indicator.
+ * Statuses that keep an activity relevant to coordination/UI. This includes
+ * `needs_review`, which is no longer executing but is still awaiting a user
+ * decision and should remain discoverable on the item.
  */
-const ACTIVE_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
+const TRACKED_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
   "pending",
   "starting",
   "running",
@@ -45,13 +46,16 @@ export const useAgentActivitiesStore = create<AgentActivitiesStoreState>((set, g
     set({ isRefreshing: true });
     try {
       const activities = await agentActivityService.list({ active: activeOnly });
-      set({
-        activities: sortActivities(
+      set((state) => {
+        const next = sortActivities(
           activities.map((activity) => ({
             ...activity,
-            isStopping: get().activities.find((entry) => entry.runId === activity.runId)?.isStopping ?? false,
+            isStopping: state.activities.find((entry) => entry.runId === activity.runId)?.isStopping ?? false,
           }))
-        ),
+        );
+        // Polled every 5s and usually unchanged. Keeping the previous array
+        // lets every subscriber (the backlog list among them) skip the render.
+        return JSON.stringify(next) === JSON.stringify(state.activities) ? state : { activities: next };
       });
     } catch {
       // Activity polling is supplemental UI state. Preserve the last known
@@ -86,7 +90,7 @@ export const useAgentActivitiesStore = create<AgentActivitiesStoreState>((set, g
 }));
 
 export const selectActiveAgentActivities = (state: AgentActivitiesStoreState): AgentActivityRecord[] => {
-  return state.activities.filter((activity) => ACTIVE_STATUSES.has(activity.status));
+  return state.activities.filter((activity) => TRACKED_STATUSES.has(activity.status));
 };
 
 export const selectLatestActivityForBacklog = (
@@ -99,7 +103,7 @@ export const selectLatestActivityForBacklog = (
       activity.ownerType === "backlog" &&
       activity.ownerKind === backlogKind &&
       activity.ownerName === backlogName &&
-      ACTIVE_STATUSES.has(activity.status)
+      TRACKED_STATUSES.has(activity.status)
   );
   return match ?? null;
 };

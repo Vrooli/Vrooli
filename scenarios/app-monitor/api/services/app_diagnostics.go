@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,14 +59,8 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier)
-	cmd.Env = append(os.Environ(), "TERM=dumb")
-	output, cmdErr := cmd.CombinedOutput()
+	output, cmdErr := cliClient.OutputCombined(ctxWithTimeout, "scenario", "status", commandIdentifier)
 	if cmdErr != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			return nil, fmt.Errorf("failed to execute vrooli scenario status: %s", trimmed)
-		}
 		return nil, fmt.Errorf("failed to execute vrooli scenario status: %w", cmdErr)
 	}
 
@@ -73,12 +68,11 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 	rawOutput := strings.TrimSpace(string(output))
 	details := strings.Split(rawOutput, "\n")
 
-	// Also fetch JSON for metadata extraction (ports, severity, etc)
-	cmdJSON := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier, "--json")
-	cmdJSON.Env = append(os.Environ(), "TERM=dumb")
-	jsonOutput, jsonErr := cmdJSON.CombinedOutput()
-
-	// Default values in case JSON parsing fails
+	// Fetch typed JSON status for structured metadata (status, ports, runtime).
+	// Recommendations / test-infrastructure / a capture timestamp are not part of
+	// the `scenario status` contract (cliv1.ScenarioStatusSingle = scenario +
+	// info + runtime); the prior code parsed an imagined shape and therefore
+	// always defaulted these. They are intentionally left empty now.
 	statusLabel := "UNKNOWN"
 	severity := ScenarioStatusSeverityWarn
 	ports := make(map[string]int)
@@ -87,42 +81,33 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 	runtime := ""
 	processCount := 0
 
-	// Parse JSON if available for structured metadata
-	if jsonErr == nil {
-		cleanJSON, extractErr := extractFirstJSONDocument(jsonOutput)
-		if extractErr == nil {
-			var resp scenarioStatusCLIResponse
-			if err := json.Unmarshal(cleanJSON, &resp); err == nil {
-				statusValue := strings.TrimSpace(resp.ScenarioData.Status)
-				if statusValue == "" {
-					statusValue = strings.TrimSpace(resp.RawResponse.Data.Status)
-				}
-				statusLabel, severity = formatScenarioStatusLabel(statusValue)
-				processCount = len(resp.ScenarioData.Processes)
-				if processCount == 0 && severity == ScenarioStatusSeverityOK {
-					severity = ScenarioStatusSeverityWarn
-				}
+	if statusResp, jsonErr := cliClient.ScenarioStatus(ctxWithTimeout, commandIdentifier); jsonErr == nil {
+		scenario := statusResp.GetScenario()
+		rt := statusResp.GetRuntime()
 
-				for key, value := range resp.ScenarioData.AllocatedPorts {
-					ports[strings.ToUpper(strings.TrimSpace(key))] = value
-				}
-
-				runtime = strings.TrimSpace(resp.ScenarioData.Runtime)
-
-				recs = resp.Recommendations
-				if resp.TestInfrastructure.Overall != nil {
-					recs = append(recs, resp.TestInfrastructure.Overall.Recommendations...)
-					if resp.TestInfrastructure.Overall.Recommendation != "" {
-						recs = append(recs, resp.TestInfrastructure.Overall.Recommendation)
-					}
-				}
-				recs = dedupeStrings(filterNonEmptyStrings(recs))
-
-				if ts := strings.TrimSpace(resp.Metadata.Timestamp); ts != "" {
-					capturedAt = ts
-				}
-			}
+		statusValue := strings.TrimSpace(scenario.GetStatus())
+		if statusValue == "" {
+			statusValue = strings.TrimSpace(rt.GetStatus())
 		}
+		statusLabel, severity = formatScenarioStatusLabel(statusValue)
+
+		processCount = int(rt.GetProcesses())
+		if processCount == 0 {
+			processCount = int(scenario.GetProcesses())
+		}
+		if processCount == 0 && severity == ScenarioStatusSeverityOK {
+			severity = ScenarioStatusSeverityWarn
+		}
+
+		portSource := rt.GetPorts()
+		if len(portSource) == 0 {
+			portSource = scenario.GetPorts()
+		}
+		for key, value := range portSource {
+			ports[strings.ToUpper(strings.TrimSpace(key))] = int(value)
+		}
+
+		runtime = strings.TrimSpace(rt.GetRuntime())
 	}
 
 	return &AppScenarioStatus{
@@ -173,60 +158,6 @@ func resolveScenarioCommandIdentifier(app *repository.App, fallback string) stri
 	}
 
 	return ""
-}
-
-func extractFirstJSONDocument(output []byte) ([]byte, error) {
-	trimmed := bytes.TrimSpace(output)
-	if len(trimmed) == 0 {
-		return nil, errors.New("empty response")
-	}
-
-	start := -1
-	for i, b := range trimmed {
-		if b == '{' || b == '[' {
-			start = i
-			break
-		}
-	}
-	if start == -1 {
-		return nil, errors.New("no JSON document found")
-	}
-
-	data := trimmed[start:]
-	depth := 0
-	inString := false
-	escaped := false
-
-	for i, b := range data {
-		if escaped {
-			escaped = false
-			continue
-		}
-
-		if inString {
-			switch b {
-			case '\\':
-				escaped = true
-			case '"':
-				inString = false
-			}
-			continue
-		}
-
-		switch b {
-		case '"':
-			inString = true
-		case '{', '[':
-			depth++
-		case '}', ']':
-			depth--
-			if depth == 0 {
-				return data[:i+1], nil
-			}
-		}
-	}
-
-	return nil, errors.New("incomplete JSON document")
 }
 
 // =============================================================================
@@ -371,7 +302,7 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 		scenarioSlug = "scenario"
 	}
 
-	port, err := s.locateScenarioAuditorAPIPort(ctx)
+	baseURL, err := s.scenarioAuditorBaseURL(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrScenarioAuditorUnavailable, err)
 	}
@@ -411,7 +342,10 @@ func (s *AppService) CheckIframeBridgeRule(ctx context.Context, appID string) (*
 			return nil, err
 		}
 
-		endpoint := buildLocalAPIURL(port, fmt.Sprintf("/api/v1/rules/%s/scenario-test", rule.ID))
+		endpoint, err := url.JoinPath(baseURL, "api/v1/rules", rule.ID, "scenario-test")
+		if err != nil {
+			return nil, fmt.Errorf("build scenario-auditor endpoint: %w", err)
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 		if err != nil {
 			return nil, err
@@ -742,7 +676,6 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -946,308 +879,6 @@ func formatScenarioStatusLabel(status string) (string, ScenarioStatusSeverity) {
 	}
 }
 
-func escalateScenarioSeverity(current, candidate ScenarioStatusSeverity) ScenarioStatusSeverity {
-	order := map[ScenarioStatusSeverity]int{
-		ScenarioStatusSeverityOK:    0,
-		ScenarioStatusSeverityWarn:  1,
-		ScenarioStatusSeverityError: 2,
-	}
-	if order[candidate] > order[current] {
-		return candidate
-	}
-	return current
-}
-
-func summarizeScenarioHealth(health map[string]scenarioStatusHealthCheck) (ScenarioStatusSeverity, []string) {
-	if len(health) == 0 {
-		return ScenarioStatusSeverityWarn, []string{"  No health diagnostics returned."}
-	}
-
-	keys := make([]string, 0, len(health))
-	for key := range health {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	severity := ScenarioStatusSeverityOK
-	lines := make([]string, 0, len(keys)*4)
-	for _, key := range keys {
-		entry := health[key]
-		displayName := strings.TrimSpace(entry.Name)
-		if displayName == "" {
-			// Format key as title case (e.g., "api_health" -> "Api Health")
-			formatted := strings.ReplaceAll(key, "_", " ")
-			if formatted != "" {
-				// Simple title case: capitalize first letter of each word
-				words := strings.Fields(formatted)
-				for i, word := range words {
-					if len(word) > 0 {
-						words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
-					}
-				}
-				displayName = strings.Join(words, " ")
-			}
-		}
-		if displayName == "" {
-			displayName = strings.ToUpper(key)
-		}
-
-		header := fmt.Sprintf("  %s", displayName)
-		if entry.Port > 0 {
-			header = fmt.Sprintf("%s (port %d):", header, entry.Port)
-		} else {
-			header += ":"
-		}
-		lines = append(lines, header)
-
-		icon, entrySeverity, label := formatHealthStatusLabel(entry.Status)
-		severity = escalateScenarioSeverity(severity, entrySeverity)
-		lines = append(lines, fmt.Sprintf("    Status:      %s %s", icon, label))
-
-		if entry.APIConnectivity != nil {
-			conn := entry.APIConnectivity
-			if conn.Connected {
-				message := "[OK] Connected"
-				if conn.APIURL != "" {
-					message = fmt.Sprintf("%s to %s", message, conn.APIURL)
-				}
-				if conn.LatencyMs != nil && *conn.LatencyMs >= 0 {
-					latency := int(*conn.LatencyMs + 0.5)
-					message = fmt.Sprintf("%s (%dms)", message, latency)
-				}
-				lines = append(lines, fmt.Sprintf("    API link:    %s", message))
-			} else {
-				severity = escalateScenarioSeverity(severity, ScenarioStatusSeverityError)
-				note := "[FAIL] Not connected"
-				if strings.TrimSpace(conn.Error) != "" {
-					note = fmt.Sprintf("%s (%s)", note, strings.TrimSpace(conn.Error))
-				}
-				lines = append(lines, fmt.Sprintf("    API link:    %s", note))
-			}
-		}
-
-		if entry.ResponseTime != nil && *entry.ResponseTime > 0 {
-			latency := int((*entry.ResponseTime * 1000) + 0.5)
-			lines = append(lines, fmt.Sprintf("    Latency:     %dms", latency))
-		}
-
-		if entry.SchemaValid != nil {
-			if *entry.SchemaValid {
-				lines = append(lines, "    Schema:      [OK] Valid")
-			} else {
-				severity = escalateScenarioSeverity(severity, ScenarioStatusSeverityWarn)
-				lines = append(lines, "    Schema:      [WARN] Invalid response schema")
-			}
-		}
-
-		if strings.TrimSpace(entry.Message) != "" {
-			lines = append(lines, fmt.Sprintf("    Note:        %s", strings.TrimSpace(entry.Message)))
-		}
-	}
-
-	return severity, lines
-}
-
-func formatHealthStatusLabel(status string) (string, ScenarioStatusSeverity, string) {
-	normalized := strings.TrimSpace(strings.ToLower(status))
-	if normalized == "" {
-		return "[WARN]", ScenarioStatusSeverityWarn, "UNKNOWN"
-	}
-	label := strings.ToUpper(normalized)
-	switch normalized {
-	case "healthy", "pass", "ok", "good":
-		return "[OK]", ScenarioStatusSeverityOK, label
-	case "fail", "failed", "error", "critical", "down":
-		return "[FAIL]", ScenarioStatusSeverityError, label
-	case "degraded", "warn", "warning", "unstable":
-		return "[WARN]", ScenarioStatusSeverityWarn, label
-	default:
-		return "[WARN]", ScenarioStatusSeverityWarn, label
-	}
-}
-
-func summarizeScenarioTests(infra scenarioStatusTestInfrastructure) (ScenarioStatusSeverity, []string, []string) {
-	entries := []struct {
-		label string
-		entry *scenarioStatusTestEntry
-	}{
-		{"Overall Status", infra.Overall},
-		{"Test Lifecycle", infra.TestLifecycle},
-		{"Phased Testing", infra.PhasedStructure},
-		{"Unit Tests", infra.UnitTests},
-		{"CLI Tests", infra.CliTests},
-		{"UI Tests", infra.UiTests},
-	}
-
-	total := 0
-	for _, item := range entries {
-		if item.entry != nil && (strings.TrimSpace(item.entry.Status) != "" || strings.TrimSpace(item.entry.Message) != "") {
-			total++
-		}
-	}
-
-	if total == 0 {
-		return ScenarioStatusSeverityWarn, []string{"  No test diagnostics returned."}, nil
-	}
-
-	severity := ScenarioStatusSeverityOK
-	lines := make([]string, 0, total)
-	recommendations := make([]string, 0)
-	index := 0
-	for _, item := range entries {
-		entry := item.entry
-		if entry == nil {
-			continue
-		}
-		if strings.TrimSpace(entry.Status) == "" && strings.TrimSpace(entry.Message) == "" {
-			continue
-		}
-		index++
-		prefix := "|-"
-		if index == total {
-			prefix = "`-"
-		}
-
-		icon, entrySeverity := formatTestStatusIndicator(entry.Status)
-		severity = escalateScenarioSeverity(severity, entrySeverity)
-
-		message := strings.TrimSpace(entry.Message)
-		if message == "" {
-			statusLabel := strings.TrimSpace(entry.Status)
-			if statusLabel == "" {
-				message = "No diagnostics reported"
-			} else {
-				message = strings.ToUpper(statusLabel)
-			}
-		}
-
-		lines = append(lines, fmt.Sprintf("%s %s: %s %s", prefix, item.label, icon, message))
-
-		if entry.Recommendation != "" {
-			recommendations = append(recommendations, entry.Recommendation)
-		}
-		if len(entry.Recommendations) > 0 {
-			recommendations = append(recommendations, entry.Recommendations...)
-		}
-	}
-
-	return severity, lines, recommendations
-}
-
-func formatTestStatusIndicator(status string) (string, ScenarioStatusSeverity) {
-	normalized := strings.TrimSpace(strings.ToLower(status))
-	if normalized == "" {
-		return "[WARN]", ScenarioStatusSeverityWarn
-	}
-	switch normalized {
-	case "good", "complete", "present", "passing", "ready":
-		return "[OK]", ScenarioStatusSeverityOK
-	case "missing", "absent", "error", "failed", "critical":
-		return "[FAIL]", ScenarioStatusSeverityError
-	case "partial", "legacy", "warning", "degraded", "incomplete":
-		return "[WARN]", ScenarioStatusSeverityWarn
-	default:
-		return "[WARN]", ScenarioStatusSeverityWarn
-	}
-}
-
-// =============================================================================
-// Fallback Diagnostics via Browserless
-// =============================================================================
-
-// GetFallbackDiagnostics retrieves diagnostic information using browserless when the iframe bridge fails
-func (s *AppService) GetFallbackDiagnostics(ctx context.Context, appID string, url string) (*BrowserlessFallbackResult, error) {
-	if s.browserlessService == nil {
-		return nil, errors.New("browserless service not initialized")
-	}
-
-	id := strings.TrimSpace(appID)
-	if id == "" {
-		return nil, ErrAppIdentifierRequired
-	}
-
-	// Validate that the app exists and get app details
-	app, err := s.GetApp(ctx, id)
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "not found") {
-			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
-		}
-		return nil, err
-	}
-
-	// Resolve the actual URL to use with browserless
-	resolvedURL, err := s.resolveFallbackURL(app, url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve URL for browserless: %w", err)
-	}
-
-	// Use browserless to collect diagnostics
-	result, err := s.browserlessService.GetFallbackDiagnostics(ctx, resolvedURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to collect browserless diagnostics: %w", err)
-	}
-
-	// Store the original URL that was requested
-	result.URL = url
-
-	// Analyze console logs for common errors
-	if result.PageStatus != nil && len(result.ConsoleLogs) > 0 {
-		for _, log := range result.ConsoleLogs {
-			if log.Level == "error" {
-				// Check for module loading errors
-				if strings.Contains(log.Message, "Failed to load module script") ||
-					strings.Contains(log.Message, "MIME type") {
-					result.PageStatus.ModuleError = log.Message
-				}
-				// Check for other load errors
-				if strings.Contains(log.Message, "Failed to fetch") ||
-					strings.Contains(log.Message, "net::ERR") {
-					result.PageStatus.LoadError = log.Message
-				}
-			}
-		}
-	}
-
-	return result, nil
-}
-
-// resolveFallbackURL converts a relative preview URL to an absolute URL that browserless can access.
-// It handles several cases:
-// - Absolute URLs with protocol -> returned as-is
-// - Relative proxy paths (e.g., /apps/qr-code-generator/proxy/) -> converted to app's direct UI port
-// - Already localhost URLs -> returned as-is
-func (s *AppService) resolveFallbackURL(app *repository.App, url string) (string, error) {
-	trimmedURL := strings.TrimSpace(url)
-	if trimmedURL == "" {
-		return "", errors.New("URL cannot be empty")
-	}
-
-	// If URL already has http:// or https://, use it as-is
-	if strings.HasPrefix(trimmedURL, "http://") || strings.HasPrefix(trimmedURL, "https://") {
-		return trimmedURL, nil
-	}
-
-	// For relative paths (like /apps/qr-code-generator/proxy/), we need to construct
-	// an absolute URL using the app's UI port
-	if strings.HasPrefix(trimmedURL, "/") {
-		// Try to find the UI port for this app
-		uiPort := resolveAppPort(app, []string{"ui", "ui_port", "frontend", "web", "UI", "UI_PORT", "WEB", "WEB_PORT"})
-		if uiPort <= 0 {
-			// If no UI port found, this app might not have a web interface
-			return "", fmt.Errorf("no UI port found for app %s (status: %s)", app.ID, app.Status)
-		}
-
-		// Construct absolute URL pointing directly to the app's UI port
-		// We use the direct port instead of the proxy path because:
-		// 1. Browserless needs to access the actual running service
-		// 2. Proxy paths may not work if the app itself has issues
-		return fmt.Sprintf("http://localhost:%d", uiPort), nil
-	}
-
-	// For any other format, assume it's meant to be an http URL
-	return "http://" + trimmedURL, nil
-}
-
 // =============================================================================
 // Completeness Score Diagnostics
 // =============================================================================
@@ -1281,18 +912,13 @@ func (s *AppService) GetAppCompleteness(ctx context.Context, appID string) (*Com
 		commandIdentifier = scenarioName
 	}
 
-	// Execute vrooli scenario completeness (without --json for human-readable output)
+	// Execute vrooli scenario completeness score get (without --json for
+	// human-readable output).
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "completeness", commandIdentifier)
-	cmd.Env = append(os.Environ(), "TERM=dumb")
-	output, cmdErr := cmd.CombinedOutput()
+	output, cmdErr := cliClient.OutputCombined(ctxWithTimeout, "scenario", "completeness", "score", "get", commandIdentifier)
 	if cmdErr != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			return nil, fmt.Errorf("failed to execute vrooli scenario completeness: %s", trimmed)
-		}
 		return nil, fmt.Errorf("failed to execute vrooli scenario completeness: %w", cmdErr)
 	}
 

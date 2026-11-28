@@ -55,11 +55,11 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	// Create test subdirectories
 	templatesDir := filepath.Join(tempDir, "templates", "vanilla")
 	dataDir := filepath.Join(tempDir, "data", "extensions")
-	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create templates dir: %v", err)
 	}
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create data dir: %v", err)
 	}
@@ -73,19 +73,47 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
   "permissions": {{PERMISSIONS}},
   "host_permissions": {{HOST_PERMISSIONS}}
 }`
-	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0o644); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create manifest template: %v", err)
+	}
+	packageContent := `{"name":"{{PACKAGE_NAME}}","version":"{{VERSION}}","description":"{{APP_DESCRIPTION}}"}`
+	if err := os.WriteFile(filepath.Join(templatesDir, "package.json"), []byte(packageContent), 0o644); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create package template: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(templatesDir, "README.md"), []byte("# {{APP_NAME}}\n\n{{APP_DESCRIPTION}}\n"), 0o644); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create README template: %v", err)
+	}
+
+	advancedDir := filepath.Join(tempDir, "templates", "advanced")
+	if err := os.MkdirAll(advancedDir, 0o755); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to create advanced templates dir: %v", err)
+	}
+	for _, template := range []struct {
+		name        string
+		displayName string
+	}{
+		{name: "content-script-only", displayName: "Content Script Only"},
+		{name: "background-only", displayName: "Background Only"},
+		{name: "popup-only", displayName: "Popup Only"},
+	} {
+		metadata := fmt.Sprintf(`{"name":%q,"description":%q,"files":["manifest.json"]}`, template.displayName, "Test "+template.displayName)
+		if err := os.WriteFile(filepath.Join(advancedDir, template.name+".json"), []byte(metadata), 0o644); err != nil {
+			os.RemoveAll(tempDir)
+			t.Fatalf("Failed to create %s template: %v", template.name, err)
+		}
 	}
 
 	// Create test config
 	testConfig := &Config{
-		Port:           3201,
-		APIEndpoint:    "http://localhost:3201",
-		TemplatesPath:  filepath.Join(tempDir, "templates"),
-		OutputPath:     dataDir,
-		BrowserlessURL: "http://localhost:3000",
-		Debug:          false,
+		Port:          3201,
+		APIEndpoint:   "http://localhost:3201",
+		TemplatesPath: filepath.Join(tempDir, "templates"),
+		OutputPath:    dataDir,
+		Debug:         false,
 	}
 
 	return &TestEnvironment{

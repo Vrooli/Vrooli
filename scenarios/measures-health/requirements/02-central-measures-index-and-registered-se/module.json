@@ -1,0 +1,140 @@
+{
+  "description": "Harvest every scenario's manifest `measure` blocks, index them via aisearch-go hybrid search (embedding the measures-go MeasureComposer questions key), serve a single provider RPC reusing the shared measures-go Engine, register once via `search-hub providers register` (type `measure`, bucket STATE), answer read-only measures at high confidence automatically, and return resolved-but-unexecuted with a confirmation signal for write/destructive measures.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement a harvest pipeline that reads every scenario's manifest `measure` blocks and indexes them into an aisearch-go hybrid search index (Qdrant vector store + Ollama embeddings), embedding the measures-go MeasureComposer questions key as the primary embedding text. The index must be populated at service startup and refreshable without downtime. The indexing must mirror the cli-health/KO wiring pattern using packages/aisearch-go.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Central Measures Index Harvest and Indexing",
+      "validation": [
+        {
+          "notes": "Go unit test: harvest function correctly extracts all measure blocks from a fixture scenario manifest and returns a structured index entry per measure",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: embedding key is constructed from MeasureComposer questions field and is non-empty for all fixture measures",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: duplicate measure IDs across scenarios are handled gracefully (last-write-wins or merge with warning)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot the measures-health service against fixture scenarios; assert that a Qdrant collection is created and populated with at least one vector per declared measure block",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue a hybrid search query matching a known measure's questions text; assert the correct measure document is returned in the top-3 results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Harvest and index of 50 scenario manifests each containing up to 10 measure blocks completes within 60 seconds on CI hardware",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Index schema mirrors aisearch-go document structure used by cli-health KO wiring, verified by shared schema type assertion in tests",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Register a single search-hub provider of type `measure` with bucket STATE via `search-hub providers register`. The provider must serve a single Connect RPC reusing the shared measures-go Engine. For read-only measures the provider must answer at high confidence automatically. For write or destructive measures the provider must return a resolved-but-unexecuted response carrying a confirmation signal. The search-hub router must remain thin and never auto-execute write/destructive measures.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Search-Hub Provider Registration and RPC for Measures",
+      "validation": [
+        {
+          "notes": "Go unit test: provider registration payload contains type=measure and bucket=STATE fields exactly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: for a fixture read-only measure, the provider RPC response includes high-confidence flag and a resolved result",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go unit test: for a fixture write/destructive measure, the provider RPC response includes resolved=true, executed=false, and confirmation_required=true signal; auto-execution is never triggered",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot measures-health and search-hub; call `search-hub providers list`; assert exactly one provider of type measure and bucket STATE is registered",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue `search-hub query` with text matching a known read-only measure; assert the response contains the measure hit with a resolved answer and confidence above threshold",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue `search-hub query` with text matching a known write measure; assert the response contains confirmation_required=true and no side effects are produced",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Per-provider RPC response time must not exceed 10 seconds under normal load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Provider is registered exactly once at service startup; duplicate registration attempts are idempotent and do not create multiple entries",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Central Measures Index and Registered Search-Hub Provider"
+}

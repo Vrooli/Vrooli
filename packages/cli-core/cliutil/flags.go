@@ -25,6 +25,13 @@ func (s *StringList) Values() []string {
 	return out
 }
 
+// NewFlagSet creates a CLI flag set that reports parse errors to stderr.
+func NewFlagSet(name string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	return fs
+}
+
 // ParseCSV splits a comma-separated list into trimmed values, dropping blanks.
 func ParseCSV(value string) []string {
 	if strings.TrimSpace(value) == "" {
@@ -40,6 +47,33 @@ func ParseCSV(value string) []string {
 		cleaned = append(cleaned, part)
 	}
 	return cleaned
+}
+
+// ParseCSVValues parses repeated or comma-separated values without changing
+// their order or duplicates.
+func ParseCSVValues(values []string) []string {
+	var parsed []string
+	for _, value := range values {
+		parsed = append(parsed, ParseCSV(value)...)
+	}
+	return parsed
+}
+
+// ParseUniqueCSVValues parses repeated or comma-separated values and keeps the
+// first occurrence of each trimmed, nonblank value.
+func ParseUniqueCSVValues(values []string) []string {
+	seen := make(map[string]struct{})
+	var parsed []string
+	for _, value := range values {
+		for _, part := range ParseCSV(value) {
+			if _, exists := seen[part]; exists {
+				continue
+			}
+			seen[part] = struct{}{}
+			parsed = append(parsed, part)
+		}
+	}
+	return parsed
 }
 
 // MergeArgs joins primary and extra positional arguments, trimming blanks.

@@ -1,0 +1,104 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "pstore_observability",
+  "storage": {
+    "entries": {
+      "collector": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/usr/local/libexec/vrooli/pstore-collector",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "state",
+        "sensitive": false,
+        "rationale": "The safeguard installs the Linux pstore collector executable.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "Durable state storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
+        }
+      },
+      "systemd_service": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/vrooli-pstore-collector.service",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard installs the Linux pstore collector service."
+      },
+      "systemd_timer": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/vrooli-pstore-collector.timer",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard installs the Linux pstore collector timer."
+      }
+    },
+    "rationale": "Linux-only system configuration and executable files are verified by the safeguard file check."
+  },
+  "description": "Export privileged pstore crash artifacts into a Vrooli read-only host-observability directory for unprivileged scenarios",
+  "handler": "pstore_observability",
+  "risk": "medium",
+  "verificationCheck": {
+    "files": [
+      "/usr/local/libexec/vrooli/pstore-collector",
+      "/etc/systemd/system/vrooli-pstore-collector.service",
+      "/etc/systemd/system/vrooli-pstore-collector.timer"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "crash-forensics",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard pstore_observability; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard pstore_observability; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

@@ -25,7 +25,12 @@ import {
   PLATFORM_ORDER,
   PLATFORM_DISPLAY_NAMES,
 } from "./signing.service";
-import type { SigningConfig, DiscoveredCertificate, SigningReadinessResponse, SigningValidationResult } from "../lib/api";
+import type {
+  SigningConfig,
+  DiscoveredCertificate,
+  SigningReadinessResponse,
+  SigningValidationResult,
+} from "../domain/signing";
 
 describe("signing.service", () => {
   describe("constants", () => {
@@ -61,7 +66,9 @@ describe("signing.service", () => {
       expect(result.enabled).toBe(true);
       expect(result.windows?.certificate_source).toBe("store");
       expect(result.windows?.certificate_thumbprint).toBe("THUMBPRINT123");
-      expect(result.windows?.timestamp_server).toBe("http://timestamp.digicert.com");
+      expect(result.windows?.timestamp_server).toBe(
+        "http://timestamp.digicert.com",
+      );
     });
 
     it("applies macOS certificate", () => {
@@ -72,7 +79,9 @@ describe("signing.service", () => {
       const result = applyCertificateToConfig("macos", cert, baseConfig);
 
       expect(result.enabled).toBe(true);
-      expect(result.macos?.identity).toBe("Developer ID Application: Test (ABC123)");
+      expect(result.macos?.identity).toBe(
+        "Developer ID Application: Test (ABC123)",
+      );
       expect(result.macos?.hardened_runtime).toBe(true);
     });
 
@@ -100,7 +109,9 @@ describe("signing.service", () => {
       const cert: DiscoveredCertificate = { id: "NEW_THUMB", name: "New Cert" };
       const result = applyCertificateToConfig("windows", cert, existingConfig);
 
-      expect(result.windows?.timestamp_server).toBe("http://custom.timestamp.com");
+      expect(result.windows?.timestamp_server).toBe(
+        "http://custom.timestamp.com",
+      );
       expect(result.windows?.sign_algorithm).toBe("sha384");
       expect(result.windows?.dual_sign).toBe(true);
     });
@@ -254,15 +265,32 @@ describe("signing.service", () => {
     });
 
     it("returns true for Windows config", () => {
-      expect(hasAnyPlatformConfig({ enabled: false, windows: { certificate_source: "file" } })).toBe(true);
+      expect(
+        hasAnyPlatformConfig({
+          enabled: false,
+          windows: { certificate_source: "file" },
+        }),
+      ).toBe(true);
     });
 
     it("returns true for macOS config", () => {
-      expect(hasAnyPlatformConfig({ enabled: false, macos: { identity: "test", team_id: "", hardened_runtime: false, notarize: false } })).toBe(true);
+      expect(
+        hasAnyPlatformConfig({
+          enabled: false,
+          macos: {
+            identity: "test",
+            team_id: "",
+            hardened_runtime: false,
+            notarize: false,
+          },
+        }),
+      ).toBe(true);
     });
 
     it("returns true for Linux config", () => {
-      expect(hasAnyPlatformConfig({ enabled: false, linux: { gpg_key_id: "test" } })).toBe(true);
+      expect(
+        hasAnyPlatformConfig({ enabled: false, linux: { gpg_key_id: "test" } }),
+      ).toBe(true);
     });
   });
 
@@ -326,7 +354,9 @@ describe("signing.service", () => {
           linux: { ready: false },
         },
       };
-      expect(getPlatformNotReadyReason(readiness, "windows")).toBe("Certificate not found");
+      expect(getPlatformNotReadyReason(readiness, "windows")).toBe(
+        "Certificate not found",
+      );
     });
 
     it("returns default reason when no reason provided", () => {
@@ -338,7 +368,9 @@ describe("signing.service", () => {
           linux: { ready: false },
         },
       };
-      expect(getPlatformNotReadyReason(readiness, "windows")).toBe("Not configured");
+      expect(getPlatformNotReadyReason(readiness, "windows")).toBe(
+        "Not configured",
+      );
     });
   });
 
@@ -411,8 +443,16 @@ describe("signing.service", () => {
     });
 
     it("returns validation valid flag", () => {
-      expect(isValidationPassed({ valid: true, errors: [], warnings: [] })).toBe(true);
-      expect(isValidationPassed({ valid: false, errors: [{ code: "E001", message: "Error" }], warnings: [] })).toBe(false);
+      expect(
+        isValidationPassed({ valid: true, errors: [], warnings: [] }),
+      ).toBe(true);
+      expect(
+        isValidationPassed({
+          valid: false,
+          errors: [{ code: "E001", message: "Error" }],
+          warnings: [],
+        }),
+      ).toBe(false);
     });
   });
 
@@ -470,7 +510,10 @@ describe("signing.service", () => {
     });
 
     it("returns empty array when no match", () => {
-      const filtered = filterCertificatesByPlatform([{ name: "Win Cert", platform: "windows" }], "linux");
+      const filtered = filterCertificatesByPlatform(
+        [{ name: "Win Cert", platform: "windows" }],
+        "linux",
+      );
       expect(filtered).toHaveLength(0);
     });
   });
@@ -484,9 +527,7 @@ describe("signing.service", () => {
     });
 
     it("includes certificates with is_code_sign undefined", () => {
-      const certs: DiscoveredCertificate[] = [
-        { name: "Unknown" },
-      ];
+      const certs: DiscoveredCertificate[] = [{ name: "Unknown" }];
       expect(filterCodeSigningCertificates(certs)).toHaveLength(1);
     });
 

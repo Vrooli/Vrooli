@@ -1,0 +1,89 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "scenario-completeness-scoring.maturity",
+      "lifecycle": "experimental",
+      "provider_group": "scenario-completeness-scoring",
+      "bucket": "BUCKET_STATE",
+      "type": "requirements",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Read cached maturity evidence for exactly one scenario: maturity rung, composite score, source digest, calculated time, phase freshness and approximate/degraded signals. Use an explicit scenario scope. This is a cached owner snapshot, not a current passing-test claim; requirement rows are owned separately by Test Genie.",
+      "routing_profile": {
+        "answer_spaces": ["scenario_maturity", "scenario_state"],
+        "intents": ["check_state", "explain", "identify_maturity"],
+        "positive_examples": [
+          "what cached maturity rung and score does search-hub have",
+          "show the maturity and freshness digest for test-genie",
+          "what is scenario-completeness-scoring's cached completion score"
+        ],
+        "exclusions": [
+          "which requirement rows are passing",
+          "prove a current test run passed",
+          "fleet-wide live health sweep"
+        ]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-completeness-scoring",
+          "path": "/api/v1/search/scores",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"{{scope_value}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-completeness-scoring",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "scenario": "scenario",
+          "source": "source",
+          "basis": "basis",
+          "calculated_at": "calculatedAt",
+          "tree_digest": "digest",
+          "approximate": "approximate",
+          "maturity": "maturity",
+          "composite": "composite",
+          "freshness": "freshness"
+        },
+        "degradations_field": "degradations"
+      },
+      "performance": {"p95_ms": 1000, "degraded_rate_max": 0.2, "minimum_samples": 1, "telemetry_required": false},
+      "tests": {
+        "minimum": {"reviewed_positive": 3, "negative": 2},
+        "suite_id": "scenario-completeness-scoring.maturity.primary",
+        "name": "Scenario-scoped cached maturity evidence",
+        "description": "Development suite for the scoped owner contract; checks stable scenario IDs, digest separation, and empty unrelated queries. It does not prove current tests passed or evaluate the `/4` requirement-status part.",
+        "coverage": {
+          "required_tag_groups": [
+            {"id": "cached-maturity", "description": "Returns owner-cached maturity evidence for the explicitly scoped scenario.", "tags": ["maturity"], "min_reviewed_positive": 3},
+            {"id": "freshness-basis", "description": "Preserves calculated time, digest and phase freshness without claiming current tests.", "tags": ["freshness"], "min_reviewed_positive": 2}
+          ]
+        },
+        "cases": [
+          {"id": "search-hub-cached-maturity", "query": "cached maturity score and freshness", "scope": "scenario:search-hub", "expect_ids": ["scenario-completeness-scoring:search-hub"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "maturity", "freshness"]},
+          {"id": "test-genie-maturity", "query": "show cached maturity rung for test-genie", "scope": "scenario:test-genie", "expect_ids": ["scenario-completeness-scoring:test-genie"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "maturity"]},
+          {"id": "scs-own-snapshot", "query": "scenario-completeness-scoring cached score", "scope": "scenario:scenario-completeness-scoring", "expect_ids": ["scenario-completeness-scoring:scenario-completeness-scoring"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "maturity"]},
+          {"id": "code-facts-freshness", "query": "maturity phase freshness digest for code-facts", "scope": "scenario:code-facts", "expect_ids": ["scenario-completeness-scoring:code-facts"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "maturity", "freshness"]},
+          {"id": "unrelated-gibberish", "query": "zqxv qlpn vvzz nebula", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "unrelated-external-query", "query": "weather forecast tomorrow", "scope": "scenario:test-genie", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    }
+  ]
+}

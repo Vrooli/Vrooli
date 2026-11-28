@@ -1,65 +1,74 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { Input, Textarea } from "./input";
+/**
+ * Consumer checks for the shared versioned RCL Input contract.
+ */
+import { useRef } from "react";
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
-// [REQ:BM-REQ-UI-CREATE] [REQ:BM-REQ-UI-GENERATE]
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 
 describe("Input", () => {
-  it("renders default variant", () => {
-    render(<Input data-testid="inp" placeholder="Type here" />);
-    const inp = screen.getByTestId("inp");
-    expect(inp).toBeTruthy();
-    expect(inp.getAttribute("placeholder")).toBe("Type here");
-    expect(inp.className).toContain("rounded-lg");
+  it("renders the shared RCL Input marker", () => {
+    render(<Input data-testid="i" />);
+    const el = screen.getByTestId("i");
+    expect(el).toHaveAttribute("data-rcl-input", "true");
   });
 
-  it("renders search variant with extra padding", () => {
-    render(<Input variant="search" data-testid="search" />);
-    const inp = screen.getByTestId("search");
-    expect(inp.className).toContain("pl-10");
+  it("merges a custom className with the base classes via cn()", () => {
+    render(<Input data-testid="i" className="custom-extra" />);
+    const el = screen.getByTestId("i");
+    expect(el.className).toMatch(/custom-extra/);
+    expect(el).toHaveAttribute("data-rcl-input", "true");
   });
 
-  it("renders sm size", () => {
-    render(<Input inputSize="sm" data-testid="sm" />);
-    const inp = screen.getByTestId("sm");
-    expect(inp.className).toContain("text-xs");
+  it("forwards ref to the underlying HTMLInputElement", () => {
+    const Capture = () => {
+      const ref = useRef<HTMLInputElement | null>(null);
+      return (
+        <>
+          <Input ref={ref} data-testid="i" />
+          <button
+            type="button"
+            data-testid="probe"
+            onClick={() => {
+              if (ref.current instanceof HTMLInputElement) {
+                ref.current.setAttribute("data-ref-ok", "true");
+              }
+            }}
+          >
+            probe
+          </button>
+        </>
+      );
+    };
+    render(<Capture />);
+    screen.getByTestId("probe").click();
+    expect(screen.getByTestId("i")).toHaveAttribute("data-ref-ok", "true");
   });
 
-  it("forwards onChange handler", () => {
-    const handler = vi.fn();
-    render(<Input data-testid="inp" onChange={handler} />);
-    fireEvent.change(screen.getByTestId("inp"), { target: { value: "hello" } });
-    expect(handler).toHaveBeenCalledTimes(1);
+  it("passes through arbitrary input attributes (type, placeholder, disabled)", () => {
+    render(
+      <Input
+        data-testid="i"
+        type="email"
+        placeholder="email-ph"
+        disabled
+      />,
+    );
+    const el = screen.getByTestId<HTMLInputElement>("i");
+    expect(el.type).toBe("email");
+    expect(el.placeholder).toBe("email-ph");
+    expect(el.disabled).toBe(true);
   });
 
-  it("merges custom className", () => {
-    render(<Input className="my-custom" data-testid="inp" />);
-    expect(screen.getByTestId("inp").className).toContain("my-custom");
-  });
+  it("registers user typing through the native input value", async () => {
+    const user = userEvent.setup();
+    render(<Input data-testid="i" />);
+    const el = screen.getByTestId<HTMLInputElement>("i");
 
-  it("forwards disabled attribute", () => {
-    render(<Input disabled data-testid="inp" />);
-    expect(screen.getByTestId("inp").getAttribute("disabled")).toBeDefined();
-  });
-});
+    await user.type(el, "abc");
 
-describe("Textarea", () => {
-  it("renders with placeholder", () => {
-    render(<Textarea data-testid="ta" placeholder="Notes..." />);
-    const ta = screen.getByTestId("ta");
-    expect(ta).toBeTruthy();
-    expect(ta.getAttribute("placeholder")).toBe("Notes...");
-  });
-
-  it("forwards onChange handler", () => {
-    const handler = vi.fn();
-    render(<Textarea data-testid="ta" onChange={handler} />);
-    fireEvent.change(screen.getByTestId("ta"), { target: { value: "text" } });
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
-
-  it("merges custom className", () => {
-    render(<Textarea className="extra" data-testid="ta" />);
-    expect(screen.getByTestId("ta").className).toContain("extra");
+    expect(el.value).toBe("abc");
   });
 });

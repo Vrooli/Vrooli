@@ -1,0 +1,8 @@
+{"text":"My name is John Smith and my email is john.smith@acme.com.","expected":["FIRSTNAME","LASTNAME","EMAIL_ADDRESS"]}
+{"text":"Please contact Sarah to arrange the meeting.","expected":["FIRSTNAME"]}
+{"text":"The account SSN is 123-45-6789 on file.","expected":["SSN"]}
+{"text":"Wire the funds to IBAN GB82WEST12345698765432 today.","expected":["IBAN"]}
+{"text":"Her username is sarah_j for the portal login.","expected":["USERNAME"]}
+{"text":"Reach me at 415-555-0199 before noon.","expected":["PHONENUMBER"]}
+{"text":"Contact Michael via michael@example.org or visit https://example.org.","expected":["FIRSTNAME","EMAIL_ADDRESS","URL"]}
+{"text":"The applicant is a 42 year old living in Chicago.","expected":["AGE"]}

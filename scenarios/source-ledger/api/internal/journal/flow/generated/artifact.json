@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 6,
+  "flowId": "journal-write",
+  "source": {
+    "contractPath": "api/internal/journal/flow/flow.json",
+    "contractSha256": "cfafaa5353794c44705ca331cbed00525b3f84dab5ce003028942e1af015e089",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/journal/flow/generated/model.qnt",
+    "modelSha256": "7aa80e773add4a43631cbfa8ed93a22a88e8c5d0dc55b05373c883b16aabac68",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/journal/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026072701",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "3",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/journal/flow/generated/model.qnt",
+      "--seed",
+      "2026072701"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/journal/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/journal/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "3"
+    ]
+  },
+  "states": [
+    "received",
+    "appended"
+  ],
+  "events": [
+    "append"
+  ],
+  "transitions": [
+    {
+      "from": "received",
+      "event": "append",
+      "to": "appended",
+      "wantError": false
+    },
+    {
+      "from": "appended",
+      "event": "append",
+      "to": "appended",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "durable_append_retains_incomplete_enrichment",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        },
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "received",
+        "appended"
+      ],
+      "coveredEvents": [
+        "append"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "received",
+        "appended"
+      ],
+      "coveredEvents": [
+        "append"
+      ],
+      "coveredPairs": [
+        "received/append",
+        "appended/append"
+      ],
+      "allPairsCovered": true
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

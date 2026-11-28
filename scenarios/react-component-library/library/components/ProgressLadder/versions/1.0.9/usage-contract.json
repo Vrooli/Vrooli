@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:ProgressLadder",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 8,
+    "maximumLabelCharacters": 32,
+    "primaryAction": "not-applicable",
+    "property": "rungs",
+    "stableIdField": "id",
+    "typicalCount": 4
+  },
+  "version": "1.0.9"
+}

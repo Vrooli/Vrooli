@@ -9,7 +9,7 @@
       "description": "Provide CLI commands for all sandbox operations including create, list, inspect, diff, approve, reject, delete and gc. Must support both interactive and automated usage.",
       "id": "REQ-P1-009",
       "prd_ref": "OT-P1-009",
-      "status": "draft",
+      "status": "in_progress",
       "title": "Command Line Interface",
       "validation": [
         {

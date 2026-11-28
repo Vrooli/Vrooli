@@ -1,0 +1,21 @@
+{
+ "question": "Keep the quota-saving Codex mode, and stop asking about it every day?",
+ "big_picture": "The mode sends new Codex work to a cheaper model so your weekly usage quota lasts longer. You have kept it on every time you answered, so I recommend keeping it as a standing choice and checking again only if usage passes 80% or work quality drops. You can keep the daily check instead, or turn the mode off and use quota faster. If you do not answer, the mode stays on and the question returns tomorrow.",
+ "recommend": "standing",
+ "reason": "You have kept it on every time you answered, and a standing rule preserves the quota benefit without daily interruptions.",
+ "options": [
+  {
+   "key": "standing",
+   "label": "Keep it on as a standing choice; ask again only if usage or quality changes"
+  },
+  {
+   "key": "daily",
+   "label": "Keep it on and continue the daily check"
+  },
+  {
+   "key": "off",
+   "label": "Turn it off; new Codex work returns to stronger models"
+  }
+ ],
+ "technical_details": "Usage mode began 9 Nov 2026 with no end time. Four work types remain on usual models: fallback, review, supervision, and judgment. Prior history: 14 asks since 4 Nov; every reply said keep it on; two expired unanswered and two were dismissed. To end the mode later, use agent-manager usage mode end with the active mode ID."
+}

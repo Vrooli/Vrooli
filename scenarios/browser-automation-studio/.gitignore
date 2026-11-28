@@ -1,3 +1,19 @@
 cli/cli
 cli/browser-automation-studio
 bundle/runtime/linux-x64/runtime
+/api/browser-automation-studio
+/bas/seeds/seeds
+/bundle/runtime/linux-x64/runtimectl
+/seeds
+/api/movie-spec-gen
+
+# Local browser projects and runtime database state.
+/data/
+
+# Long-goal evidence lives in the external research home; Playwright MCP page
+# snapshots are disposable capture output.
+/runs/
+/playwright-driver/.playwright-mcp/
+
+# Generated scenario-dependency report cache.
+/.vrooli/deployment/

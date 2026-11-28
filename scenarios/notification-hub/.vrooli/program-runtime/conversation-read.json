@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "notification-hub.conversation-read",
+  "version": "1",
+  "purpose": "Read one exact Notification Hub ask using the owner's conversation-scoped GetAsk binding.",
+  "inputs": {
+    "ask_id": {"type": "string", "default": "", "description": "Exact owner-issued ask ID; mutually exclusive with subject_key."},
+    "subject_key": {"type": "string", "default": "", "description": "Exact owner-issued subject key; mutually exclusive with ask_id."}
+  },
+  "assumptions": [
+    "Notification Hub is the authority for both exact identity and conversation/owner access; a refused or not-found read stays refused/unavailable.",
+    "The ask is returned only to the authorized caller through this program result; do not copy private conversation content into Memory, evidence, logs, or another destination."
+  ],
+  "invariants": [
+    "Exactly one non-empty ask_id or subject_key is required; the program never lists or searches asks.",
+    "Use only notification-hub/conversations/get and verify the returned ask ID or subject key matches the requested identity.",
+    "Return the owner ask to the authorized caller without writing, summarizing, logging, or copying its content elsewhere.",
+    "On error, omit owner detail because it may include private conversation data."
+  ],
+  "bindings": [
+    {"id": "notification-hub/conversations/get", "effect": "read"}
+  ],
+  "outputs": {
+    "status": {"enum": ["ok", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {"ask": "The exact owner ask returned to its authorized caller; conversation content is private and not retained by this program outside its run receipt."},
+    "errors": {"classes": ["invalid_input", "invalid_response", "no_grant", "no_governed_binding", "scenario_unreachable", "remote_error", "binding_error", "kernel_runtime"]},
+    "evidence": "The single owner GetAsk binding; no ask fields or content are copied into evidence."
+  },
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 1, "output_bytes": 65536},
+  "fixtures": [
+    {"id": "missing-selector", "inputs": {}, "expect": {"status": ["failed"]}},
+    {"id": "conflicting-selectors", "inputs": {"ask_id": "ask-1", "subject_key": "key-1"}, "expect": {"status": ["failed"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "notification-hub",
+  "verbs": ["validate"]
+}

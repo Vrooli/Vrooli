@@ -1,0 +1,21 @@
+{
+  "displayName": "Data Backup Manager",
+  "icon": "data-backup-manager",
+  "appDelivery": true,
+  "categories": [
+    { "key": "volume-mount-failed", "displayName": "Backup drive could not be mounted", "description": "Identity-bound automatic remount failed and the drive needs review.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "volume-recovery-completed", "displayName": "Backup drive recovery completed", "description": "A requested drive recovery sequence completed and its resulting state was verified.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "volume-recovery-failed", "displayName": "Backup drive recovery needs attention", "description": "An approved or automatic recovery action failed, was refused, or needs inspection before it can safely continue.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "backup-stalled", "displayName": "Backups have stalled", "description": "An enabled backup plan has had no successful run for longer than twice its schedule (at least 48 hours). Repeats daily while it lasts.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "backup-plan-disabled", "displayName": "A switched-off backup plan leaves items unprotected", "description": "A disabled backup plan holds items that no other plan protects, so those items are not being backed up. Sent once per distinct set of plans.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "backup-exception-active", "displayName": "Backups running with accepted unreadable files", "description": "Backups run under an approved exception for unreadable leftover files in the repository. A standing daily warning while the exception applies.", "defaultEnabled": true, "defaultMinUrgency": "low" },
+    { "key": "backup-recovery-completed", "displayName": "Backup recovery completed", "description": "A backup-failure answer was applied and backups can resume, or backups succeeded again after a failure.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "backup-recovery-needs-attention", "displayName": "Backup recovery needs attention", "description": "A backup-failure question was declined, dismissed, refused, or its action failed, or it needs an agent. Backups stay blocked.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "backup", "displayName": "Sensitive coverage backup note", "description": "A weekly note reports new locations included by the standing sensitive-coverage backup rule.", "defaultEnabled": true, "defaultMinUrgency": "low" },
+    { "key": "fresh-migration-plan-changed", "displayName": "Backup migration plan changed", "description": "The approved backup migration plan or target set changed, so migration stopped for review.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "backup-recovery-completed-fresh-migration-complete", "displayName": "Fresh backup migration completed", "description": "A fresh backup destination migration completed and the recovered plan was committed.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "backup-recovery-needs-attention-fresh-migration-paused", "displayName": "Fresh backup migration paused", "description": "A fresh backup destination migration was paused and needs owner review.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "fresh-destination-registration-pending", "displayName": "Backup destination registration pending", "description": "The approved destination registration is still being completed.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "fresh-destination-registration-complete", "displayName": "Backup destination registered", "description": "The approved destination is registered and ready for backup migration.", "defaultEnabled": true, "defaultMinUrgency": "normal" }
+  ]
+}

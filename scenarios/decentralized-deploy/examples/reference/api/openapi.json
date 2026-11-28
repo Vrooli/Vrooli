@@ -1,0 +1,20 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Decentralized deployment reference API",
+    "version": "0.1.0",
+    "description": "Synthetic API contract bundled with the reference site for storage adapter verification."
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Report that the reference API is ready",
+        "responses": {
+          "200": {
+            "description": "The API is healthy"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,152 @@
+/* The study uses the Aquila sidebar mode and its operational palette. */
+:root {
+  --base:#070a12; --rail:#101827; --surface:#111827; --raised:#1b2637; --edge:#2b3749;
+  --stage:#090e18; --fg:#f2f6fb; --secondary:#a7b7cb; --hint:#879bb5;
+  --accent:#70dcef; --ink:#082530; --accent-wash:#0b3545; --ok:#8ee1bd;
+  --blue:#8fc9ff; --blue-wash:#192e47;
+  --composer:#101827; --userMessage:#081e2c;
+}
+:root[data-theme='light'] {
+  --base:#f2f6fb; --rail:#f9fbfe; --surface:#fff; --raised:#eaf1f8; --edge:#c4d2e1;
+  --stage:#e5edf7; --fg:#16263c; --secondary:#4a6079; --hint:#526a87;
+  --accent:#076c85; --ink:#fff; --accent-wash:#d9eef4; --ok:#1b654e;
+  --blue:#225f9a; --blue-wash:#e1edfa; --composer:#f9fbfe; --userMessage:#e2f1f7;
+}
+.aquilaShell {display:grid;grid-template-columns:300px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;width:100%;height:100dvh;min-height:520px;overflow:hidden}
+.aquilaPhoneBar {display:none}
+.sessionsDesktop,.sessionsMobile {display:flex;min-height:0;flex-direction:column;background:var(--rail);color:var(--fg);border-right:1px solid var(--edge)}
+.sessionsHeader {display:grid;grid-template-columns:27px minmax(0,1fr) auto auto;align-items:center;gap:5px;min-height:44px;padding:0 9px 0 15px;border-bottom:1px solid var(--edge)}
+.sessionsHeader .logoMark {width:24px;height:24px}
+[data-theme='light'] .sessionsHeader .logoMark {filter:invert(1)}
+.sessionsHeader strong,.sessionRow strong {font-weight:565}
+.sessionsHeader small,.sessionRow small {display:flex;align-items:center;gap:4px;font-size:11px;color:var(--secondary)}
+.sessionsHeader button[data-rcl-control] {min-height:31px;min-width:33px}
+.sortLine {min-height:32px;display:flex;align-items:center;gap:6px;padding:4px 11px;color:var(--secondary);border-bottom:1px solid var(--edge);font-size:11px}
+.sortValue {display:flex;align-items:center;justify-content:space-between;gap:7px;flex:1;padding:2px 6px;border-radius:4px;background:var(--raised);color:var(--secondary)}
+.sessionRows {flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:5px;padding:8px}
+.sessionRow {display:flex;align-items:center;gap:8px;min-height:57px;width:100%;border:1px solid transparent;border-radius:5px;padding:7px 8px;background:transparent;color:var(--fg);text-align:left}
+.sessionRow[aria-current='page'] {border-color:color-mix(in srgb,var(--accent) 35%,transparent);background:color-mix(in srgb,var(--surface) 83%,var(--accent-wash));color:var(--fg)}
+.sessionRow:hover,.globalBrowser:hover,.archiveRow:hover {background:var(--raised);color:var(--fg)}
+.sessionRow i {width:5px;height:30px;background:var(--raised);border-radius:5px}
+.sessionsFooter {border-top:1px solid var(--edge)}
+.globalBrowser,.archiveRow {width:100%;min-height:40px;border:0;display:grid;grid-template-columns:20px minmax(0,1fr) 17px;align-items:center;gap:8px;padding:0 11px;background:transparent;color:var(--fg);text-align:left}
+.globalBrowser {border-bottom:1px solid var(--edge);font-weight:660}
+.globalBrowser svg:first-child {color:var(--accent)}
+.globalBrowser svg:last-child {color:var(--hint)}
+.globalBrowser[aria-current='page'] {background:var(--accent-wash);color:var(--accent)}
+.archiveRow small {display:grid;place-items:center;background:var(--raised);color:var(--secondary);border-radius:4px}
+.aquilaShell>.shellPane {grid-column:2;grid-row:1}
+.aquilaShell .workspace {display:flex;flex-direction:column;width:100%;height:100%;min-height:0;padding:0}
+.viewTools {display:flex;align-items:center;gap:6px;padding:5px 9px;flex:none}
+.viewTools button[data-rcl-control] {min-height:33px;min-width:33px;border-radius:50%;background:var(--surface);color:var(--secondary);border-color:var(--edge)}
+.messageSearch {min-width:80px;flex:1;display:flex;align-items:center;gap:7px;min-height:39px;padding:0 15px;border:1px solid var(--edge);border-radius:999px;background:var(--surface);color:var(--hint);font-size:12px;text-align:left;overflow:hidden}
+.messageSearch span {white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conversationScroll {overflow:auto;flex:1;padding:0 8px}
+.chatMessage {padding:15px 12px 12px;border-bottom:1px solid var(--edge)}
+.chatMessage>div {display:flex;align-items:baseline;gap:7px;margin-bottom:8px;font-size:12px}
+.chatMessage time {color:var(--hint);font:10px ui-monospace,monospace}
+.chatMessage p {padding:9px 0;font-size:16px;line-height:1.6}
+.chatMessage.you p {background:var(--userMessage);color:var(--fg);border-radius:11px;padding:14px 12px}
+.sampleTerminal {padding:8px;color:var(--fg)}
+.sampleTerminal span {color:var(--ok)}
+.messagesFooter {grid-column:1/-1;grid-row:2;min-width:0;padding:5px 8px 7px;background:var(--composer);color:var(--secondary);border-top:1px solid var(--edge)}
+.messageComposer {width:100%;min-height:46px;display:flex;align-items:center;gap:7px;padding:3px 5px 3px 14px;border:1px solid var(--edge);border-radius:999px}
+.messageComposer input {flex:1;min-width:0;border:0;background:transparent;color:var(--fg);font-size:16px}
+.messageComposer button[data-rcl-control] {margin:0;min-height:37px;min-width:37px;padding:0;border-radius:50%}
+.messageKeys {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:7px}
+.messageKeys button[data-rcl-control] {min-height:38px;background:var(--raised);color:var(--secondary);border-color:var(--edge);border-radius:6px}
+.aquilaShell .viewer {grid-template-rows:64px minmax(0,1fr) auto auto;grid-row:1/-1;min-height:0;overflow:hidden}
+.aquilaShell .viewerHeader,.aquilaShell .viewerFooter {padding-inline:14px}
+.aquilaShell .viewerHeader {background:var(--rail);color:var(--fg)}
+.aquilaShell .viewerFooter {min-height:40px;justify-content:flex-start;gap:11px}
+.aquilaShell .stage {padding:9px 18px;overflow:hidden}
+.aquilaShell .browser {width:100%;border-radius:9px;box-shadow:none}
+.aquilaShell .browserTabs {min-height:33px}
+.aquilaShell .browserTabs>button:not([data-rcl-control]) {min-height:28px}
+.aquilaShell .browserAddress {min-height:37px;padding-block:2px}
+.aquilaShell .browserAddress>button[data-rcl-control] {min-height:31px}
+.aquilaShell .shopHero {min-height:320px}
+.aquilaShell .shopHeader {min-height:54px}
+.aquilaShell .shopCopy h1 {font-size:clamp(2.5rem,5.8cqw,4.4rem)}
+.aquilaShell .device {height:100%;min-height:0;max-height:700px}
+.paneViews {display:flex;align-items:center;gap:4px}
+.paneViews button[data-rcl-control] {min-height:32px;min-width:33px;border-radius:50%;background:var(--raised);color:var(--secondary);border-color:var(--edge)}
+.aquilaShell>.inventory {grid-column:2;grid-row:1/-1}
+.activityTimeline {min-width:0;padding:9px 14px 10px;background:var(--surface);color:var(--fg);border-top:1px solid var(--edge)}
+.activityTop,.activityTitle,.activityRecording {display:flex;align-items:center;gap:7px}
+.activityTop {justify-content:space-between}
+.activityTitle h2 {font-size:13px;font-weight:650;letter-spacing:.005em}
+.activityTitle>svg {color:var(--secondary)}
+.activityRecording {color:var(--blue);font-size:11px}
+.activityEmpty {color:var(--secondary);font-size:12px;margin-top:7px}
+.scrubRow {display:flex;min-height:24px;align-items:center}
+.scrubRow input {width:100%;height:23px;margin:0;accent-color:var(--accent);cursor:ew-resize}
+.filmstrip {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;min-width:0;align-items:stretch}
+.frames {position:relative;display:flex;align-items:stretch;gap:6px;overflow:auto;scrollbar-width:thin;scroll-padding:6px}
+.frame {display:flex;align-items:center;gap:7px;min-width:141px;max-width:290px;flex:1 0 141px;min-height:49px;text-align:left;padding:4px;border-radius:7px;border:1px solid var(--edge);background:var(--raised);color:var(--fg)}
+.frame[aria-pressed='true'] {border-color:var(--accent);background:var(--accent-wash);color:var(--fg)}
+.frame:focus-visible {outline-offset:-2px}
+.frame img {width:53px;height:36px;object-fit:cover;object-position:center;border-radius:4px;border:1px solid var(--edge)}
+.frame span {display:grid;gap:1px;min-width:0}
+.frame b {font-weight:650;font-size:10px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.frame small {color:var(--secondary);font-size:10px;white-space:nowrap}
+.timelineLive {display:flex;align-items:center;justify-content:center;gap:6px;min-height:47px;min-width:70px;padding:0 9px;border:1px solid var(--edge);border-radius:7px;background:var(--surface);color:var(--secondary);font-size:12px;font-weight:700}
+.timelineLive[aria-pressed='true'],.timelineLive:hover {background:var(--accent-wash);color:var(--accent);border-color:var(--accent)}
+.snapshot {display:flex;flex-direction:column;min-height:0;height:100%;width:100%;background:var(--surface);color:var(--fg);border:1px solid var(--edge);border-radius:9px;overflow:hidden}
+.snapshotHeader {display:flex;justify-content:space-between;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--edge);background:var(--raised);color:var(--fg)}
+.snapshotHeader>div {display:grid;min-width:0;gap:1px}
+.snapshotHeader strong {font-size:13px}
+.snapshotHeader span {font-size:11px;color:var(--secondary)}
+.snapshotHeader .readOnlyTag {border:1px solid var(--edge);border-radius:999px;padding:3px 7px;white-space:nowrap}
+.historyFrame {flex:1;min-height:0;display:grid;place-items:center;background:var(--stage);color:var(--fg);overflow:hidden}
+.historyFrame>img {width:100%;height:100%;max-height:100%;object-fit:contain}
+.historyFrame.phoneFrame>img {width:min(100%,350px)}
+.aquilaShell .toast {bottom:51px}
+.shellFixtureCopy {padding-bottom:14px}
+@media (min-width:651px) and (max-width:900px) {
+  .aquilaShell {grid-template-columns:228px minmax(0,1fr)}
+}
+@media (max-width:650px) {
+  .aquilaShell {grid-template-columns:minmax(0,1fr);grid-template-rows:40px minmax(0,1fr) auto;min-height:520px}
+  .aquilaShell>.shellPane,.aquilaShell>.inventory {grid-column:1;grid-row:2}
+  .sessionsDesktop {display:none}
+  .aquilaPhoneBar {grid-column:1;grid-row:1;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;align-items:center;gap:4px;padding:0 8px;background:var(--rail);color:var(--fg);border-bottom:1px solid var(--edge)}
+  .aquilaPhoneBar>span {white-space:nowrap;text-overflow:ellipsis;overflow:hidden;font-size:13px}
+  .aquilaPhoneBar button[data-rcl-control] {min-height:40px;min-width:39px}
+  .sessionsMobile {width:100%;height:100%}
+  dialog.drawerModal {position:fixed;inset:0 auto 0 0;margin:0;width:calc(100% - 56px);height:100dvh;max-height:100dvh;border-radius:0;padding:0;border:0;border-right:1px solid var(--edge);overflow:hidden}
+  dialog.drawerModal>header {display:none}
+  .viewTools {padding:5px 8px;gap:5px}
+  .viewTools button[data-rcl-control] {min-height:44px;min-width:43px}
+  .messageSearch {min-height:42px;padding:0 11px}
+  .chatMessage {padding:14px 11px 11px}
+  .chatMessage p {font-size:16px}
+  .messageKeys button[data-rcl-control] {min-height:39px}
+  .messagesFooter {grid-column:1;grid-row:3}
+  .aquilaShell .viewer {grid-row:2/4;grid-template-rows:55px minmax(0,1fr) auto auto}
+  .aquilaShell .viewerHeader,.aquilaShell .viewerFooter {padding-inline:7px}
+  .aquilaShell .viewerHeaderActions {gap:1px}
+  .targetButton {max-width:100%;gap:5px;overflow:hidden}
+  .viewerHeaderActions .owner {flex:none}
+  .aquilaShell .stage {padding:0}
+  .aquilaShell .browser,.snapshot {border:0;border-radius:0}
+  .aquilaShell .shopHero {min-height:0}
+  .aquilaShell .shopCopy h1 {font-size:clamp(1.85rem,10cqw,3.25rem)}
+  .aquilaShell .deviceStage {padding:6px 12px}
+  .activityTimeline {padding:6px 8px 7px}
+  .activityTitle h2 {font-size:12px}
+  .activityRecording {font-size:10px}
+  .scrubRow {min-height:22px}
+  .filmstrip {gap:5px}
+  .frames {gap:5px}
+  .frame {min-height:48px;min-width:125px;flex-basis:125px;max-width:141px}
+  .frame img {width:34px;height:32px}
+  .frame b {white-space:normal;line-height:1.1;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .timelineLive {min-height:45px;min-width:55px;padding:0 5px}
+  .aquilaShell .viewerFooter {display:grid;grid-template-columns:auto 1fr;row-gap:1px;padding-bottom:max(7px,env(safe-area-inset-bottom))}
+  .aquilaShell .paneViews button[data-rcl-control] {min-height:38px;min-width:35px}
+  .aquilaShell .footerStatus {min-height:27px}
+  .aquilaShell .mobileActions button[data-rcl-control] {min-height:42px}
+  .aquilaShell .toast {bottom:102px}
+  .snapshotHeader {padding:6px 7px}
+}

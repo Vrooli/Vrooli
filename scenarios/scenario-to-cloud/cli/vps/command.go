@@ -1,7 +1,9 @@
 package vps
 
 import (
+	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -34,7 +36,6 @@ Commands:
   setup apply <manifest.json> <bundle.tar.gz>   Execute VPS setup
   deploy plan <manifest.json>                   Generate VPS deploy plan
   deploy apply <manifest.json>                  Execute VPS deploy
-
 Run 'scenario-to-cloud vps <command> -h' for command-specific options.`)
 	return nil
 }
@@ -55,14 +56,20 @@ func runSetup(client *Client, args []string) error {
 }
 
 func runSetupPlan(client *Client, args []string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("usage: scenario-to-cloud vps setup plan <manifest.json> <bundle.tar.gz>")
+	fs := flag.NewFlagSet("vps setup plan", flag.ContinueOnError)
+	deploymentID := fs.String("deployment-id", "", "Existing deployment identity for governed setup")
+	requestKey := fs.String("request-key", "", "Stable idempotency key")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
-	manifest, err := internalmanifest.ReadJSONFile(args[0])
+	if fs.NArg() != 2 {
+		return fmt.Errorf("usage: scenario-to-cloud vps setup plan <manifest.json> <bundle.tar.gz> [--deployment-id <id>] [--request-key <key>]")
+	}
+	manifest, err := internalmanifest.ReadJSONFile(fs.Arg(0))
 	if err != nil {
 		return err
 	}
-	body, _, err := client.SetupPlan(manifest, args[1])
+	body, _, err := client.SetupPlan(manifest, fs.Arg(1), *deploymentID, *requestKey)
 	if err != nil {
 		return err
 	}
@@ -71,14 +78,22 @@ func runSetupPlan(client *Client, args []string) error {
 }
 
 func runSetupApply(client *Client, args []string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("usage: scenario-to-cloud vps setup apply <manifest.json> <bundle.tar.gz>")
+	planDigest, positional := extractPlanDigest(args)
+	fs := flag.NewFlagSet("vps setup apply", flag.ContinueOnError)
+	deploymentID := fs.String("deployment-id", "", "Existing deployment identity for governed setup")
+	requestKey := fs.String("request-key", "", "Stable idempotency key")
+	if err := fs.Parse(positional); err != nil {
+		return err
 	}
-	manifest, err := internalmanifest.ReadJSONFile(args[0])
+	positional = fs.Args()
+	if len(positional) != 2 {
+		return fmt.Errorf("usage: scenario-to-cloud vps setup apply <manifest.json> <bundle.tar.gz> [--plan-digest <digest>] [--deployment-id <id>] [--request-key <key>]")
+	}
+	manifest, err := internalmanifest.ReadJSONFile(positional[0])
 	if err != nil {
 		return err
 	}
-	body, _, err := client.SetupApply(manifest, args[1])
+	body, _, err := client.SetupApply(manifest, positional[1], planDigest, *deploymentID, *requestKey)
 	if err != nil {
 		return err
 	}
@@ -118,17 +133,38 @@ func runDeployPlan(client *Client, args []string) error {
 }
 
 func runDeployApply(client *Client, args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud vps deploy apply <manifest.json>")
+	planDigest, positional := extractPlanDigest(args)
+	if len(positional) != 1 {
+		return fmt.Errorf("usage: scenario-to-cloud vps deploy apply <manifest.json> [--plan-digest <digest>]")
 	}
-	manifest, err := internalmanifest.ReadJSONFile(args[0])
+	manifest, err := internalmanifest.ReadJSONFile(positional[0])
 	if err != nil {
 		return err
 	}
-	body, _, err := client.DeployApply(manifest)
+	body, _, err := client.DeployApply(manifest, planDigest)
 	if err != nil {
 		return err
 	}
 	cliutil.PrintJSON(body)
 	return nil
+}
+
+// extractPlanDigest pulls --plan-digest <digest> (or --plan-digest=<digest>)
+// out of args. Without it apply compiles the plan first and applies the digest
+// it was shown; with it the previously reviewed digest is applied and a
+// changed plan is refused by the API.
+func extractPlanDigest(args []string) (digest string, positional []string) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--plan-digest" && i+1 < len(args):
+			digest = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "--plan-digest="):
+			digest = strings.TrimPrefix(arg, "--plan-digest=")
+		default:
+			positional = append(positional, arg)
+		}
+	}
+	return digest, positional
 }

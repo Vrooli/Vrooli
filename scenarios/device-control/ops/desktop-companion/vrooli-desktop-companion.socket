@@ -1,0 +1,11 @@
+[Unit]
+Description=Vrooli Desktop Companion owner socket
+PartOf=graphical-session.target
+
+[Socket]
+ListenStream=%t/vrooli-desktop-companion.sock
+SocketMode=0600
+RemoveOnStop=yes
+
+[Install]
+WantedBy=graphical-session.target

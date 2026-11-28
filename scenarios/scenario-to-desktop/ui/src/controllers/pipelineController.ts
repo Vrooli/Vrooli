@@ -4,17 +4,21 @@
  * No React imports - keeps business logic separate from React state.
  */
 
-import type {
-  PipelineConfig,
-  BundlePreflightResponse,
-} from "../lib/api";
+import type { PipelineConfig } from "../lib/api";
+import type { PreflightResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/preflight_results_pb";
 import type { PipelineRunStatus } from "../store/pipelineTypes";
+import {
+  deploymentModeFromFormValue,
+  PIPELINE_STAGE_BY_FORM_ID,
+  platformFromFormValue,
+  templateTypeFromFormValue,
+} from "../lib/pipeline-enums";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type PipelineStageId = "bundle" | "preflight" | "generate" | "build" | "smoketest" | "deploy";
+export type PipelineStageId = keyof typeof PIPELINE_STAGE_BY_FORM_ID;
 
 export interface BuildPipelineConfigParams {
   scenarioName: string;
@@ -40,8 +44,8 @@ export interface ValidationBeforeRunResult {
 }
 
 export interface EffectivePreflightParams {
-  storeResult: BundlePreflightResponse | null;
-  serverResult: BundlePreflightResponse | null | undefined;
+  storeResult: PreflightResponse | null;
+  serverResult: PreflightResponse | null | undefined;
 }
 
 export interface FormSubmissionParams {
@@ -62,7 +66,9 @@ export interface FormSubmissionParams {
  * Build a pipeline config object from form/UI state.
  * This is the canonical way to construct pipeline configs.
  */
-export function buildPipelineConfig(params: BuildPipelineConfigParams): PipelineConfig {
+export function buildPipelineConfig(
+  params: BuildPipelineConfigParams,
+): PipelineConfig {
   const {
     scenarioName,
     templateType,
@@ -75,22 +81,22 @@ export function buildPipelineConfig(params: BuildPipelineConfigParams): Pipeline
   } = params;
 
   const config: PipelineConfig = {
-    scenario_name: scenarioName,
-    template_type: templateType,
-    deployment_mode: deploymentMode,
-    platforms,
+    scenarioName,
+    templateType: templateTypeFromFormValue(templateType),
+    deploymentMode: deploymentModeFromFormValue(deploymentMode),
+    platforms: platforms.map(platformFromFormValue),
   };
 
   if (stopAfterStage) {
-    config.stop_after_stage = stopAfterStage;
+    config.stopAfterStage = PIPELINE_STAGE_BY_FORM_ID[stopAfterStage];
   }
 
   if (proxyUrl?.trim()) {
-    config.proxy_url = proxyUrl.trim();
+    config.proxyUrl = proxyUrl.trim();
   }
 
   if (bundleManifestPath?.trim()) {
-    config.bundle_manifest_path = bundleManifestPath.trim();
+    config.bundleManifestPath = bundleManifestPath.trim();
   }
 
   if (preflightSecrets && Object.keys(preflightSecrets).length > 0) {
@@ -102,7 +108,7 @@ export function buildPipelineConfig(params: BuildPipelineConfigParams): Pipeline
         return acc;
       }, {});
     if (Object.keys(filtered).length > 0) {
-      config.preflight_secrets = filtered;
+      config.preflightSecrets = filtered;
     }
   }
 
@@ -112,7 +118,9 @@ export function buildPipelineConfig(params: BuildPipelineConfigParams): Pipeline
 /**
  * Build a config specifically for the generate stage.
  */
-export function buildGenerateConfig(params: FormSubmissionParams): PipelineConfig {
+export function buildGenerateConfig(
+  params: FormSubmissionParams,
+): PipelineConfig {
   return buildPipelineConfig({
     ...params,
     stopAfterStage: "generate",
@@ -127,7 +135,9 @@ export function buildGenerateConfig(params: FormSubmissionParams): PipelineConfi
  * Validate parameters before running a pipeline stage.
  * Returns validation result with error message if invalid.
  */
-export function validateBeforeRun(params: ValidationBeforeRunParams): ValidationBeforeRunResult {
+export function validateBeforeRun(
+  params: ValidationBeforeRunParams,
+): ValidationBeforeRunResult {
   const { scenarioName, isSubmitting, isBundled, bundleManifestPath } = params;
 
   if (!scenarioName) {
@@ -139,7 +149,10 @@ export function validateBeforeRun(params: ValidationBeforeRunParams): Validation
   }
 
   if (isBundled && !bundleManifestPath?.trim()) {
-    return { valid: false, error: "Bundle manifest path is required for bundled mode" };
+    return {
+      valid: false,
+      error: "Bundle manifest path is required for bundled mode",
+    };
   }
 
   return { valid: true, error: null };
@@ -149,16 +162,19 @@ export function validateBeforeRun(params: ValidationBeforeRunParams): Validation
  * Check if we can proceed to generation based on preflight state.
  */
 export function canProceedToGeneration(
-  preflightResult: BundlePreflightResponse | null,
+  preflightResult: PreflightResponse | null,
   preflightOverride: boolean,
-  missingSecretsCount: number
+  missingSecretsCount: number,
 ): { canProceed: boolean; reason: string | null } {
   if (preflightOverride) {
     return { canProceed: true, reason: null };
   }
 
   if (!preflightResult) {
-    return { canProceed: false, reason: "Preflight validation has not been run" };
+    return {
+      canProceed: false,
+      reason: "Preflight validation has not been run",
+    };
   }
 
   if (!preflightResult.validation?.valid) {
@@ -166,7 +182,10 @@ export function canProceedToGeneration(
   }
 
   if (missingSecretsCount > 0) {
-    return { canProceed: false, reason: `Missing ${missingSecretsCount} required secret(s)` };
+    return {
+      canProceed: false,
+      reason: `Missing ${String(missingSecretsCount)} required secret(s)`,
+    };
   }
 
   if (!preflightResult.ready?.ready) {
@@ -185,8 +204,8 @@ export function canProceedToGeneration(
  * This resolves the "which preflight result to use" question.
  */
 export function getEffectivePreflightResult(
-  params: EffectivePreflightParams
-): BundlePreflightResponse | null {
+  params: EffectivePreflightParams,
+): PreflightResponse | null {
   const { storeResult, serverResult } = params;
 
   // Store result takes priority (it's the most recent)
@@ -206,8 +225,8 @@ export function getEffectivePreflightResult(
  * Calculate effective preflight OK status based on result and missing secrets.
  */
 export function getEffectivePreflightOk(
-  preflightResult: BundlePreflightResponse | null,
-  missingSecretsCount: number
+  preflightResult: PreflightResponse | null,
+  missingSecretsCount: number,
 ): boolean {
   if (!preflightResult) {
     return false;
@@ -227,7 +246,9 @@ export function getEffectivePreflightOk(
 /**
  * Determine if polling should auto-start based on pipeline status.
  */
-export function shouldAutoStartPolling(status: PipelineRunStatus | null): boolean {
+export function shouldAutoStartPolling(
+  status: PipelineRunStatus | null,
+): boolean {
   if (!status) return false;
   return status === "running" || status === "starting";
 }
@@ -237,7 +258,9 @@ export function shouldAutoStartPolling(status: PipelineRunStatus | null): boolea
  */
 export function isInTerminalState(status: PipelineRunStatus | null): boolean {
   if (!status) return false;
-  return status === "completed" || status === "failed" || status === "cancelled";
+  return (
+    status === "completed" || status === "failed" || status === "cancelled"
+  );
 }
 
 // ============================================================================
@@ -248,7 +271,7 @@ export function isInTerminalState(status: PipelineRunStatus | null): boolean {
  * Filter secrets to only include non-empty values.
  */
 export function filterNonEmptySecrets(
-  secrets: Record<string, string> | undefined
+  secrets: Record<string, string> | undefined,
 ): Record<string, string> {
   if (!secrets) return {};
 
@@ -268,7 +291,7 @@ export function filterNonEmptySecrets(
  * Map domain validation errors to form errors with field names.
  */
 export function mapValidationErrorsToFormErrors(
-  errors: Array<{ id: string; message: string; field?: string }>
+  errors: Array<{ id: string; message: string; field?: string }>,
 ): Array<{ field: string; message: string; code: string }> {
   return errors.map((e) => ({
     field: e.field || e.id,

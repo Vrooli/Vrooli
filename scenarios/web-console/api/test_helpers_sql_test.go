@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/api-core/database"
 
 	_ "modernc.org/sqlite"
 )
@@ -27,7 +32,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 
 	// Load and execute schema
-	schemaPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "initialization", "sqlite", "schema.sql")
+	schemaPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "api", "internal", "sessions", "schema.sql")
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
 		t.Fatalf("read schema.sql: %v", err)
@@ -35,9 +40,12 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if _, err := db.Exec(string(schema)); err != nil {
 		t.Fatalf("exec schema.sql: %v", err)
 	}
+	if err := ensureNativeEventIdentityIndex(context.Background(), db); err != nil {
+		t.Fatalf("ensure native identity test index: %v", err)
+	}
 
 	// Load and execute seed
-	seedPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "initialization", "sqlite", "seed.sql")
+	seedPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "api", "internal", "sessions", "seed.sql")
 	seed, err := os.ReadFile(seedPath)
 	if err != nil {
 		t.Fatalf("read seed.sql: %v", err)
@@ -69,4 +77,71 @@ func findRepoRoot(t *testing.T) string {
 		}
 		dir = parent
 	}
+}
+
+func useIsolatedSessionState(t *testing.T) string {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "session-state")
+	t.Setenv("WC_SESSION_STATE_ROOT", root)
+	return root
+}
+
+func useIsolatedTmuxSocket(t *testing.T) string {
+	t.Helper()
+	socket := "wc-test-" + sanitizeTestIdentifier(t.Name()+"-"+filepath.Base(t.TempDir()))
+	t.Setenv("WC_TMUX_SOCKET", socket)
+	t.Setenv("WC_TMUX_SCOPE_NAME", socket+"-scope")
+	return socket
+}
+
+func sanitizeTestIdentifier(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r + ('a' - 'A'))
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	s := strings.Trim(b.String(), "-")
+	if s == "" {
+		return "test"
+	}
+	if len(s) > 48 {
+		s = s[:48]
+	}
+	return s
+}
+
+func requireIsolatedTmux(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+	return useIsolatedTmuxSocket(t)
+}
+
+// repoSchemaProviders loads schema.sql + seed.sql from the repo, in the same
+// order production uses. initSchema itself resolves them relative to the
+// running executable, which under `go test` is a binary in a temp build dir.
+func repoSchemaProviders(t *testing.T) []database.SchemaProvider {
+	t.Helper()
+	root := findRepoRoot(t)
+	var providers []database.SchemaProvider
+	for _, name := range []string{"schema.sql", "seed.sql"} {
+		content, err := os.ReadFile(
+			filepath.Join(root, "scenarios", "web-console", "api", "internal", "sessions", name),
+		)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		text := string(content)
+		providers = append(providers, database.SchemaProviderFunc(func() string { return text }))
+	}
+	return providers
 }

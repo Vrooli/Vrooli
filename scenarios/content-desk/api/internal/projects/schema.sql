@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+  status TEXT NOT NULL CHECK (status IN ('active')),
+  created_at TEXT NOT NULL
+);

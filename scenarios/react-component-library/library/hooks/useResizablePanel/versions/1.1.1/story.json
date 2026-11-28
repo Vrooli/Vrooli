@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useResizablePanel",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Bounded and announced",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The separator reports its bounds, its current size and a sentence describing it.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "separator",
+          "name": "Resize Sidebar"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-resizable-panel']",
+          "attribute": "aria-valuenow",
+          "value": "240"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-resizable-panel']",
+          "attribute": "aria-valuetext",
+          "value": "Sidebar 240 pixels"
+        }
+      ]
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard operation",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Arrows step, Home and End reach the bounds, Enter restores the default.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sidebar"
+          },
+          "text": "End"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sidebar"
+          },
+          "text": "ArrowLeft"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-resizable-panel']",
+          "attribute": "aria-valuenow",
+          "value": "372"
+        }
+      ]
+    },
+    {
+      "id": "persisted",
+      "name": "Restored from storage",
+      "role": "boundary",
+      "mode": "live",
+      "description": "An injected storage adapter seeds the initial size, clamped into the declared bounds.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Persisted"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-resizable-panel']",
+          "attribute": "aria-valuenow",
+          "value": "300"
+        }
+      ]
+    }
+  ]
+}

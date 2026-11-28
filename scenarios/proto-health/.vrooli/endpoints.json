@@ -1,0 +1,244 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.proto_health.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "impact_get",
+      "path": "/vrooli.proto_health.v1.impact.ImpactService/GetImpact",
+      "method": "POST",
+      "summary": "Report proto contract impact",
+      "description": "Compares the current scenario proto surface against a git baseline descriptor with buf breaking and returns classified compatibility findings.",
+      "category": "impact",
+      "request": {
+        "type": "object",
+        "properties": {
+          "against": "string (optional, scope/ref; empty uses newest git-control-tower baseline with merge-base fallback)",
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "report": "ImpactReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id, invalid git ref, missing baseline descriptor, or buf breaking failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Impact default scope",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.impact.ImpactService/GetImpact -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's proto contracts",
+      "description": "Validates one scenario's Protocol Buffer structure, annotations, declared transport world, REST exception payload declarations, and conservative unused-message hints without computing fleet dependency graphs.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "metrics": "common.v1.ExecutionMetrics",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id or no proto files found for the scenario"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate proto-health",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview proto validation fixes",
+      "description": "Returns unimplemented because Proto Health currently has no deterministic fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_code": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Proto Health has no deterministic fixer"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply proto validation fixes",
+      "description": "Returns unimplemented because Proto Health currently has no deterministic fixer.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_code": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "message": "string",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Proto Health has no deterministic fixer"
+        }
+      ]
+    },
+    {
+      "id": "validation_describe_scenario_protos",
+      "path": "/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos",
+      "method": "POST",
+      "summary": "Describe a scenario's proto surface",
+      "description": "Returns the scenario-scoped proto surface fact: files, services, RPCs, messages, imports, annotations, REST exception payload declarations, and transport-world summary.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "surface": "ProtoSurface"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id or no proto files found for the scenario"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Describe proto-health",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_describe_scenarios_protos",
+      "path": "/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenariosProtos",
+      "method": "POST",
+      "summary": "Describe multiple scenarios' proto surfaces",
+      "description": "Returns independent proto-surface fact results for many or all scenarios so downstream fleet graph consumers can avoid N per-scenario calls.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "integer (optional, 0 means no limit, max 500)",
+          "scenarios": "array<string> (optional, empty means all descriptor scenarios)",
+          "stability_filter": "string (optional, filters returned surface files by @stability)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<ProtoSurfaceResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid limit or descriptor scenario discovery failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Describe selected scenarios",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenariosProtos -H 'Content-Type: application/json' -d '{\"scenarios\":[\"proto-health\",\"code-facts\"]}'"
+        }
+      ]
+    }
+  ]
+}

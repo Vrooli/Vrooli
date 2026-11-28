@@ -1,4 +1,6 @@
 // REQ-UI-007: Policy management — rule editor
+// DOC: docs/reference/api-endpoints.md#policies
+// DOC: docs/guides/managing-policies.md
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +8,7 @@ import { ShieldCheck, ArrowLeft } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Spinner } from "../components/Spinner";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 import { fetchPolicy, updatePolicy, type PolicyRule } from "../lib/api";
 import { INPUT_CLASS } from "../lib/constants";
@@ -56,7 +58,7 @@ export function PolicyEditorPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        icon={ShieldCheck}
+        leading={<ShieldCheck className="h-5 w-5 text-[var(--text-accent)]" />} level={2}
         title={`Edit Policy #${id}`}
         actions={
           <Button size="sm" variant="outline" onClick={() => navigate("/policies")}>

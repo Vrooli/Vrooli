@@ -1,0 +1,11 @@
+[Unit]
+Description=Vrooli Device Control desktop companion
+PartOf=graphical-session.target
+
+[Service]
+EnvironmentFile=%h/.config/vrooli/desktop-companion-x11.env
+Environment=PATH=%h/.vrooli/bin:/usr/bin:/bin
+ExecStart=%h/.vrooli/bin/device-control-companion --x11-session ${VROOLI_DESKTOP_SESSION} --x11-display ${VROOLI_DESKTOP_DISPLAY} --x11-authority ${VROOLI_DESKTOP_AUTHORITY}
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=2s

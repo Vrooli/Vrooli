@@ -199,6 +199,10 @@ func (r *Repository) GetActiveInvestigation(ctx context.Context, deploymentID st
 
 // UpdateInvestigationStatus updates the status of an investigation.
 func (r *Repository) UpdateInvestigationStatus(ctx context.Context, id string, status domain.InvestigationStatus) error {
+	previous, err := r.validateInvestigationTransition(ctx, id, status)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 	var completedAt *time.Time
 	if status == domain.InvestigationStatusCompleted || status == domain.InvestigationStatusFailed || status == domain.InvestigationStatusCancelled {
@@ -210,21 +214,41 @@ func (r *Repository) UpdateInvestigationStatus(ctx context.Context, id string, s
 			status = $2,
 			updated_at = $3,
 			completed_at = $4
-		WHERE id = $1
+		WHERE id = $1 AND status = $5
 	`
-	result, err := r.db.ExecContext(ctx, q, id, status, now, completedAt)
+	result, err := r.db.ExecContext(ctx, q, id, status, now, completedAt, previous)
 	if err != nil {
 		return fmt.Errorf("failed to update investigation status: %w", err)
 	}
+	return requireInvestigationTransitionApplied(result, id, previous, status)
+}
 
+// validateInvestigationTransition loads the persisted source state and asks the
+// domain owner to validate the requested edge. The later UPDATE compares that
+// source state again, so concurrent completion/cancellation cannot overwrite a
+// newer decision.
+func (r *Repository) validateInvestigationTransition(ctx context.Context, id string, next domain.InvestigationStatus) (domain.InvestigationStatus, error) {
+	var previous domain.InvestigationStatus
+	if err := r.db.QueryRowContext(ctx, `SELECT status FROM deployment_investigations WHERE id = $1`, id).Scan(&previous); err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("investigation not found: %s", id)
+		}
+		return "", fmt.Errorf("failed to read investigation status: %w", err)
+	}
+	if err := (&domain.Investigation{Status: previous}).TransitionStatus(next); err != nil {
+		return "", err
+	}
+	return previous, nil
+}
+
+func requireInvestigationTransitionApplied(result sql.Result, id string, previous, next domain.InvestigationStatus) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("investigation not found: %s", id)
+		return fmt.Errorf("investigation transition %q -> %q was superseded for %s", previous, next, id)
 	}
-
 	return nil
 }
 
@@ -247,6 +271,10 @@ func (r *Repository) UpdateInvestigationRunID(ctx context.Context, id, runID str
 // UpdateInvestigationFindings stores the investigation findings and details.
 // Also sets progress to 100 and status to completed.
 func (r *Repository) UpdateInvestigationFindings(ctx context.Context, id, findings string, details json.RawMessage) error {
+	previous, err := r.validateInvestigationTransition(ctx, id, domain.InvestigationStatusCompleted)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 	const q = `
 		UPDATE deployment_investigations SET
@@ -256,13 +284,13 @@ func (r *Repository) UpdateInvestigationFindings(ctx context.Context, id, findin
 			progress = 100,
 			updated_at = $5,
 			completed_at = $5
-		WHERE id = $1
+		WHERE id = $1 AND status = $6
 	`
-	_, err := r.db.ExecContext(ctx, q, id, findings, details, domain.InvestigationStatusCompleted, now)
+	result, err := r.db.ExecContext(ctx, q, id, findings, details, domain.InvestigationStatusCompleted, now, previous)
 	if err != nil {
 		return fmt.Errorf("failed to update investigation findings: %w", err)
 	}
-	return nil
+	return requireInvestigationTransitionApplied(result, id, previous, domain.InvestigationStatusCompleted)
 }
 
 // UpdateInvestigationProgress updates the progress percentage.
@@ -283,6 +311,10 @@ func (r *Repository) UpdateInvestigationProgress(ctx context.Context, id string,
 
 // UpdateInvestigationError sets an error message and marks the investigation as failed.
 func (r *Repository) UpdateInvestigationError(ctx context.Context, id, errorMsg string) error {
+	previous, err := r.validateInvestigationTransition(ctx, id, domain.InvestigationStatusFailed)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 	const q = `
 		UPDATE deployment_investigations SET
@@ -290,18 +322,22 @@ func (r *Repository) UpdateInvestigationError(ctx context.Context, id, errorMsg 
 			error_message = $3,
 			updated_at = $4,
 			completed_at = $4
-		WHERE id = $1
+		WHERE id = $1 AND status = $5
 	`
-	_, err := r.db.ExecContext(ctx, q, id, domain.InvestigationStatusFailed, errorMsg, now)
+	result, err := r.db.ExecContext(ctx, q, id, domain.InvestigationStatusFailed, errorMsg, now, previous)
 	if err != nil {
 		return fmt.Errorf("failed to update investigation error: %w", err)
 	}
-	return nil
+	return requireInvestigationTransitionApplied(result, id, previous, domain.InvestigationStatusFailed)
 }
 
 // UpdateInvestigationErrorWithDetails sets an error message and details, then marks the investigation as failed.
 // This is useful when the agent ran but produced no output - we still want to capture execution metadata.
 func (r *Repository) UpdateInvestigationErrorWithDetails(ctx context.Context, id, errorMsg string, details json.RawMessage) error {
+	previous, err := r.validateInvestigationTransition(ctx, id, domain.InvestigationStatusFailed)
+	if err != nil {
+		return err
+	}
 	now := time.Now()
 	const q = `
 		UPDATE deployment_investigations SET
@@ -310,13 +346,13 @@ func (r *Repository) UpdateInvestigationErrorWithDetails(ctx context.Context, id
 			details = $4,
 			updated_at = $5,
 			completed_at = $5
-		WHERE id = $1
+		WHERE id = $1 AND status = $6
 	`
-	_, err := r.db.ExecContext(ctx, q, id, domain.InvestigationStatusFailed, errorMsg, details, now)
+	result, err := r.db.ExecContext(ctx, q, id, domain.InvestigationStatusFailed, errorMsg, details, now, previous)
 	if err != nil {
 		return fmt.Errorf("failed to update investigation error with details: %w", err)
 	}
-	return nil
+	return requireInvestigationTransitionApplied(result, id, previous, domain.InvestigationStatusFailed)
 }
 
 // DeleteInvestigation removes an investigation record.

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/sirupsen/logrus"
+	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
@@ -44,7 +45,7 @@ func (s *recordingFileStore) StoreScreenshot(ctx context.Context, executionID uu
 		return nil, err
 	}
 	filename := fmt.Sprintf("%s-%s.png", recordingSanitizeFilename(stepName), uuid.New().String())
-	if err := os.WriteFile(filepath.Join(dir, filename), data, 0o644); err != nil {
+	if err := corestorage.WriteFileAtomic(filepath.Join(dir, filename), data, 0o644); err != nil {
 		return nil, err
 	}
 

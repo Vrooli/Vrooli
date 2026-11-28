@@ -1,0 +1,21 @@
+{
+  "namespace": "wc",
+  "roles": {
+    "app-background": { "target": "wc-surface-base", "css_variable": "--wc-surface-base" },
+    "app-border": { "target": "wc-default", "css_variable": "--wc-border-default" },
+    "app-danger": { "target": "wc-error-surface", "css_variable": "--wc-error-surface" },
+    "app-foreground": { "target": "wc-text-primary", "css_variable": "--wc-text-primary" },
+    "app-info": { "target": "wc-accent", "css_variable": "--wc-accent" },
+    "app-muted-foreground": { "target": "wc-text-muted", "css_variable": "--wc-text-muted" },
+    "app-primary": { "target": "wc-accent-active", "css_variable": "--wc-accent-active" },
+    "app-primary-foreground": { "target": "wc-accent-fg", "css_variable": "--wc-accent-fg" },
+    "app-surface": { "target": "wc-surface-raised", "css_variable": "--wc-surface-raised" },
+    "app-surface-muted": { "target": "wc-surface-input", "css_variable": "--wc-surface-input" },
+    "app-warning": { "target": "wc-accent-border", "css_variable": "--wc-accent-border" },
+    "app-success": { "target": "wc-text-secondary", "css_variable": "--wc-text-secondary" }
+  },
+  "contrast_floor": 4.5,
+  "contrast_pairs": [
+    { "foreground": "app-primary-foreground", "background": "app-primary", "ratio": 4.5 }
+  ]
+}

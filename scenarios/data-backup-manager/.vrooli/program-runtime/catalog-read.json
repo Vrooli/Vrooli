@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "data-backup-manager.catalog-read",
+  "version": "1",
+  "owner_skill": "data-backup-manager",
+  "rung": "S3",
+  "helpers": {"program": "1"},
+  "purpose": "Read registered targets and backup plans together through their owner bindings, following a bounded number of typed cursor pages.",
+  "inputs": {
+    "owner": {"type": "string", "required": false, "default": "", "description": "Optional owner filter for targets; plans remain the complete owner list."}
+  },
+  "assumptions": ["Data Backup Manager is running and its owner list operations are reachable."],
+  "invariants": [
+    "Calls only the declared read-only target and plan list bindings.",
+    "An omitted owner returns all targets; a supplied owner filters only targets.",
+    "Rows are reduced to the fields needed for catalog triage; complete objects remain available from the owner CLI.",
+    "The program fetches at most four pages of 50 rows per list, within the 65,536 byte output budget.",
+    "A continuation token after page four is reported as partial; no incomplete list is described as complete."
+  ],
+  "bindings": [
+    {"id": "data-backup-manager/targets/list", "effect": "read"},
+    {"id": "data-backup-manager/plans/list", "effect": "read"}
+  ],
+  "verbs": ["gather"],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {
+      "targets": "At most 200 compact target rows with id, owner, name, source kind, locator and critical flag.",
+      "plans": "At most 200 compact plan rows with identity, schedule, protection tier, selector, target count and destination IDs.",
+      "targets_next_page_token": "Opaque token from the target response; empty means no further target page.",
+      "plans_next_page_token": "Opaque token from the plan response; empty means no further plan page.",
+      "owner_filter": "Owner filter applied to targets, or empty for all targets.",
+      "truncated": "True when a list continues beyond the four-page scan."
+    },
+    "errors": {"classes": ["invalid_input", "kernel_runtime", "binding_error", "remote_error", "scenario_unreachable", "not_run_eligible", "row_cap_reached"]},
+    "evidence": "The two Data Backup Manager list binding IDs."
+  },
+  "budget": {"wall_ms": 60000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 200, "output_bytes": 65536},
+  "fixtures": [
+    {"id": "default-owner-inventory", "inputs": {}, "expect": {"status": ["ok", "partial"]}, "requires": ["data-backup-manager"]},
+    {"id": "owner-filtered-inventory", "inputs": {"owner": "nonexistent-owner-pr4-fixture"}, "expect": {"status": ["ok", "partial"]}, "requires": ["data-backup-manager"]}
+  ]
+}

@@ -1,0 +1,434 @@
+import "../component.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ComponentPageHeader } from "../component/ComponentPageHeader";
+import { ComponentPageInspector } from "../component/ComponentPageInspector";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CircleAlert } from "lucide-react";
+
+import { runComponentTest } from "../../api/componentTests";
+import { getWorkspace, WorkspaceProvenance } from "../../api/workspaces";
+import { useTranslation } from "../../i18n";
+import { appRoutes, workspacePath } from "../../routes";
+import { assetVersion, useComponentBundle, wbKeys, type WorkbenchStory } from "../data";
+import { cx } from "../cx";
+import { AssetDataDrawer, type DrawerTab } from "../component/AssetDataDrawer";
+import { ComponentPageLoadState } from "../component/ComponentPageLoadState";
+import { FixtureBench } from "../component/FixtureBench";
+import { InContextStage, type Device, type InContextReport } from "../component/InContextStage";
+import { placeComponent } from "../component/placement";
+import { readWorkbenchPreferences } from "../preferences";
+import {
+  createComponentWorkspace,
+  curatedWorkspaceIdForTemplate,
+  DEFAULT_COMPONENT_WORKSPACE_ID,
+  workspaceTemplate,
+} from "../workspaces/componentContext";
+import { useWorkspaces } from "../workspaces/useWorkspaces";
+import { useComponentPageEvidence } from "./useComponentPageEvidence";
+import { Banner } from "../primitives";
+
+type Mode = "fixtures" | "context";
+type InspectorTab = "checks" | "props" | "usage";
+
+function normalizeDrawerTab(value: string | null): DrawerTab {
+  const tabs: DrawerTab[] = [
+    "overview",
+    "source",
+    "versions",
+    "experience",
+    "tests",
+    "relationships",
+  ];
+  if (value && (tabs as string[]).includes(value)) return value as DrawerTab;
+  return "overview";
+}
+
+export function ComponentPage() {
+  const { t } = useTranslation();
+  const { id = "" } = useParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [version, setVersion] = useState("");
+  const [versionAssetId, setVersionAssetId] = useState(id);
+  const selectVersion = useCallback(
+    (next: string) => {
+      setVersion(next);
+      setVersionAssetId(id);
+    },
+    [id],
+  );
+  // A version belongs to the asset that published it. Until the reset effect
+  // runs, a newly routed asset must not ask for the previous asset's version.
+  const effectiveVersion = versionAssetId === id ? version : "";
+  const bundle = useComponentBundle(id, effectiveVersion || undefined);
+
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("mode") === "context" ? "context" : "fixtures",
+  );
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(searchParams.get("story"));
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>("checks");
+  const initialTestReportID = searchParams.get("testReport");
+  const [drawerOpen, setDrawerOpen] = useState(
+    Boolean(searchParams.get("tab") || initialTestReportID),
+  );
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>(() =>
+    initialTestReportID ? "tests" : normalizeDrawerTab(searchParams.get("tab")),
+  );
+  const [templateId, setTemplateId] = useState(() =>
+    curatedWorkspaceIdForTemplate(searchParams.get("template") ?? DEFAULT_COMPONENT_WORKSPACE_ID),
+  );
+  const [device, setDevice] = useState<Device>(() => {
+    const requested = searchParams.get("device");
+    if (requested === "desktop" || requested === "tablet" || requested === "phone")
+      return requested;
+    // A desktop frame cannot be inspected on a phone without panning a clipped
+    // surface. Default to the frame that matches the viewport; the device
+    // switcher still lets a person choose a wider frame deliberately.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
+      return "phone";
+    }
+    return readWorkbenchPreferences().defaultDevice;
+  });
+  const [overrides, setOverrides] = useState<Record<string, Record<string, unknown> | null>>({});
+  const [reloads, setReloads] = useState<Record<string, number>>({});
+  const [savedSourceRevision, setSavedSourceRevision] = useState<{
+    version: string;
+    filePath: string;
+    sha256: string;
+  } | null>(null);
+  const [statuses, setStatuses] = useState<
+    Record<string, "loading" | "ready" | "error" | "applied">
+  >({});
+  const [contextReport, setContextReport] = useState<InContextReport | null>(null);
+  const [contextSlot, setContextSlot] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [openingWorkspace, setOpeningWorkspace] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const templateWorkspaces = useWorkspaces();
+  const templateWorkspaceQuery = useQuery({
+    queryKey: ["wb", "workspace", templateId],
+    queryFn: async () => {
+      const workspace = await getWorkspace(templateId);
+      return workspace?.provenance === WorkspaceProvenance.CURATED ? workspace : null;
+    },
+    enabled: Boolean(templateId),
+    staleTime: 30_000,
+    retry: 0,
+  });
+
+  const asset = bundle.data?.asset;
+  const stories = useMemo(() => bundle.data?.stories ?? [], [bundle.data?.stories]);
+  const latestVersion = asset ? assetVersion(asset) : "";
+  const activeVersion = effectiveVersion || latestVersion;
+  const sourceRevision =
+    savedSourceRevision?.version === activeVersion
+      ? `${savedSourceRevision.filePath}:${savedSourceRevision.sha256}`
+      : "";
+  const selectedStory = stories.find((story) => story.id === selectedStoryId) ?? stories[0];
+  const template = templateWorkspaceQuery.data
+    ? workspaceTemplate(templateWorkspaceQuery.data, device)
+    : null;
+  const curatedTemplates = (templateWorkspaces.data ?? [])
+    .filter((entry) => entry.provenance === WorkspaceProvenance.CURATED)
+    .map((entry) => ({ id: entry.id, name: entry.name, summary: entry.summary }));
+
+  // Remounting the page on an asset change is the first reset. This effect is
+  // the second: it also protects the page when a host keeps the same instance.
+  const previousAssetId = useRef(id);
+  useEffect(() => {
+    if (previousAssetId.current === id) return;
+    previousAssetId.current = id;
+    selectVersion("");
+    setSelectedStoryId(null);
+    setContextReport(null);
+    setContextSlot(null);
+    setOverrides({});
+    setReloads({});
+    setStatuses({});
+    setSavedSourceRevision(null);
+    setWorkspaceError(null);
+  }, [id, selectVersion]);
+
+  useEffect(() => {
+    if (!selectedStoryId && stories[0]) setSelectedStoryId(stories[0].id);
+  }, [selectedStoryId, stories]);
+
+  useEffect(() => {
+    if (!asset || effectiveVersion) return;
+    selectVersion(assetVersion(asset));
+  }, [asset, effectiveVersion, selectVersion]);
+
+  const runEvidence = useMutation({
+    mutationFn: () =>
+      runComponentTest({ componentId: id, version: activeVersion, includeClosure: false }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: wbKeys.component(id) });
+      setDrawerTab("tests");
+      setDrawerOpen(true);
+    },
+  });
+
+  const {
+    contextRows,
+    contextStates,
+    evidenceStatus,
+    evidenceNote,
+    fixtureRows,
+    fitSummary,
+    pageIssues,
+    recordFixturePaint,
+    recordFixtureProbe,
+  } = useComponentPageEvidence({
+    mode,
+    selectedStory,
+    contextReport,
+    experience: bundle.data?.experience,
+  });
+
+  const updateURL = (next: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(searchParams);
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    setSearchParams(params, { replace: true });
+  };
+
+  const chooseMode = (next: Mode) => {
+    setMode(next);
+    updateURL({ mode: next === "context" ? "context" : undefined });
+  };
+
+  const chooseStory = (story: WorkbenchStory) => {
+    setSelectedStoryId(story.id);
+    updateURL({ story: story.id });
+  };
+
+  const openDrawer = (tab: DrawerTab) => {
+    setDrawerTab(tab);
+    setDrawerOpen(true);
+    updateURL({
+      tab,
+      testReport: tab === "tests" ? (searchParams.get("testReport") ?? undefined) : undefined,
+    });
+  };
+
+  const openComponentWorkspace = async () => {
+    if (!asset || !selectedStory || !templateWorkspaceQuery.data || openingWorkspace) return;
+    setOpeningWorkspace(true);
+    setWorkspaceError(null);
+    try {
+      const placement = template
+        ? placeComponent({
+            spec: template.spec,
+            asset,
+            viewportWidth: device === "phone" ? 390 : device === "tablet" ? 834 : 1180,
+            preferredSlotId: contextSlot,
+          })
+        : null;
+      const workspace = await createComponentWorkspace({
+        templateWorkspace: templateWorkspaceQuery.data,
+        componentId: id,
+        storyId: selectedStory.id,
+        componentVersion: selectedStory.version,
+        preferredSlotId: placement?.chosen?.slotId,
+        preferredSlotRole: placement?.chosen?.role,
+      });
+      void navigate(workspacePath(workspace.id));
+    } catch (cause) {
+      setWorkspaceError(cause instanceof Error ? cause.message : "Could not open workspace.");
+    } finally {
+      setOpeningWorkspace(false);
+    }
+  };
+
+  const share = async () => {
+    const url = `${window.location.origin}${appRoutes.preview.replace(":id", encodeURIComponent(id))}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (bundle.isLoading) {
+    return <ComponentPageLoadState loading onRetry={() => void bundle.refetch()} />;
+  }
+
+  if (bundle.isError || !asset) {
+    return (
+      <ComponentPageLoadState
+        loading={false}
+        error={bundle.error}
+        onRetry={() => void bundle.refetch()}
+      />
+    );
+  }
+
+  return (
+    <div data-experience-surface="component-preview" data-testid="component-page">
+      {workspaceError ? <Banner tone="red">{workspaceError}</Banner> : null}
+      <ComponentPageHeader
+        asset={asset}
+        latestVersion={latestVersion}
+        mode={mode}
+        stories={stories}
+        selectedStory={selectedStory}
+        copied={copied}
+        openingWorkspace={openingWorkspace}
+        canOpenWorkspace={Boolean(templateWorkspaceQuery.data)}
+        runningEvidence={runEvidence.isPending}
+        evidenceStatus={evidenceStatus}
+        fitSummary={fitSummary}
+        pageIssues={pageIssues}
+        onShare={() => void share()}
+        onOpenWorkspace={() => void openComponentWorkspace()}
+        onRunEvidence={() => runEvidence.mutate()}
+        onOpenDrawer={openDrawer}
+        onChooseMode={chooseMode}
+        onChooseStory={chooseStory}
+        onRerunStory={() => {
+          if (selectedStory)
+            setReloads((current) => ({
+              ...current,
+              [selectedStory.id]: (current[selectedStory.id] ?? 0) + 1,
+            }));
+        }}
+        onToggleDrawer={() => setDrawerOpen((open) => !open)}
+      />
+      {runEvidence.isError ? (
+        <div style={{ padding: "10px 26px" }}>
+          <Banner tone="red" icon={<CircleAlert aria-hidden size={15} />}>
+            {runEvidence.error instanceof Error
+              ? runEvidence.error.message
+              : String(runEvidence.error)}
+          </Banner>
+        </div>
+      ) : null}
+
+      <div className={cx("wb-comp-layout", mode === "context" && "is-context")}>
+        {mode === "fixtures" ? (
+          <FixtureBench
+            asset={asset}
+            stories={stories}
+            version={activeVersion}
+            sourceRevision={sourceRevision}
+            selectedId={selectedStory?.id ?? null}
+            onSelect={chooseStory}
+            overrides={overrides}
+            reloads={reloads}
+            statuses={statuses}
+            onStatus={(storyId, status) =>
+              setStatuses((current) => ({ ...current, [storyId]: status }))
+            }
+            onRetry={(storyId) =>
+              setReloads((current) => ({
+                ...current,
+                [storyId]: (current[storyId] ?? 0) + 1,
+              }))
+            }
+            onMeasure={recordFixturePaint}
+            onProbe={recordFixtureProbe}
+          />
+        ) : template ? (
+          <InContextStage
+            asset={asset}
+            story={selectedStory}
+            version={activeVersion}
+            template={template}
+            templates={curatedTemplates}
+            onTemplateChange={(next) => {
+              setTemplateId(next);
+              setContextSlot(null);
+              setContextReport(null);
+              updateURL({ template: next });
+            }}
+            device={device}
+            onDeviceChange={(next) => {
+              setDevice(next);
+              setContextSlot(null);
+              updateURL({ device: next });
+            }}
+            slotChoice={contextSlot}
+            onSlotChoice={setContextSlot}
+            onReport={setContextReport}
+            states={contextStates}
+          />
+        ) : (
+          <div className="wb-empty-inline" role="status">
+            {templateWorkspaceQuery.isLoading
+              ? t("workbench.component.loadingWorkspaceTemplate", {
+                  defaultValue: "Loading curated workspace…",
+                })
+              : t("workbench.component.workspaceTemplateUnavailable", {
+                  defaultValue:
+                    "Curated workspace unavailable. The saved template reference is preserved in the URL.",
+                })}
+          </div>
+        )}
+
+        <ComponentPageInspector
+          asset={asset}
+          versionsCount={bundle.data?.versions.length ?? 0}
+          mode={mode}
+          selectedStory={selectedStory}
+          fixtureRows={fixtureRows}
+          contextRows={contextRows}
+          contextReport={contextReport}
+          inspectorTab={inspectorTab}
+          setInspectorTab={setInspectorTab}
+          overrides={overrides}
+          setOverrides={setOverrides}
+          statuses={statuses}
+          template={template}
+          openingWorkspace={openingWorkspace}
+          canOpenWorkspace={Boolean(templateWorkspaceQuery.data)}
+          onOpenWorkspace={() => void openComponentWorkspace()}
+          evidenceNote={evidenceNote}
+          templateHref={
+            templateWorkspaceQuery.data ? workspacePath(templateWorkspaceQuery.data.id) : undefined
+          }
+          templateName={template?.name}
+          onRunEvidence={() => runEvidence.mutate()}
+          onOpenContext={() => chooseMode("context")}
+        />
+      </div>
+
+      {drawerOpen && bundle.data ? (
+        <AssetDataDrawer
+          bundle={bundle.data}
+          tab={drawerTab}
+          onTab={(next) => {
+            setDrawerTab(next);
+            updateURL({
+              tab: next,
+              testReport:
+                next === "tests" ? (searchParams.get("testReport") ?? undefined) : undefined,
+            });
+          }}
+          version={activeVersion}
+          onVersion={selectVersion}
+          onSourceSaved={(savedVersion, filePath, sha256) =>
+            setSavedSourceRevision((current) =>
+              current?.version === savedVersion &&
+              current.filePath === filePath &&
+              current.sha256 === sha256
+                ? current
+                : { version: savedVersion, filePath, sha256 },
+            )
+          }
+          selectedTestReportID={searchParams.get("testReport")}
+          onSelectTestReport={(reportID) => {
+            setDrawerOpen(true);
+            setDrawerTab("tests");
+            updateURL({ tab: "tests", testReport: reportID ?? undefined });
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}

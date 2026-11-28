@@ -1,11 +1,19 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
+	maildns "github.com/vrooli/vrooli/packages/maildns-go"
+	"landing-page-business-suite-api/internal/logx"
 
 	"github.com/vrooli/api-core/health"
 )
@@ -16,34 +24,90 @@ func newHealthTestServer(t *testing.T) (*Server, func()) {
 	return &Server{db: db}, func() { db.Close() }
 }
 
+func productionHealthHandler(srv *Server) http.Handler {
+	srv.router = mux.NewRouter()
+	registerHealthRoutes(srv)
+	return srv.router
+}
+
+func TestDeployReadinessRouteRequiresAdminOrService(t *testing.T) {
+	srv := &Server{router: mux.NewRouter(), sessionManager: NewMockSessionManager()}
+	registerDeployReadinessRoute(srv)
+
+	for _, path := range []string{"/api/v1/deploy-readiness", "/landing_page_business_suite.v1.DeploymentService/CheckReadiness"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
+			w := httptest.NewRecorder()
+			srv.router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusUnauthorized {
+				t.Fatalf("unauthenticated deployment readiness returned %d, want %d: %s", w.Code, http.StatusUnauthorized, w.Body.String())
+			}
+		})
+	}
+}
+
+func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
+	t.Parallel()
+
+	sql := strings.ToLower(runtimeSchema())
+	if strings.Contains(sql, "alter table") || strings.Contains(sql, "drop table") {
+		t.Fatal("runtime schema must be declarative; data/schema migrations belong in one-shot operator scripts")
+	}
+	for _, table := range []string{
+		"admin_users", "remote_profiles", "metrics_events", "checkout_sessions",
+		"subscriptions", "subscription_schedules", "bundle_products", "bundle_prices",
+		"download_apps", "download_assets", "download_artifacts", "credit_wallets",
+		"credit_transactions", "payment_settings", "usage_records", "credit_reservations",
+		"api_keys", "users", "auth_tokens", "user_sessions", "native_auth_grants", "auth_email_events", "auth_alert_log", "payment_anomaly_log",
+		"business_accounts", "business_account_members", "desktop_link_authorizations",
+		"desktop_account_links", "desktop_link_audit", "business_account_credit_wallets",
+		"business_account_credit_transactions", "payment_reconciliation_backfill_state",
+		"payment_reconciliation_backfill_events",
+	} {
+		if !strings.Contains(sql, "create table if not exists "+table) {
+			t.Errorf("missing declarative definition for %s", table)
+		}
+	}
+}
+
 func TestHealthEndpoint(t *testing.T) {
-	t.Run("healthy when database reachable", func(t *testing.T) {
+	t.Run("optional sign-in gaps degrade while database readiness stays available", func(t *testing.T) {
 		srv, cleanup := newHealthTestServer(t)
 		defer cleanup()
 
-		req := httptest.NewRequest("GET", "/health", nil)
-		w := httptest.NewRecorder()
+		router := productionHealthHandler(srv)
+		for _, path := range []string{"/health", "/api/v1/health"} {
+			t.Run(path, func(t *testing.T) {
+				req := httptest.NewRequest("GET", path, nil)
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
 
-		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.db), health.Critical).Handler()
-		healthHandler.ServeHTTP(w, req)
+				if w.Code != http.StatusOK {
+					t.Fatalf("Expected status 200, got %d", w.Code)
+				}
+				if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
+					t.Fatalf("Expected Content-Type application/json, got %s", contentType)
+				}
 
-		if w.Code != http.StatusOK {
-			t.Fatalf("Expected status 200, got %d", w.Code)
-		}
-		if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
-			t.Fatalf("Expected Content-Type application/json, got %s", contentType)
-		}
-
-		var payload health.Response
-		if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode health response: %v", err)
-		}
-		if payload.Status != "healthy" || !payload.Readiness {
-			t.Fatalf("expected healthy status and readiness, got status=%s readiness=%v", payload.Status, payload.Readiness)
-		}
-		dbStatus, ok := payload.Dependencies["database"]
-		if !ok || !dbStatus.Connected {
-			t.Fatalf("expected database dependency to be connected")
+				var payload health.Response
+				if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
+					t.Fatalf("failed to decode health response: %v", err)
+				}
+				if payload.Status != "degraded" || !payload.Readiness {
+					t.Fatalf("expected optional gaps to degrade status without blocking readiness, got status=%s readiness=%v", payload.Status, payload.Readiness)
+				}
+				dbStatus, ok := payload.Dependencies["database"]
+				if !ok || !dbStatus.Connected {
+					t.Fatalf("expected database dependency to be connected")
+				}
+				for _, name := range []string{"sign_in_email", "sign_in_email_dns"} {
+					status, present := payload.Dependencies[name]
+					if !present || status.Connected || status.Error == nil {
+						t.Errorf("dependency %q = %+v, present=%t; missing optional owner must be visible as degraded", name, status, present)
+					}
+				}
+			})
 		}
 	})
 
@@ -57,8 +121,7 @@ func TestHealthEndpoint(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.db), health.Critical).Handler()
-		healthHandler.ServeHTTP(w, req)
+		productionHealthHandler(srv).ServeHTTP(w, req)
 
 		if w.Code != http.StatusServiceUnavailable {
 			t.Fatalf("Expected status 503 when unhealthy, got %d", w.Code)
@@ -77,6 +140,36 @@ func TestHealthEndpoint(t *testing.T) {
 		dbStatus, ok := payload.Dependencies["database"]
 		if !ok || dbStatus.Connected {
 			t.Fatalf("expected database dependency marked disconnected")
+		}
+	})
+}
+
+// DNS readiness is evaluated in every environment so local checks cannot hide
+// a broken provider configuration.
+func TestSignInEmailDNSCheckRunsOutsideProduction(t *testing.T) {
+	t.Setenv("LPBS_ENVIRONMENT", "development")
+	t.Setenv("VROOLI_ENVIRONMENT", "")
+
+	srv := &Server{mailDNSService: maildns.New(nil)}
+	result := srv.signInEmailDNSCheck().Check(context.Background())
+	if result.Error == nil {
+		t.Fatal("non-production email DNS check must report the unavailable resolver")
+	}
+}
+
+func TestRuntimeEnvironmentUsesLocalDefaultButHonorsControlPlaneProduction(t *testing.T) {
+	t.Run("local manifest default", func(t *testing.T) {
+		t.Setenv("LPBS_ENVIRONMENT", "development")
+		t.Setenv("VROOLI_ENVIRONMENT", "")
+		if got := runtimeEnvironment(); got != "development" {
+			t.Fatalf("runtimeEnvironment() = %q, want development", got)
+		}
+	})
+	t.Run("control plane overrides local default", func(t *testing.T) {
+		t.Setenv("LPBS_ENVIRONMENT", "development")
+		t.Setenv("VROOLI_ENVIRONMENT", "production")
+		if got := runtimeEnvironment(); got != "production" {
+			t.Fatalf("runtimeEnvironment() = %q, want production", got)
 		}
 	})
 }
@@ -147,11 +240,33 @@ func TestResolveDatabaseURL(t *testing.T) {
 }
 
 func TestLogStructured(t *testing.T) {
-	// Test structured logging (output validation is complex, just ensure no panic)
-	logStructured("test_event", map[string]interface{}{
+	var output bytes.Buffer
+	previousOutput := log.Writer()
+	previousFlags := log.Flags()
+	log.SetOutput(&output)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(previousOutput)
+		log.SetFlags(previousFlags)
+	})
+
+	logx.Info(`test "event"`, map[string]interface{}{
 		"key":   "value",
 		"count": 42,
 	})
 
-	logStructured("test_event_no_fields", nil)
+	logx.Info("test_event_no_fields", nil)
+	logged := output.String()
+	if !strings.Contains(logged, `"msg":"test \"event\""`) || !strings.Contains(logged, `"count":42`) {
+		t.Fatalf("structured event log missing expected fields: %s", logged)
+	}
+	if !strings.Contains(logged, `"msg":"test_event_no_fields"`) {
+		t.Fatalf("structured event without fields missing: %s", logged)
+	}
+	for _, line := range strings.Split(strings.TrimSpace(logged), "\n") {
+		var record map[string]any
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			t.Fatalf("structured log is not valid JSON: %v (%s)", err, line)
+		}
+	}
 }

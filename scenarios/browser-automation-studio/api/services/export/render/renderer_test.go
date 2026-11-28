@@ -1,54 +1,22 @@
 package render
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
-
-func TestEstimateReplayRenderTimeoutBounds(t *testing.T) {
-	smallSpec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{
-			FrameIntervalMs: 40,
-			TotalFrames:     5,
-		},
-		Summary: export.ExportSummary{TotalDurationMs: 200},
-		Frames:  []export.ExportFrame{{Index: 0, DurationMs: 200}},
-	}
-
-	duration := EstimateReplayRenderTimeout(smallSpec)
-	if duration < 3*time.Minute {
-		t.Fatalf("expected minimum timeout of 3 minutes, got %s", duration)
-	}
-	if duration > 15*time.Minute {
-		t.Fatalf("expected timeout to remain within 15 minutes, got %s", duration)
-	}
-
-	hugeSpec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{
-			FrameIntervalMs: 20,
-			TotalFrames:     120000,
-		},
-		Summary: export.ExportSummary{TotalDurationMs: 2400000},
-		Frames:  make([]export.ExportFrame, 0),
-	}
-
-	bigDuration := EstimateReplayRenderTimeout(hugeSpec)
-	if bigDuration > 15*time.Minute {
-		t.Fatalf("expected timeout capped at 15 minutes, got %s", bigDuration)
-	}
-	if bigDuration < 3*time.Minute {
-		t.Fatalf("expected timeout to exceed minimum for large specs, got %s", bigDuration)
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Render validation tests
@@ -65,7 +33,7 @@ func TestRender_NilSpec(t *testing.T) {
 func TestRender_EmptyFrames(t *testing.T) {
 	r := newTestRenderer(t)
 	spec := &ReplayMovieSpec{
-		Frames: []export.ExportFrame{},
+		Frames: []*exportsv1.ReplayFrame{},
 	}
 	_, err := r.Render(t.Context(), spec, RenderFormatMP4, "test.mp4")
 	if err == nil {
@@ -76,7 +44,7 @@ func TestRender_EmptyFrames(t *testing.T) {
 func TestRender_UnsupportedFormat(t *testing.T) {
 	r := newTestRenderer(t)
 	spec := &ReplayMovieSpec{
-		Frames: []export.ExportFrame{{DurationMs: 100}},
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 	_, err := r.Render(t.Context(), spec, "webm", "test.webm")
 	if err == nil {
@@ -137,9 +105,9 @@ func TestRenderCapture_ContiguousFrameNumbering(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 500},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 500},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -159,16 +127,64 @@ func TestRenderCapture_ContiguousFrameNumbering(t *testing.T) {
 	dir := filepath.Dir(pattern)
 
 	for i := 0; i < 3; i++ {
-		path := filepath.Join(dir, fmt.Sprintf("frame-%05d.jpg", i))
+		path := filepath.Join(dir, fmt.Sprintf("frame-%05d.png", i))
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			t.Fatalf("expected contiguous frame-%05d.jpg to exist", i)
+			t.Fatalf("expected contiguous frame-%05d.png to exist", i)
 		}
 	}
 
 	// frame-00003 should NOT exist (only 3 valid frames: 0, 1, 2)
-	path := filepath.Join(dir, "frame-00003.jpg")
+	path := filepath.Join(dir, "frame-00003.png")
 	if _, err := os.Stat(path); err == nil {
-		t.Fatal("frame-00003.jpg should not exist — only 3 valid frames")
+		t.Fatal("frame-00003.png should not exist — only 3 valid frames")
+	}
+}
+
+type cancelAfterErrContext struct {
+	context.Context
+	cancelAt int
+	checks   int
+}
+
+func (c *cancelAfterErrContext) Err() error {
+	c.checks++
+	if c.checks >= c.cancelAt {
+		return context.Canceled
+	}
+	return nil
+}
+
+func TestRenderCaptureCancellationCleansStagedFrames(t *testing.T) {
+	frame := makeJPEGBase64(t, 64, 48)
+	r := newTestRenderer(t)
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	encoder := &MockVideoEncoder{}
+	r.captureClient = &stubCaptureClient{response: &captureResponse{
+		Success: true,
+		FPS:     10,
+		Frames:  []captureFrame{{Index: 0, Data: frame}, {Index: 1, Data: frame}},
+	}}
+	r.videoEncoder = encoder
+	ctx := &cancelAfterErrContext{Context: context.Background(), cancelAt: 2}
+	spec := &ReplayMovieSpec{
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
+	}
+
+	if _, err := r.Render(ctx, spec, RenderFormatMP4, "cancelled.mp4"); err != context.Canceled {
+		t.Fatalf("render error = %v, want context cancellation", err)
+	}
+	if len(encoder.AssembleCalls) != 0 {
+		t.Fatal("encoder started after cancellation during frame staging")
+	}
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("cancellation leaked replay staging tree: %v", entries)
 	}
 }
 
@@ -191,9 +207,9 @@ func TestRenderCapture_AllEmptyFrames(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 200},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -211,9 +227,9 @@ func TestRenderCapture_NilCaptureResponse(t *testing.T) {
 	r.captureClient = client
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -231,9 +247,9 @@ func TestRenderCapture_CaptureError(t *testing.T) {
 	r.captureClient = client
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -263,9 +279,9 @@ func TestRenderCapture_GIFFormat(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 200},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	media, err := r.renderCapture(t.Context(), spec, RenderFormatGIF, "test.gif", 100)
@@ -308,9 +324,9 @@ func TestRenderCapture_DefaultFPS(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -347,9 +363,9 @@ func TestRenderCapture_InvalidBase64Frame(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -370,9 +386,9 @@ func TestRenderCapture_CancelledContext(t *testing.T) {
 	r.captureClient = client
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(ctx, spec, RenderFormatMP4, "test.mp4", 100)
@@ -401,9 +417,9 @@ func TestRenderCapture_EncoderError(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{AssembleVideoErr: fmt.Errorf("encoder failed")}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -432,9 +448,9 @@ func TestRenderCapture_GIFConversionError(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{ConvertGIFErr: fmt.Errorf("gif conversion failed")}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatGIF, "test.gif", 100)
@@ -474,5 +490,67 @@ func newTestRenderer(t *testing.T) *ReplayRenderer {
 		exportPageURL:     "http://localhost:9999/export",
 		captureIntervalMs: 100,
 		apiBaseURL:        "http://localhost:9999",
+	}
+}
+
+// The driver returns PNG frames. Mixed image encodings must survive export.
+func TestRenderCapture_RealEncoderAcceptsPNGAndJPEG(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is required for the replay encoding regression")
+	}
+	var buf bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 320, 240))
+	for y := 0; y < 240; y++ {
+		for x := 0; x < 320; x++ {
+			img.Set(x, y, color.RGBA{uint8(x), uint8(y), 80, 255})
+		}
+	}
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	pngData := base64.StdEncoding.EncodeToString(buf.Bytes())
+	for _, tc := range []struct {
+		name   string
+		frames []captureFrame
+	}{
+		{"driver-png", []captureFrame{{Data: pngData}, {Data: pngData}}},
+		{"mixed-capture", []captureFrame{{Data: pngData}, {Data: makeJPEGBase64(t, 320, 240)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newTestRenderer(t)
+			r.captureClient = &stubCaptureClient{response: &captureResponse{Frames: tc.frames}}
+			r.videoEncoder = NewFFmpegEncoder(ffmpeg)
+			spec := &ReplayMovieSpec{Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100}, Summary: &exportsv1.ReplaySummary{TotalDurationMs: 200}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 200}}}
+			media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "native-png.mp4", 100)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer media.Cleanup()
+			if output, err := exec.Command(ffmpeg, "-v", "error", "-i", media.Path, "-f", "null", "-").CombinedOutput(); err != nil {
+				t.Fatalf("export must fully decode: %v: %s", err, output)
+			}
+		})
+	}
+}
+
+func TestRenderCaptureSanitizesFilenameThroughExportOwner(t *testing.T) {
+	validFrame := makeJPEGBase64(t, 320, 240)
+	r := newTestRenderer(t)
+	r.captureClient = &stubCaptureClient{response: &captureResponse{Frames: []captureFrame{{Data: validFrame}}}}
+	r.videoEncoder = &MockVideoEncoder{}
+	spec := &ReplayMovieSpec{
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
+	}
+
+	media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "../private\x00shot.mp4", 100)
+	if err != nil {
+		t.Fatalf("render capture: %v", err)
+	}
+	defer media.Cleanup()
+	if media.Filename != "..-privateshot.mp4" {
+		t.Fatalf("sanitized filename = %q, want %q", media.Filename, "..-privateshot.mp4")
 	}
 }

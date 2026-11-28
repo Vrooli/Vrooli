@@ -1,16 +1,10 @@
-// Settings dialog with Model Registry, Model Pricing, Maintenance, and Investigation tabs
+// Settings dialog with Role Policy, Permissions, Model Pricing, Investigation, Orchestration, Notifications, and Maintenance tabs
 
 import { useCallback, useRef, useState } from "react";
-import { Button } from "../../ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
+import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { Tabs as RclTabs } from "@vrooli/react-component-library/Tabs/1";
 import { PurgeConfirmDialog, type PurgePreview } from "../PurgeConfirmDialog";
 import { InvestigationTab } from "./InvestigationTab";
 import type { InvestigationTabHandle } from "./InvestigationTab";
@@ -18,17 +12,20 @@ import { OrchestrationTab } from "./OrchestrationTab";
 import type { OrchestrationTabHandle } from "./OrchestrationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
-import { ModelRegistryTab } from "./ModelRegistryTab";
-import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
-import { useInvestigationSettings, useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
+import { RolePolicyTab } from "./RolePolicyTab";
+import { PermissionPolicyTab } from "./PermissionPolicyTab";
+import { useInvestigationSettings, useMaintenance, usePermissionPolicy, useRolePolicyCatalog } from "../../../hooks/useApi";
 import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
+import { overlayActions } from "../../../lib/overlayActions";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 const TAB_DESCRIPTIONS: Record<string, string> = {
-  models: "Configure per-runner model lists and preset mappings",
+  roles: "Inspect the active Git-managed role policy catalog and activation state",
+  permissions: "Inspect and reconcile global portable coding-agent permissions",
   pricing: "View and manage model pricing with overrides",
   investigation: "Configure investigation and apply-fix agent behavior",
   orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
+  notifications: "Choose which alerts reach this phone or browser, and how urgent they must be",
   maintenance: "Purge data and manage service controls",
 };
 
@@ -43,20 +40,13 @@ export function SettingsDialog({
   onOpenChange,
   onPurgeComplete,
 }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState("models");
+  const [activeTab, setActiveTab] = useState("roles");
 
   // API hooks
-  const modelRegistry = useModelRegistry();
-  const runners = useRunners();
+  const rolePolicy = useRolePolicyCatalog({ enabled: open });
+  const permissionPolicy = usePermissionPolicy({ enabled: open });
   const maintenance = useMaintenance();
   const investigationSettings = useInvestigationSettings();
-
-  // Model registry editor
-  const editor = useModelRegistryEditor({
-    data: modelRegistry.data,
-    isActive: open,
-    updateRegistry: modelRegistry.updateRegistry,
-  });
 
   // Investigation ref + dirty state for unified footer
   const investigationRef = useRef<InvestigationTabHandle>(null);
@@ -116,138 +106,61 @@ export function SettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} fullScreenMobile>
-        <DialogContent fullScreenMobile className="sm:max-w-[90vw] xl:max-w-7xl">
-          <DialogHeader onClose={() => onOpenChange(false)} className="p-4 sm:p-6">
-            <DialogTitle>Settings</DialogTitle>
-            <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title="Settings"
+        closeLabel="Close"
+        size="lg"
+        testId="settings-dialog"
+        panelClassName="sm:!w-[90vw] xl:!w-[80rem]"
+        contentClassName="flex min-h-0 flex-col p-0"
+        subheader={<p className="px-4 py-2 text-sm text-muted-foreground sm:px-6">{TAB_DESCRIPTIONS[activeTab]}</p>}
+        footer={(
+          <OverlayActionBar className="flex-row-reverse" actions={
+            activeTab === "orchestration" && orchestrationDirty
+              ? overlayActions(
+                  { id: "save", label: orchestrationRef.current?.saving ? "Saving..." : "Save", onSelect: () => orchestrationRef.current?.save(), disabled: orchestrationRef.current?.saving, primary: true },
+                  { id: "reset", label: "Reset to Defaults", onSelect: () => orchestrationRef.current?.reset(), disabled: orchestrationRef.current?.saving },
+                  { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
+                )
+              : activeTab === "investigation" && investigationDirty
+                ? overlayActions(
+                    { id: "save", label: investigationRef.current?.saving ? "Saving..." : "Save", onSelect: () => investigationRef.current?.save(), disabled: investigationRef.current?.saving, primary: true },
+                    { id: "reset", label: "Reset to Defaults", onSelect: () => investigationRef.current?.reset(), disabled: investigationRef.current?.saving },
+                    { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
+                  )
+                : overlayActions({ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true })
+          } />
+        )}
+      >
+          <RclTabs
+            active={activeTab}
+            onChange={setActiveTab}
+            ariaLabel="Settings categories"
+            className="flex min-h-0 flex-1 flex-col [&_[data-rcl-tab-panel]]:min-h-0 [&_[data-rcl-tab-panel]]:flex-1 [&_[data-rcl-tab-panel]]:overflow-y-auto"
+            items={[
+              { id: "roles", label: "Role Policy" },
+              { id: "permissions", label: "Permissions" },
+              { id: "pricing", label: "Model Pricing" },
+              { id: "investigation", label: "Investigation" },
+              { id: "orchestration", label: "Orchestration" },
+              { id: "notifications", label: "Notifications" },
+              { id: "maintenance", label: "Maintenance" },
+            ]}
+            testId="settings-dialog-tabs"
+            panels={{
+              roles: <div className="px-4 py-4 sm:px-6"><RolePolicyTab data={rolePolicy.data} loading={rolePolicy.loading} error={rolePolicy.error} /></div>,
+              permissions: <div className="px-4 py-4 sm:px-6"><PermissionPolicyTab policy={permissionPolicy} /></div>,
+              pricing: <div className="px-4 py-4 sm:px-6"><ModelPricingTab /></div>,
+              investigation: <div className="px-4 py-4 sm:px-6"><InvestigationTab ref={investigationRef} settings={investigationSettings.data} loading={investigationSettings.loading} error={investigationSettings.error} onSave={investigationSettings.updateSettings} onReset={investigationSettings.resetSettings} onDirtyChange={setInvestigationDirty} /></div>,
+              orchestration: <div className="px-4 py-4 sm:px-6"><OrchestrationTab ref={orchestrationRef} settings={orchestrationSettings.data} loading={orchestrationSettings.loading} error={orchestrationSettings.error} onSave={orchestrationSettings.updateSettings} onReset={orchestrationSettings.resetSettings} onDirtyChange={setOrchestrationDirty} /></div>,
+              notifications: <div className="px-4 py-4 sm:px-6"><AppNotificationSettings /></div>,
+              maintenance: <div className="px-4 py-4 sm:px-6"><MaintenanceTab purgePattern={purgePattern} onPurgePatternChange={setPurgePattern} loading={purgeLoading} error={purgeError} onPurgePreview={handlePurgePreview} /></div>,
+            }}
+          />
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
-            {/* Tab bar — sticky, scrollable on mobile */}
-            <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
-              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
-                <TabsTrigger value="models" className="shrink-0">Model Registry</TabsTrigger>
-                <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
-                <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
-                <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
-                <TabsTrigger value="maintenance" className="shrink-0">Maintenance</TabsTrigger>
-              </TabsList>
-            </div>
-
-            {/* Scrollable tab content */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
-              <TabsContent value="models" className="mt-0">
-                <ModelRegistryTab
-                  draft={editor.draft}
-                  loading={modelRegistry.loading}
-                  loadError={modelRegistry.error}
-                  error={editor.error}
-                  newRunnerKey={editor.newRunnerKey}
-                  onNewRunnerKeyChange={editor.setNewRunnerKey}
-                  knownRunners={runners.data ?? undefined}
-                  onAddRunner={editor.addRunner}
-                  onRemoveRunner={editor.removeRunner}
-                  onAddFallbackRunner={editor.addFallbackRunner}
-                  onUpdateFallbackRunner={editor.updateFallbackRunner}
-                  onRemoveFallbackRunner={editor.removeFallbackRunner}
-                  onAddModel={editor.addModel}
-                  onRemoveModel={editor.removeModel}
-                  onUpdateModel={editor.updateModel}
-                  onUpdatePreset={editor.updatePreset}
-                />
-              </TabsContent>
-              <TabsContent value="pricing" className="mt-0">
-                <ModelPricingTab />
-              </TabsContent>
-              <TabsContent value="investigation" className="mt-0">
-                <InvestigationTab
-                  ref={investigationRef}
-                  settings={investigationSettings.data}
-                  loading={investigationSettings.loading}
-                  error={investigationSettings.error}
-                  onSave={investigationSettings.updateSettings}
-                  onReset={investigationSettings.resetSettings}
-                  onDirtyChange={setInvestigationDirty}
-                />
-              </TabsContent>
-              <TabsContent value="orchestration" className="mt-0">
-                <OrchestrationTab
-                  ref={orchestrationRef}
-                  settings={orchestrationSettings.data}
-                  loading={orchestrationSettings.loading}
-                  error={orchestrationSettings.error}
-                  onSave={orchestrationSettings.updateSettings}
-                  onReset={orchestrationSettings.resetSettings}
-                  onDirtyChange={setOrchestrationDirty}
-                />
-              </TabsContent>
-              <TabsContent value="maintenance" className="mt-0">
-                <MaintenanceTab
-                  purgePattern={purgePattern}
-                  onPurgePatternChange={setPurgePattern}
-                  loading={purgeLoading}
-                  error={purgeError}
-                  onPurgePreview={handlePurgePreview}
-                />
-              </TabsContent>
-            </div>
-          </Tabs>
-
-          <DialogFooter className="p-4 sm:p-6">
-            {activeTab === "models" && editor.draft && (
-              <>
-                <Button variant="outline" onClick={editor.reset} disabled={!editor.draft}>
-                  Reset
-                </Button>
-                <Button
-                  onClick={editor.save}
-                  disabled={!editor.draft || editor.saving}
-                >
-                  {editor.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
-            {activeTab === "orchestration" && orchestrationDirty && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => orchestrationRef.current?.reset()}
-                  disabled={orchestrationRef.current?.saving}
-                >
-                  Reset to Defaults
-                </Button>
-                <Button
-                  onClick={() => orchestrationRef.current?.save()}
-                  disabled={orchestrationRef.current?.saving}
-                >
-                  {orchestrationRef.current?.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
-            {activeTab === "investigation" && investigationDirty && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => investigationRef.current?.reset()}
-                  disabled={investigationRef.current?.saving}
-                >
-                  Reset to Defaults
-                </Button>
-                <Button
-                  onClick={() => investigationRef.current?.save()}
-                  disabled={investigationRef.current?.saving}
-                >
-                  {investigationRef.current?.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       <PurgeConfirmDialog
         open={purgeConfirmOpen}

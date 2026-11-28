@@ -1,0 +1,374 @@
+{
+  "id": "messy-markup-05",
+  "family": "messy-markup",
+  "family_name": "Messy markup",
+  "difficulty": 5,
+  "title": "Malformed inline recovery: nested broken fragments",
+  "task": "Extract all 24 records from this malformed page. HTML error recovery changes the element tree: preserve each ID and keep name, category and value attached to the same row. Decode markup entities, emit active as a boolean, and do not treat orphan tags or noise labels as records.",
+  "mechanism": "messy_markup",
+  "tags": [
+    "difficulty-5",
+    "messy_markup",
+    "hard",
+    "very-hard",
+    "malformed-inline",
+    "entity-decoding",
+    "large-page"
+  ],
+  "page": {
+    "title": "Malformed inline recovery · level 5",
+    "records": [
+      {
+        "id": "MES-05-001",
+        "name": "Cluster & group 1 / field",
+        "category": "beta",
+        "value": 751,
+        "active": true
+      },
+      {
+        "id": "MES-05-002",
+        "name": "Cluster & group 2 / field",
+        "category": "gamma",
+        "value": 752,
+        "active": true
+      },
+      {
+        "id": "MES-05-003",
+        "name": "Cluster & group 3 / field",
+        "category": "alpha",
+        "value": 753,
+        "active": true
+      },
+      {
+        "id": "MES-05-004",
+        "name": "Cluster & group 4 / field",
+        "category": "beta",
+        "value": 754,
+        "active": false
+      },
+      {
+        "id": "MES-05-005",
+        "name": "Cluster & group 5 / field",
+        "category": "gamma",
+        "value": 755,
+        "active": true
+      },
+      {
+        "id": "MES-05-006",
+        "name": "Cluster & group 6 / field",
+        "category": "alpha",
+        "value": 756,
+        "active": true
+      },
+      {
+        "id": "MES-05-007",
+        "name": "Cluster & group 7 / field",
+        "category": "beta",
+        "value": 757,
+        "active": true
+      },
+      {
+        "id": "MES-05-008",
+        "name": "Cluster & group 8 / field",
+        "category": "gamma",
+        "value": 758,
+        "active": false
+      },
+      {
+        "id": "MES-05-009",
+        "name": "Cluster & group 9 / field",
+        "category": "alpha",
+        "value": 759,
+        "active": true
+      },
+      {
+        "id": "MES-05-010",
+        "name": "Cluster & group 10 / field",
+        "category": "beta",
+        "value": 760,
+        "active": true
+      },
+      {
+        "id": "MES-05-011",
+        "name": "Cluster & group 11 / field",
+        "category": "gamma",
+        "value": 761,
+        "active": true
+      },
+      {
+        "id": "MES-05-012",
+        "name": "Cluster & group 12 / field",
+        "category": "alpha",
+        "value": 762,
+        "active": false
+      },
+      {
+        "id": "MES-05-013",
+        "name": "Cluster & group 13 / field",
+        "category": "beta",
+        "value": 763,
+        "active": true
+      },
+      {
+        "id": "MES-05-014",
+        "name": "Cluster & group 14 / field",
+        "category": "gamma",
+        "value": 764,
+        "active": true
+      },
+      {
+        "id": "MES-05-015",
+        "name": "Cluster & group 15 / field",
+        "category": "alpha",
+        "value": 765,
+        "active": true
+      },
+      {
+        "id": "MES-05-016",
+        "name": "Cluster & group 16 / field",
+        "category": "beta",
+        "value": 766,
+        "active": false
+      },
+      {
+        "id": "MES-05-017",
+        "name": "Cluster & group 17 / field",
+        "category": "gamma",
+        "value": 767,
+        "active": true
+      },
+      {
+        "id": "MES-05-018",
+        "name": "Cluster & group 18 / field",
+        "category": "alpha",
+        "value": 768,
+        "active": true
+      },
+      {
+        "id": "MES-05-019",
+        "name": "Cluster & group 19 / field",
+        "category": "beta",
+        "value": 769,
+        "active": true
+      },
+      {
+        "id": "MES-05-020",
+        "name": "Cluster & group 20 / field",
+        "category": "gamma",
+        "value": 770,
+        "active": false
+      },
+      {
+        "id": "MES-05-021",
+        "name": "Cluster & group 21 / field",
+        "category": "alpha",
+        "value": 771,
+        "active": true
+      },
+      {
+        "id": "MES-05-022",
+        "name": "Cluster & group 22 / field",
+        "category": "beta",
+        "value": 772,
+        "active": true
+      },
+      {
+        "id": "MES-05-023",
+        "name": "Cluster & group 23 / field",
+        "category": "gamma",
+        "value": 773,
+        "active": true
+      },
+      {
+        "id": "MES-05-024",
+        "name": "Cluster & group 24 / field",
+        "category": "alpha",
+        "value": 774,
+        "active": false
+      }
+    ],
+    "page_size": 24,
+    "variant": 5,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "malformed-v1",
+    "behavior": {
+      "case_variation": true,
+      "misnested_inline": true,
+      "orphan_end_tags": true,
+      "markup_entities": true
+    },
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "MES-05-001",
+      "name": "Cluster & group 1 / field",
+      "category": "beta",
+      "value": 751,
+      "active": true
+    },
+    {
+      "id": "MES-05-002",
+      "name": "Cluster & group 2 / field",
+      "category": "gamma",
+      "value": 752,
+      "active": true
+    },
+    {
+      "id": "MES-05-003",
+      "name": "Cluster & group 3 / field",
+      "category": "alpha",
+      "value": 753,
+      "active": true
+    },
+    {
+      "id": "MES-05-004",
+      "name": "Cluster & group 4 / field",
+      "category": "beta",
+      "value": 754,
+      "active": false
+    },
+    {
+      "id": "MES-05-005",
+      "name": "Cluster & group 5 / field",
+      "category": "gamma",
+      "value": 755,
+      "active": true
+    },
+    {
+      "id": "MES-05-006",
+      "name": "Cluster & group 6 / field",
+      "category": "alpha",
+      "value": 756,
+      "active": true
+    },
+    {
+      "id": "MES-05-007",
+      "name": "Cluster & group 7 / field",
+      "category": "beta",
+      "value": 757,
+      "active": true
+    },
+    {
+      "id": "MES-05-008",
+      "name": "Cluster & group 8 / field",
+      "category": "gamma",
+      "value": 758,
+      "active": false
+    },
+    {
+      "id": "MES-05-009",
+      "name": "Cluster & group 9 / field",
+      "category": "alpha",
+      "value": 759,
+      "active": true
+    },
+    {
+      "id": "MES-05-010",
+      "name": "Cluster & group 10 / field",
+      "category": "beta",
+      "value": 760,
+      "active": true
+    },
+    {
+      "id": "MES-05-011",
+      "name": "Cluster & group 11 / field",
+      "category": "gamma",
+      "value": 761,
+      "active": true
+    },
+    {
+      "id": "MES-05-012",
+      "name": "Cluster & group 12 / field",
+      "category": "alpha",
+      "value": 762,
+      "active": false
+    },
+    {
+      "id": "MES-05-013",
+      "name": "Cluster & group 13 / field",
+      "category": "beta",
+      "value": 763,
+      "active": true
+    },
+    {
+      "id": "MES-05-014",
+      "name": "Cluster & group 14 / field",
+      "category": "gamma",
+      "value": 764,
+      "active": true
+    },
+    {
+      "id": "MES-05-015",
+      "name": "Cluster & group 15 / field",
+      "category": "alpha",
+      "value": 765,
+      "active": true
+    },
+    {
+      "id": "MES-05-016",
+      "name": "Cluster & group 16 / field",
+      "category": "beta",
+      "value": 766,
+      "active": false
+    },
+    {
+      "id": "MES-05-017",
+      "name": "Cluster & group 17 / field",
+      "category": "gamma",
+      "value": 767,
+      "active": true
+    },
+    {
+      "id": "MES-05-018",
+      "name": "Cluster & group 18 / field",
+      "category": "alpha",
+      "value": 768,
+      "active": true
+    },
+    {
+      "id": "MES-05-019",
+      "name": "Cluster & group 19 / field",
+      "category": "beta",
+      "value": 769,
+      "active": true
+    },
+    {
+      "id": "MES-05-020",
+      "name": "Cluster & group 20 / field",
+      "category": "gamma",
+      "value": 770,
+      "active": false
+    },
+    {
+      "id": "MES-05-021",
+      "name": "Cluster & group 21 / field",
+      "category": "alpha",
+      "value": 771,
+      "active": true
+    },
+    {
+      "id": "MES-05-022",
+      "name": "Cluster & group 22 / field",
+      "category": "beta",
+      "value": 772,
+      "active": true
+    },
+    {
+      "id": "MES-05-023",
+      "name": "Cluster & group 23 / field",
+      "category": "gamma",
+      "value": 773,
+      "active": true
+    },
+    {
+      "id": "MES-05-024",
+      "name": "Cluster & group 24 / field",
+      "category": "alpha",
+      "value": 774,
+      "active": false
+    }
+  ]
+}

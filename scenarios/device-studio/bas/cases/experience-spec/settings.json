@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page settings.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "settings",
+      "surface": "experience-settings"
+    },
+    "name": "experience-settings-spec-smoke",
+    "requirement": "OT-P0-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Settings"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "device-studio",
+          "scenario_path": "/settings",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-settings"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Settings page visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-settings-page"
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

@@ -1,0 +1,439 @@
+{
+  "nodes": [
+    {
+      "id": "8b5a7a7b-fec4-48c0-8dfc-75f2db56df2f",
+      "name": "Receive Promo Request",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -656,
+        -64
+      ],
+      "parameters": {
+        "path": "27923033-a20e-4fc3-8bda-5308f6661a01",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "868d15bc-d75e-45af-9657-6b1cc40bbdaf",
+      "name": "Normalize Promo Data",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -352,
+        -64
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "66113943-5c51-4825-acd6-f90fb1c2ad83",
+              "name": "body.code",
+              "type": "string",
+              "value": "={{ $json.body.code }}"
+            },
+            {
+              "id": "87925321-8d42-40ca-ae04-05d915598b4b",
+              "name": "body.discount_type",
+              "type": "string",
+              "value": "={{ $json.body.discount_type }}"
+            },
+            {
+              "id": "5141b5e6-1c1e-48d6-87c8-dbf7c53e8295",
+              "name": "body.value",
+              "type": "number",
+              "value": "={{ $json.body.value }}"
+            },
+            {
+              "id": "b7de7784-7564-440e-96ae-2d5f620c3573",
+              "name": "body.expiry",
+              "type": "string",
+              "value": "={{ $json.body.expiry }}"
+            },
+            {
+              "id": "d56b63af-b89d-40b1-8e7d-f574394dc4aa",
+              "name": "body.usage_limit",
+              "type": "number",
+              "value": "={{ $json.body.usage_limit }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "b744deba-370b-4cd4-a3c2-89011a66e427",
+      "name": "Expiry Is Valid",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        64,
+        -64
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "1cba2ed6-e3c2-48da-bf85-cb0f47162a1e",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ new Date($json[\"body\"][\"expiry\"]) > new Date() }}",
+              "rightValue": ""
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "64f64cfa-5098-49ff-b8f7-f75a4874aeb8",
+      "name": "Send Promo Email",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        288,
+        -80
+      ],
+      "parameters": {
+        "sendTo": "recipient@synthetic.invalid",
+        "message": "=<h2>🎉 New Promo Code Available!</h2> \n<p><b>Code:</b> {{ $('Expiry Is Valid').item.json.body.code }}</p> \n<p><b>Discount:</b> {{ $('Expiry Is Valid').item.json.body.value }}%</p> \n<p><b>Expiry:</b> {{ $('Expiry Is Valid').item.json.body.expiry }}</p>\n<p><b>Usage Limit:</b> {{ $('Expiry Is Valid').item.json.body.usage_limit }}</p>",
+        "options": {
+          "appendAttribution": false
+        },
+        "subject": "=🎉 New Promo Code: {{ $('Expiry Is Valid').item.json.body.code }}"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "57f812f3-3dc7-4d66-b62e-fc66f6da84f0",
+      "name": "Save Promo to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        528,
+        -80
+      ],
+      "parameters": {
+        "columns": {
+          "value": {
+            "Code": "={{ $('Expiry Is Valid').item.json.body.code }}",
+            "Expiry": "={{ $('Expiry Is Valid').item.json.body.expiry }}",
+            "Discount": "={{ $('Expiry Is Valid').item.json.body.value }}",
+            "Usage Limit": "={{ $('Expiry Is Valid').item.json.body.usage_limit }}"
+          },
+          "schema": [
+            {
+              "id": "Code",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Code",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Discount",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Discount",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Expiry",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Expiry",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Usage Limit",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Usage Limit",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created At",
+              "type": "string",
+              "display": true,
+              "removed": true,
+              "required": false,
+              "displayName": "Created At",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {},
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0",
+          "cachedResultUrl": "",
+          "cachedResultName": ""
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "synthetic-spreadsheet-1",
+          "cachedResultUrl": "",
+          "cachedResultName": ""
+        }
+      },
+      "typeVersion": 4.7
+    },
+    {
+      "id": "005324fd-512c-437f-94b6-f030888b69df",
+      "name": "Calculate Days Left",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        944,
+        -80
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f6d0bdf2-d8bf-4baa-bd81-c507db8df7e2",
+              "name": "daysLeft",
+              "type": "string",
+              "value": "={{ Math.ceil((new Date($json.Expiry) - new Date()) / (1000 * 60 * 60 * 24)) }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "085776b2-4a0a-49f4-84a3-629aac33ec4b",
+      "name": "Is Urgent (1 Day Left)",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1152,
+        -80
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "1755407a-ff14-4a9f-a7a7-e4e68dbfdfe8",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.daysLeft }}",
+              "rightValue": "1"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "088fdaed-8e99-4756-9735-1d3ca3f4e472",
+      "name": "Slack Urgent Alert",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        1872,
+        -368
+      ],
+      "parameters": {
+        "text": "=🚨 URGENT: Promo Expiring Tomorrow!  Code: {{ $('Save Promo to Sheet').item.json.Code }} Discount:{{ $('Save Promo to Sheet').item.json.Discount }}% Expiry: {{ $('Save Promo to Sheet').item.json.Expiry }} ⚡ Only 1 day left!",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "synthetic-channel-1"
+        },
+        "otherOptions": {}
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "6b2e20f7-d4f6-4b9d-9a4b-71c190626df1",
+      "name": "Is Warning (2–3 Days Left)",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1728,
+        256
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "cdc81cf1-d994-45c3-a4b8-476685b62aeb",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.daysLeft > 1 && $json.daysLeft <= 3 }}",
+              "rightValue": true
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "ae3c3d89-517c-4c6e-8c29-c056d5a18ca1",
+      "name": "Slack Warning Alert",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        1984,
+        272
+      ],
+      "parameters": {
+        "text": "=⚠️ Promo Expiring Soon  Code:{{ $('Save Promo to Sheet').item.json.Code }}  Discount:{{ $('Save Promo to Sheet').item.json.Discount }} % Expiry:  {{ $('Save Promo to Sheet').item.json.Expiry }} ⏳ Days Left: {{ $json.daysLeft }}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "synthetic-channel-1"
+        },
+        "otherOptions": {}
+      },
+      "typeVersion": 2.3
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Expiry Is Valid": {
+      "main": [
+        [
+          {
+            "node": "Send Promo Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Promo Email": {
+      "main": [
+        [
+          {
+            "node": "Save Promo to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Days Left": {
+      "main": [
+        [
+          {
+            "node": "Is Urgent (1 Day Left)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Promo to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Calculate Days Left",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Promo Data": {
+      "main": [
+        [
+          {
+            "node": "Expiry Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receive Promo Request": {
+      "main": [
+        [
+          {
+            "node": "Normalize Promo Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Urgent (1 Day Left)": {
+      "main": [
+        [
+          {
+            "node": "Slack Urgent Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Warning (2–3 Days Left)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Warning (2–3 Days Left)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Slack Warning Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "public-template-15238",
+  "name": "Public template 15238 (sanitized)",
+  "active": false
+}

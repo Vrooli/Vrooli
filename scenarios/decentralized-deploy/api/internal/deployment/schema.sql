@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS deployment_records (
+  id TEXT PRIMARY KEY,
+  payload_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

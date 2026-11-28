@@ -1,0 +1,80 @@
+{
+  "collections": [
+    {
+      "labelField": "columns[].header",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "rows",
+      "stableIdField": "getRowKey(row, index)",
+      "typicalCount": 4
+    },
+    {
+      "labelField": "header",
+      "maximumCount": 10,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "columns",
+      "stableIdField": "id",
+      "typicalCount": 4
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "filters",
+      "stableIdField": "id",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "views",
+      "stableIdField": "id",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "sortOptions",
+      "stableIdField": "id",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 3,
+      "maximumLabelCharacters": 20,
+      "primaryAction": "optional",
+      "primaryCount": 1,
+      "primaryField": "primary",
+      "property": "rowActions",
+      "stableIdField": "id",
+      "typicalCount": 1
+    },
+    {
+      "labelField": "value",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 40,
+      "primaryAction": "not-applicable",
+      "property": "selectedRowKeys",
+      "stableIdField": "value",
+      "typicalCount": 2
+    },
+    {
+      "labelField": "value",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 40,
+      "primaryAction": "not-applicable",
+      "property": "defaultSelectedRowKeys",
+      "stableIdField": "value",
+      "typicalCount": 2
+    }
+  ],
+  "componentId": "react-component-library:ResourceCollection",
+  "version": "1.0.13"
+}

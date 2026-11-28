@@ -1,0 +1,22 @@
+[
+  {
+    "path": "internal/resources/openrgb_device_policy.go",
+    "before": "1a0ba3e46af060b7a42f8dd266a7bdc7324758f8cdb1daf0396043d125770160",
+    "after": "2189b9ff4bcbbefd58e7c09b609c5bd71a8e97235ef3dc2cf533f2c806a32628"
+  },
+  {
+    "path": "internal/resources/openrgb_device_policy_native.go",
+    "before": "67b03de778855fd92c1a7051939ee372529833aa56f5504047c60e5d2cf6e6b6",
+    "after": "0fd833d3ab9ae34952d331be42a8c970f8e1c3f033d1cf3b63da168165a1f5c6"
+  },
+  {
+    "path": "internal/resources/openrgb_device_setup.go",
+    "before": "c2144ec2d5add1a397c7306741527350034083e9dceaa700cbe70d224c3aa53d",
+    "after": "880e2ac7c52dc33e4a7f0139bd6965f739dc2b0064985cbe0b71664eab3dda03"
+  },
+  {
+    "path": "internal/resources/openrgb_headless.go",
+    "before": "91667118be3f58346b75b520d679c824fcdfdd6caa61894c3a3c10a1affe3163",
+    "after": "8b76d7fdddaf86ffb8a57d0a8ea0aa92da091e41b71ea21dec6ae1ca14ba050e"
+  }
+]

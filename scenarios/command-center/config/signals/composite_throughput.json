@@ -1,0 +1,22 @@
+{
+  "id": "composite_throughput",
+  "label": "Items completed all time",
+  "description": "Backlog items Swarm Manager has completed since records began.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/stats",
+    "select": "composite_throughput",
+    "ttlSeconds": 30,
+    "integrationId": "swarm-manager",
+    "featureId": "composite_throughput",
+    "contractVersion": "legacy.v1",
+    "selector": "composite_throughput",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

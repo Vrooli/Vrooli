@@ -1,0 +1,1190 @@
+package jobs
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/google/uuid"
+)
+
+// Runner executes a job's actual work. It runs under a server-lifetime context
+// (jobCtx) that is canceled only by Cancel or server shutdown — never by a
+// client disconnect. emit reports progress (0..100) + a message; the manager
+// persists and streams it.
+type Runner func(jobCtx context.Context, job Job, emit func(progress int, message string)) (Result, error)
+
+// Result is what a Runner produces.
+//
+// It is a struct rather than a bare ref string because a backend learns facts
+// while running that nothing downstream can reconstruct afterwards: which model
+// actually served the request, which tier it ran on, and what the route cost.
+// Those were assembled by the AI backends and then dropped one stack frame
+// later, so a caller could be billed for a cloud generation with no record of
+// the charge anywhere in the system.
+type Result struct {
+	// Ref is the output reference (blob key / path).
+	Ref string
+	// Meta carries the backend's own record of the run, keyed by the backend's
+	// vocabulary. It is persisted with the job and served on the wire, so a
+	// caller reads what happened rather than what it asked for.
+	Meta map[string]string
+}
+
+// Manager errors.
+var (
+	// ErrNotFound is returned for an unknown job id.
+	ErrNotFound = errors.New("jobs: not found")
+	// ErrQueueFull is returned when the scheduler queue is saturated.
+	ErrQueueFull = errors.New("jobs: queue full")
+	// ErrNotStarted is returned when Submit is called before Start.
+	ErrNotStarted          = errors.New("jobs: manager not started")
+	ErrIdempotencyConflict = errors.New("jobs: client operation id was reused with different input")
+)
+
+const queueCapacity = 1024
+
+// Config configures a Manager.
+type Config struct {
+	// Runner executes work. Required.
+	Runner Runner
+	// Admit obtains all leases before a job runs. A capacity refusal requeues
+	// without executing; Release runs before any terminal event is published.
+	Admit Admitter
+	// Reroute, when set, is offered every job on a local lane that has not
+	// started running, queued or inside admission. It may move the job to
+	// another route (see Rerouter); it is never offered a running job.
+	Reroute Rerouter
+	// Clock supplies timestamps. Defaults to schedule.System().
+	Clock schedule.Clock
+	// CPUWorkers bounds all local work, including CPU-backed model inference.
+	// Platform capacity determines the safe concurrency below this ceiling.
+	CPUWorkers int
+	// NetworkWorkers is the concurrent network lane size for remote tiers.
+	// Defaults to 4 when <= 0.
+	NetworkWorkers int
+	// Resumable reports whether a job of this operation can be started again
+	// from its persisted payload by a later process. Only such jobs are put back
+	// on the queue (instead of failed or canceled) when the process drains for a
+	// restart, and only while they have not started computing. Inline task jobs
+	// (SubmitTask) carry a closure and are never resumable.
+	Resumable func(operation string) bool
+	// Restartable reports whether a job of this operation may be stopped while
+	// it is running and started again later with no loss: its work is idempotent
+	// and resumes from what it already wrote (a model download resumes from its
+	// staging directory). Such jobs are returned to the queue by a restart drain
+	// instead of holding it. It is meaningful only for Resumable operations.
+	Restartable func(operation string) bool
+	// DeferRecovery leaves restart recovery to an explicit Recover call. An owner
+	// whose operations register their handlers after Start (so Resumable cannot
+	// answer yet) sets it and calls Recover once every handler is registered.
+	DeferRecovery bool
+	// OnComplete, when set, is called once per job as it reaches a terminal state
+	// (succeeded/failed/canceled). The measures recorder uses it to capture op
+	// latency + queue-wait without coupling the Manager to the measures package.
+	// It must not block; it runs on the finalizing goroutine after subscribers
+	// are notified.
+	OnComplete func(job Job)
+}
+
+// Manager owns durable jobs, their one priority queue, and admission lifetime.
+// Work survives client disconnects and is terminal only after cleanup returns.
+type Manager struct {
+	st          *store
+	runner      Runner
+	admit       Admitter
+	reroute     Rerouter
+	clock       schedule.Clock
+	cpuN        int
+	netN        int
+	onComplete  func(Job)
+	resumable   func(string) bool
+	deferRecov  bool
+	restartable func(string) bool
+	draining    atomic.Bool
+	baseCtx     context.Context
+	cancel      context.CancelFunc
+
+	mu            sync.Mutex
+	entries       map[string]*jobEntry
+	pending       []*jobEntry
+	wake          chan struct{}
+	localActive   int
+	networkActive int
+	started       bool
+	wg            sync.WaitGroup
+}
+
+type subscriber struct {
+	ch     chan ProgressEvent
+	closed bool
+}
+
+type jobEntry struct {
+	mu          sync.Mutex
+	job         Job
+	waiters     int
+	routeValues context.Context
+	cancel      context.CancelFunc
+	done        chan struct{}
+	subs        []*subscriber
+	last        *ProgressEvent
+	retryAt     time.Time
+	// rerouteAt is the next time the Rerouter is consulted for this entry.
+	rerouteAt time.Time
+	// move is a re-route decided while the job was inside admission. Setting it
+	// cancels the admission; the job never starts running once it is set, and
+	// execute applies it after the admission's leases are released.
+	move *Reroute
+	// pause is set when the process is draining for a restart while the job is
+	// inside admission. It cancels the admission like a move does; execute then
+	// puts the job back on the queue, persisted, instead of running it.
+	pause bool
+	// slotNetwork records which dispatch ceiling this execution holds, because
+	// a move changes the job's lane while the slot is still held.
+	slotNetwork bool
+	// capacityRefusals counts consecutive capacity-busy admissions and sets
+	// the next retry delay.
+	capacityRefusals int
+	persistErr       error
+	runner           Runner
+}
+
+type testPoolPinner interface {
+	ActiveLeaseID() string
+	PinTestPool(context.Context, string) (context.Context, error)
+}
+
+type valueOverlayContext struct {
+	context.Context
+	values context.Context
+}
+
+func (c valueOverlayContext) Value(key any) any {
+	if value := c.values.Value(key); value != nil {
+		return value
+	}
+	return c.Context.Value(key)
+}
+
+// New builds a Manager backed by db. Call Start before Submit.
+func New(db SQLExecutor, cfg Config) *Manager {
+	clk := cfg.Clock
+	if clk == nil {
+		clk = schedule.System()
+	}
+	n := cfg.CPUWorkers
+	if n <= 0 {
+		n = 4
+	}
+	netN := cfg.NetworkWorkers
+	if netN <= 0 {
+		netN = 4
+	}
+	return &Manager{
+		st:          newStore(db),
+		runner:      cfg.Runner,
+		admit:       cfg.Admit,
+		reroute:     cfg.Reroute,
+		clock:       clk,
+		cpuN:        n,
+		netN:        netN,
+		onComplete:  cfg.OnComplete,
+		resumable:   cfg.Resumable,
+		deferRecov:  cfg.DeferRecovery,
+		restartable: cfg.Restartable,
+		entries:     make(map[string]*jobEntry),
+		wake:        make(chan struct{}, 1),
+	}
+}
+
+// Start performs restart recovery before admitting work. Failed startup never
+// exposes a manager that accepts jobs without a running scheduler.
+func (m *Manager) Start(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.started {
+		return nil
+	}
+	if m.runner == nil {
+		return fmt.Errorf("jobs: runner is required")
+	}
+	m.baseCtx, m.cancel = context.WithCancel(ctx)
+	if err := m.st.migrate(m.baseCtx); err != nil {
+		m.cancel()
+		return err
+	}
+	if !m.deferRecov {
+		if err := m.recover(); err != nil {
+			m.cancel()
+			return err
+		}
+	}
+	m.started = true
+	m.wg.Add(1)
+	go m.schedule()
+	return nil
+}
+
+// Close stops workers and waits for in-flight jobs to observe cancellation.
+func (m *Manager) Close() {
+	m.mu.Lock()
+	if !m.started {
+		m.mu.Unlock()
+		return
+	}
+	m.started = false
+	cancel := m.cancel
+	m.mu.Unlock()
+	// A job still inside admission has computed nothing: put it back on the
+	// queue for the next process instead of canceling it.
+	m.Quiesce(context.Background())
+	if cancel != nil {
+		cancel()
+	}
+	m.wg.Wait()
+	m.releaseResumable()
+}
+
+// recover settles jobs left non-terminal by a previous process. A job that was
+// queued or still inside admission computed nothing, so when its operation is
+// resumable it goes back on the queue and runs from its persisted payload. Work
+// that was running (or being canceled) cannot be resumed mid-flight and may
+// already have billed or written output: it fails loudly instead of claiming to
+// still run. Test-mode jobs and inline tasks are never resumed.
+func (m *Manager) recover() error {
+	orphans, err := m.st.listNonTerminal(m.baseCtx)
+	if err != nil {
+		return err
+	}
+	now := m.clock.Now()
+	for _, j := range orphans {
+		if _, live := m.entries[j.ID]; live {
+			continue // submitted by this process while recovery was deferred
+		}
+		waiting := j.State == StateQueued || j.State == StateAdmitting || (j.State == StateRunning && m.canRestart(j.Operation))
+		if waiting && !j.TestMode && m.canResume(j.Operation) {
+			if j.State != StateQueued {
+				j.StartedAt, j.Progress = nil, 0
+				if err := j.transition(StateQueued, now, "resumed after a restart"); err != nil {
+					return err
+				}
+			}
+			j.Message = "resumed after a restart"
+			if err := m.st.update(m.baseCtx, j); err != nil {
+				return err
+			}
+			entry := &jobEntry{job: j, routeValues: context.Background(), done: make(chan struct{})}
+			m.entries[j.ID] = entry
+			m.pending = append(m.pending, entry)
+			continue
+		}
+		if err := j.transition(StateFailed, now, "interrupted by server restart"); err != nil {
+			return err
+		}
+		j.Error = j.Message
+		if j.Meta == nil {
+			j.Meta = map[string]string{}
+		}
+		j.Meta[MetaFailureKind] = string(FailureInterrupted)
+		if err := m.st.update(m.baseCtx, j); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Recover settles the jobs a previous process left non-terminal. It is only
+// needed (and only allowed once) with Config.DeferRecovery; call it after every
+// operation handler is registered, before the API serves requests.
+func (m *Manager) Recover() error {
+	m.mu.Lock()
+	if !m.started || !m.deferRecov {
+		m.mu.Unlock()
+		return errors.New("jobs: Recover requires a started manager configured with DeferRecovery")
+	}
+	m.deferRecov = false
+	err := m.recover()
+	m.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	m.signal()
+	return nil
+}
+
+func (m *Manager) canResume(operation string) bool {
+	return m.resumable != nil && m.resumable(operation)
+}
+
+func (m *Manager) canRestart(operation string) bool {
+	return m.restartable != nil && m.restartable(operation) && m.canResume(operation)
+}
+
+// Submit persists a job and places it in the shared priority queue.
+func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
+	return m.submit(ctx, spec, nil)
+}
+
+// SubmitTask routes an inline domain operation through the same scheduler.
+// The closure is server-owned until completion, just like the configured runner.
+func (m *Manager) SubmitTask(ctx context.Context, spec Spec, run Runner) (Job, error) {
+	if run == nil {
+		return Job{}, errors.New("jobs: task runner is required")
+	}
+	return m.submit(ctx, spec, run)
+}
+
+func (m *Manager) submit(ctx context.Context, spec Spec, run Runner) (Job, error) {
+	m.mu.Lock()
+	if !m.started {
+		m.mu.Unlock()
+		return Job{}, ErrNotStarted
+	}
+	m.mu.Unlock()
+	testMode := database.IsTestMode(ctx)
+	routeValues := context.Background()
+	if testMode {
+		routeValues = database.WithTestMode(routeValues)
+		if pinner, ok := m.st.db.(testPoolPinner); ok {
+			leaseID := pinner.ActiveLeaseID()
+			if leaseID == "" {
+				return Job{}, fmt.Errorf("jobs: test-mode submission requires an active database lease")
+			}
+			var err error
+			routeValues, err = pinner.PinTestPool(routeValues, leaseID)
+			if err != nil {
+				return Job{}, fmt.Errorf("jobs: pin test database lease: %w", err)
+			}
+		}
+	}
+	storeCtx := valueOverlayContext{Context: m.baseCtx, values: routeValues}
+	if spec.ClientOperationID != "" {
+		if spec.RequestFingerprint == "" {
+			return Job{}, ErrIdempotencyConflict
+		}
+		if prior, err := m.st.getByClientOperation(storeCtx, spec.ClientOperationID); err == nil {
+			if prior.RequestFingerprint != spec.RequestFingerprint {
+				return Job{}, ErrIdempotencyConflict
+			}
+			return prior, nil
+		}
+	}
+
+	lane := normalizeLane(spec.Lane)
+	now := m.clock.Now()
+	job := Job{
+		ID:                      uuid.NewString(),
+		Operation:               spec.Operation,
+		Lane:                    lane,
+		Priority:                normalizePriority(spec.Priority),
+		State:                   StateQueued,
+		Payload:                 spec.Payload,
+		ClientOperationID:       spec.ClientOperationID,
+		RequestFingerprint:      spec.RequestFingerprint,
+		TestMode:                testMode,
+		ExecutionTimeoutSeconds: spec.ExecutionTimeoutSeconds,
+		EstimatedSeconds:        spec.EstimatedSeconds,
+		CreatedAt:               now,
+	}
+	// Persist on the server-lifetime context while retaining only the pinned
+	// routing values, so disconnects do not cancel or redirect the job.
+	if err := m.st.insert(storeCtx, job); err != nil {
+		if spec.ClientOperationID != "" {
+			if prior, lookupErr := m.st.getByClientOperation(storeCtx, spec.ClientOperationID); lookupErr == nil {
+				if prior.RequestFingerprint != spec.RequestFingerprint {
+					return Job{}, ErrIdempotencyConflict
+				}
+				return prior, nil
+			}
+		}
+		return Job{}, err
+	}
+
+	entry := &jobEntry{job: job, routeValues: routeValues, done: make(chan struct{}), runner: run}
+	m.mu.Lock()
+	m.entries[job.ID] = entry
+	if !m.started || m.baseCtx.Err() != nil {
+		m.mu.Unlock()
+		_ = m.transition(entry, StateCanceled, "server shutting down")
+		m.finish(entry)
+		return job, nil
+	}
+	if len(m.pending) >= queueCapacity {
+		m.mu.Unlock()
+		entry.job.Error = "scheduler queue is full"
+		_ = m.transition(entry, StateFailed, entry.job.Error)
+		m.finish(entry)
+		return Job{}, ErrQueueFull
+	}
+	m.pending = append(m.pending, entry)
+	m.mu.Unlock()
+	m.signal()
+	return job, nil
+}
+
+// GetByClientOperation returns a durable job by its caller-owned idempotency key.
+func (m *Manager) GetByClientOperation(ctx context.Context, operationID string) (Job, error) {
+	if operationID == "" {
+		return Job{}, ErrNotFound
+	}
+	job, err := m.st.getByClientOperation(ctx, operationID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Job{}, fmt.Errorf("%w: %s", ErrNotFound, operationID)
+		}
+		return Job{}, err
+	}
+	return m.Get(ctx, job.ID)
+}
+
+// Record persists an already-completed unit of work as a terminal job. It is
+// the path for SYNCHRONOUS operations that execute inline in the request (the
+// deterministic image ops finish in milliseconds, so the durable queue's
+// disconnect-survival buys nothing) yet must still appear in List/Get and the
+// UI job monitor alongside queued async work. runErr nil records a succeeded
+// job carrying resultRef; a non-nil runErr records a failed job. The record is
+// persisted under baseCtx so it is durable regardless of the caller's context.
+func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error) {
+	m.mu.Lock()
+	started := m.started
+	m.mu.Unlock()
+	if !started {
+		return Job{}, ErrNotStarted
+	}
+	lane := normalizeLane(spec.Lane)
+	now := m.clock.Now()
+	job := Job{
+		ID:                      uuid.NewString(),
+		Operation:               spec.Operation,
+		Lane:                    lane,
+		Payload:                 spec.Payload,
+		EstimatedSeconds:        spec.EstimatedSeconds,
+		ExecutionTimeoutSeconds: spec.ExecutionTimeoutSeconds,
+		CreatedAt:               now,
+		StartedAt:               &now,
+		FinishedAt:              &now,
+		Progress:                100,
+	}
+	if runErr != nil {
+		job.State = StateFailed
+		job.Error = runErr.Error()
+		job.Progress = 0
+	} else {
+		job.State = StateSucceeded
+		job.ResultRef = resultRef
+	}
+	if err := m.st.insert(m.baseCtx, job); err != nil {
+		return Job{}, err
+	}
+	if m.onComplete != nil {
+		m.onComplete(job)
+	}
+	return job, nil
+}
+
+func (m *Manager) execute(entry *jobEntry) {
+	defer m.wg.Done()
+	defer m.finishedSlot(entry)
+	entry.mu.Lock()
+	if entry.job.State.Terminal() {
+		entry.mu.Unlock()
+		return
+	}
+	if m.draining.Load() {
+		// Drain began after this job was dequeued: leave it queued, untouched.
+		entry.mu.Unlock()
+		m.mu.Lock()
+		m.pending = append(m.pending, entry)
+		m.mu.Unlock()
+		return
+	}
+	jobCtx, cancel := context.WithCancel(m.baseCtx)
+	entry.cancel = cancel
+	transitionErr := entry.job.transition(StateAdmitting, m.clock.Now(), "waiting for capacity")
+	if transitionErr == nil {
+		transitionErr = m.persistLocked(entry)
+	}
+	snapshot := entry.job
+	entry.mu.Unlock()
+	defer cancel()
+	jobCtx = valueOverlayContext{Context: jobCtx, values: entry.routeValues}
+	if transitionErr != nil {
+		m.complete(entry, Result{}, transitionErr, jobCtx.Err() != nil)
+		return
+	}
+	requestCtx := jobCtx
+	admissionCtx := WithAdmissionProgress(jobCtx, func(progress int, message string) { m.admissionProgress(entry, progress, message) })
+	admission, err := m.acquire(admissionCtx, snapshot)
+	if admission.Context != nil {
+		jobCtx = admission.Context
+	}
+	// Cleanup is cancellation-independent and precedes completion even when the
+	// runner panics, admission fails partway, or cancellation wins a result race.
+	if err == nil && jobCtx.Err() == nil {
+		err = m.startRunning(entry)
+	}
+	var result Result
+	released := false
+	if err == nil && jobCtx.Err() == nil {
+		runCtx := jobCtx
+		if snapshot.ExecutionTimeoutSeconds > 0 {
+			var stop context.CancelFunc
+			runCtx, stop = context.WithTimeout(jobCtx, time.Duration(snapshot.ExecutionTimeoutSeconds)*time.Second)
+			defer stop()
+		}
+		run := m.runner
+		if entry.runner != nil {
+			run = entry.runner
+		}
+		result, err = runSafely(runCtx, snapshot, func(progress int, message string) { m.progress(entry, progress, message) }, run)
+		released = ownerReleased(err, requestCtx, runCtx)
+		if runCtx.Err() != nil && !released && cancellationExplainsFailure(err, requestCtx, runCtx) {
+			err = errors.Join(err, runCtx.Err())
+			if snapshot.ExecutionTimeoutSeconds > 0 && errors.Is(runCtx.Err(), context.DeadlineExceeded) && jobCtx.Err() == nil {
+				err = errors.Join(err, ErrExecutionTimeLimit)
+			}
+		}
+	}
+	wasCanceled := requestCtx.Err() != nil
+	if jobCtx.Err() != nil && !released && cancellationExplainsFailure(err, requestCtx, jobCtx) && !errors.Is(err, context.Cause(jobCtx)) {
+		err = errors.Join(err, context.Cause(jobCtx))
+	}
+	retry := errors.Is(err, ErrCapacityBusy)
+	entry.mu.Lock()
+	var back *RouteBackError
+	if errors.As(err, &back) && !wasCanceled && entry.move == nil && (entry.job.State == StateAdmitting || entry.job.State == StateRunning) {
+		// The route was refused before any work or billing: the job returns to
+		// the route in the error instead of failing.
+		move := back.Move
+		entry.move = &move
+	}
+	rerouting := entry.move != nil && (entry.job.State == StateAdmitting || entry.job.State == StateRunning)
+	pausing := entry.pause && (entry.job.State == StateAdmitting || entry.job.State == StateRunning)
+	entry.mu.Unlock()
+	var unconfirmedRelease error
+	if admission.Release != nil {
+		releaseErr := m.releaseAdmission(jobCtx, admission)
+		switch {
+		case releaseErr == nil:
+		case err == nil && !wasCanceled && admission.ReleaseRetryable && !errors.Is(releaseErr, ErrReleaseLeaksWork):
+			// The work itself finished and only ledger claims are unconfirmed.
+			// A slow or contended capacity ledger is a cleanup problem, not a
+			// work failure: discarding a completed (possibly paid) result would
+			// be worse than the claim it leaks, and every claim carries a TTL
+			// that reclaims it. The outcome stays visible in the job's meta
+			// rather than in its state. Release that left work or files behind
+			// (ErrReleaseLeaksWork) and non-retryable releases still fail the job.
+			unconfirmedRelease = releaseErr
+		default:
+			retry = false
+			err = errors.Join(err, ErrReleaseFailed, fmt.Errorf("release job capacity: %w", releaseErr))
+		}
+	}
+	if pausing && !rerouting && !errors.Is(err, ErrReleaseFailed) {
+		// The process is draining and this job computed nothing: its leases are
+		// released, so it returns to the queue and resumes after the restart.
+		if m.pauseForDrain(entry) {
+			return
+		}
+	}
+	if rerouting && !errors.Is(err, ErrReleaseFailed) {
+		// The admission was cancelled to move the job: its leases are released,
+		// nothing ran, so the job rejoins the queue on its new route.
+		if m.applyAdmissionMove(entry) {
+			return
+		}
+		if m.requeue(entry, "re-route could not be recorded; waiting locally") {
+			return
+		}
+	}
+	if retry && !wasCanceled {
+		if m.requeue(entry, err.Error()) {
+			return
+		}
+	}
+	if err != nil && !wasCanceled && !errors.Is(err, ErrReleaseFailed) && KindOf(err) == FailureCapacity {
+		// The run lost memory the lease had promised to another process: nothing the
+		// model did, and its leases are released, so it runs again once, later.
+		if m.requeueAfterRun(entry, err) {
+			return
+		}
+	}
+	if len(admission.Meta) > 0 || unconfirmedRelease != nil {
+		if result.Meta == nil {
+			result.Meta = map[string]string{}
+		}
+		for key, value := range admission.Meta {
+			result.Meta[key] = value
+		}
+		if unconfirmedRelease != nil {
+			if result.Meta[MetaCapacityRelease] == "" || result.Meta[MetaCapacityRelease] == "released" {
+				result.Meta[MetaCapacityRelease] = "unconfirmed"
+			}
+			if result.Meta[MetaCapacityReleaseWarning] == "" {
+				result.Meta[MetaCapacityReleaseWarning] = unconfirmedRelease.Error()
+			}
+		}
+	}
+	m.complete(entry, result, err, wasCanceled)
+}
+
+// ownerReleased reports whether the runner finished cleanly and its owner then
+// ended the admitted context on purpose: a warm worker's reservation is released
+// once inference is done, before the output review, which cancels that context.
+// Only a plain cancellation with the request still live counts. A lost lease
+// carries its own cause, an execution limit is a deadline, and a canceled
+// request cancels the admitted context through its parent, so none of those
+// match and all still fail the job.
+func ownerReleased(runErr error, requestCtx, admitted context.Context) bool {
+	return runErr == nil && requestCtx.Err() == nil && admitted.Err() != nil &&
+		errors.Is(admitted.Err(), context.Canceled) && context.Cause(admitted) == context.Canceled
+}
+
+// cancellationExplainsFailure reports whether the cancelled admitted context
+// belongs in a failed job's error. A run that returned no error of its own is
+// explained by it. A run that already carries its reason is explained only by
+// a cancellation with a cause of its own (a deadline, a lost lease) or by the
+// request being cancelled; a plain cancellation with the request still live is
+// the owner releasing its reservation after the work, which says nothing about
+// why the run failed and would bury the real reason under "context canceled".
+func cancellationExplainsFailure(runErr error, requestCtx, admitted context.Context) bool {
+	if runErr == nil {
+		return true
+	}
+	return requestCtx.Err() != nil || !errors.Is(context.Cause(admitted), context.Canceled)
+}
+
+func runSafely(ctx context.Context, job Job, emit func(int, string), run Runner) (result Result, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("job runner panicked: %v", recovered)
+		}
+	}()
+	return run(ctx, job, emit)
+}
+
+// startRunning moves an admitted job to running unless a re-route has claimed
+// it. The claim and this check share entry.mu, so a job is either moved or run,
+// never both.
+func (m *Manager) startRunning(entry *jobEntry) error {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.move != nil {
+		return errAdmissionRerouted
+	}
+	if m.draining.Load() && !entry.job.State.Terminal() && m.entryResumable(entry) {
+		// Admitted just as the drain began: do not start computing.
+		entry.pause = true
+		return errPausedForDrain
+	}
+	if err := entry.job.transition(StateRunning, m.clock.Now(), "started"); err != nil {
+		return err
+	}
+	return m.persistLocked(entry)
+}
+
+// transition serializes the state change and its durable write against progress
+// and cancellation. Active work never runs after a failed transition write.
+func (m *Manager) transition(entry *jobEntry, next State, message string) error {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if err := entry.job.transition(next, m.clock.Now(), message); err != nil {
+		return err
+	}
+	return m.persistLocked(entry)
+}
+
+func (m *Manager) persistLocked(entry *jobEntry) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(m.baseCtx), 5*time.Second)
+	defer cancel()
+	err := m.st.update(valueOverlayContext{Context: ctx, values: entry.routeValues}, entry.job)
+	entry.persistErr = err
+	ev := ProgressEvent{JobID: entry.job.ID, State: entry.job.State, Progress: entry.job.Progress, Message: entry.job.Message, At: m.clock.Now()}
+	entry.last = &ev
+	for _, sub := range entry.subs {
+		if !sub.closed {
+			trySend(sub.ch, ev)
+		}
+	}
+	return err
+}
+
+func (m *Manager) progress(entry *jobEntry, progress int, message string) {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.job.State != StateRunning {
+		return
+	}
+	entry.job.Progress = max(0, min(100, progress))
+	entry.job.Message = message
+	_ = m.persistLocked(entry)
+}
+
+// admissionProgress reports long admission preparation (for example acquiring
+// model weights) while the job is still admitting. It never changes state.
+func (m *Manager) admissionProgress(entry *jobEntry, progress int, message string) {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.job.State != StateAdmitting {
+		return
+	}
+	entry.job.Progress = max(0, min(100, progress))
+	entry.job.Message = message
+	_ = m.persistLocked(entry)
+}
+
+// releaseAttemptTimeout bounds one Release call; releaseRetryBudget bounds the
+// retries of a ReleaseRetryable admission. Host capacity mutations serialize on
+// one fleet-wide admission lock that other scenarios' lifecycle commands can
+// hold for tens of seconds, so a single short attempt discarded finished work.
+var (
+	releaseAttemptTimeout = 10 * time.Second
+	releaseRetryBudget    = 2 * time.Minute
+	releaseRetryBackoff   = []time.Duration{time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 15 * time.Second}
+)
+
+func (m *Manager) releaseAdmission(jobCtx context.Context, admission Admission) error {
+	base := context.WithoutCancel(jobCtx)
+	deadline := time.Now().Add(releaseRetryBudget)
+	for attempt := 0; ; attempt++ {
+		cleanup, stop := context.WithTimeout(base, releaseAttemptTimeout)
+		err := admission.Release(cleanup)
+		stop()
+		if err == nil || !admission.ReleaseRetryable {
+			return err
+		}
+		wait := releaseRetryBackoff[min(attempt, len(releaseRetryBackoff)-1)]
+		if time.Now().Add(wait).After(deadline) {
+			return err
+		}
+		time.Sleep(wait)
+	}
+}
+
+func (m *Manager) complete(entry *jobEntry, result Result, runErr error, canceled bool) {
+	entry.mu.Lock()
+	if entry.job.State.Terminal() {
+		entry.mu.Unlock()
+		return
+	}
+	// Routing facts recorded while the job waited (a refused cloud route, for
+	// one) outlive the final result: the result's own keys win, the rest are kept.
+	if carried := routeMetaOf(entry.job.Meta); len(carried) > 0 {
+		merged := make(map[string]string, len(result.Meta)+len(carried))
+		for k, v := range carried {
+			merged[k] = v
+		}
+		for k, v := range result.Meta {
+			merged[k] = v
+		}
+		result.Meta = merged
+	}
+	if retried := capacityRetryMetaOf(entry.job.Meta); len(retried) > 0 {
+		// A retry after a lost run stays on the record of the attempt that finished.
+		merged := make(map[string]string, len(result.Meta)+len(retried))
+		for k, v := range result.Meta {
+			merged[k] = v
+		}
+		for k, v := range retried {
+			merged[k] = v
+		}
+		result.Meta = merged
+	}
+	state, message := StateSucceeded, "completed"
+	switch {
+	case errors.Is(runErr, ErrReleaseFailed):
+		state, message = StateFailed, runErr.Error()
+		entry.job.Error = message
+	case errors.Is(runErr, ErrExecutionTimeLimit):
+		state, message = StateFailed, "execution time limit exceeded"
+		entry.job.Error = message
+	case canceled || entry.job.State == StateCanceling:
+		state, message = StateCanceled, "canceled"
+	case runErr != nil:
+		state, message = StateFailed, runErr.Error()
+		entry.job.Error = message
+	}
+	if state == StateSucceeded {
+		entry.job.ResultRef, entry.job.Meta, entry.job.Progress = result.Ref, result.Meta, 100
+	} else {
+		entry.job.Meta, entry.job.ResultRef = failedExecutionEvidence(result.Meta), ""
+		if state == StateFailed {
+			if entry.job.Meta == nil {
+				entry.job.Meta = map[string]string{}
+			}
+			entry.job.Meta[MetaFailureKind] = string(KindOf(runErr))
+		}
+	}
+	if err := entry.job.transition(state, m.clock.Now(), message); err != nil {
+		entry.persistErr = errors.Join(entry.persistErr, err)
+	} else {
+		_ = m.persistLocked(entry)
+	}
+	entry.mu.Unlock()
+	m.finish(entry)
+}
+
+func routeMetaOf(meta map[string]string) map[string]string {
+	var out map[string]string
+	for k, v := range meta {
+		if strings.HasPrefix(k, MetaRoutePrefix) {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func (m *Manager) finish(entry *jobEntry) {
+	entry.mu.Lock()
+	final := entry.job
+	entry.mu.Unlock()
+	m.finalizeEntry(entry, final)
+}
+
+// failedExecutionEvidence narrows failed/canceled runner metadata to the one
+// additive D33 contract key. Validate its envelope and reject success-only
+// fields so backend cost or output metadata cannot leak into an incomplete job.
+func failedExecutionEvidence(meta map[string]string) map[string]string {
+	out := gatewayFailureEvidence(meta)
+	// route_* keys describe where the job was sent and what it was allowed to
+	// spend. They say nothing about output or cost, so a failed job keeps them.
+	for key, value := range meta {
+		if strings.HasPrefix(key, MetaRoutePrefix) {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[key] = value
+		}
+	}
+	// safety_* keys are the reviewer's evidence for a refused or unavailable
+	// output. They never contain the image, and without them a refusal cannot be
+	// triaged or fed back into calibration.
+	for key, value := range meta {
+		if strings.HasPrefix(key, "safety_") || key == "nsfw_score" {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[key] = value
+		}
+	}
+	for key, value := range capacityRetryMetaOf(meta) {
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[key] = value
+	}
+	raw := strings.TrimSpace(meta[MetaProvisioningEvidence])
+	if raw != "" {
+		var report struct {
+			SchemaVersion int   `json:"schema_version"`
+			Ready         *bool `json:"ready"`
+		}
+		if json.Unmarshal([]byte(raw), &report) == nil && report.SchemaVersion == 1 && report.Ready != nil && !*report.Ready {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[MetaProvisioningEvidence] = raw
+		}
+	}
+	return out
+}
+
+func gatewayFailureEvidence(meta map[string]string) map[string]string {
+	raw := strings.TrimSpace(meta[MetaGatewayExecutionEvidence])
+	if raw == "" {
+		return nil
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
+		return nil
+	}
+	for _, forbidden := range []string{"cost_usd", "cost_provenance", "result_ref", "result_refs"} {
+		if _, exists := envelope[forbidden]; exists {
+			return nil
+		}
+	}
+	var header struct {
+		SchemaVersion int  `json:"schema_version"`
+		Complete      bool `json:"complete"`
+	}
+	if err := json.Unmarshal([]byte(raw), &header); err != nil || header.SchemaVersion != 1 || header.Complete {
+		return nil
+	}
+	return map[string]string{MetaGatewayExecutionEvidence: raw}
+}
+
+// finalizeEntry records the terminal state, emits a final event, and closes the
+// done channel + subscribers exactly once.
+func (m *Manager) finalizeEntry(entry *jobEntry, final Job) {
+	entry.mu.Lock()
+	entry.job = final
+	select {
+	case <-entry.done:
+		// already finalized
+		entry.mu.Unlock()
+		return
+	default:
+	}
+	ev := ProgressEvent{JobID: final.ID, State: final.State, Progress: final.Progress, Message: final.Message, At: m.clock.Now()}
+	entry.last = &ev
+	for _, s := range entry.subs {
+		if !s.closed {
+			trySend(s.ch, ev)
+			close(s.ch)
+			s.closed = true
+			entry.waiters--
+		}
+	}
+	entry.subs = nil
+	close(entry.done)
+	entry.mu.Unlock()
+
+	if m.onComplete != nil && final.State.Terminal() {
+		m.onComplete(final)
+	}
+}
+
+func trySend(ch chan ProgressEvent, ev ProgressEvent) {
+	select {
+	case ch <- ev:
+	default:
+		// Slow subscriber: drop this intermediate event. The terminal event
+		// and Get/Wait still reflect the true final state.
+	}
+}
+
+// Cancel marks active jobs canceling and signals their execution context.
+// Wait remains attached until resource cleanup finishes. Queued jobs own no
+// claims and can become canceled immediately.
+func (m *Manager) Cancel(id string) error {
+	m.mu.Lock()
+	entry, ok := m.entries[id]
+	m.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+	entry.mu.Lock()
+	if entry.job.State.Terminal() || entry.job.State == StateCanceling {
+		entry.mu.Unlock()
+		return nil
+	}
+	active := entry.cancel != nil
+	state := StateCanceled
+	if active {
+		state = StateCanceling
+	}
+	err := entry.job.transition(state, m.clock.Now(), "canceled")
+	if err == nil {
+		err = m.persistLocked(entry)
+	}
+	cancel := entry.cancel
+	entry.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if !active {
+		m.finish(entry)
+		m.signal()
+	}
+	return err
+}
+
+// Wait blocks ONCE until the job is terminal, then returns it. If ctx is
+// canceled first, Wait returns ctx.Err() WITHOUT affecting the job (the work
+// continues server-side) — this is what makes a client disconnect survivable.
+func (m *Manager) Wait(ctx context.Context, id string) (Job, error) {
+	m.mu.Lock()
+	entry, ok := m.entries[id]
+	m.mu.Unlock()
+	if !ok {
+		// Not in memory — maybe a terminal job from a prior process.
+		j, err := m.st.get(ctx, id)
+		if err != nil {
+			return Job{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+		}
+		return j, nil
+	}
+	entry.mu.Lock()
+	if !entry.job.State.Terminal() {
+		entry.waiters++
+		defer func() {
+			entry.mu.Lock()
+			entry.waiters--
+			entry.mu.Unlock()
+		}()
+	}
+	entry.mu.Unlock()
+	select {
+	case <-entry.done:
+		entry.mu.Lock()
+		j, err := entry.job, entry.persistErr
+		entry.mu.Unlock()
+		return j, err
+	case <-ctx.Done():
+		return Job{}, ctx.Err()
+	}
+}
+
+// Get returns the current job record.
+func (m *Manager) Get(ctx context.Context, id string) (Job, error) {
+	m.mu.Lock()
+	entry, ok := m.entries[id]
+	m.mu.Unlock()
+	if ok {
+		entry.mu.Lock()
+		j := entry.job
+		entry.mu.Unlock()
+		return j, nil
+	}
+	j, err := m.st.get(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Job{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+		}
+		return Job{}, err
+	}
+	return j, nil
+}
+
+// List returns recent jobs, newest first.
+func (m *Manager) List(ctx context.Context, limit int) ([]Job, error) {
+	return m.st.list(ctx, limit)
+}
+
+// ListRetentionCandidates returns the oldest successful jobs with managed
+// output blobs older than before. It is intentionally separate from List so a
+// cleanup owner cannot accidentally treat arbitrary recent or caller-owned job
+// references as reclaimable.
+func (m *Manager) ListRetentionCandidates(ctx context.Context, before time.Time, limit int) ([]Job, error) {
+	return m.st.listRetentionCandidates(ctx, before, limit)
+}
+
+// ListManagedOutputs returns every successful job with a managed out/ blob,
+// oldest first, bounded by limit. It feeds the owner retention loop, which must
+// see every reference to a key before deciding the key is reclaimable.
+func (m *Manager) ListManagedOutputs(ctx context.Context, limit int) ([]Job, error) {
+	return m.st.listManagedOutputs(ctx, limit)
+}
+
+// ListCostRecords returns the newest finished jobs whose meta mentions a
+// recorded cost, for the cloud spend ledger.
+func (m *Manager) ListCostRecords(ctx context.Context, limit int) ([]Job, error) {
+	return m.st.listCostRecords(ctx, limit)
+}
+
+// ListRouteRefusals returns the newest jobs whose meta records a refused cloud
+// route, for the cloud cooldown.
+func (m *Manager) ListRouteRefusals(ctx context.Context, limit int) ([]Job, error) {
+	return m.st.listRouteRefusals(ctx, limit)
+}
+
+// ListActive returns queued and running jobs. Retention uses it to protect
+// blobs an in-flight job consumes as input.
+func (m *Manager) ListActive(ctx context.Context) ([]Job, error) {
+	return m.st.listNonTerminal(ctx)
+}
+
+// HeavyJobSnapshot reports the in-memory state of heavyweight local model/image
+// queue jobs and their active server-side Wait/Watch consumers. The legacy
+// LaneGPU queue name does not prove physical GPU placement. It is intentionally
+// owner-local: the manager knows which durable jobs it currently executes and
+// whether a response is still attached. The returned snapshot is complete for
+// this manager instance; it does not claim to inventory unrelated processes.
+func (m *Manager) HeavyJobSnapshot(_ context.Context) HeavyJobSnapshot {
+	now := m.clock.Now().UTC()
+	m.mu.Lock()
+	entries := make([]*jobEntry, 0, len(m.entries))
+	for _, entry := range m.entries {
+		entries = append(entries, entry)
+	}
+	m.mu.Unlock()
+
+	snapshot := HeavyJobSnapshot{ObservedAt: now, Complete: true, Jobs: make([]HeavyJobObservation, 0)}
+	for _, entry := range entries {
+		entry.mu.Lock()
+		job := entry.job
+		waiters := entry.waiters
+		entry.mu.Unlock()
+		if job.Lane != LaneGPU || job.StartedAt == nil {
+			continue
+		}
+		snapshot.Jobs = append(snapshot.Jobs, HeavyJobObservation{
+			OwnerID: "image-tools", JobID: job.ID, Operation: job.Operation,
+			State: string(job.State), StartedAt: *job.StartedAt,
+			WaiterCount: waiters, Heavy: true,
+		})
+	}
+	sort.Slice(snapshot.Jobs, func(i, j int) bool { return snapshot.Jobs[i].JobID < snapshot.Jobs[j].JobID })
+	return snapshot
+}
+
+// Subscribe returns a channel of progress events for the job and an unsubscribe
+// function. The last known event (if any) is replayed immediately. The channel
+// is closed when the job reaches a terminal state or unsubscribe is called.
+func (m *Manager) Subscribe(id string) (<-chan ProgressEvent, func(), error) {
+	m.mu.Lock()
+	entry, ok := m.entries[id]
+	m.mu.Unlock()
+	if !ok {
+		return nil, nil, fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+	sub := &subscriber{ch: make(chan ProgressEvent, 64)}
+	entry.mu.Lock()
+	if entry.job.State.Terminal() {
+		// Already done: emit a final event and a closed channel.
+		ev := ProgressEvent{JobID: entry.job.ID, State: entry.job.State, Progress: entry.job.Progress, Message: entry.job.Message, At: m.clock.Now()}
+		entry.mu.Unlock()
+		sub.ch <- ev
+		close(sub.ch)
+		sub.closed = true
+		return sub.ch, func() {}, nil
+	}
+	entry.waiters++
+	if entry.last != nil {
+		trySend(sub.ch, *entry.last)
+	}
+	entry.subs = append(entry.subs, sub)
+	entry.mu.Unlock()
+
+	unsub := func() {
+		entry.mu.Lock()
+		defer entry.mu.Unlock()
+		for i, s := range entry.subs {
+			if s == sub {
+				entry.subs = append(entry.subs[:i], entry.subs[i+1:]...)
+				if !s.closed {
+					close(s.ch)
+					s.closed = true
+					entry.waiters--
+				}
+				break
+			}
+		}
+	}
+	return sub.ch, unsub, nil
+}
+
+// normalizeLane folds an unknown or empty lane onto the CPU lane; the three
+// declared lanes pass through.
+func normalizeLane(lane Lane) Lane {
+	switch lane {
+	case LaneGPU, LaneCPU, LaneNetwork:
+		return lane
+	default:
+		return LaneCPU
+	}
+}

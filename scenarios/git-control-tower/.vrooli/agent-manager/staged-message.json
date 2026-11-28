@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "git-control-tower",
+  "key": "git-control-tower/staged-message",
+  "version": "2.0.3",
+  "description": "Explicit message-only drafting for the complete immutable staged selection using bounded representative context and compact file-ID coverage. No repository writes.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "format_version": {
+        "type": "integer",
+        "const": 2
+      },
+      "draft_input_digest": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "draft_context": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "repository_directory": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      }
+    },
+    "required": [
+      "format_version",
+      "draft_input_digest",
+      "draft_context",
+      "repository_directory"
+    ]
+  },
+  "outputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "result": {
+        "type": "string",
+        "maxLength": 30000,
+        "description": "Raw final text containing exactly one <gct_message> XML element, with optional commentary outside it. Git Control Tower extracts and validates the XML element."
+      }
+    },
+    "required": [
+      "result"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "draft",
+      "kind": "run",
+      "run": {
+        "profileKey": "git-control-tower/staged-message",
+        "promptRef": {
+          "skillId": "git-control-tower-staged-message"
+        },
+        "bindings": [
+          {
+            "name": "input",
+            "source": "workflow_input",
+            "selector": "$.draft_context",
+            "limit": 1,
+            "maxBytes": 49152,
+            "renderAs": "json",
+            "missingPolicy": "error"
+          },
+          {
+            "name": "repository_directory",
+            "source": "workflow_input",
+            "selector": "$.repository_directory",
+            "limit": 1,
+            "maxBytes": 4096,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
+        ],
+        "sandboxConfig": {
+          "mode": "protected",
+          "writePolicy": {
+            "paths": []
+          },
+          "networkMode": "full",
+          "manualReview": true,
+          "autoApply": false,
+          "applyOnFailure": false
+        },
+        "maxTurns": 4,
+        "maxToolCalls": 4,
+        "timeoutSeconds": 180,
+        "projectRootTemplate": "{{.repository_directory}}",
+        "scopePathTemplate": "."
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {
+            "name": "result",
+            "source": "final_handoff",
+            "selector": "node=draft;$.text",
+            "order": "desc",
+            "limit": 1,
+            "maxBytes": 49152,
+            "renderAs": "text",
+            "missingPolicy": "error"
+          }
+        ]
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 240,
+    "maxTurns": 4,
+    "maxTokens": 262144,
+    "maxChargeMicroUsd": 1000000,
+    "maxNodeAttempts": 1,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 60,
+    "enforcement": "metered-cancellation"
+  },
+  "metadata": {
+    "consumerMutationOwner": "git-control-tower",
+    "operation": "staged-message-only",
+    "tokenBudgetBasis": "Cumulative input, output, and cached tokens across child calls; not a context-window limit.",
+    "toolRestriction": "advisory on runners without native allowlists; mandatory protected empty write policy; no API scopes"
+  },
+  "entryNode": "draft",
+  "edges": [
+    {
+      "from": "draft",
+      "to": "done"
+    }
+  ]
+}

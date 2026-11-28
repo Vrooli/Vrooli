@@ -1,7 +1,7 @@
-# Scenario Makefile
-# 
+# Browser Automation Studio Scenario Makefile
+#
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+# NEVER run scenarios directly (./api/browser-automation-studio-api). ALWAYS use these commands.
 #
 # Usage:
 #   make       - Show help
@@ -10,169 +10,74 @@
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
-#   make run - Start this scenario in lifecycle-managed mode
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check health diag diag-quick pipeline-test sessions triage
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
 
-# Default target - show help
 .DEFAULT_GOAL := help
 
-# Get scenario name from current directory
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-# Colors for output
-GREEN := \033[1;32m
-YELLOW := \033[1;33m
-BLUE := \033[1;34m
-RED := \033[1;31m
-RESET := \033[0m
+SCENARIO_CUSTOM_TARGETS += fmt-ui
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
 
-help: ## Show this help message
-	@echo "$(BLUE)📱 $(SCENARIO_NAME) Scenario Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+help: ## Show the supported scenario entrypoints
+	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
+	@printf "  make setup                      Run scenario setup lifecycle\n"
+	@printf "  make start                      Start the scenario\n"
+	@printf "  make stop                       Stop the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
+	@printf "  make status                     Show scenario runtime status\n"
+	@printf "  make logs                       Show scenario logs\n"
+	@printf "  make test                       Run scenario tests\n"
+	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make run                        Alias for make start\n"
+	@printf "  make dev                        Alias for make start\n"
+	@printf "\n"
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
 
-start: ## Start this scenario
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario start $(SCENARIO_NAME)
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
 
-run: start ## Alias for start (uses Vrooli lifecycle)
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
 
-stop: ## Stop this scenario
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario stop $(SCENARIO_NAME)
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
 
-dev: ## Start in development mode
-	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario start $(SCENARIO_NAME) --dev
+test: ## Run scenario tests
+	@vrooli scenario test "$(SCENARIO_NAME)"
 
-test: ## Run tests for this scenario
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
+logs: ## Show scenario logs
+	@vrooli scenario logs "$(SCENARIO_NAME)"
 
-logs: ## Show recent logs for this scenario
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
-
-status: ## Check if scenario is running
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario status $(SCENARIO_NAME)
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
 
 clean: ## Clean build artifacts
-	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
-	@rm -rf build/ dist/ *.log api/$(SCENARIO_NAME) api/$(SCENARIO_NAME)-api
-	@if [ -d api ]; then cd api && go clean 2>/dev/null || true; fi
-	@if [ -d ui/dist ]; then rm -rf ui/dist; fi
-	@if [ -d ui/build ]; then rm -rf ui/build; fi
-	@echo "$(GREEN)✓ Cleaned$(RESET)"
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
 
-build: ## Build the scenario (if applicable)
-	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
-	@if [ -f api/go.mod ]; then \
-		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go 2>/dev/null || echo "Could not build Go API"; \
-	elif [ -f ui/package.json ]; then \
-		cd ui && npm run build 2>/dev/null || echo "Could not build UI"; \
-	else \
-		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-ui: ## Format UI code
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint:fix; \
 	fi
 
-# Code Quality Targets
-fmt: ## Format all code
-	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
-	@$(MAKE) fmt-go
-	@$(MAKE) fmt-ui
+lint: lint-go lint-ui ## Lint all code
 
-fmt-go: ## Format Go code  
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-	fi
+check: fmt lint test ## Run full quality gates
 
-fmt-ui: ## Format TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		if command -v prettier >/dev/null 2>&1; then \
-			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null || true; \
-		fi; \
-	fi
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
 
-lint: ## Lint all code
-	@echo "$(BLUE)🔍 Linting code...$(RESET)" 
-	@$(MAKE) lint-go
-	@$(MAKE) lint-ui
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
 
-lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run; \
-		fi; \
-	fi
-
-lint-ui: ## Lint TypeScript/JavaScript code
-	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
-		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
-			cd ui && npm run lint 2>/dev/null || true; \
-		fi; \
-	fi
-
-check: ## Format, lint, and test code (pre-commit workflow)
-	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"
-	@$(MAKE) fmt
-	@$(MAKE) lint
-	@$(MAKE) test
-
-# API Configuration for Diagnostics
-# Port is dynamically assigned - check vrooli scenario status for actual port
-API_PORT ?= 19771
-API_URL ?= http://localhost:$(API_PORT)
-
-# Diagnostics Targets (for debugging recording/session issues)
-health: ## Check API health status
-	@echo "$(BLUE)🏥 Checking health...$(RESET)"
-	@curl -s "$(API_URL)/health" | jq . || echo '{"error": "API unreachable at $(API_URL)"}'
-
-diag: ## Run full diagnostics (JSON output)
-	@echo "$(BLUE)🔬 Running full diagnostics...$(RESET)" >&2
-	@curl -s -X POST "$(API_URL)/api/v1/observability/diagnostics/run" \
-		-H "Content-Type: application/json" \
-		-d '{"level": "full"}' | jq .
-
-diag-quick: ## Run quick diagnostics (JSON output)
-	@echo "$(BLUE)🔬 Running quick diagnostics...$(RESET)" >&2
-	@curl -s -X POST "$(API_URL)/api/v1/observability/diagnostics/run" \
-		-H "Content-Type: application/json" \
-		-d '{"level": "quick"}' | jq .
-
-pipeline-test: ## Run pipeline self-test (JSON output)
-	@echo "$(BLUE)🧪 Running pipeline test...$(RESET)" >&2
-	@curl -s -X POST "$(API_URL)/api/v1/observability/pipeline-test" | jq .
-
-sessions: ## List active recording sessions
-	@echo "$(BLUE)📋 Active sessions:$(RESET)" >&2
-	@curl -s "$(API_URL)/api/v1/observability/sessions" | jq .
-
-triage: ## Full triage workflow (health + sessions + diag + pipeline)
-	@echo "$(BLUE)🏥 === TRIAGE REPORT ===$(RESET)" >&2
-	@echo "$(YELLOW)Timestamp: $$(date -Iseconds)$(RESET)" >&2
-	@./scripts/triage.sh
-
-# Shortcuts
-r: run
-s: stop
-d: dev
-t: test
-l: logs
-c: clean
-b: build
-f: fmt
-lint-all: lint
+# Development shortcuts
+run: start
+dev: start

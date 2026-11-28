@@ -1,0 +1,9 @@
+{
+  "kind": "synthetic-calibration",
+  "description": "Authored clock and corner diagnostic, not an app capture; predeclared readability and circular clipping oracle.",
+  "origin": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/watch-diagnostic/round-watch-diagnostic-400.png",
+  "sha256": "68e83ddbcd27a7f74dfd659018c79f7c1b4cf1d31e86f1bf703c2c9203bf97f4",
+  "width": 400,
+  "height": 400,
+  "displayUse": "Synthetic watch-screen calibration only; not a device UI, app capture, or product claim."
+}

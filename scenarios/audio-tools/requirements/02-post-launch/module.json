@@ -1,0 +1,133 @@
+{
+  "_metadata": {
+    "description": "Provider evidence, recovery UX, adapter maintainability, and capability expansion obligations.",
+    "last_validated_at": "2026-11-20T11:22:44-05:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ATD-P1-001",
+      "title": "Provider-neutral evidence",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "When operators compare experiments, Dictation Studio should expose persisted provider-neutral metrics and promotion verdicts by provider, strategy, policy, fault, and replay cell.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/services/experiment.test.ts",
+          "status": "implemented",
+          "notes": "[REQ:ATD-P1-001] Provider-neutral recipe cells, reports, lifecycle RPCs, and experiment events are mapped by the Dictation Studio client."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P1-002",
+      "title": "Mobile recovery and diagnostics",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "When a mobile turn is degraded or interrupted, users should be able to inspect coverage, recover retained audio, and export metadata-only diagnostics without developer tools.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/dictation-studio/DictationRecorder.test.tsx::shows coverage and exports a metadata-only turn diagnostic",
+          "status": "implemented",
+          "notes": "[REQ:ATD-P1-002] Responsive Turn details shows coverage, durability, and terminal outcome; export is a bounded metadata-only record without transcript or audio. Physical-device qualification remains a separate P2 gate."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P1-003",
+      "title": "Replaceable adapter conformance",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "When a provider or host adapter is added or replaced, maintainers should reuse versioned capability, session and recovery contracts with shared conformance tests and thin consumer integration, retaining compatibility or an explicit migration.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: ARCHITECTURE.md extension boundaries and SEAMS.md production/fake pairs: substitute a native-streaming and a batch adapter, reject unsupported combinations, qualify consumers, and prove no duplicated billing/recovery owner. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "id": "ATD-P1-004",
+      "title": "Operation-specific shared voice routing",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "When TTS or summarization is offered, its consumer should expose actual local/BYOK/owned route, data and spend policy, cancellation and usage status under shared owners, without treating STT qualification or its duration meter as proof for that operation.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Validation design, not executed evidence: MONETIZATION.md operation-specific meter review plus existing TTS/summarization regression surfaces; add route/cancellation/usage tests and separately qualify delivery before sale. STT-first does not remove current TTS playback guarantees. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When resolving a local voice route, Audio Tools should select declared models by language, rights, held-out quality, device capacity, cost, and fallback; target paths include Sherpa streaming Zipformer, Kale Nano when eligible, Qwen3:1.7b, and a qualified consented cloning route.",
+      "id": "ATD-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Evidence-based efficient model selection",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned quality, footprint, language, licensing, Tiny Voca contention, and cloning qualification gates are defined in the Audio Tools maturity AT2 brief. Selector output is not qualification evidence; this claim remains planned."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When advanced voice workflows are offered, Audio Tools should provide synthesis and voice customization, consented cloning, conversion, speaker separation, wake word, and duplex through reusable contracts with measured quality, latency, and recovery.",
+      "id": "ATD-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Advanced voice workflow coverage",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned end-to-end workflow acceptance for synthesis, customization, cloning, conversion, separation, wake word, and duplex is defined in the Audio Tools maturity AT4 brief. Product qualification is incomplete; this claim remains planned."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When customers enter through Audio Tools, the product should present a $10/month standalone plan with correct entitlement, payment recovery, cancellation, and a clear upgrade path to the full bundle.",
+      "id": "ATD-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Standalone offer and bundle upgrade",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned test-mode $10 standalone purchase, entitlement, cancellation/recovery, and bundle-upgrade journey is defined in the Audio Tools maturity AT7 brief. No purchase or conversion result is claimed; this claim remains planned."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When Audio Tools is installed or updated on a supported desktop cohort, it should provision eligible models offline and recover cleanly from failed installation, upgrade, or model provisioning.",
+      "id": "ATD-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Cross-platform installation and offline lifecycle",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned clean-install, update, offline provisioning, and recovery cohorts are defined in the Audio Tools maturity AT6 brief. No cross-platform install qualification is claimed; this claim remains planned."
+        }
+      ]
+    }
+  ]
+}

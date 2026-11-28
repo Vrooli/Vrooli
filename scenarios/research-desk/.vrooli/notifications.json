@@ -1,0 +1,14 @@
+{
+  "displayName": "Research Desk",
+  "icon": "research-desk",
+  "appDelivery": false,
+  "categories": [
+    {
+      "key": "research",
+      "displayName": "Research Desk updates",
+      "description": "A decision or notice from Research Desk is ready for you.",
+      "defaultEnabled": true,
+      "defaultMinUrgency": "normal"
+    }
+  ]
+}

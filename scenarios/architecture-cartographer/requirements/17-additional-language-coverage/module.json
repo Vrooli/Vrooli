@@ -1,0 +1,65 @@
+{
+  "description": "Extend graph extraction to Python, Rust, and other languages via new code-graph scenarios; cartographer itself remains unchanged.",
+  "module_id": "MOD-P2-017",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-010"
+      ],
+      "description": "Graph extraction must be extensible to Python, Rust, and other languages by adding new code-graph scenarios (e.g., python-code-graph, rust-code-graph) that implement the same Connect-RPC graph extraction contract. Cartographer itself must require zero code changes to support new languages; only a new adapter registration is needed. This extensibility must be validated by architecture review, not by shipping additional language parsers within cartographer.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "draft",
+      "title": "Additional Language Coverage via New Code-Graph Scenarios",
+      "validation": [
+        {
+          "notes": "Adapter registration mechanism accepts a new language adapter without modifying cartographer core code",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Graph normalization model accepts nodes and edges from a mock third-language adapter without type errors",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A stub python-code-graph fixture server implementing the graph extraction proto contract is correctly consumed by cartographer's adapter layer",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cartographer processes the stub Python graph through the full detection pipeline without language-specific code paths",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Adding Python support requires only a new python-code-graph scenario and an adapter registration entry — no cartographer PR needed",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Architecture review confirms cartographer core has zero language-specific conditional logic",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Additional Language Coverage"
+}

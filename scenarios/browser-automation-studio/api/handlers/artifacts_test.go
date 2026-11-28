@@ -3,14 +3,12 @@ package handlers
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/minio/minio-go/v7"
 	"github.com/sirupsen/logrus"
 )
 
@@ -167,44 +165,3 @@ func TestServeArtifact_ContentTypeHeader(t *testing.T) {
 	}
 }
 
-// ============================================================================
-// Mock Storage with ContentType support
-// ============================================================================
-
-// Extend MockStorage to properly return content type info
-type MockStorageWithInfo struct {
-	*MockStorage
-	contentTypes map[string]string
-}
-
-func NewMockStorageWithInfo() *MockStorageWithInfo {
-	return &MockStorageWithInfo{
-		MockStorage:  NewMockStorage(),
-		contentTypes: make(map[string]string),
-	}
-}
-
-func (m *MockStorageWithInfo) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
-	if m.GetArtifactError != nil {
-		return nil, nil, m.GetArtifactError
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	data, ok := m.artifacts[objectName]
-	if !ok {
-		return nil, nil, errors.New("not found")
-	}
-
-	contentType := m.contentTypes[objectName]
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
-	return io.NopCloser(strings.NewReader(string(data))), &minio.ObjectInfo{
-		Key:         objectName,
-		Size:        int64(len(data)),
-		ContentType: contentType,
-	}, nil
-}

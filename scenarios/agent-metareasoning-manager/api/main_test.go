@@ -216,7 +216,7 @@ func TestAnalyzeRequest(t *testing.T) {
 			Type:    "pros-cons",
 			Input:   "Should we adopt microservices?",
 			Context: "E-commerce platform",
-			Model:   "llama3.2",
+			Model:   "chat.default",
 		}
 
 		if req.Type != "pros-cons" {
@@ -418,14 +418,14 @@ func TestVectorWorkflowResponse(t *testing.T) {
 			Collection:         "workflow_embeddings",
 			EmbeddingDimension: 768,
 			ExecutionTimeMS:    150,
-			ModelUsed:          "nomic-embed-text",
+			ModelUsed:          "embedding.default",
 		}
 
 		if resp.Status != "success" {
 			t.Error("Status not set correctly")
 		}
-		if resp.EmbeddingDimension != 768 {
-			t.Errorf("Expected embedding dimension 768, got %d", resp.EmbeddingDimension)
+		if resp.EmbeddingDimension <= 0 {
+			t.Errorf("Expected positive embedding dimension, got %d", resp.EmbeddingDimension)
 		}
 	})
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, forwardRef } from "react";
+import { memo, useState, useEffect, useRef, forwardRef } from "react";
 import {
   Star,
   MessageSquare,
@@ -27,7 +27,7 @@ interface ChatListItemProps {
   onToggleSelect?: (e: React.MouseEvent) => void;
 }
 
-export const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function ChatListItem(
+const ChatListItemInner = forwardRef<HTMLDivElement, ChatListItemProps>(function ChatListItem(
   { chat, labels, isSelected, isFocused, onClick, onRename, formatTime, searchResult, selectionMode, isChecked, onToggleSelect },
   ref
 ) {
@@ -252,3 +252,5 @@ export const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(functi
     </div>
   );
 });
+
+export const ChatListItem = memo(ChatListItemInner);

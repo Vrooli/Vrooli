@@ -1,20 +1,34 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "description": "Merged into architecture-lenses (\u00a76 Decision boundary); read that.",
+  "entry": "SKILL.md",
+  "icon": "file-text",
   "id": "decision-boundary-extraction",
-  "name": "Decision Boundary Extraction",
-  "description": "Extract and clarify decision logic from implementation details",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "analysis"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "file-text",
+  "name": "Decision Boundary Extraction",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 44,
+  "schemaVersion": 1,
   "status": "active",
-  "entry": "SKILL.md",
-  "revision": 43,
-  "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

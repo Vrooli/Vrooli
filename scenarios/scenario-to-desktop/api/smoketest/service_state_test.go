@@ -274,6 +274,53 @@ func TestService_StateTransitions_NoImpossibleJumps(t *testing.T) {
 	}
 }
 
+func TestStatus_TransitionStateRejectsTerminalResurrection(t *testing.T) {
+	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
+	status := &smoketest.Status{
+		Status:       "passed",
+		CurrentState: smoketest.StatePassed,
+		Logs:         []string{"finished"},
+		Transitions:  []smoketest.StateTransition{{From: smoketest.StateParsingOutput, To: smoketest.StatePassed, Timestamp: now}},
+	}
+
+	err := status.TransitionState(smoketest.StateFailed, now.Add(time.Second), "late failure")
+	if err == nil {
+		t.Fatal("TransitionState() accepted terminal resurrection")
+	}
+	if status.Status != "passed" || status.CurrentState != smoketest.StatePassed {
+		t.Fatalf("rejected transition mutated persisted state: status=%q current=%q", status.Status, status.CurrentState)
+	}
+	if len(status.Transitions) != 1 || len(status.Logs) != 1 {
+		t.Fatalf("rejected transition appended evidence: transitions=%d logs=%d", len(status.Transitions), len(status.Logs))
+	}
+}
+
+func TestStatus_RecoverInterruptedClosesNonterminalLifecycle(t *testing.T) {
+	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
+	status := &smoketest.Status{
+		Status:       "running",
+		CurrentState: smoketest.StateExecuting,
+		Logs:         []string{"running"},
+	}
+
+	if err := status.RecoverInterrupted(now, "Smoke test interrupted by server restart"); err != nil {
+		t.Fatalf("RecoverInterrupted() error = %v", err)
+	}
+	if status.Status != "failed" || status.CurrentState != smoketest.StateFailed {
+		t.Fatalf("recovered state = %q/%q, want failed/failed", status.Status, status.CurrentState)
+	}
+	if status.CompletedAt == nil || !status.CompletedAt.Equal(now) {
+		t.Fatalf("CompletedAt = %v, want %v", status.CompletedAt, now)
+	}
+	if len(status.Transitions) != 1 || status.Transitions[0].From != smoketest.StateExecuting || status.Transitions[0].To != smoketest.StateFailed {
+		t.Fatalf("recovery transition = %+v", status.Transitions)
+	}
+
+	if err := status.RecoverInterrupted(now.Add(time.Minute), "again"); err == nil {
+		t.Fatal("RecoverInterrupted() accepted terminal status")
+	}
+}
+
 func TestService_PerformSmokeTest_PanicRecovery(t *testing.T) {
 	store := mocks.NewMockStore()
 	store.AddStatus(&smoketest.Status{

@@ -118,7 +118,7 @@ func (r *NavigatorRegistry) ListNavigators(ctx context.Context, source ClientSou
 			Type:           navType,
 			Available:      nav.IsAvailable(ctx) && nav.ClientSourcePolicy().IsAllowed(source),
 			Description:    nav.Description(),
-			CreditPolicy:   nav.CreditPolicy().ToInfo(),
+			CreditPolicy:   nav.CreditPolicy(),
 			AllowedSources: nav.ClientSourcePolicy().AllowedSources,
 		}
 

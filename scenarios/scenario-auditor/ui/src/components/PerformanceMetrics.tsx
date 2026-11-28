@@ -25,7 +25,7 @@ import {
   YAxis
 } from 'recharts'
 import { apiService } from '../services/api'
-import { Badge } from './common/Badge'
+import { Badge } from './common/BadgeAdapter'
 import { Card } from './common/Card'
 
 type BaselineConfig = {

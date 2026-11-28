@@ -9,15 +9,18 @@ import (
 	"testing"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 func newRegistryWithPolicy(caps *platform.Capabilities) *checks.Registry {
 	registry := checks.NewRegistry(caps)
 	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
-		BaseCooldown:       5 * time.Minute,
-		MaxRestartAttempts: 3,
+		BaseCooldown:         5 * time.Minute,
+		MaxRestartAttempts:   3,
+		FastActionTimeout:    checks.DefaultFastActionTimeout,
+		RestartActionTimeout: checks.DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: checks.DefaultTimeoutRetryCooldown,
 	})
 	return registry
 }
@@ -155,6 +158,7 @@ func TestFullStack_TickPersistAutohealCycle(t *testing.T) {
 			criticalHealResult.CheckID,
 			criticalHealResult.ActionResult.ActionID,
 			criticalHealResult.ActionResult.Success,
+			criticalHealResult.ActionResult.TimedOut,
 			criticalHealResult.ActionResult.Message,
 			criticalHealResult.ActionResult.Output,
 			criticalHealResult.ActionResult.Error,
@@ -509,6 +513,7 @@ func TestFullStack_FailedActionLogged(t *testing.T) {
 		healResult.CheckID,
 		healResult.ActionResult.ActionID,
 		healResult.ActionResult.Success,
+		healResult.ActionResult.TimedOut,
 		healResult.ActionResult.Message,
 		healResult.ActionResult.Output,
 		healResult.ActionResult.Error,

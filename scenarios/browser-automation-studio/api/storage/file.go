@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -63,14 +64,11 @@ func (f *FileStorage) openObject(objectName string) (io.ReadCloser, *minio.Objec
 		file.Close()
 		return nil, nil, fmt.Errorf("failed to stat object: %w", err)
 	}
-	header := make([]byte, 512)
-	n, _ := file.Read(header)
+	contentType := SniffContentType(file)
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		file.Close()
 		return nil, nil, fmt.Errorf("failed to rewind object: %w", err)
 	}
-	contentType := http.DetectContentType(header[:n])
-
 	return file, &minio.ObjectInfo{
 		Key:         objectName,
 		Size:        info.Size(),
@@ -85,7 +83,7 @@ func (f *FileStorage) GetScreenshot(_ context.Context, objectName string) (io.Re
 
 // StoreScreenshot writes raw bytes to disk and returns API URLs.
 func (f *FileStorage) StoreScreenshot(_ context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*ScreenshotInfo, error) {
-	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s.png", executionID, sanitizeStepName(stepName))
+	objectName := fmt.Sprintf("%s/artifacts/screenshots/%s%s", executionID, sanitizeStepName(stepName), screenshotExtension(contentType))
 	path, err := f.objectPath(objectName)
 	if err != nil {
 		return nil, err
@@ -126,8 +124,7 @@ func (f *FileStorage) GetArtifact(_ context.Context, objectName string) (io.Read
 
 // StoreArtifactFromFile copies a file into storage and returns the artifact metadata.
 func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*ArtifactInfo, error) {
-	info, err := os.Stat(filePath)
-	if err != nil {
+	if _, err := os.Stat(filePath); err != nil {
 		return nil, fmt.Errorf("failed to stat artifact file: %w", err)
 	}
 	ext := filepath.Ext(filePath)
@@ -140,28 +137,27 @@ func (f *FileStorage) StoreArtifactFromFile(_ context.Context, executionID uuid.
 		return nil, fmt.Errorf("failed to ensure artifact directory: %w", err)
 	}
 
-	src, err := os.Open(filePath)
+	receipt, err := CopyArtifactFile(filePath, destPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open artifact file: %w", err)
-	}
-	defer src.Close()
-
-	dest, err := os.Create(destPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create artifact file: %w", err)
-	}
-	if _, err := io.Copy(dest, src); err != nil {
-		_ = dest.Close()
+		var copyErr *ArtifactCopyError
+		if errors.As(err, &copyErr) {
+			switch copyErr.Operation {
+			case "open":
+				return nil, fmt.Errorf("failed to open artifact file: %w", err)
+			case "create":
+				return nil, fmt.Errorf("failed to create artifact file: %w", err)
+			case "close":
+				return nil, fmt.Errorf("failed to finalize artifact file: %w", err)
+			}
+		}
 		return nil, fmt.Errorf("failed to copy artifact file: %w", err)
 	}
-	if err := dest.Close(); err != nil {
-		return nil, fmt.Errorf("failed to finalize artifact file: %w", err)
-	}
 
-	derivedType := detectContentTypeFromFile(filePath, contentType)
+	derivedType := DetectContentTypeFromFile(filePath, contentType)
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
-		SizeBytes:   info.Size(),
+		SizeBytes:   receipt.SizeBytes,
+		SHA256:      receipt.SHA256,
 		ContentType: derivedType,
 		ObjectName:  objectName,
 		Path:        destPath,
@@ -191,6 +187,7 @@ func (f *FileStorage) StoreArtifact(_ context.Context, objectName string, data [
 	return &ArtifactInfo{
 		URL:         artifactURL(objectName),
 		SizeBytes:   int64(len(data)),
+		SHA256:      artifactDigest(data),
 		ContentType: contentType,
 		ObjectName:  objectName,
 		Path:        path,
@@ -250,6 +247,8 @@ func (f *FileStorage) GetBucketName() string {
 	return "screenshots-local"
 }
 
+var _ StorageInterface = (*FileStorage)(nil)
+
 func sanitizeStepName(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.ReplaceAll(name, "/", "-")
@@ -259,5 +258,3 @@ func sanitizeStepName(name string) string {
 	}
 	return name
 }
-
-var _ StorageInterface = (*FileStorage)(nil)

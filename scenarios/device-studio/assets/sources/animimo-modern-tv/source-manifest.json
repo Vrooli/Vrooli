@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-source-animimo-modern-tv-v1",
+  "status": "acquired-research-candidate-not-qualified",
+  "identity": {
+    "display_name": "Generic modern television source candidate",
+    "manufacturer": null,
+    "manufacturer_model": null,
+    "creator_title": "Free Modern TV - Low-Poly 4K Textures",
+    "creator": "Animimo Studios",
+    "creator_claim": "Modern television; 248 triangles; 4K texture derived from real-life photos; no generative AI used",
+    "product_identity_claim": "None. Do not present as a named product or endorsed manufacturer."
+  },
+  "rights": {
+    "license": "CC0 1.0 Universal, as stated on the creator page",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "source_page": "https://animimostudios.itch.io/free-modern-tv-low-poly-4k-textures",
+    "attribution": "Not required by the stated CC0 license; provenance retained as Animimo Studios",
+    "limitations": "The source page states the texture was derived from real-life photos. CC0 for the contributed model does not independently clear third-party trademarks or industrial design depicted in the photographed television. The embedded image visibly contains wordmark-like labels. No rights determination beyond the creator's published CC0 statement is made here."
+  },
+  "source": {
+    "filename": "TV-Model.glb",
+    "sha256": "48332f31f13ac1c78288fc7a80945d81c79f88a7f5b4f214fd7259168117d46",
+    "size_bytes": 8763276,
+    "download_url": "https://animimostudios.itch.io/free-modern-tv-low-poly-4k-textures",
+    "access": "Anonymous download via the creator page's $0/no-thanks path; no account, email, payment, or purchase used. Original bytes retained unchanged.",
+    "access_date": "2026-10-21",
+    "source_page_capture": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-candidates-20261021/animimo-tv-source-page.html",
+    "preview_url": "https://img.itch.zone/aW1nLzI5NzI2NzkzLnBuZw==/original/R6nix3.png",
+    "preview_capture": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-candidates-20261021/animimo-tv-primary-preview.png",
+    "preview_sha256": "cafa7430a6aff4ee251e3c95e1666dd95daac194a675938b28928b1fa2679493",
+    "preview_dimensions_pixels": [
+      630,
+      500
+    ],
+    "preview_limitation": "Creator screenshot with promotional overlay; not an independent real-product reference."
+  },
+  "model_inventory": {
+    "glb_version": "2.0",
+    "generator": "Khronos glTF Blender I/O v5.1.20",
+    "coordinate_units": "Meters per GLTF; creator page publishes no physical dimensions or unit declaration.",
+    "coordinate_basis": "Model coordinates measured +X depth, +Y vertical, +Z width from the source preview and GLB bounds; no orientation edits applied.",
+    "nodes": 1,
+    "meshes": 1,
+    "primitives": 1,
+    "materials": 1,
+    "triangles": 248,
+    "animations": 0,
+    "external_uris": false,
+    "embedded_images": [
+      {
+        "index": 0,
+        "mime_type": "image/png",
+        "dimensions_pixels": [
+          4096,
+          4096
+        ],
+        "size_bytes": 8750146,
+        "sha256": "5ddb0d3d841dedb0845050cce94de3c0a2ffd32ff0fafe87a81b8179596302af"
+      }
+    ],
+    "screen_geometry": "No separate display primitive or material; the one UV-mapped mesh uses a single image atlas for the whole photographed television. Screen replacement is not established."
+  },
+  "dimensions": {
+    "creator_claim": null,
+    "measured_source_world_aabb_m_xyz": {
+      "x": [
+        -0.0521571213,
+        0.2129728968
+      ],
+      "y": [
+        0.0,
+        0.8783862958
+      ],
+      "z": [
+        -0.6123932395,
+        0.6123932395
+      ]
+    },
+    "measured_bounds_mm_width_height_depth": [
+      1224.786479,
+      878.386296,
+      265.130018
+    ],
+    "measurement_note": "Parser-derived vertex envelope including node transform; width is Z, height is Y, depth is X. These are GLB bounds only, not independently verified physical dimensions."
+  },
+  "candidate_limitations": [
+    "Low-poly geometric detail despite the high-resolution photo-derived texture.",
+    "Source does not identify smart-TV software, ports, controls, or a replaceable display surface.",
+    "Visible wordmark-like texture details and depicted product design need separate rights review before use."
+  ]
+}

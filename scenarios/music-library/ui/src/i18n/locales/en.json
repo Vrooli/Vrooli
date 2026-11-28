@@ -1,0 +1,218 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Music Library are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
+    "eyebrow": "Scenario Template",
+    "title": "Music Library"
+  },
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "nav": {
+      "dashboard": "Dashboard",
+      "notes": "Notes",
+      "review": "Listen & review",
+      "releases": "Releases",
+      "settings": "Settings",
+      "taste": "Taste"
+    },
+    "sidebarLabel": "Primary navigation"
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "navigation": {
+    "app-shell": {
+      "close-navigation": "Close navigation",
+      "mobile-navigation": "Mobile navigation",
+      "open-navigation": "Open navigation",
+      "primary-navigation": "Primary navigation",
+      "skip-to-content": "Skip to content"
+    }
+  },
+  "notes": {
+    "attachmentFileLabel": "Attachment file",
+    "attachmentsLabel": "{{count}} attachments",
+    "attachmentsLabel_one": "1 attachment",
+    "create": "Create note",
+    "createdAtLabel": "Created:",
+    "empty": "No notes yet.",
+    "loading": "Loading notes…",
+    "measure": {
+      "loading": "Counting…",
+      "thisWeek": "{{count}} notes created this week",
+      "title": "Notes this week"
+    },
+    "noFileSelected": "Select a file before uploading.",
+    "table": {
+      "actions": "Actions",
+      "attachments": "Attachments",
+      "created": "Created",
+      "search": "Search notes",
+      "title": "Title"
+    },
+    "title": "Notes",
+    "uploadAttachment": "Upload attachment",
+    "uploadSuccess": "Uploaded {{name}}."
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
+    },
+    "notes": {
+      "title": "Notes"
+    },
+    "review": {
+      "title": "Reference review",
+      "description": "Listen to private local tracks, inspect timestamped analysis cues, and record corrections tied to this exact analysis.",
+      "eyebrow": "Music understanding",
+      "queue": "Analysis queue",
+      "queueLabel": "Analyzed tracks",
+      "refresh": "Refresh",
+      "loading": "Loading analyses…",
+      "empty": "No analyzed tracks are available yet.",
+      "loadError": "Could not load this analysis.",
+      "saveError": "Could not save your review.",
+      "reviewCount": "reviews",
+      "nextPage": "Next page",
+      "firstPage": "First page",
+      "selectTrack": "Choose a track to review.",
+      "noDetail": "No track selected.",
+      "audioLabel": "Private source audio",
+      "privateAudio": "Private audio stays on this machine",
+      "job": "Analysis job",
+      "timeline": "Timestamped cues",
+      "timelineHint": "Select a timestamp to play from that point in the track.",
+      "cues": "cues",
+      "noCues": "This result has no timestamped section or transcript cues yet.",
+      "playFrom": "Play from",
+      "lowConfidence": "Low-confidence acoustic cut",
+      "transcriptHypothesis": "Transcript hypothesis",
+      "sectionCandidate": "Section candidate",
+      "feedback": "Your listening review",
+      "feedbackHint": "Your judgment is the quality signal. Notes and timestamp corrections are stored with this analysis.",
+      "verdict": "How well does this breakdown match what you hear?",
+      "confirmed": "Captures it",
+      "corrected": "Needs corrections",
+      "needs_work": "Needs more work",
+      "note": "What do you hear?",
+      "notePlaceholder": "Describe the section, hook, transition, or sound that matters to you…",
+      "addCorrection": "Add a timestamp correction",
+      "start": "Start (seconds)",
+      "end": "End (seconds)",
+      "label": "What happens here",
+      "add": "Add cue",
+      "removeCorrection": "Remove this correction",
+      "save": "Save review",
+      "saved": "Review saved."
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    },
+    "taste": {
+      "eyebrow": "Music understanding",
+      "title": "Taste and recommendations",
+      "description": "Edit explicit controls separately from learned estimates, compare exact catalog tracks, and see score-derived recommendation evidence.",
+      "profile": "Editable profile",
+      "revision": "Revision {{revision}}",
+      "refresh": "Refresh",
+      "sparse": "Sparse evidence: estimates remain uncertain until operator comparisons are recorded.",
+      "controls": "Explicit control",
+      "attribute": "Attribute",
+      "mode": "Mode",
+      "value": "Value",
+      "boost": "Boost",
+      "suppress": "Suppress",
+      "pin": "Pin",
+      "ban": "Ban",
+      "saveControl": "Save control",
+      "compare": "Pairwise discovery",
+      "compareHint": "Each pair is shown in randomized left/right order. Selection favors uncertainty and new comparisons. Left, right, tie, neither, and skip remain distinct choices.",
+      "nextPair": "Choose next pair",
+      "information": "Expected information: {{value}}",
+      "preferLeft": "Prefer this track",
+      "preferRight": "Prefer this track",
+      "tie": "Tie",
+      "neither": "Neither",
+      "skip": "Skip",
+      "noPair": "No fresh pair is available yet. Add catalog tracks or record new evidence.",
+      "why": "Pick why I like this",
+      "whyHint": "Scores use hash-bound catalog tags, explicit genres, and duration, tempo, or key descriptors only after the exact analysis is confirmed. Artist metadata only diversifies the list; unreviewed or stale analysis stays unknown.",
+      "noCatalog": "No catalog tracks are available yet.",
+      "seed": "Seed track",
+      "findRecommendations": "Find recommendations",
+      "noRecommendations": "The available catalog does not have enough alternatives for recommendations yet.",
+      "score": "Expected preference {{score}} ± {{uncertainty}}",
+      "featureEvidence": "value {{value}} · confidence {{confidence}}",
+      "exploration": "exploration",
+      "mq2Brief": "MQ2 song brief",
+      "loadError": "Could not load the taste profile and catalog.",
+      "pairError": "Could not select a comparison.",
+      "judgmentError": "Could not save the comparison.",
+      "controlError": "Could not save the taste control.",
+      "recommendError": "Could not build recommendations.",
+      "context": "Context",
+      "randomPair": "Random baseline pair",
+      "more": "More",
+      "less": "Less",
+      "exclude": "Exclude",
+      "reinforceAttribute": "Prefer more {{attribute}}",
+      "suppressAttribute": "Prefer less {{attribute}}",
+      "banAttribute": "Exclude {{attribute}}",
+      "judgmentHistory": "Saved comparisons",
+      "correct": "Correct",
+      "correctionPending": "Choose the corrected preference and save it as a new version.",
+      "corrected": "corrected"
+    }
+  },
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  }
+}

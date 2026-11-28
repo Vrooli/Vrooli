@@ -4,6 +4,13 @@
 package websocket
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -11,22 +18,221 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/sidecar/health"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// Client represents a WebSocket client
+// MaxClientBinaryQueueBytes bounds binary frame data queued and being written
+// for one viewer. It matches one maximum recording-frame packet from the driver.
+const MaxClientBinaryQueueBytes = 12*1024*1024 + 4*1024
+
+// MaxClientBinaryPendingFrames bounds each slow viewer to the in-flight write
+// plus one replaceable newest frame. Live preview has no value in replaying a
+// stale frame queue after the browser has moved to a later page state.
+const MaxClientBinaryPendingFrames = 1
+
+// MaxClientExecutionFrameMessageBytes bounds one execution preview after its
+// base64 and JSON envelope are included. The aggregate cap covers both a
+// pending frame and the frame currently being written.
+const MaxClientExecutionFrameMessageBytes = 17 * 1024 * 1024
+const MaxClientExecutionFrameQueueBytes = 20 * 1024 * 1024
+
+// MaxPendingBroadcastEvents absorbs a short event burst without making the
+// event producer wait for Hub.Run on every publication. The queue is bounded;
+// publishers still apply backpressure when the consumer falls behind.
+const MaxPendingBroadcastEvents = 64
+
+// MaxStreamTextInputBytes bounds operator text submitted through a role-bound
+// browser control stream. The value is measured in UTF-8 bytes.
+const MaxStreamTextInputBytes = 4096
+
+// Client represents a WebSocket client. Hub.mu protects its subscription fields
+// and Send-channel lifetime after registration.
 type Client struct {
-	ID                     uuid.UUID
-	Conn                   *websocket.Conn
-	Send                   chan any
-	BinarySend             chan []byte // For binary frame data (recording frames)
-	Hub                    *Hub
-	ExecutionID            *uuid.UUID // Optional: client can subscribe to specific execution timeline events
-	RecordingSessionID     *string    // Optional: client can subscribe to recording session updates
-	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
-	DriverStatusSubscribed bool       // Optional: client can subscribe to driver status updates
-	ExportSubscriptionID   *string    // Optional: client can subscribe to export progress updates (export ID or execution ID)
+	ID                        uuid.UUID
+	Conn                      *websocket.Conn
+	Send                      chan any
+	BinarySend                chan []byte // For binary frame data (recording frames)
+	Hub                       *Hub
+	ExecutionID               *uuid.UUID // Optional: client can subscribe to specific execution timeline events
+	RecordingSessionID        *string    // Optional: client can subscribe to recording session updates
+	RecordingFrames           bool       // Whether this recording subscription consumes binary frames
+	ExecutionFrameStreamID    *string    // Optional: client can subscribe to execution frame streaming
+	DriverStatusSubscribed    bool       // Optional: client can subscribe to driver status updates
+	ExportSubscriptionID      *string    // Optional: client can subscribe to export progress updates (export ID or execution ID)
+	RecordingGrantSessionID   string
+	RecordingGrantExecutionID string
+	RecordingGrantRole        string
+	recordingGrantHash        [sha256.Size]byte
+	binaryQueueMu             sync.Mutex
+	binaryQueuedBytes         int
+	sendQueueMu               sync.Mutex
+	sendClosed                bool
+	executionFrameQueueMu     sync.Mutex
+	executionFrameQueueBytes  int
+}
+
+// queuedExecutionFrame carries queue accounting metadata that is not part of
+// the wire representation. Its JSON remains the existing execution_frame map.
+type queuedExecutionFrame struct {
+	executionID string
+	message     map[string]any
+	bytes       int
+}
+
+func (f queuedExecutionFrame) MarshalJSON() ([]byte, error) { return json.Marshal(f.message) }
+
+func (c *Client) trySendMessage(message any) bool {
+	c.sendQueueMu.Lock()
+	defer c.sendQueueMu.Unlock()
+	if c.sendClosed {
+		return false
+	}
+	select {
+	case c.Send <- message:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) closeSendQueue() {
+	c.sendQueueMu.Lock()
+	defer c.sendQueueMu.Unlock()
+	if c.sendClosed {
+		return
+	}
+	c.sendClosed = true
+	close(c.Send)
+}
+
+func (c *Client) enqueueExecutionFrame(executionID string, message map[string]any) bool {
+	encoded, err := json.Marshal(message)
+	if err != nil || len(encoded) == 0 || len(encoded) > MaxClientExecutionFrameMessageBytes {
+		return false
+	}
+	queued := queuedExecutionFrame{executionID: executionID, message: message, bytes: len(encoded)}
+	c.sendQueueMu.Lock()
+	defer c.sendQueueMu.Unlock()
+	if c.sendClosed {
+		return false
+	}
+	c.executionFrameQueueMu.Lock()
+	defer c.executionFrameQueueMu.Unlock()
+
+	// Retain every control/status/text message in order. Only stale preview
+	// frames for this execution are coalesced; another run keeps its frame.
+	retained := make([]any, 0, len(c.Send))
+	removedBytes := 0
+	for {
+		select {
+		case item, ok := <-c.Send:
+			if !ok {
+				return false
+			}
+			if stale, ok := item.(queuedExecutionFrame); ok && stale.executionID == executionID {
+				removedBytes += stale.bytes
+				continue
+			}
+			retained = append(retained, item)
+		default:
+			goto drained
+		}
+	}
+
+drained:
+	if c.executionFrameQueueBytes < removedBytes {
+		c.executionFrameQueueBytes = 0
+	} else {
+		c.executionFrameQueueBytes -= removedBytes
+	}
+	if len(encoded) > MaxClientExecutionFrameQueueBytes-c.executionFrameQueueBytes {
+		for _, item := range retained {
+			c.Send <- item
+		}
+		return false
+	}
+	for _, item := range retained {
+		c.Send <- item
+	}
+	select {
+	case c.Send <- queued:
+		c.executionFrameQueueBytes += queued.bytes
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Client) releaseExecutionFrame(frame queuedExecutionFrame) {
+	c.executionFrameQueueMu.Lock()
+	defer c.executionFrameQueueMu.Unlock()
+	if frame.bytes > c.executionFrameQueueBytes {
+		c.executionFrameQueueBytes = 0
+		return
+	}
+	c.executionFrameQueueBytes -= frame.bytes
+}
+
+func (c *Client) enqueueBinaryFrame(data []byte) (bool, int) {
+	if len(data) == 0 || len(data) > MaxClientBinaryQueueBytes {
+		return false, 0
+	}
+	c.binaryQueueMu.Lock()
+	defer c.binaryQueueMu.Unlock()
+
+	// Remove every not-yet-written frame before adding the new one. A blocked
+	// socket may finish its current write, but the pending slot always advances
+	// to the freshest frame instead of replaying a stale FIFO after it.
+	replaced := 0
+	for {
+		select {
+		case stale, ok := <-c.BinarySend:
+			if !ok {
+				return false, replaced
+			}
+			if len(stale) > c.binaryQueuedBytes {
+				c.binaryQueuedBytes = 0
+			} else {
+				c.binaryQueuedBytes -= len(stale)
+			}
+			replaced++
+		default:
+			goto pendingQueueDrained
+		}
+	}
+
+pendingQueueDrained:
+	if c.binaryQueuedBytes+len(data) > MaxClientBinaryQueueBytes {
+		return false, replaced
+	}
+	select {
+	case c.BinarySend <- data:
+		c.binaryQueuedBytes += len(data)
+		return true, replaced
+	default:
+		return false, replaced
+	}
+}
+
+func (c *Client) releaseBinaryFrame(data []byte) {
+	c.binaryQueueMu.Lock()
+	defer c.binaryQueueMu.Unlock()
+	if len(data) > c.binaryQueuedBytes {
+		c.Hub.log.WithField("client_id", c.ID).Error("Binary frame queue byte accounting underflow")
+		c.binaryQueuedBytes = 0
+		return
+	}
+	c.binaryQueuedBytes -= len(data)
+}
+
+func (c *Client) queuedBinaryFrameBytes() int {
+	c.binaryQueueMu.Lock()
+	defer c.binaryQueueMu.Unlock()
+	return c.binaryQueuedBytes
 }
 
 // ExportProgress represents progress updates during export rendering.
@@ -44,17 +250,25 @@ type ExportProgress struct {
 
 // InputForwarder is a function that forwards input events to the playwright-driver.
 // This allows the hub to forward WebSocket input messages without importing handlers.
-type InputForwarder func(sessionID string, input map[string]any) error
+type InputForwarder func(sessionID string, input map[string]any) (*driver.ForwardInputResponse, error)
+type InputStateReleaser func(sessionID, executionID, leaseID string) error
 
 // Hub maintains the set of active clients and broadcasts messages to them
 type Hub struct {
-	clients        map[*Client]bool
-	broadcast      chan any
-	register       chan *Client
-	unregister     chan *Client
-	log            *logrus.Logger
-	mu             sync.RWMutex
-	inputForwarder InputForwarder // Optional: forwards input events to playwright-driver
+	clients            map[*Client]bool
+	broadcast          chan any
+	register           chan *Client
+	unregister         chan *Client
+	log                *logrus.Logger
+	mu                 sync.RWMutex
+	streamGrantMu      sync.Mutex
+	inputForwarder     InputForwarder // Optional: forwards input events to playwright-driver
+	inputStateReleaser InputStateReleaser
+	latestFrames       map[string]latestLiveFrame
+	recordingGrants    map[string]recordingStreamGrant
+	// sessionExecutionOwners outlives the short stream cookie so generic hub
+	// subscriptions cannot regain access while a browser session remains live.
+	sessionExecutionOwners map[string]sessionExecutionOwner // session ID -> exact run/session lifecycle
 
 	// Driver status broadcasting
 	currentDriverStatus *health.DriverHealth // Cached for immediate send on subscribe
@@ -66,15 +280,305 @@ type Hub struct {
 	droppedFrameCountMu sync.Mutex
 }
 
+type recordingStreamGrant struct {
+	executionID string
+	leaseID     string
+	role        string
+	expiresAt   time.Time
+	secretHash  [sha256.Size]byte
+	revoking    bool
+}
+
+type sessionExecutionOwner struct {
+	executionID       string
+	sessionClosed     bool
+	executionFinished bool
+}
+
+type executionBroadcastClosed struct{ executionID string }
+
+// latestLiveFrame is a single replacement slot for one active stream. It is
+// retained only to seed late subscribers and never forms a frame history.
+type latestLiveFrame struct {
+	binary    []byte
+	execution *ExecutionFrame
+}
+
 // NewHub creates a new WebSocket hub
 func NewHub(log *logrus.Logger) *Hub {
 	return &Hub{
-		clients:    make(map[*Client]bool),
-		broadcast:  make(chan any),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		log:        log,
+		clients:                make(map[*Client]bool),
+		latestFrames:           make(map[string]latestLiveFrame),
+		recordingGrants:        make(map[string]recordingStreamGrant),
+		sessionExecutionOwners: make(map[string]sessionExecutionOwner),
+		broadcast:              make(chan any, MaxPendingBroadcastEvents),
+		register:               make(chan *Client),
+		unregister:             make(chan *Client),
+		log:                    log,
 	}
+}
+
+// SessionStreamCookieName scopes the browser-held credential to one route.
+// Session IDs are generated UUIDs and are safe cookie-name suffixes.
+func SessionStreamCookieName(sessionID string) string { return "bas_ws_" + sessionID }
+
+// SessionStreamCookiePath limits delivery of a recording credential to its
+// exact WebSocket route; it is never sent to the generic hub or frame ingress.
+func SessionStreamCookiePath(sessionID string) string { return "/ws/sessions/" + sessionID }
+
+// IssueSessionStreamCookie binds read and control authority to the exact
+// broker execution lease. The raw secret is returned once for Set-Cookie;
+// only its digest is retained by the hub.
+func (h *Hub) IssueSessionStreamCookie(sessionID, executionID, leaseID string) (string, string, error) {
+	return h.IssueSessionStreamCookieRole(sessionID, executionID, leaseID, "control", time.Now().Add(5*time.Minute))
+}
+
+// IssueSessionStreamCookieRole binds a short-lived view or control receipt to
+// one immutable broker lease. View clients cannot forward input frames.
+func (h *Hub) IssueSessionStreamCookieRole(sessionID, executionID, leaseID, role string, expiresAt time.Time) (string, string, error) {
+	if _, err := uuid.Parse(sessionID); err != nil || executionID == "" || leaseID == "" {
+		return "", "", ErrSessionStreamGrantUnavailable
+	}
+	if role != "observe" && role != "control" || !expiresAt.After(time.Now()) || expiresAt.After(time.Now().Add(5*time.Minute)) {
+		return "", "", ErrSessionStreamGrantUnavailable
+	}
+	h.streamGrantMu.Lock()
+	defer h.streamGrantMu.Unlock()
+	h.mu.RLock()
+	boundExecution, alreadyBound := h.sessionExecutionOwners[sessionID]
+	h.mu.RUnlock()
+	if alreadyBound && (boundExecution.executionID != executionID || boundExecution.sessionClosed || boundExecution.executionFinished) {
+		return "", "", ErrSessionStreamGrantUnavailable
+	}
+	if err := h.revokeSessionStreamCookie(sessionID); err != nil {
+		return "", "", fmt.Errorf("release old session input before stream receipt rotation: %w", err)
+	}
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return "", "", fmt.Errorf("create session stream grant: %w", err)
+	}
+	value := base64.RawURLEncoding.EncodeToString(secret)
+	grant := recordingStreamGrant{executionID: executionID, leaseID: leaseID, role: role, expiresAt: expiresAt, secretHash: sha256.Sum256([]byte(value))}
+	h.mu.Lock()
+	h.recordingGrants[sessionID] = grant
+	h.sessionExecutionOwners[sessionID] = sessionExecutionOwner{executionID: executionID}
+	// Generic clients may have selected this execution before the browser
+	// session was created. Drop those selectors as soon as the live owner is
+	// established; the exact path-scoped cookie remains the allowed stream.
+	for client := range h.clients {
+		if h.authorizesExecutionStreamLocked(client, executionID) {
+			continue
+		}
+		if client.ExecutionID != nil && client.ExecutionID.String() == executionID {
+			client.ExecutionID = nil
+		}
+		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
+			client.ExecutionFrameStreamID = nil
+		}
+		if client.ExportSubscriptionID != nil && *client.ExportSubscriptionID == executionID {
+			client.ExportSubscriptionID = nil
+		}
+	}
+	h.mu.Unlock()
+	const releaseLead = 250 * time.Millisecond
+	revokeAfter := time.Until(expiresAt) - releaseLead
+	if revokeAfter < 0 {
+		revokeAfter = 0
+	}
+	time.AfterFunc(revokeAfter, func() { h.expireSessionStreamCookie(sessionID, grant.secretHash) })
+	return SessionStreamCookieName(sessionID), value, nil
+}
+
+// RevokeSessionStreamCookie invalidates reconnects and clears every active
+// subscription/input channel bound to the session.
+func (h *Hub) RevokeSessionStreamCookie(sessionID string) {
+	if err := h.RevokeSessionStreamCookieChecked(sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Error("Could not release held browser input during stream revoke")
+	}
+}
+
+// RevokeSessionStreamCookieChecked releases held input before invalidating the
+// prior control receipt. A failed release prevents receipt rotation.
+func (h *Hub) RevokeSessionStreamCookieChecked(sessionID string) error {
+	h.streamGrantMu.Lock()
+	defer h.streamGrantMu.Unlock()
+	if err := h.revokeSessionStreamCookie(sessionID); err != nil {
+		return err
+	}
+	h.mu.Lock()
+	if owner, ok := h.sessionExecutionOwners[sessionID]; ok {
+		owner.sessionClosed = true
+		if owner.executionFinished {
+			delete(h.sessionExecutionOwners, sessionID)
+		} else {
+			h.sessionExecutionOwners[sessionID] = owner
+		}
+	}
+	h.mu.Unlock()
+	return nil
+}
+
+func (h *Hub) expireSessionStreamCookie(sessionID string, expectedHash [sha256.Size]byte) {
+	h.streamGrantMu.Lock()
+	defer h.streamGrantMu.Unlock()
+	h.mu.RLock()
+	grant, exists := h.recordingGrants[sessionID]
+	h.mu.RUnlock()
+	if !exists || grant.secretHash != expectedHash {
+		return
+	}
+	if err := h.revokeSessionStreamCookie(sessionID); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Error("Could not release held browser input during stream grant expiry")
+	}
+}
+
+func (h *Hub) revokeSessionStreamCookie(sessionID string) error {
+	h.mu.Lock()
+	grant, exists := h.recordingGrants[sessionID]
+	releaser := h.inputStateReleaser
+	if exists {
+		grant.revoking = true
+		h.recordingGrants[sessionID] = grant
+	}
+	h.mu.Unlock()
+	var releaseErr error
+	if exists && grant.role == "control" {
+		if releaser == nil {
+			releaseErr = fmt.Errorf("control stream input owner is unavailable")
+		} else {
+			releaseErr = releaser(sessionID, grant.executionID, grant.leaseID)
+		}
+	}
+	h.mu.Lock()
+	if !exists || releaseErr == nil {
+		delete(h.recordingGrants, sessionID)
+	} else {
+		// Keep the unusable, revoking grant so the next cleanup/rotation retries
+		// release against the same lease. Deleting it here would make a retry
+		// look like there was no held input to release.
+		grant.revoking = true
+		h.recordingGrants[sessionID] = grant
+	}
+	for client := range h.clients {
+		if client.RecordingGrantSessionID != sessionID {
+			continue
+		}
+		client.RecordingSessionID = nil
+		client.RecordingFrames = false
+		client.ExecutionFrameStreamID = nil
+		client.ExecutionID = nil
+		client.ExportSubscriptionID = nil
+		client.RecordingGrantSessionID = ""
+		client.RecordingGrantExecutionID = ""
+		client.RecordingGrantRole = ""
+		client.recordingGrantHash = [sha256.Size]byte{}
+		client.trySendMessage(map[string]any{"type": "session_access_revoked"})
+		if client.Conn != nil {
+			_ = client.Conn.Close()
+		}
+	}
+	h.mu.Unlock()
+	return releaseErr
+}
+
+// ServeRecordingWS admits one browser connection only when its path-scoped
+// cookie matches the current session grant, then pins its session and
+// execution identity for all subscriptions and input.
+func (h *Hub) ServeRecordingWS(conn *websocket.Conn, sessionID, cookieValue string) bool {
+	if !h.ValidateSessionStreamCookie(sessionID, cookieValue) {
+		return false
+	}
+	hash := sha256.Sum256([]byte(cookieValue))
+	h.mu.RLock()
+	grant, ok := h.recordingGrants[sessionID]
+	valid := ok && subtle.ConstantTimeCompare(hash[:], grant.secretHash[:]) == 1
+	h.mu.RUnlock()
+	if !valid {
+		return false
+	}
+	if _, err := uuid.Parse(grant.executionID); err != nil {
+		return false
+	}
+	client := h.newClient(conn, nil)
+	client.RecordingGrantSessionID = sessionID
+	client.RecordingGrantExecutionID = grant.executionID
+	client.RecordingGrantRole = grant.role
+	client.recordingGrantHash = hash
+	// Keep the execution id server-side. The path-scoped grant is already
+	// bound to it, so the browser receives only session_frame events.
+	executionStreamID := grant.executionID
+	client.ExecutionFrameStreamID = &executionStreamID
+	h.register <- client
+	go client.writePump()
+	go client.readPump()
+	h.mu.RLock()
+	latest, hasLatest := h.latestFrames["execution:"+grant.executionID]
+	h.mu.RUnlock()
+	if hasLatest && latest.execution != nil && latest.execution.SessionID == sessionID {
+		client.enqueueExecutionFrame(grant.executionID, sessionFrameMessage(sessionID, latest.execution))
+	}
+	return true
+}
+
+func (h *Hub) ValidateSessionStreamCookie(sessionID, cookieValue string) bool {
+	if sessionID == "" || cookieValue == "" {
+		return false
+	}
+	hash := sha256.Sum256([]byte(cookieValue))
+	h.mu.RLock()
+	grant, ok := h.recordingGrants[sessionID]
+	h.mu.RUnlock()
+	return ok && !grant.revoking && grant.expiresAt.After(time.Now()) && subtle.ConstantTimeCompare(hash[:], grant.secretHash[:]) == 1
+}
+
+func (h *Hub) authorizesRecordingSession(client *Client, sessionID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.authorizesRecordingSessionLocked(client, sessionID)
+}
+
+func (h *Hub) authorizesRecordingSessionLocked(client *Client, sessionID string) bool {
+	if client == nil || client.RecordingGrantSessionID == "" || client.RecordingGrantSessionID != sessionID {
+		return false
+	}
+	grant, ok := h.recordingGrants[sessionID]
+	return ok && !grant.revoking && grant.expiresAt.After(time.Now()) && grant.executionID == client.RecordingGrantExecutionID && grant.role == client.RecordingGrantRole &&
+		subtle.ConstantTimeCompare(client.recordingGrantHash[:], grant.secretHash[:]) == 1
+}
+
+func (h *Hub) authorizesRecordingInput(client *Client, sessionID string) bool {
+	return client != nil && client.RecordingGrantRole == "control" && h.authorizesRecordingSession(client, sessionID)
+}
+
+func (h *Hub) executionBelongsToRecordingLocked(executionID string) bool {
+	for _, owner := range h.sessionExecutionOwners {
+		if owner.executionID == executionID {
+			return true
+		}
+	}
+	return false
+}
+
+// authorizesExecutionStreamLocked preserves the exact BAS session/run owner
+// check for timeline, frame, and export messages. Generic clients can receive
+// unscoped workflow data only when no live browser session owns the execution.
+func (h *Hub) authorizesExecutionStreamLocked(client *Client, executionID string) bool {
+	protected := false
+	for sessionID, owner := range h.sessionExecutionOwners {
+		if owner.executionID != executionID {
+			continue
+		}
+		protected = true
+		if client != nil && client.RecordingGrantSessionID == sessionID && client.RecordingGrantExecutionID == executionID && h.authorizesRecordingSessionLocked(client, sessionID) {
+			return true
+		}
+	}
+	return !protected
+}
+
+func (h *Hub) liveSessionOwnsExecutionLocked(sessionID, executionID string) bool {
+	owner, ok := h.sessionExecutionOwners[sessionID]
+	return ok && !owner.sessionClosed && owner.executionID == executionID
 }
 
 // SetInputForwarder sets the function used to forward input events to the playwright-driver.
@@ -83,9 +587,15 @@ func (h *Hub) SetInputForwarder(forwarder InputForwarder) {
 	h.inputForwarder = forwarder
 }
 
+func (h *Hub) SetInputStateReleaser(releaser InputStateReleaser) {
+	h.mu.Lock()
+	h.inputStateReleaser = releaser
+	h.mu.Unlock()
+}
+
 // recordDroppedFrame increments the dropped frame counter and logs periodically.
 // This helps diagnose performance issues without flooding the logs.
-func (h *Hub) recordDroppedFrame(sessionID string, clientID uuid.UUID) {
+func (h *Hub) recordDroppedFrame(sessionID string, clientID uuid.UUID, reason string) {
 	h.droppedFrameCountMu.Lock()
 	defer h.droppedFrameCountMu.Unlock()
 
@@ -95,10 +605,10 @@ func (h *Hub) recordDroppedFrame(sessionID string, clientID uuid.UUID) {
 	now := time.Now()
 	if now.Sub(h.lastDropLogTime) >= time.Second {
 		h.log.WithFields(logrus.Fields{
-			"session_id":          sessionID,
-			"client_id":           clientID,
-			"total_dropped":       h.droppedFrameCount,
-			"reason":              "client_buffer_full",
+			"session_id":    sessionID,
+			"client_id":     clientID,
+			"total_dropped": h.droppedFrameCount,
+			"reason":        reason,
 		}).Warn("Frame dropped: client buffer full")
 		h.lastDropLogTime = now
 	}
@@ -118,50 +628,64 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
-			h.mu.Unlock()
-
 			h.log.WithField("client_id", client.ID).Info("Client connected to WebSocket hub")
 
-			// Send a welcome message
-			select {
-			case client.Send <- map[string]any{
+			if !client.trySendMessage(map[string]any{
 				"type":      "connected",
 				"message":   "Connected to Vrooli Ascension",
 				"timestamp": getCurrentTimestamp(),
-			}:
-			default:
-				close(client.Send)
-				h.mu.Lock()
+			}) {
+				client.closeSendQueue()
 				delete(h.clients, client)
-				h.mu.Unlock()
 			}
+			h.mu.Unlock()
 
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				close(client.Send)
+				client.closeSendQueue()
 				h.log.WithField("client_id", client.ID).Info("Client disconnected from WebSocket hub")
 			}
 			h.mu.Unlock()
 
 		case update := <-h.broadcast:
-			h.mu.RLock()
+			if closed, ok := update.(executionBroadcastClosed); ok {
+				h.mu.Lock()
+				for sessionID, owner := range h.sessionExecutionOwners {
+					if owner.executionID != closed.executionID {
+						continue
+					}
+					owner.executionFinished = true
+					if owner.sessionClosed {
+						delete(h.sessionExecutionOwners, sessionID)
+					} else {
+						h.sessionExecutionOwners[sessionID] = owner
+					}
+				}
+				h.mu.Unlock()
+				continue
+			}
+			h.mu.Lock()
 			execID := extractExecutionID(update)
 			for client := range h.clients {
+				if client.RecordingGrantSessionID != "" && (execID == nil || execID.String() != client.RecordingGrantExecutionID) {
+					continue
+				}
+				if execID != nil && !h.authorizesExecutionStreamLocked(client, execID.String()) {
+					continue
+				}
 				// If client is subscribed to a specific execution, filter updates
 				if client.ExecutionID != nil && execID != nil && *client.ExecutionID != *execID {
 					continue
 				}
 
-				select {
-				case client.Send <- update:
-				default:
+				if !client.trySendMessage(update) {
 					delete(h.clients, client)
-					close(client.Send)
+					client.closeSendQueue()
 				}
 			}
-			h.mu.RUnlock()
+			h.mu.Unlock()
 		}
 	}
 }
@@ -170,30 +694,12 @@ func (h *Hub) Run() {
 // BroadcastEnvelope pushes an automation event envelope directly to clients.
 func (h *Hub) BroadcastEnvelope(event any) {
 	h.broadcast <- event
-}
-
-// TimelineAction represents an action in the unified timeline format.
-// This matches the UI's expected format for timeline entries.
-type TimelineAction struct {
-	ID          string         `json:"id"`
-	ActionType  string         `json:"actionType"`
-	SequenceNum int            `json:"sequenceNum"`
-	Timestamp   string         `json:"timestamp"`
-	Confidence  float64        `json:"confidence"`
-	URL         string         `json:"url,omitempty"`
-	PageTitle   string         `json:"pageTitle,omitempty"`
-	Selector    map[string]any `json:"selector,omitempty"`
-	Payload     map[string]any `json:"payload,omitempty"`
-}
-
-// UnifiedTimelineEntry represents a unified timeline entry for WebSocket broadcast.
-// This is the single format used for recording actions, replacing the legacy dual-format.
-type UnifiedTimelineEntry struct {
-	ID        string          `json:"id"`
-	Type      string          `json:"type"` // "action" or "page_event"
-	Timestamp string          `json:"timestamp"`
-	PageID    string          `json:"pageId"`
-	Action    *TimelineAction `json:"action,omitempty"`
+	if envelope, ok := event.(contracts.EventEnvelope); ok {
+		switch envelope.Kind {
+		case contracts.EventKindExecutionCompleted, contracts.EventKindExecutionFailed, contracts.EventKindExecutionCancelled:
+			h.ClearExecutionFrames(envelope.ExecutionID.String())
+		}
+	}
 }
 
 // BroadcastResult contains metrics from a broadcast operation.
@@ -209,128 +715,76 @@ type BroadcastResult struct {
 	DroppedCount int
 }
 
-// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
-// This replaces the legacy dual-format broadcasting (action + timeline_entry).
-// Returns BroadcastResult with metrics for observability.
-func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult {
+// BroadcastTimelineEntry streams the canonical TimelineEntry protobuf value in
+// the TimelineStreamMessage JSON representation. This is intentionally
+// separate from the retired recording_action envelope so callers cannot
+// accidentally flatten typed actions into a legacy payload.
+func (h *Hub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) BroadcastResult {
 	result := BroadcastResult{}
-
 	if entry == nil {
-		h.log.WithField("session_id", sessionID).Warn("BroadcastRecordingEntry: nil entry")
+		h.log.WithField("session_id", sessionID).Warn("BroadcastTimelineEntry: nil entry")
 		return result
 	}
-
-	message := map[string]any{
-		"type":       "recording_action",
-		"session_id": sessionID,
-		"entry":      entry,
-		"timestamp":  getCurrentTimestamp(),
+	encoded, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(entry)
+	if err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("BroadcastTimelineEntry: marshal entry")
+		return result
 	}
-
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("BroadcastTimelineEntry: decode entry")
+		return result
+	}
+	message := map[string]any{
+		"type":       "TIMELINE_MESSAGE_TYPE_ENTRY",
+		"session_id": sessionID,
+		"entry":      payload,
+	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-
 	for client := range h.clients {
-		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
 			result.SubscriberCount++
-			select {
-			case client.Send <- message:
+			if client.trySendMessage(message) {
 				result.SentCount++
-			default:
-				// Client buffer full, skip
+			} else {
 				result.DroppedCount++
-				h.log.WithFields(logrus.Fields{
-					"client_id":  client.ID,
-					"session_id": sessionID,
-					"entry_id":   entry.ID,
-				}).Warn("BroadcastRecordingEntry: client buffer full, message dropped")
 			}
 		}
 	}
-
-	if result.SubscriberCount == 0 {
-		h.log.WithFields(logrus.Fields{
-			"session_id": sessionID,
-			"entry_id":   entry.ID,
-		}).Debug("BroadcastRecordingEntry: no subscribers")
-	}
-
 	return result
 }
 
-// RecordingFrame represents a frame pushed from the playwright-driver.
-type RecordingFrame struct {
-	SessionID   string `json:"session_id"`
-	Mime        string `json:"mime"`  // "image/webp" or "image/jpeg"
-	Image       string `json:"image"` // base64 data URI
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-	CapturedAt  string `json:"captured_at"`
-	ContentHash string `json:"content_hash"` // MD5 hash for client-side dedup
-}
-
-// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
-// This eliminates the need for clients to poll for frames.
-func (h *Hub) BroadcastRecordingFrame(sessionID string, frame *RecordingFrame) {
-	message := map[string]any{
-		"type":         "recording_frame",
-		"session_id":   sessionID,
-		"mime":         frame.Mime,
-		"image":        frame.Image,
-		"width":        frame.Width,
-		"height":       frame.Height,
-		"captured_at":  frame.CapturedAt,
-		"content_hash": frame.ContentHash,
-		"timestamp":    getCurrentTimestamp(),
-	}
-
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	for client := range h.clients {
-		// Only send to clients subscribed to this recording session
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip frame (non-blocking)
-				// This is acceptable - missing a frame is better than blocking
-				h.recordDroppedFrame(sessionID, client.ID)
-			}
-		}
-	}
-}
-
-// BroadcastBinaryFrame sends raw binary frame data (JPEG bytes) to clients subscribed to a recording session.
-// This is more efficient than BroadcastRecordingFrame as it avoids base64 encoding overhead.
-// The binary data is sent directly over WebSocket binary frames.
+// BroadcastBinaryFrame sends a source-bearing frame envelope to recording viewers.
 func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	h.mu.Lock()
+	h.latestFrames["recording:"+sessionID] = latestLiveFrame{binary: append([]byte(nil), jpegData...)}
 
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.BinarySend <- jpegData:
-			default:
-				// Client buffer full, skip frame (non-blocking)
-				// Missing a frame is better than blocking the broadcast
-				h.recordDroppedFrame(sessionID, client.ID)
+		if client.RecordingFrames && client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			accepted, replaced := client.enqueueBinaryFrame(jpegData)
+			for range replaced {
+				h.recordDroppedFrame(sessionID, client.ID, "stale_frame_replaced")
+			}
+			if !accepted {
+				// The active write may consume the byte budget; skip the new frame
+				// without blocking the source stream.
+				h.recordDroppedFrame(sessionID, client.ID, "client_buffer_full")
 			}
 		}
 	}
+	h.mu.Unlock()
 }
 
-// HasRecordingSubscribers returns true if any clients are subscribed to the given session.
-// Used by the frame push loop to avoid capturing frames when no one is watching.
-func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
+// HasRecordingFrameSubscribers returns true if any clients are subscribed to the given session.
+// The API can skip encoding and broadcasting images for event-only consumers.
+func (h *Hub) HasRecordingFrameSubscribers(sessionID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	for client := range h.clients {
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+		if client.RecordingFrames && client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
 			return true
 		}
 	}
@@ -341,6 +795,7 @@ func (h *Hub) HasRecordingSubscribers(sessionID string) bool {
 // This enables live preview of workflow execution in the UI.
 type ExecutionFrame struct {
 	ExecutionID string `json:"execution_id"`
+	SessionID   string `json:"-"`
 	Data        string `json:"data"`       // Base64 encoded image data
 	MediaType   string `json:"media_type"` // e.g., "image/jpeg"
 	Width       int    `json:"width"`
@@ -356,6 +811,9 @@ func (h *Hub) HasExecutionFrameSubscribers(executionID string) bool {
 
 	for client := range h.clients {
 		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
+			if !h.authorizesExecutionStreamLocked(client, executionID) {
+				continue
+			}
 			return true
 		}
 	}
@@ -365,7 +823,45 @@ func (h *Hub) HasExecutionFrameSubscribers(executionID string) bool {
 // BroadcastExecutionFrame sends a frame to clients subscribed to execution frame streaming.
 // This enables live preview of workflow execution.
 func (h *Hub) BroadcastExecutionFrame(executionID string, frame *ExecutionFrame) {
-	message := map[string]any{
+	message := executionFrameMessage(executionID, frame)
+	h.mu.Lock()
+	if h.executionBelongsToRecordingLocked(executionID) && !h.liveSessionOwnsExecutionLocked(frame.SessionID, executionID) {
+		// Do not let a wrong-session frame reach a subscriber or replace the
+		// latest-frame slot for the actual session owner.
+		h.mu.Unlock()
+		return
+	}
+	copyFrame := *frame
+	h.latestFrames["execution:"+executionID] = latestLiveFrame{execution: &copyFrame}
+
+	for client := range h.clients {
+		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
+			if !h.authorizesExecutionStreamLocked(client, executionID) {
+				continue
+			}
+			if client.RecordingGrantSessionID != "" {
+				if client.RecordingGrantExecutionID != executionID || client.RecordingGrantSessionID != frame.SessionID || !h.authorizesRecordingSessionLocked(client, frame.SessionID) {
+					continue
+				}
+				client.enqueueExecutionFrame(executionID, sessionFrameMessage(frame.SessionID, frame))
+				continue
+			}
+			client.enqueueExecutionFrame(executionID, message)
+		}
+	}
+	h.mu.Unlock()
+}
+
+func sessionFrameMessage(sessionID string, frame *ExecutionFrame) map[string]any {
+	return map[string]any{
+		"type": "session_frame", "session_id": sessionID, "data": frame.Data,
+		"media_type": frame.MediaType, "width": frame.Width, "height": frame.Height,
+		"captured_at": frame.CapturedAt, "timestamp": getCurrentTimestamp(),
+	}
+}
+
+func executionFrameMessage(executionID string, frame *ExecutionFrame) map[string]any {
+	return map[string]any{
 		"type":         "execution_frame",
 		"execution_id": executionID,
 		"data":         frame.Data,
@@ -375,21 +871,20 @@ func (h *Hub) BroadcastExecutionFrame(executionID string, frame *ExecutionFrame)
 		"captured_at":  frame.CapturedAt,
 		"timestamp":    getCurrentTimestamp(),
 	}
+}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+// ClearRecordingFrames releases the bounded preview slot when its session ends.
+func (h *Hub) ClearRecordingFrames(sessionID string) {
+	h.mu.Lock()
+	delete(h.latestFrames, "recording:"+sessionID)
+	h.mu.Unlock()
+}
 
-	for client := range h.clients {
-		// Only send to clients subscribed to this execution's frame stream
-		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip frame (non-blocking)
-				// Missing a frame is better than blocking the broadcast
-			}
-		}
-	}
+// ClearExecutionFrames releases the bounded preview slot when its execution ends.
+func (h *Hub) ClearExecutionFrames(executionID string) {
+	h.mu.Lock()
+	delete(h.latestFrames, "execution:"+executionID)
+	h.mu.Unlock()
 }
 
 // BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
@@ -408,11 +903,7 @@ func (h *Hub) BroadcastPerfStats(sessionID string, stats any) {
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip (non-blocking)
-			}
+			client.trySendMessage(message)
 		}
 	}
 }
@@ -433,11 +924,7 @@ func (h *Hub) BroadcastPageEvent(sessionID string, event any) {
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip (non-blocking)
-			}
+			client.trySendMessage(message)
 		}
 	}
 }
@@ -458,11 +945,7 @@ func (h *Hub) BroadcastPageSwitch(sessionID, activePageID string) {
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip (non-blocking)
-			}
+			client.trySendMessage(message)
 		}
 	}
 }
@@ -502,11 +985,13 @@ func (h *Hub) BroadcastExportProgress(progress *ExportProgress) {
 		if client.ExportSubscriptionID != nil {
 			subID := *client.ExportSubscriptionID
 			if subID == progress.ExportID || subID == progress.ExecutionID {
-				select {
-				case client.Send <- message:
-				default:
-					// Client buffer full, skip (non-blocking)
+				if client.RecordingGrantSessionID != "" && progress.ExecutionID != client.RecordingGrantExecutionID {
+					continue
 				}
+				if progress.ExecutionID != "" && !h.authorizesExecutionStreamLocked(client, progress.ExecutionID) {
+					continue
+				}
+				client.trySendMessage(message)
 			}
 		}
 	}
@@ -527,11 +1012,7 @@ func (h *Hub) BroadcastDriverStatus(driverHealth health.DriverHealth) {
 
 	for client := range h.clients {
 		if client.DriverStatusSubscribed {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip (non-blocking)
-			}
+			client.trySendMessage(message)
 		}
 	}
 }
@@ -566,29 +1047,35 @@ func (h *Hub) GetClientCount() int {
 	return len(h.clients)
 }
 
-// CloseExecution is a no-op for the hub; it satisfies the interface used by sinks.
+// CloseExecution closes the run's event-stream lifetime after its event sink
+// drains accepted updates. The marker preserves ordering with the Hub fanout
+// queue before releasing closed session/run owner bindings.
 func (h *Hub) CloseExecution(executionID uuid.UUID) {
-	_ = executionID
+	h.ClearExecutionFrames(executionID.String())
+	// The event sink calls this only after draining accepted events. Queue a
+	// marker behind those events so an owner binding is released only after
+	// its terminal data has crossed the hub's fanout boundary.
+	h.broadcast <- executionBroadcastClosed{executionID: executionID.String()}
 }
 
 // ServeWS handles WebSocket requests from clients.
 func (h *Hub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {
+	client := h.newClient(conn, executionID)
+	h.register <- client
+	go client.writePump()
+	go client.readPump()
+}
+
+func (h *Hub) newClient(conn *websocket.Conn, executionID *uuid.UUID) *Client {
 	cfg := config.Load()
-	client := &Client{
+	return &Client{
 		ID:          uuid.New(),
 		Conn:        conn,
 		Send:        make(chan any, cfg.WebSocket.ClientSendBufferSize),
-		BinarySend:  make(chan []byte, cfg.WebSocket.ClientBinaryBufferSize), // Buffer for binary frames
+		BinarySend:  make(chan []byte, MaxClientBinaryPendingFrames),
 		Hub:         h,
 		ExecutionID: executionID,
 	}
-
-	// Register the client
-	client.Hub.register <- client
-
-	// Start goroutines for reading and writing
-	go client.writePump()
-	go client.readPump()
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -615,137 +1102,205 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Handle client messages (e.g., subscription changes)
-		if msgType, ok := msg["type"].(string); ok {
-			switch msgType {
-			case "subscribe":
-				if execID, ok := msg["execution_id"].(string); ok {
-					if id, err := uuid.Parse(execID); err == nil {
-						c.ExecutionID = &id
-						c.Hub.log.WithFields(logrus.Fields{
-							"client_id":    c.ID,
-							"execution_id": id,
-						}).Info("Client subscribed to execution updates")
+		msgType, _ := msg["type"].(string)
+		if msgType == "recording_input" {
+			// Forward input event to playwright-driver via the hub's forwarder
+			// The shared forwarder owns its request deadline and session lease.
+			sessionID, hasSession := msg["session_id"].(string)
+			if !hasSession || sessionID == "" || !c.Hub.authorizesRecordingSession(c, sessionID) {
+				c.Hub.log.Warn("recording_input missing session_id")
+				continue
+			}
+			if !c.Hub.authorizesRecordingInput(c, sessionID) {
+				c.Hub.log.WithField("session_id", sessionID).Warn("Denied input on observe-only stream cookie")
+				continue
+			}
+			input, hasInput := msg["input"].(map[string]any)
+			if !hasInput {
+				c.Hub.log.Warn("recording_input missing input payload")
+				continue
+			}
+			textBytes, validationErr := validateRecordingInput(input)
+			if validationErr != nil {
+				c.Hub.log.WithError(validationErr).WithField("session_id", sessionID).Warn("Rejected invalid recording input")
+				continue
+			}
+			if c.Hub.inputForwarder != nil {
+				// Await forwarding so button/key transitions retain received order.
+				// The read loop provides backpressure without a per-event goroutine.
+				receipt, err := c.Hub.inputForwarder(sessionID, input)
+				if err != nil {
+					c.Hub.log.WithError(err).WithField("session_id", sessionID).Warn("Failed to forward input")
+				} else if receipt != nil {
+					ack := map[string]any{
+						"type": "recording_input_applied", "session_id": sessionID,
+						"applied_sequence": receipt.AppliedSequence, "coalesced_count": receipt.CoalescedCount,
+					}
+					if textBytes > 0 {
+						ack["text_bytes"] = textBytes
+					}
+					if receipt.InputID != "" {
+						ack["input_id"] = receipt.InputID
+					}
+					if !c.trySendMessage(ack) {
+						c.Hub.log.WithField("session_id", sessionID).Warn("Dropped recording input receipt because client send queue is full")
 					}
 				}
-			case "unsubscribe":
-				c.ExecutionID = nil
-				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from execution updates")
-			case "subscribe_recording":
-				if sessionID, ok := msg["session_id"].(string); ok && sessionID != "" {
-					c.RecordingSessionID = &sessionID
-					c.Hub.log.WithFields(logrus.Fields{
-						"client_id":  c.ID,
-						"session_id": sessionID,
-					}).Info("Client subscribed to recording updates")
-					// Send confirmation
-					select {
-					case c.Send <- map[string]any{
-						"type":       "recording_subscribed",
-						"session_id": sessionID,
-						"timestamp":  getCurrentTimestamp(),
-					}:
-					default:
-					}
+			}
+			continue
+		}
+		c.handleSubscription(msgType, msg)
+	}
+}
+
+func validateRecordingInput(input map[string]any) (int, error) {
+	inputType, _ := input["type"].(string)
+	switch inputType {
+	case "keyboard":
+		if text, ok := input["text"].(string); ok {
+			if len([]byte(text)) > MaxStreamTextInputBytes {
+				return 0, fmt.Errorf("keyboard text exceeds %d-byte stream limit", MaxStreamTextInputBytes)
+			}
+			if text == "" {
+				return 0, errors.New("keyboard text must not be empty")
+			}
+			return len([]byte(text)), nil
+		}
+		if key, ok := input["key"].(string); ok && key != "" && len(key) <= 128 {
+			return 0, nil
+		}
+		return 0, errors.New("keyboard input requires bounded text or key")
+	case "pointer", "wheel":
+		return 0, nil
+	default:
+		return 0, errors.New("input type must be keyboard, pointer, or wheel")
+	}
+}
+
+// handleSubscription shares the broadcast lock so filtering and confirmation
+// sends cannot race client removal. Network input forwarding never holds it.
+func (c *Client) handleSubscription(msgType string, msg map[string]any) {
+	c.Hub.mu.Lock()
+	defer c.Hub.mu.Unlock()
+	if !c.Hub.clients[c] {
+		return
+	}
+	switch msgType {
+	case "subscribe":
+		if execID, ok := msg["execution_id"].(string); ok {
+			if c.RecordingGrantSessionID != "" {
+				return
+			}
+			if id, err := uuid.Parse(execID); err == nil {
+				if c.Hub.executionBelongsToRecordingLocked(execID) &&
+					(c.RecordingGrantExecutionID != execID || c.RecordingGrantSessionID == "") {
+					return
 				}
-			case "unsubscribe_recording":
-				c.RecordingSessionID = nil
-				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from recording updates")
-			case "subscribe_execution_frames":
-				// Subscribe to execution frame streaming (live preview)
-				if execID, ok := msg["execution_id"].(string); ok && execID != "" {
-					c.ExecutionFrameStreamID = &execID
-					c.Hub.log.WithFields(logrus.Fields{
-						"client_id":    c.ID,
-						"execution_id": execID,
-					}).Info("Client subscribed to execution frame streaming")
-					// Send confirmation
-					select {
-					case c.Send <- map[string]any{
-						"type":         "execution_frame_subscribed",
-						"execution_id": execID,
-						"timestamp":    getCurrentTimestamp(),
-					}:
-					default:
-					}
-				}
-			case "unsubscribe_execution_frames":
-				c.ExecutionFrameStreamID = nil
-				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from execution frame streaming")
-			case "recording_input":
-				// Forward input event to playwright-driver via the hub's forwarder
-				// This is much faster than HTTP POST for each input event
-				sessionID, hasSession := msg["session_id"].(string)
-				if !hasSession || sessionID == "" {
-					c.Hub.log.Warn("recording_input missing session_id")
-					continue
-				}
-				input, hasInput := msg["input"].(map[string]any)
-				if !hasInput {
-					c.Hub.log.Warn("recording_input missing input payload")
-					continue
-				}
-				if c.Hub.inputForwarder != nil {
-					go func(sid string, inp map[string]any) {
-						if err := c.Hub.inputForwarder(sid, inp); err != nil {
-							c.Hub.log.WithError(err).WithField("session_id", sid).Warn("Failed to forward input")
-						}
-					}(sessionID, input)
-				}
-			case "subscribe_driver_status":
-				c.DriverStatusSubscribed = true
-				c.Hub.log.WithField("client_id", c.ID).Info("Client subscribed to driver status")
-				// Send current status immediately if available
-				c.Hub.driverStatusMu.RLock()
-				if c.Hub.currentDriverStatus != nil {
-					msg := c.Hub.driverHealthToMessage(c.Hub.currentDriverStatus)
-					select {
-					case c.Send <- msg:
-					default:
-					}
-				}
-				c.Hub.driverStatusMu.RUnlock()
-				// Send confirmation
-				select {
-				case c.Send <- map[string]any{
-					"type":      "driver_status_subscribed",
-					"timestamp": getCurrentTimestamp(),
-				}:
-				default:
-				}
-			case "unsubscribe_driver_status":
-				c.DriverStatusSubscribed = false
-				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from driver status")
-			case "subscribe_export":
-				// Subscribe to export progress updates
-				// Can subscribe by export_id or execution_id
-				var subID string
-				if exportID, ok := msg["export_id"].(string); ok && exportID != "" {
-					subID = exportID
-				} else if execID, ok := msg["execution_id"].(string); ok && execID != "" {
-					subID = execID
-				}
-				if subID != "" {
-					c.ExportSubscriptionID = &subID
-					c.Hub.log.WithFields(logrus.Fields{
-						"client_id":       c.ID,
-						"subscription_id": subID,
-					}).Info("Client subscribed to export progress")
-					// Send confirmation
-					select {
-					case c.Send <- map[string]any{
-						"type":            "export_subscribed",
-						"subscription_id": subID,
-						"timestamp":       getCurrentTimestamp(),
-					}:
-					default:
-					}
-				}
-			case "unsubscribe_export":
-				c.ExportSubscriptionID = nil
-				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from export progress")
+				c.ExecutionID = &id
+				c.Hub.log.WithFields(logrus.Fields{
+					"client_id":    c.ID,
+					"execution_id": id,
+				}).Info("Client subscribed to execution updates")
 			}
 		}
+	case "unsubscribe":
+		c.ExecutionID = nil
+		c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from execution updates")
+	case "subscribe_recording":
+		if sessionID, ok := msg["session_id"].(string); ok && sessionID != "" && c.Hub.authorizesRecordingSessionLocked(c, sessionID) {
+			c.RecordingSessionID = &sessionID
+			c.RecordingFrames = msg["frames"] != false
+			c.Hub.log.WithFields(logrus.Fields{
+				"client_id":  c.ID,
+				"session_id": sessionID,
+			}).Info("Client subscribed to recording updates")
+			// Send confirmation
+			c.trySendMessage(map[string]any{
+				"type":       "recording_subscribed",
+				"session_id": sessionID,
+				"timestamp":  getCurrentTimestamp(),
+			})
+			if c.RecordingFrames {
+				if latest, ok := c.Hub.latestFrames["recording:"+sessionID]; ok && len(latest.binary) > 0 {
+					_, _ = c.enqueueBinaryFrame(latest.binary)
+				}
+			}
+		}
+	case "unsubscribe_recording":
+		c.RecordingSessionID = nil
+		c.RecordingFrames = false
+		c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from recording updates")
+	case "subscribe_execution_frames":
+		if c.RecordingGrantSessionID != "" {
+			// A session cookie already owns one private frame subscription. The
+			// browser cannot select or learn arbitrary execution identifiers.
+			return
+		}
+		// Subscribe to execution frame streaming (live preview)
+		if execID, ok := msg["execution_id"].(string); ok && execID != "" &&
+			(!c.Hub.executionBelongsToRecordingLocked(execID) ||
+				(c.RecordingGrantExecutionID == execID && c.RecordingGrantSessionID != "")) {
+			c.ExecutionFrameStreamID = &execID
+			c.Hub.log.WithFields(logrus.Fields{
+				"client_id":    c.ID,
+				"execution_id": execID,
+			}).Info("Client subscribed to execution frame streaming")
+			// Send confirmation
+			c.trySendMessage(map[string]any{
+				"type":         "execution_frame_subscribed",
+				"execution_id": execID,
+				"timestamp":    getCurrentTimestamp(),
+			})
+			if latest, ok := c.Hub.latestFrames["execution:"+execID]; ok && latest.execution != nil {
+				c.enqueueExecutionFrame(execID, executionFrameMessage(execID, latest.execution))
+			}
+		}
+	case "unsubscribe_execution_frames":
+		c.ExecutionFrameStreamID = nil
+		c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from execution frame streaming")
+	case "subscribe_driver_status":
+		c.DriverStatusSubscribed = true
+		c.Hub.log.WithField("client_id", c.ID).Info("Client subscribed to driver status")
+		// Send current status immediately if available
+		c.Hub.driverStatusMu.RLock()
+		if c.Hub.currentDriverStatus != nil {
+			msg := c.Hub.driverHealthToMessage(c.Hub.currentDriverStatus)
+			c.trySendMessage(msg)
+		}
+		c.Hub.driverStatusMu.RUnlock()
+		// Send confirmation
+		c.trySendMessage(map[string]any{
+			"type":      "driver_status_subscribed",
+			"timestamp": getCurrentTimestamp(),
+		})
+	case "unsubscribe_driver_status":
+		c.DriverStatusSubscribed = false
+		c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from driver status")
+	case "subscribe_export":
+		// Subscribe to export progress updates
+		// Can subscribe by export_id or execution_id
+		var subID string
+		if exportID, ok := msg["export_id"].(string); ok && exportID != "" {
+			subID = exportID
+		} else if execID, ok := msg["execution_id"].(string); ok && execID != "" {
+			subID = execID
+		}
+		if subID != "" {
+			c.ExportSubscriptionID = &subID
+			c.Hub.log.WithFields(logrus.Fields{
+				"client_id":       c.ID,
+				"subscription_id": subID,
+			}).Info("Client subscribed to export progress")
+			// Send confirmation
+			c.trySendMessage(map[string]any{
+				"type":            "export_subscribed",
+				"subscription_id": subID,
+				"timestamp":       getCurrentTimestamp(),
+			})
+		}
+	case "unsubscribe_export":
+		c.ExportSubscriptionID = nil
+		c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from export progress")
 	}
 }
 
@@ -761,8 +1316,10 @@ func (c *Client) writePump() {
 				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			// Send raw binary frame (JPEG data)
-			if err := c.Conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
+			// Send the canonical source envelope and JPEG payload
+			err := c.Conn.WriteMessage(websocket.BinaryMessage, data)
+			c.releaseBinaryFrame(data)
+			if err != nil {
 				c.Hub.log.WithError(err).WithField("client_id", c.ID).Error("Failed to write binary WebSocket frame")
 				return
 			}
@@ -772,7 +1329,17 @@ func (c *Client) writePump() {
 				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			// Send JSON text message
+			// Keep execution frame bytes charged until the active socket write
+			// completes. MarshalJSON keeps the existing wire message unchanged.
+			if frame, ok := update.(queuedExecutionFrame); ok {
+				err := c.Conn.WriteJSON(frame)
+				c.releaseExecutionFrame(frame)
+				if err != nil {
+					c.Hub.log.WithError(err).WithField("client_id", c.ID).Error("Failed to write WebSocket execution frame")
+					return
+				}
+				continue
+			}
 			if err := c.Conn.WriteJSON(update); err != nil {
 				c.Hub.log.WithError(err).Error("Failed to write WebSocket message")
 				return

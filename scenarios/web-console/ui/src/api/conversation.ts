@@ -1,0 +1,747 @@
+import { createClient } from "@connectrpc/connect";
+import { ConversationProjection, ConversationSearchMode, ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
+
+import { API_BASE_WITH_SUFFIX, transport } from "./client";
+import { decodeCaptureStatus, type MessageCaptureStatus } from "./messageCapture";
+import { decodeClassification } from "../lib/conversationRows";
+
+// The capture contract lives in ./messageCapture so the store can import its
+// runtime default without depending on this (heavily mocked) client module.
+export { UNKNOWN_CAPTURE, decodeCaptureStatus } from "./messageCapture";
+export type { MessageCaptureState, MessageCaptureStatus } from "./messageCapture";
+
+// conversationClient is the Connect-Web client for ConversationService.
+// Consumers should prefer the typed wrappers below, which decode proto
+// bigint sequences to JS numbers and surface the snake_case shapes that
+// the conversation store and MessagesPane expect.
+export const conversationClient = createClient(ConversationService, transport);
+
+// ---------------------------------------------------------------------------
+// Domain types
+// ---------------------------------------------------------------------------
+
+export interface ConversationEvent {
+  id: string;
+  sessionId: string;
+  source: string;
+  role: "assistant" | "user";
+  text: string;
+  speechParagraphs: string[];
+  originalSpeechParagraphs?: string[];
+  summarized: boolean;
+  createdAt: string;
+  occurredAt?: string;
+  sequence: number;
+  deliveryState: string;
+  ttsState: string;
+  consumptionState: string;
+  nativeProvenance?: NativeProvenance;
+  /** What the row is; absent on rows from a server that predates classification (read as "message"). */
+  kind?: ConversationKind;
+  /** Who wrote the text; role is only the channel it arrived on. */
+  author?: ConversationAuthor;
+  /** The author's name when it is not the human or this agent. */
+  authorName?: string;
+  /** The tool name for tool rows; the recogniser's reason for notices and injected rows. */
+  label?: string;
+  /** The agent thread the row belongs to; absent for the session's own thread. */
+  threadId?: string;
+  /** Set on "work" rows: what the hidden rows between two messages add up to. */
+  work?: ConversationWorkSpan;
+  /** Set when `text` is a preview (work rows fetched to expand a span). */
+  textTruncated?: boolean;
+}
+
+/**
+ * Row kinds. message, attachment and notice are the conversation the Messages
+ * view lists; the rest is work, collapsed between messages into one "work"
+ * row (a projection row the server synthesises; never stored).
+ */
+export type ConversationKind =
+  | "message" | "attachment" | "notice"
+  | "context" | "tool_call" | "tool_result" | "reasoning"
+  | "work";
+
+export type ConversationAuthor = "human" | "agent" | "harness" | "automation" | "peer";
+
+/** One thread's hidden rows between two conversation rows. */
+export interface ConversationWorkSpan {
+  /** First and last sequence the span covers (other threads' rows included, so paging stays contiguous). */
+  fromSequence: number;
+  toSequence: number;
+  toolCalls: number;
+  toolResults: number;
+  reasoning: number;
+  context: number;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+/** An agent thread inside a session (a subagent, a teammate, the approval reviewer). */
+export interface ConversationThreadSummary {
+  threadId: string;
+  kind: "subagent" | "teammate" | "review";
+  label: string;
+  description: string;
+  parentThreadId: string;
+  firstSequence: number;
+  lastSequence: number;
+  messageCount: number;
+  workCount: number;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+export interface NativeProvenance {
+  provider: string;
+  sessionId: string;
+  turnId: string;
+  messageId: string;
+  boundaryId: string;
+  compactionLineage: string;
+}
+
+export interface ConversationControlPreflight {
+  operationId: string;
+  operation: string;
+  sessionId: string;
+  eventId: string;
+  sequence: number;
+  capability: {
+    provider: string;
+    available: boolean;
+    reasonCode: string;
+    destructive: boolean;
+    launchMode?: string;
+    controlMode?: string;
+    nativeOwner?: string;
+    options?: ConversationOperationOption[];
+  };
+  decision: string;
+  confirmationKey?: string;
+  targetDigest: string;
+  consequences: string[];
+  expiresAt: string;
+}
+
+export interface ConversationOperationOption {
+  id: string;
+  label: string;
+  supported: boolean;
+  default: boolean;
+  changesConversation: boolean;
+  changesWorkspace: boolean;
+  createsBranch: boolean;
+  requiresConfirmation: boolean;
+  boundary: string;
+  consequences: string[];
+  unavailableReason?: string;
+}
+
+export interface ConversationControlOutcome {
+  operationId: string;
+  sessionId: string;
+  eventId: string;
+  state: string;
+  reasonCode: string;
+  detail: string;
+  terminalUrl?: string;
+}
+
+export async function preflightConversationControl(sessionId: string, eventId: string, operation?: string): Promise<ConversationControlPreflight> {
+  const response = await fetch(`${API_BASE_WITH_SUFFIX}/sessions/${encodeURIComponent(sessionId)}/conversation/control/preflight`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, ...(operation ? { operation } : {}) }),
+  });
+  if (!response.ok) throw new Error(`conversation control preflight failed (${response.status})`);
+  return response.json() as Promise<ConversationControlPreflight>;
+}
+
+export async function executeConversationControl(sessionId: string, request: { operationId: string; eventId: string; operation?: string; confirmationKey: string; preserveDraft: boolean }): Promise<ConversationControlOutcome> {
+  const response = await fetch(`${API_BASE_WITH_SUFFIX}/sessions/${encodeURIComponent(sessionId)}/conversation/control/execute`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+  });
+  if (!response.ok) throw new Error(`conversation control execute failed (${response.status})`);
+  return response.json() as Promise<ConversationControlOutcome>;
+}
+
+export interface ConversationCursor {
+  lastSeenSequence: number;
+  lastListenedSequence: number;
+}
+
+export interface ConversationSessionResponse {
+  sessionId: string;
+  events: ConversationEvent[];
+  cursor: ConversationCursor;
+  hasMore?: boolean;
+  oldestSequence?: number;
+  newestSequence?: number;
+  totalCount?: number;
+  capture: MessageCaptureStatus;
+  /** The session's agent threads (Messages projection of the main thread's newest page). */
+  threads?: ConversationThreadSummary[];
+}
+
+// ---------------------------------------------------------------------------
+// Decoders — proto wire shape → domain shape
+// ---------------------------------------------------------------------------
+
+interface ProtoConversationEvent {
+  id: string;
+  sessionId: string;
+  source: string;
+  role: string;
+  text: string;
+  speechParagraphs: string[];
+  originalSpeechParagraphs: string[];
+  summarized: boolean;
+  createdAt: string;
+  // Optional while older installed proto-types workspace snapshots are still
+  // in use. Current descriptors populate it; an older descriptor decodes it
+  // as absent, which must remain unknown rather than inferred from createdAt.
+  occurredAt?: string;
+  sequence: bigint;
+  deliveryState: string;
+  ttsState: string;
+  consumptionState: string;
+  nativeProvenance?: NativeProvenance;
+  // Optional for the same reason as occurredAt: an older installed descriptor
+  // decodes them as absent, which reads as an unclassified message.
+  kind?: string;
+  author?: string;
+  authorName?: string;
+  label?: string;
+  threadId?: string;
+  work?: ProtoWorkSpan;
+  textTruncated?: boolean;
+}
+
+interface ProtoWorkSpan {
+  fromSequence: bigint;
+  toSequence: bigint;
+  toolCalls: number;
+  toolResults: number;
+  reasoning: number;
+  context: number;
+  startedAt: string;
+  endedAt: string;
+}
+
+interface ProtoConversationThread {
+  threadId: string;
+  kind: string;
+  label: string;
+  description: string;
+  parentThreadId: string;
+  firstSequence: bigint;
+  lastSequence: bigint;
+  messageCount: number;
+  workCount: number;
+  startedAt: string;
+  endedAt: string;
+}
+
+interface ProtoConversationCursor {
+  lastSeenSequence: bigint;
+  lastListenedSequence: bigint;
+}
+
+function decodeConversationEvent(e: ProtoConversationEvent): ConversationEvent {
+  return {
+    id: e.id,
+    sessionId: e.sessionId,
+    source: e.source,
+    role: e.role as ConversationEvent["role"],
+    text: e.text,
+    speechParagraphs: e.speechParagraphs,
+    originalSpeechParagraphs: e.originalSpeechParagraphs.length > 0 ? e.originalSpeechParagraphs : undefined,
+    summarized: e.summarized,
+    createdAt: e.createdAt,
+    ...(e.occurredAt ? { occurredAt: e.occurredAt } : {}),
+    sequence: Number(e.sequence),
+    deliveryState: e.deliveryState,
+    ttsState: e.ttsState,
+    consumptionState: e.consumptionState,
+    ...(e.nativeProvenance ? { nativeProvenance: e.nativeProvenance } : {}),
+    ...decodeClassification(e),
+    ...(e.work ? { work: decodeWorkSpan(e.work) } : {}),
+    ...(e.textTruncated ? { textTruncated: true } : {}),
+  };
+}
+
+function decodeWorkSpan(w: ProtoWorkSpan): ConversationWorkSpan {
+  return {
+    fromSequence: Number(w.fromSequence),
+    toSequence: Number(w.toSequence),
+    toolCalls: w.toolCalls,
+    toolResults: w.toolResults,
+    reasoning: w.reasoning,
+    context: w.context,
+    ...(w.startedAt ? { startedAt: w.startedAt } : {}),
+    ...(w.endedAt ? { endedAt: w.endedAt } : {}),
+  };
+}
+
+const THREAD_KINDS: readonly string[] = ["subagent", "teammate", "review"] satisfies ConversationThreadSummary["kind"][];
+
+function isThreadKind(value: string): value is ConversationThreadSummary["kind"] {
+  return THREAD_KINDS.includes(value);
+}
+
+function decodeThread(t: ProtoConversationThread): ConversationThreadSummary {
+  return {
+    threadId: t.threadId,
+    kind: isThreadKind(t.kind) ? t.kind : "subagent",
+    label: t.label,
+    description: t.description,
+    parentThreadId: t.parentThreadId,
+    firstSequence: Number(t.firstSequence),
+    lastSequence: Number(t.lastSequence),
+    messageCount: t.messageCount,
+    workCount: t.workCount,
+    ...(t.startedAt ? { startedAt: t.startedAt } : {}),
+    ...(t.endedAt ? { endedAt: t.endedAt } : {}),
+  };
+}
+
+function decodeConversationCursor(c: ProtoConversationCursor | undefined): ConversationCursor {
+  return {
+    lastSeenSequence: c ? Number(c.lastSeenSequence) : 0,
+    lastListenedSequence: c ? Number(c.lastListenedSequence) : 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Typed wrappers
+// ---------------------------------------------------------------------------
+
+/**
+ * Which rows a read returns. "messages" is the Messages view: one thread's
+ * conversation rows with "work" rows summarising what happened between them
+ * (`limit` counts conversation rows). "all" is every stored row, in full.
+ */
+export type ConversationProjectionName = "messages" | "all";
+
+export interface ConversationPageOptions {
+  sinceSequence?: number;
+  limit?: number;
+  beforeSequence?: number;
+  projection?: ConversationProjectionName;
+  /** The agent thread to read (messages projection); omitted for the session's own. */
+  threadId?: string;
+}
+
+export async function getConversationSession(
+  sessionId: string,
+  opts: ConversationPageOptions = {},
+): Promise<ConversationSessionResponse> {
+  const resp = await conversationClient.get({
+    sessionId,
+    sinceSequence:
+      opts.sinceSequence && opts.sinceSequence > 0 ? BigInt(opts.sinceSequence) : 0n,
+    limit: opts.limit ?? 0,
+    beforeSequence: opts.beforeSequence && opts.beforeSequence > 0 ? BigInt(opts.beforeSequence) : 0n,
+    projection: opts.projection === "messages" ? ConversationProjection.MESSAGES : ConversationProjection.ALL,
+    threadId: opts.threadId ?? "",
+  });
+  const threads = (resp as typeof resp & { threads?: ProtoConversationThread[] }).threads ?? [];
+  return {
+    sessionId: resp.sessionId,
+    events: resp.events.map(decodeConversationEvent),
+    cursor: decodeConversationCursor(resp.cursor),
+    hasMore: resp.hasMore,
+    oldestSequence: Number(resp.oldestSequence),
+    newestSequence: Number(resp.newestSequence),
+    totalCount: Number(resp.totalCount),
+    capture: decodeCaptureStatus(resp.capture),
+    ...(opts.projection === "messages" && (opts.threadId ?? "") === "" && opts.beforeSequence == null ? { threads: threads.map(decodeThread) } : {}),
+  };
+}
+
+/**
+ * The work rows of one span (tool calls and results, reasoning, injected
+ * context), text cut to a preview, to expand a collapsed "work" row.
+ */
+export async function getConversationWork(sessionId: string, work: Pick<ConversationWorkSpan, "fromSequence" | "toSequence">, threadId = ""): Promise<ConversationEvent[]> {
+  const response = await conversationClient.getRange({
+    sessionId,
+    fromSequence: BigInt(work.fromSequence),
+    toSequence: BigInt(work.toSequence),
+    projection: ConversationProjection.WORK,
+    threadId,
+  });
+  return response.events.map(decodeConversationEvent);
+}
+
+export async function updateConversationCursor(
+  sessionId: string,
+  patch: Partial<ConversationCursor>,
+): Promise<ConversationCursor> {
+  const req: {
+    sessionId: string;
+    lastSeenSequence?: bigint;
+    hasLastSeenSequence?: boolean;
+    lastListenedSequence?: bigint;
+    hasLastListenedSequence?: boolean;
+  } = { sessionId };
+  if (patch.lastSeenSequence !== undefined) {
+    req.lastSeenSequence = BigInt(patch.lastSeenSequence);
+    req.hasLastSeenSequence = true;
+  }
+  if (patch.lastListenedSequence !== undefined) {
+    req.lastListenedSequence = BigInt(patch.lastListenedSequence);
+    req.hasLastListenedSequence = true;
+  }
+  const resp = await conversationClient.updateCursor(req);
+  return decodeConversationCursor(resp.cursor);
+}
+
+/** A match inside an excerpt, in UTF-16 code units (JS string indices), end exclusive. */
+export interface SearchTextRange { start: number; end: number }
+export interface ConversationSearchMatch {
+  eventId: string;
+  sequence: number;
+  excerpt: string;
+  ranges: SearchTextRange[];
+  /** Who wrote it and when, so a hit outside the loaded window lists honestly. */
+  role: "user" | "assistant";
+  createdAt: string;
+  occurredAt?: string;
+  /** What the hit is, so a hit inside collapsed work or a subagent thread opens there. */
+  kind?: ConversationKind;
+  threadId?: string;
+}
+export interface ConversationSearchResponse {
+  matches: ConversationSearchMatch[];
+  truncated: boolean;
+  totalMatches: number;
+  hasMore: boolean;
+  nextAfterSequence: number;
+  /** Set when the query cannot run as asked (an invalid regular expression). */
+  error?: string;
+}
+
+export type ConversationSearchModeName = "text" | "regex" | "fuzzy";
+
+export interface ConversationSearchOptions {
+  mode?: ConversationSearchModeName;
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  /** "user" | "assistant"; omitted for both. */
+  role?: "user" | "assistant";
+  limit?: number;
+  afterSequence?: number;
+  /** Row kinds to search; omitted searches every kind (tool calls and context too). */
+  kinds?: readonly ConversationKind[];
+}
+
+/** What the Messages view searches by default: the conversation it lists. */
+export const CONVERSATION_SEARCH_KINDS: readonly ConversationKind[] = ["message", "attachment", "notice"];
+
+const SEARCH_MODES: Readonly<Record<ConversationSearchModeName, ConversationSearchMode>> = {
+  text: ConversationSearchMode.TEXT,
+  regex: ConversationSearchMode.REGEX,
+  fuzzy: ConversationSearchMode.FUZZY,
+};
+
+/** Searches the session's whole history on the server (one path, three modes). */
+export async function searchConversation(sessionId: string, query: string, options: ConversationSearchOptions = {}): Promise<ConversationSearchResponse> {
+  const response = await conversationClient.search({
+    sessionId,
+    query,
+    limit: options.limit ?? 500,
+    mode: SEARCH_MODES[options.mode ?? "text"],
+    caseSensitive: options.caseSensitive ?? false,
+    wholeWord: options.wholeWord ?? false,
+    roleFilter: options.role ?? "",
+    afterSequence: options.afterSequence ? BigInt(options.afterSequence) : 0n,
+    kinds: [...(options.kinds ?? [])],
+  });
+  return {
+    matches: response.matches.map((match) => ({
+      eventId: match.eventId,
+      sequence: Number(match.sequence),
+      excerpt: match.excerpt,
+      ranges: match.ranges.map((range) => ({ start: range.start, end: range.end })),
+      role: match.role === "user" ? "user" as const : "assistant" as const,
+      createdAt: match.createdAt,
+      ...((match as typeof match & { occurredAt?: string }).occurredAt
+        ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+        : {}),
+      ...decodeClassification(match),
+    })),
+    truncated: response.truncated,
+    totalMatches: Number(response.totalMatches),
+    hasMore: response.hasMore ?? false,
+    nextAfterSequence: Number(response.nextAfterSequence ?? 0n),
+    ...(response.error ? { error: response.error } : {}),
+  };
+}
+
+export interface ArchivedConversationSearchMatch {
+  eventId: string;
+  sessionId: string;
+  sequence: number;
+  role: string;
+  createdAt: string;
+  occurredAt?: string;
+  excerpt: string;
+}
+
+export interface ArchivedConversationSearchResponse {
+  matches: ArchivedConversationSearchMatch[];
+  truncated: boolean;
+  totalMatches: number;
+  distinctSessions: number;
+}
+
+export interface ArchivedConversationSearchFilters {
+  agentType?: string;
+  role?: string;
+  createdAfter?: string;
+}
+
+export async function searchArchivedConversations(
+  query: string,
+  filters: ArchivedConversationSearchFilters = {},
+  limit = 100,
+): Promise<ArchivedConversationSearchResponse> {
+  const response = await conversationClient.searchArchived({
+    query,
+    limit,
+    agentType: filters.agentType ?? "",
+    role: filters.role ?? "",
+    createdAfter: filters.createdAfter ?? "",
+  });
+  return {
+    matches: response.matches.map((match) => ({
+      eventId: match.eventId,
+      sessionId: match.sessionId,
+      sequence: Number(match.sequence),
+      role: match.role,
+      createdAt: match.createdAt,
+      ...((match as typeof match & { occurredAt?: string }).occurredAt
+        ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+        : {}),
+      excerpt: match.excerpt,
+    })),
+    truncated: response.truncated,
+    totalMatches: Number(response.totalMatches),
+    distinctSessions: Number(response.distinctSessions),
+  };
+}
+
+export interface SemanticArchiveSearchResponse {
+  local: ArchivedConversationSearchResponse;
+  semanticAvailable: boolean;
+  semanticError: string;
+  semanticTookMs: number;
+  semanticHits: Array<{
+    stableHitId: string;
+    eventId: string;
+    role: string;
+    occurredAt: string;
+    snippet: string;
+    harness: string;
+    sourceSessionId: string;
+    weak: boolean;
+  }>;
+  coverage?: {
+    canonicalVisibleMessages: number;
+    catalogDocuments: number;
+    lexicalDocuments: number;
+    semanticDocuments: number;
+    pendingDocuments: number;
+    deletedDocuments: number;
+    lexicalRatio: number;
+    semanticRatio: number;
+    freshnessLagMs: number;
+  };
+  degradations: Array<{ reason: string; leg: string; detail: string; retryable: boolean }>;
+}
+
+/** Searches Web Console's own archive and includes Agent Manager only as an optional leg. */
+export async function searchSemanticConversations(
+  query: string,
+  filters: ArchivedConversationSearchFilters = {},
+  limit = 100,
+): Promise<SemanticArchiveSearchResponse> {
+  const response = await conversationClient.searchSemantic({
+    query,
+    limit,
+    harnesses: filters.agentType && filters.agentType !== "none" ? [filters.agentType] : [],
+  });
+  const local = response.local;
+  const coverage = response.coverage;
+  return {
+    local: {
+      matches: (local?.matches ?? []).map((match) => ({
+        eventId: match.eventId,
+        sessionId: match.sessionId,
+        sequence: Number(match.sequence),
+        role: match.role,
+        createdAt: match.createdAt,
+        ...((match as typeof match & { occurredAt?: string }).occurredAt
+          ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+          : {}),
+        excerpt: match.excerpt,
+      })),
+      truncated: local?.truncated ?? false,
+      totalMatches: Number(local?.totalMatches ?? 0n),
+      distinctSessions: Number(local?.distinctSessions ?? 0n),
+    },
+    semanticAvailable: response.semanticAvailable,
+    semanticError: response.semanticError,
+    semanticTookMs: Number(response.semanticTookMs),
+    semanticHits: response.semanticHits.map((hit) => ({
+      stableHitId: hit.stableHitId,
+      eventId: hit.eventId,
+      role: hit.role,
+      occurredAt: hit.occurredAt,
+      snippet: hit.snippet,
+      harness: hit.harness,
+      sourceSessionId: hit.sourceSessionId,
+      weak: hit.weak,
+    })),
+    ...(coverage ? { coverage: {
+      canonicalVisibleMessages: Number(coverage.canonicalVisibleMessages),
+      catalogDocuments: Number(coverage.catalogDocuments),
+      lexicalDocuments: Number(coverage.lexicalDocuments),
+      semanticDocuments: Number(coverage.semanticDocuments),
+      pendingDocuments: Number(coverage.pendingDocuments),
+      deletedDocuments: Number(coverage.deletedDocuments),
+      lexicalRatio: coverage.lexicalRatio,
+      semanticRatio: coverage.semanticRatio,
+      freshnessLagMs: Number(coverage.freshnessLagMs),
+    } } : {}),
+    degradations: response.degradations.map((item) => ({ reason: item.reason, leg: item.leg, detail: item.detail, retryable: item.retryable })),
+  };
+}
+
+export interface NodeArchiveSearchResponse {
+  nodeId: string;
+  available: boolean;
+  degradation: string;
+  search: ArchivedConversationSearchResponse;
+}
+
+/** Sends an archive query to one explicitly selected node. */
+export async function searchNodeArchive(
+  nodeId: string,
+  query: string,
+  filters: ArchivedConversationSearchFilters = {},
+  limit = 100,
+): Promise<NodeArchiveSearchResponse> {
+  const response = await conversationClient.searchNodeArchive({
+    nodeId,
+    query,
+    harness: filters.agentType ?? "",
+    role: filters.role ?? "",
+    limit,
+  });
+  const search = response.search;
+  return {
+    nodeId: response.nodeId,
+    available: response.available,
+    degradation: response.degradation,
+    search: {
+      matches: (search?.matches ?? []).map((match) => ({
+        eventId: match.eventId,
+        sessionId: match.sessionId,
+        sequence: Number(match.sequence),
+        role: match.role,
+        createdAt: match.createdAt,
+        ...((match as typeof match & { occurredAt?: string }).occurredAt
+          ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+          : {}),
+        excerpt: match.excerpt,
+      })),
+      truncated: search?.truncated ?? false,
+      totalMatches: Number(search?.totalMatches ?? 0n),
+      distinctSessions: Number(search?.distinctSessions ?? 0n),
+    },
+  };
+}
+
+export async function getConversationRange(sessionId: string, fromSequence: number, toSequence: number): Promise<ConversationSessionResponse> {
+  // The API bounds each range to 5,000 events. Sequence numbers are dense for
+  // stored events, so inclusive windows of 5,000 sequence values also bound
+  // sparse/deleted histories without guessing the number of events.
+  const events: ConversationEvent[] = [];
+  let cursor: ConversationCursor = decodeConversationCursor(undefined);
+  let capture: MessageCaptureStatus = decodeCaptureStatus(undefined);
+  let responseSessionId = sessionId;
+  for (let start = fromSequence; start <= toSequence; start += 5000) {
+    const end = Math.min(toSequence, start + 4999);
+    const response = await conversationClient.getRange({ sessionId, fromSequence: BigInt(start), toSequence: BigInt(end) });
+    responseSessionId = response.sessionId || responseSessionId;
+    events.push(...response.events.map(decodeConversationEvent));
+    cursor = decodeConversationCursor(response.cursor);
+    capture = decodeCaptureStatus(response.capture);
+  }
+  return { sessionId: responseSessionId, events, cursor, capture };
+}
+
+export interface ResolveConversationEventsResponse {
+  events: ConversationEvent[];
+  missingEventIds: string[];
+}
+
+/** Resolves stable IDs to complete event records, reporting deleted IDs explicitly. */
+export async function resolveConversationEvents(sessionId: string, eventIds: string[]): Promise<ResolveConversationEventsResponse> {
+  const events: ConversationEvent[] = [];
+  const missingEventIds: string[] = [];
+  for (let offset = 0; offset < eventIds.length; offset += 5000) {
+    const response = await conversationClient.resolveEvents({ sessionId, eventIds: eventIds.slice(offset, offset + 5000) });
+    events.push(...response.events.map(decodeConversationEvent));
+    missingEventIds.push(...response.missingEventIds);
+  }
+  return { events, missingEventIds };
+}
+
+/**
+ * Reads every conversation row (what the Messages view lists, without the
+ * work between them) by the server's sequence cursor; gaps and large
+ * histories are supported.
+ */
+export async function getAllConversationEvents(sessionId: string): Promise<ConversationEvent[]> {
+  const events: ConversationEvent[] = [];
+  let beforeSequence = 0;
+  const seen = new Set<string>();
+  for (;;) {
+    const page = await getConversationSession(sessionId, { limit: 500, projection: "messages", ...(beforeSequence > 0 ? { beforeSequence } : {}) });
+    const fresh = page.events.filter((event) => !seen.has(event.id));
+    if (fresh.length === 0) {
+      if (page.hasMore) throw new Error("Conversation history stopped advancing while loading all messages.");
+      break;
+    }
+    fresh.forEach((event) => seen.add(event.id));
+    events.push(...fresh);
+    if (!page.hasMore) break;
+    const nextBefore = page.oldestSequence ?? Math.min(...fresh.map((event) => event.sequence));
+    if (nextBefore <= 0 || (beforeSequence > 0 && nextBefore >= beforeSequence)) {
+      throw new Error("Conversation history returned an invalid continuation cursor.");
+    }
+    beforeSequence = nextBefore;
+  }
+  return events.filter((event) => event.kind !== "work").sort((left, right) => left.sequence - right.sequence);
+}
+
+export interface SummarizeEventResponse {
+  summarized: boolean;
+  speechParagraphs?: string[];
+  error?: string;
+}
+
+export async function summarizeEvent(
+  sessionId: string,
+  eventId: string,
+  signal?: AbortSignal,
+): Promise<SummarizeEventResponse> {
+  const resp = await conversationClient.summarizeEvent({ sessionId, eventId }, { signal });
+  return {
+    summarized: resp.summarized,
+    speechParagraphs: resp.speechParagraphs.length > 0 ? resp.speechParagraphs : undefined,
+    error: resp.error || undefined,
+  };
+}

@@ -1,0 +1,18 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "marketing-i16-orchestrator",
+  "displayName": "Marketing I16 delivery orchestrator",
+  "description": "Product-delivery orchestrator for marketing-i16-delivery; current home: .vrooli/work/delivery/marketing-i16-delivery/. Own strategy, substantial outcome delegation and independent acceptance.",
+  "status": "active",
+  "tags": [
+    "marketing-I16",
+    "finite-delivery"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-10-04T22:08:55Z",
+  "updatedAt": "2026-10-24T03:15:34.545803Z"
+}

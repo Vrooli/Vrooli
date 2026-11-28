@@ -3,9 +3,10 @@ import axios from 'axios'
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 import AlgorithmVisualizer from './AlgorithmVisualizer'
+import { Button } from '@vrooli/react-component-library/Button/2.2.14'
 import './App.css'
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT || '').trim() || '16796'
+const DEFAULT_API_PORT = (globalThis.__VROOLI_CONFIG__?.apiPort || '').trim() || '16796'
 const API_SUFFIX = '/api/v1'
 
 const normalizeBase = (value = '') => value.replace(/\/+$/, '')
@@ -20,7 +21,7 @@ const isLocalHost = (hostname = '') => /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?:
 const isProxyPath = (pathname = '') => pathname.includes('/apps/') && pathname.includes('/proxy/')
 
 const computeApiBaseUrl = () => {
-  const explicit = (import.meta.env.VITE_API_BASE_URL || '').trim()
+  const explicit = (globalThis.__VROOLI_CONFIG__?.apiUrl || '').trim()
   if (explicit) {
     return ensureSuffix(explicit)
   }
@@ -156,9 +157,9 @@ const App = () => {
                 onKeyPress={(e) => e.key === 'Enter' && searchAlgorithms()}
                 className="search-input"
               />
-              <button onClick={searchAlgorithms} className="search-btn">
+              <Button onClick={searchAlgorithms} className="search-btn" size="sm">
                 SEARCH
-              </button>
+              </Button>
             </div>
             
             <select 
@@ -290,7 +291,7 @@ const App = () => {
     
     > Ground truth for algorithm implementations
     > Multi-language support
-    > Judge0 validated
+    > Locally validated
     > Performance benchmarked
     
     SELECT AN ALGORITHM TO BEGIN...`}

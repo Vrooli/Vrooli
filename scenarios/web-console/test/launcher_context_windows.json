@@ -1,0 +1,56 @@
+{
+  "observed": "2026-11-02: resource-owned Codex models cache and Claude status-line context record",
+  "codex": {
+    "models": [
+      {
+        "slug": "gpt-6.1-sol",
+        "context_window": 500000
+      },
+      {
+        "slug": "gpt-6-astra",
+        "context_window": 272000
+      },
+      {
+        "slug": "gpt-6.1-terra",
+        "context_window": 500000
+      },
+      {
+        "slug": "gpt-6-sol",
+        "context_window": 272000
+      },
+      {
+        "slug": "gpt-reserve",
+        "context_window": 272000
+      },
+      {
+        "slug": "gpt-6-luna",
+        "context_window": 272000
+      },
+      {
+        "slug": "gpt-5.6-sol",
+        "context_window": 272000
+      },
+      {
+        "slug": "gpt-5.6-terra",
+        "context_window": 272000
+      },
+      {
+        "slug": "gpt-5.6-luna",
+        "context_window": 272000
+      },
+      {
+        "slug": "codex-auto-review",
+        "context_window": 272000
+      }
+    ]
+  },
+  "claude": {
+    "schema_version": 1,
+    "models": {
+      "claude-opus-5-5": {
+        "context_window_tokens": 1000000,
+        "observed_at": "2026-10-31T04:57:01.810344972Z"
+      }
+    }
+  }
+}

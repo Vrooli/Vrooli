@@ -1,0 +1,5 @@
+# ./internal/transport/...
+pattern ./internal/transport/...: lstat ./internal/transport/: no such file or directory
+FAIL	./internal/transport/... [setup failed]
+ok  	lighting-control/internal/control	8.604s
+FAIL

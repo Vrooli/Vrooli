@@ -7,15 +7,15 @@ import (
 )
 
 const (
-	// BYOKHeaderName is the header name for the user's OpenRouter API key.
+	// BYOKHeaderName is a legacy source-selection hint. Its value is discarded.
 	BYOKHeaderName = "X-BYOK-OpenRouter-Key"
 )
 
-// byokContextKey is the context key for storing the BYOK API key.
+// byokContextKey is a route-selection hint only. Raw API keys never enter
+// request context or an AI Gateway call.
 type byokContextKey struct{}
 
-// BYOKMiddleware extracts the BYOK OpenRouter API key from requests
-// and makes it available to handlers via context.
+// BYOKMiddleware maps a legacy source-selection hint to a boolean context value.
 type BYOKMiddleware struct{}
 
 // NewBYOKMiddleware creates a new BYOK middleware.
@@ -23,33 +23,25 @@ func NewBYOKMiddleware() *BYOKMiddleware {
 	return &BYOKMiddleware{}
 }
 
-// InjectBYOKKey extracts the BYOK key from the request header and injects it into context.
+// InjectBYOKKey accepts the legacy header as a source hint without retaining
+// its value. Credential Authority owns the actual saved credential.
 // This middleware should run early in the chain, before any AI handlers.
 func (m *BYOKMiddleware) InjectBYOKKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		byokKey := strings.TrimSpace(r.Header.Get(BYOKHeaderName))
-
-		// Add to context even if empty (handlers can check)
-		ctx := WithBYOKKey(r.Context(), byokKey)
+		ctx := WithOwnKeySourceHint(r.Context(), strings.TrimSpace(r.Header.Get(BYOKHeaderName)) != "")
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// WithBYOKKey adds a BYOK API key to the context.
-func WithBYOKKey(ctx context.Context, key string) context.Context {
-	return context.WithValue(ctx, byokContextKey{}, key)
+// WithOwnKeySourceHint records that the request selected the saved-key source. The
+// supplied header value is deliberately discarded; Gateway uses a credential
+// stored in Credential Authority.
+func WithOwnKeySourceHint(ctx context.Context, present bool) context.Context {
+	return context.WithValue(ctx, byokContextKey{}, present)
 }
 
-// BYOKKeyFromContext retrieves the BYOK API key from context.
-// Returns empty string if no key is present.
-func BYOKKeyFromContext(ctx context.Context) string {
-	if v := ctx.Value(byokContextKey{}); v != nil {
-		return v.(string)
-	}
-	return ""
-}
-
-// HasBYOKKey checks if a BYOK API key is present in the context.
-func HasBYOKKey(ctx context.Context) bool {
-	return BYOKKeyFromContext(ctx) != ""
+// HasOwnKeySourceHint reports whether the legacy header selected saved-key use.
+func HasOwnKeySourceHint(ctx context.Context) bool {
+	value, _ := ctx.Value(byokContextKey{}).(bool)
+	return value
 }

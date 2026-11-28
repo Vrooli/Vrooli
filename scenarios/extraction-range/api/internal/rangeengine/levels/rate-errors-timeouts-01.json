@@ -1,0 +1,102 @@
+{
+  "id": "rate-errors-timeouts-01",
+  "family": "rate-errors-timeouts",
+  "family_name": "Rate limits, errors and timeouts",
+  "difficulty": 1,
+  "title": "Rate limits, errors and timeouts: level 1",
+  "task": "Extract every matching record from the rate limits, errors and timeouts page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "resilience",
+  "tags": [
+    "difficulty-1",
+    "resilience"
+  ],
+  "page": {
+    "title": "Rate limits, errors and timeouts Practice 1",
+    "records": [
+      {
+        "id": "RAT-01-001",
+        "name": "Rate Item 1-1",
+        "category": "gamma",
+        "value": 911,
+        "active": true
+      },
+      {
+        "id": "RAT-01-002",
+        "name": "Rate Item 1-2",
+        "category": "alpha",
+        "value": 912,
+        "active": true
+      },
+      {
+        "id": "RAT-01-003",
+        "name": "Rate Item 1-3",
+        "category": "beta",
+        "value": 913,
+        "active": true
+      },
+      {
+        "id": "RAT-01-004",
+        "name": "Rate Item 1-4",
+        "category": "gamma",
+        "value": 914,
+        "active": false
+      },
+      {
+        "id": "RAT-01-005",
+        "name": "Rate Item 1-5",
+        "category": "alpha",
+        "value": 915,
+        "active": true
+      }
+    ],
+    "page_size": 5,
+    "variant": 1,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {
+      "status_code": 200,
+      "delay_ms": 0,
+      "retry_after_seconds": 0
+    },
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "RAT-01-001",
+      "name": "Rate Item 1-1",
+      "category": "gamma",
+      "value": 911,
+      "active": true
+    },
+    {
+      "id": "RAT-01-002",
+      "name": "Rate Item 1-2",
+      "category": "alpha",
+      "value": 912,
+      "active": true
+    },
+    {
+      "id": "RAT-01-003",
+      "name": "Rate Item 1-3",
+      "category": "beta",
+      "value": 913,
+      "active": true
+    },
+    {
+      "id": "RAT-01-004",
+      "name": "Rate Item 1-4",
+      "category": "gamma",
+      "value": 914,
+      "active": false
+    },
+    {
+      "id": "RAT-01-005",
+      "name": "Rate Item 1-5",
+      "category": "alpha",
+      "value": 915,
+      "active": true
+    }
+  ]
+}

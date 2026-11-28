@@ -1,5 +1,5 @@
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 interface SettingsTabLayoutProps {
   preset: LayoutPreset;
@@ -24,6 +24,9 @@ const panelLabels: Record<LayoutSection, string> = {
   review: "Review"
 };
 
+const presetKeys: LayoutPreset[] = ["classic", "split", "bottom"];
+const panelKeys: LayoutSection[] = ["changes", "history", "commit", "diff", "review"];
+
 export function SettingsTabLayout({
   preset,
   primaryPanel,
@@ -38,7 +41,7 @@ export function SettingsTabLayout({
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-200">Layout Preset</h3>
           <div className="grid grid-cols-1 gap-3">
-            {(Object.keys(presetLabels) as LayoutPreset[]).map((key) => (
+            {presetKeys.map((key) => (
               <button
                 key={key}
                 type="button"
@@ -61,7 +64,7 @@ export function SettingsTabLayout({
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-200">Primary Panel</h3>
           <div className="grid grid-cols-2 gap-3">
-            {(Object.keys(panelLabels) as LayoutSection[]).map((panel) => (
+            {panelKeys.map((panel) => (
               <button
                 key={panel}
                 type="button"
@@ -83,10 +86,11 @@ export function SettingsTabLayout({
 
         <div className="pt-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={onReset}
             className="w-full h-11 text-sm"
+            style={{ background: "transparent" }}
           >
             Reset to Default
           </Button>
@@ -101,7 +105,7 @@ export function SettingsTabLayout({
       <div className="space-y-2">
         <h3 className="text-xs font-semibold text-slate-200">Layout preset</h3>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {(Object.keys(presetLabels) as LayoutPreset[]).map((key) => (
+          {presetKeys.map((key) => (
             <button
               key={key}
               type="button"
@@ -124,7 +128,7 @@ export function SettingsTabLayout({
       <div className="space-y-2">
         <h3 className="text-xs font-semibold text-slate-200">Primary panel</h3>
         <div className="grid grid-cols-2 gap-2">
-          {(Object.keys(panelLabels) as LayoutSection[]).map((panel) => (
+          {panelKeys.map((panel) => (
             <button
               key={panel}
               type="button"
@@ -145,7 +149,13 @@ export function SettingsTabLayout({
       </div>
 
       <div className="pt-1">
-        <Button variant="outline" size="sm" onClick={onReset} className="h-8 px-3">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onReset}
+          className="h-8 px-3"
+          style={{ background: "transparent" }}
+        >
           Reset to default
         </Button>
       </div>

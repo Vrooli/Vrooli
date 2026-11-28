@@ -23,8 +23,8 @@ import (
 
 // MockRecordingService implements IngestionServiceInterface for testing
 type MockRecordingService struct {
-	ImportArchiveFunc  func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error)
-	ImportArchiveError error
+	ImportArchiveFunc   func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error)
+	ImportArchiveError  error
 	ImportArchiveResult *archiveingestion.IngestionResult
 }
 
@@ -218,6 +218,41 @@ func TestServeRecordingAsset_PathTraversalAttempt(t *testing.T) {
 	}
 }
 
+func TestServeRecordingAsset_RejectsSymlinkEscape(t *testing.T) {
+	parent := t.TempDir()
+	recordingsRoot := filepath.Join(parent, "recordings")
+	executionID := uuid.New()
+	executionDir := filepath.Join(recordingsRoot, executionID.String())
+	if err := os.MkdirAll(executionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	secretPath := filepath.Join(parent, "outside-secret.txt")
+	if err := os.WriteFile(secretPath, []byte("must-not-be-served"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secretPath, filepath.Join(executionDir, "linked.txt")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	handler, _ := createTestHandlerWithRecordingService()
+	handler.recordingsRoot = recordingsRoot
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/assets/"+executionID.String()+"/linked.txt", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("executionID", executionID.String())
+	rctx.URLParams.Add("*", "linked.txt")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	response := httptest.NewRecorder()
+
+	handler.ServeRecordingAsset(response, req)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected escaped symlink denial, got %d: %s", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), "must-not-be-served") {
+		t.Fatal("outside file contents were served through recording symlink")
+	}
+}
+
 func TestServeRecordingAsset_Success(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir, err := os.MkdirTemp("", "recordings-test-*")
@@ -233,13 +268,13 @@ func TestServeRecordingAsset_Success(t *testing.T) {
 
 	// Create execution directory and test file
 	execDir := filepath.Join(tmpDir, executionID.String())
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		t.Fatalf("failed to create exec dir: %v", err)
 	}
 
 	testContent := []byte("fake-png-content")
 	testFile := filepath.Join(execDir, "screenshot.png")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -277,7 +312,7 @@ func TestServeRecordingAsset_NotFound(t *testing.T) {
 
 	// Create execution directory but no file
 	execDir := filepath.Join(tmpDir, executionID.String())
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		t.Fatalf("failed to create exec dir: %v", err)
 	}
 
@@ -310,12 +345,12 @@ func TestServeRecordingAsset_CacheHeaders(t *testing.T) {
 
 	// Create execution directory and test file
 	execDir := filepath.Join(tmpDir, executionID.String())
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		t.Fatalf("failed to create exec dir: %v", err)
 	}
 
 	testFile := filepath.Join(execDir, "cached.png")
-	if err := os.WriteFile(testFile, []byte("data"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("data"), 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -423,5 +458,30 @@ func TestFirstNonEmpty(t *testing.T) {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestServeRecordingAssetRejectsProtectedHar(t *testing.T) {
+	handler, _ := createTestHandlerWithRecordingService()
+	handler.recordingsRoot = t.TempDir()
+	executionID := uuid.New()
+	harDir := filepath.Join(handler.recordingsRoot, executionID.String(), "artifacts", "har")
+	if err := os.MkdirAll(harDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(harDir, "capture.har"), []byte(`{"log":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/assets/"+executionID.String()+"/artifacts/har/capture.har", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("executionID", executionID.String())
+	rctx.URLParams.Add("*", "artifacts/har/capture.har")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rr := httptest.NewRecorder()
+
+	handler.ServeRecordingAsset(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rr.Code, http.StatusForbidden, rr.Body.String())
 	}
 }

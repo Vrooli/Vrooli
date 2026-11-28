@@ -14,6 +14,7 @@ import type { StripeProductWithPrices } from '../../../../shared/api/billing';
 import { cn } from '../../../../shared/lib/utils';
 import { Callout } from '../Callout';
 import type { UseStripeImportReturn } from '../../hooks/useStripeImport';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 type PriceFilter = 'all' | 'active' | 'existing' | 'inactive';
 const PRICE_FILTERS: Array<{ key: PriceFilter; label: string }> = [
@@ -55,7 +56,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
 
   const formatPrice = (amountCents: number, currency: string) => {
     const safeAmount = Number.isFinite(amountCents) ? amountCents : 0;
-    const safeCurrency = currency?.toUpperCase?.() || 'USD';
+    const safeCurrency = currency.toUpperCase() || 'USD';
     try {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -183,7 +184,14 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
   const canImport = selectionStats.selected > 0 && (!requiresConfirm || confirmReplace);
 
   return (
-    <Dialog open={isModalOpen} onOpenChange={(open: boolean) => !open && closeModal()}>
+    <Dialog
+      open={isModalOpen}
+      onOpenChange={(open: boolean) => {
+        if (!open) {
+          closeModal();
+        }
+      }}
+    >
       <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -211,8 +219,8 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
           {importResult && (
             <Callout
               type={importResult.errors?.length ? 'warning' : 'success'}
-              message={`Imported: ${importResult.imported} | Overwritten: ${importResult.overwritten} | Skipped: ${importResult.skipped}${
-                importResult.errors?.length ? ` | Errors: ${importResult.errors.length}` : ''
+              message={`Imported: ${String(importResult.imported)} | Overwritten: ${String(importResult.overwritten)} | Skipped: ${String(importResult.skipped)}${
+                importResult.errors?.length ? ` | Errors: ${String(importResult.errors.length)}` : ''
               }`}
             />
           )}
@@ -244,7 +252,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                         <Input
                           placeholder="Search products"
                           value={productQuery}
-                          onChange={(event) => setProductQuery(event.target.value)}
+                          onChange={(event) => { setProductQuery(event.target.value); }}
                         />
                       </div>
                     </div>
@@ -254,7 +262,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                           key={product.product_id}
                           product={product}
                           selected={product.product_id === selectedProductId}
-                          onSelect={() => selectProduct(product.product_id)}
+                          onSelect={() => { selectProduct(product.product_id); }}
                         />
                       ))}
                     </div>
@@ -337,7 +345,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                         {bundlePlanCount > 0 && (
                           <Callout
                             type="warning"
-                            message={`Import will replace ${bundlePlanCount} existing plan${bundlePlanCount === 1 ? '' : 's'} in the catalog.`}
+                            message={`Import will replace ${String(bundlePlanCount)} existing plan${bundlePlanCount === 1 ? '' : 's'} in the catalog.`}
                           />
                         )}
 
@@ -350,7 +358,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                                   key={option.key}
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setFilter(option.key)}
+                                  onClick={() => { setFilter(option.key); }}
                                   className={cn(
                                     'text-xs',
                                     isActive
@@ -367,7 +375,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                             <Input
                               placeholder="Search price IDs or lookup keys"
                               value={priceQuery}
-                              onChange={(event) => setPriceQuery(event.target.value)}
+                              onChange={(event) => { setPriceQuery(event.target.value); }}
                             />
                           </div>
                         </div>
@@ -395,7 +403,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                                     type="checkbox"
                                     className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-400 focus:ring-2 focus:ring-emerald-400/60"
                                     checked={Boolean(selections[price.price_id])}
-                                    onChange={(event) => setPriceSelected(price.price_id, event.target.checked)}
+                                    onChange={(event) => { setPriceSelected(price.price_id, event.target.checked); }}
                                   />
                                   <div className="flex-1 min-w-0 space-y-1">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -448,7 +456,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
           )}
         </div>
 
-        <DialogFooter className="border-t border-slate-700 pt-4 gap-3 flex-col sm:flex-row sm:items-center sm:justify-between">
+        <DialogFooter className="border-t border-slate-700 pt-4 gap-3">
           <div className="flex flex-col gap-2 text-sm text-slate-400">
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-400" />
@@ -474,7 +482,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-amber-400/60 bg-slate-900 text-amber-400 focus:ring-2 focus:ring-amber-400/60"
                   checked={confirmReplace}
-                  onChange={(event) => setConfirmReplace(event.target.checked)}
+                  onChange={(event) => { setConfirmReplace(event.target.checked); }}
                 />
                 <span>
                   {isSwitchingProduct
@@ -484,27 +492,10 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
               </label>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={closeModal} disabled={importing}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleImport}
-              disabled={importing || loading || !canImport}
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Import Selected
-                </>
-              )}
-            </Button>
-          </div>
+          <OverlayActionBar className="sm:w-auto sm:min-w-64" actions={[
+            { id: 'import-selected', label: importing ? 'Importing...' : 'Import Selected', onSelect: () => { void handleImport(); }, disabled: importing || loading || !canImport, primary: true },
+            { id: 'cancel', label: 'Cancel', onSelect: closeModal, disabled: importing },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -561,7 +552,7 @@ function ProductHeader({ product, prices, selections, onSelectionChange }: Produ
           type="checkbox"
           className="mt-1 h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-400 focus:ring-2 focus:ring-emerald-400/60"
           checked={allSelected}
-          onChange={(event) => onSelectionChange(event.target.checked)}
+          onChange={(event) => { onSelectionChange(event.target.checked); }}
         />
         <div>
           <h3 className="font-medium text-white">{product.product_name}</h3>

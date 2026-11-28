@@ -1,0 +1,661 @@
+{
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "presentation": "card",
+        "state": "default"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The response is still being assembled.",
+            "id": "message"
+          }
+        ],
+        "presentation": "card",
+        "state": "partial"
+      },
+      "axis": "state",
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "state": [
+          "default",
+          "loading",
+          "refreshing",
+          "empty",
+          "partial",
+          "stale",
+          "request-error",
+          "offline",
+          "retry"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "state",
+      "mode": "pinned",
+      "name": "State axis",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "The transcript presentation keeps the exchange compact.",
+            "id": "message"
+          }
+        ],
+        "presentation": "transcript",
+        "state": "default"
+      },
+      "axis": "presentation",
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "presentation": [
+          "card",
+          "transcript"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "presentation",
+      "mode": "pinned",
+      "name": "Presentation axis",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [],
+        "state": "loading"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "state": "refreshing"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "refreshing",
+      "mode": "pinned",
+      "name": "Refreshing",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [],
+        "state": "empty"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "errorMessage": "The connection closed. Your messages are still available.",
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "onRetry": {
+          "$handler": "retryConversation"
+        },
+        "state": "partial"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "partial",
+      "mode": "pinned",
+      "name": "Partial",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "state": "stale"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "stale",
+      "mode": "pinned",
+      "name": "Stale",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "errorMessage": "The connection closed. Your messages are still available.",
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "onRetry": {
+          "$handler": "retryConversation"
+        },
+        "state": "request-error"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "request-error",
+      "mode": "pinned",
+      "name": "Request error",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "errorMessage": "The connection closed. Your messages are still available.",
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "onRetry": {
+          "$handler": "retryConversation"
+        },
+        "state": "offline"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "offline",
+      "mode": "pinned",
+      "name": "Offline",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "errorMessage": "The connection closed. Your messages are still available.",
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "onRetry": {
+          "$handler": "retryConversation"
+        },
+        "state": "retry"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "retry",
+      "mode": "pinned",
+      "name": "Retry",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LiveHistory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "live-history",
+      "mode": "live",
+      "name": "History and new messages",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "height": 440,
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "Please summarize the deployment results for the support team.",
+            "group": "Today",
+            "id": "request",
+            "timestamp": "2026-09-05T10:00:00Z"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The rollout completed successfully. All three services are healthy, and no requests were lost.",
+            "group": "Today",
+            "id": "response",
+            "state": "success",
+            "timestamp": "2026-09-05T10:01:00Z"
+          }
+        ],
+        "presentation": "transcript",
+        "state": "default"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MessageListStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        }
+      ],
+      "id": "transcript",
+      "mode": "pinned",
+      "name": "Unframed conversation transcript",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "We found the release evidence.",
+            "id": "one"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        },
+        {
+          "kind": "text",
+          "value": "We found the release evidence."
+        }
+      ],
+      "id": "one",
+      "mode": "pinned",
+      "name": "One message",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "We found the release evidence.",
+            "id": "one"
+          },
+          {
+            "actor": {
+              "name": "Release assistant",
+              "role": "Assistant"
+            },
+            "content": "The review is queued.",
+            "id": "two"
+          },
+          {
+            "actor": {
+              "name": "Reviewer",
+              "role": "Operator"
+            },
+            "content": "The capture is ready.",
+            "id": "three"
+          },
+          {
+            "actor": {
+              "name": "Operator",
+              "role": "Assistant"
+            },
+            "content": "The release is published.",
+            "id": "four"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        },
+        {
+          "kind": "text",
+          "value": "We found the release evidence."
+        },
+        {
+          "kind": "text",
+          "value": "The review is queued."
+        },
+        {
+          "kind": "text",
+          "value": "The capture is ready."
+        },
+        {
+          "kind": "text",
+          "value": "The release is published."
+        }
+      ],
+      "id": "many",
+      "mode": "pinned",
+      "name": "Many messages",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "messages": [
+          {
+            "actor": {
+              "name": "Maya Chen",
+              "role": "Operator"
+            },
+            "content": "This deliberately long message demonstrates wrapping in a conversation list while preserving the order and readable state labels.",
+            "id": "long"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-message-list]"
+        },
+        {
+          "kind": "text",
+          "value": "This deliberately long message demonstrates wrapping in a conversation list while preserving the order and readable state labels."
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long message list content",
+      "role": "boundary"
+    }
+  ],
+  "title": "MessageList"
+}

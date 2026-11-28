@@ -3,6 +3,8 @@
  * Provides environment-aware logging with different levels
  */
 
+import { getInjectedConfig } from '@vrooli/api-base';
+
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -20,7 +22,7 @@ class Logger {
     this.level = LogLevel.INFO;
     
     // Allow runtime log level configuration
-    const configuredLevel = import.meta.env.VITE_LOG_LEVEL as string | undefined;
+    const configuredLevel = getInjectedConfig()?.LOG_LEVEL as string | undefined;
     if (configuredLevel && LogLevel[configuredLevel as keyof typeof LogLevel] !== undefined) {
       this.level = LogLevel[configuredLevel as keyof typeof LogLevel];
     }

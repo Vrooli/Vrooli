@@ -83,7 +83,6 @@ export function DocsPage({ onBack, initialDocPath, onDocPathChange }: DocsPagePr
                 <li>QUICKSTART.md - Getting started guide</li>
                 <li>GLOSSARY.md - Key terms and concepts</li>
                 <li>guides/manifest-reference.md - Configuration reference</li>
-                <li>guides/vps-setup.md - VPS preparation</li>
                 <li>guides/troubleshooting.md - Common issues</li>
               </ul>
             </div>

@@ -1,0 +1,122 @@
+{
+  "id": "b1585cb3-181f-42cd-b7f5-511660a7a032",
+  "name": "unique-test-campaign",
+  "from_agent": "",
+  "patterns": [
+    "*.go"
+  ],
+  "location": "/tmp/TestCreateCampaignHandlerDuplicateNameDetection88332117/001",
+  "max_files": 200,
+  "exclude_patterns": [
+    "**/data/**",
+    "**/tmp/**",
+    "**/temp/**",
+    "**/coverage/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/build/**",
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/__pycache__/**"
+  ],
+  "created_at": "2025-11-26T03:11:10.278970175Z",
+  "updated_at": "2025-11-26T03:11:10.279126446Z",
+  "status": "active",
+  "metadata": {
+    "auto_sync_attempted": true,
+    "auto_sync_files_added": 6,
+    "auto_sync_success": true
+  },
+  "tracked_files": [
+    {
+      "id": "2794fe55-e1ea-46c4-92a8-19c52d022f1d",
+      "file_path": "coverage_boost_test.go",
+      "absolute_path": "/home/matthalloran8/Vrooli/scenarios/visited-tracker/api/coverage_boost_test.go",
+      "visit_count": 0,
+      "first_seen": "2025-11-26T03:11:10.279093476Z",
+      "last_modified": "2025-11-26T03:11:00.919144385Z",
+      "size_bytes": 25804,
+      "staleness_score": 0.00021666621506944445,
+      "deleted": false,
+      "priority_weight": 1,
+      "metadata": {}
+    },
+    {
+      "id": "d317c17c-873f-4bdb-b58e-9ac666a33f11",
+      "file_path": "import_test.go",
+      "absolute_path": "/home/matthalloran8/Vrooli/scenarios/visited-tracker/api/import_test.go",
+      "visit_count": 0,
+      "first_seen": "2025-11-26T03:11:10.279099386Z",
+      "last_modified": "2025-11-25T04:02:17.789905192Z",
+      "size_bytes": 6186,
+      "staleness_score": 1.9289928060139816,
+      "deleted": false,
+      "priority_weight": 1,
+      "metadata": {}
+    },
+    {
+      "id": "6eacae18-b197-4887-8998-80e4544e13f1",
+      "file_path": "main.go",
+      "absolute_path": "/home/matthalloran8/Vrooli/scenarios/visited-tracker/api/main.go",
+      "visit_count": 0,
+      "first_seen": "2025-11-26T03:11:10.279104836Z",
+      "last_modified": "2025-11-25T18:34:41.504043366Z",
+      "size_bytes": 58466,
+      "staleness_score": 0.7173327565206019,
+      "deleted": false,
+      "priority_weight": 1,
+      "metadata": {}
+    },
+    {
+      "id": "2e9e0dfe-f36a-4fa4-a75b-74d7b418dc46",
+      "file_path": "main_test.go",
+      "absolute_path": "/home/matthalloran8/Vrooli/scenarios/visited-tracker/api/main_test.go",
+      "visit_count": 0,
+      "first_seen": "2025-11-26T03:11:10.279110256Z",
+      "last_modified": "2025-11-26T01:52:05.033141771Z",
+      "size_bytes": 138909,
+      "staleness_score": 0.10984365702164352,
+      "deleted": false,
+      "priority_weight": 1,
+      "metadata": {}
+    },
+    {
+      "id": "201169e6-4159-44ba-9546-502477409f46",
+      "file_path": "test_helpers.go",
+      "absolute_path": "/home/matthalloran8/Vrooli/scenarios/visited-tracker/api/test_helpers.go",
+      "visit_count": 0,
+      "first_seen": "2025-11-26T03:11:10.279116926Z",
+      "last_modified": "2025-09-15T00:57:05.582416387Z",
+      "size_bytes": 10989,
+      "staleness_score": 100,
+      "deleted": false,
+      "priority_weight": 1,
+      "metadata": {}
+    },
+    {
+      "id": "544c97ab-174b-48ec-aec4-36f162c2a213",
+      "file_path": "test_patterns.go",
+      "absolute_path": "/home/matthalloran8/Vrooli/scenarios/visited-tracker/api/test_patterns.go",
+      "visit_count": 0,
+      "first_seen": "2025-11-26T03:11:10.279122386Z",
+      "last_modified": "2025-10-26T15:36:02.513097983Z",
+      "size_bytes": 10579,
+      "staleness_score": 60.96545754692669,
+      "deleted": false,
+      "priority_weight": 1,
+      "metadata": {}
+    }
+  ],
+  "visits": [],
+  "structure_snapshots": [
+    {
+      "id": "21e83563-fc42-415f-a4c9-15ed95e90385",
+      "timestamp": "2025-11-26T03:11:10.279124636Z",
+      "total_files": 6,
+      "new_files": [],
+      "deleted_files": [],
+      "moved_files": {},
+      "snapshot_data": {}
+    }
+  ]
+}

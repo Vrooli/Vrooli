@@ -1,7 +1,7 @@
-import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MarkdownPreview } from "./MarkdownPreview";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 describe("MarkdownPreview", () => {
   beforeEach(() => {
@@ -16,7 +16,7 @@ describe("MarkdownPreview", () => {
 | UI | In Progress |
 `;
 
-    render(<MarkdownPreview content={content} />);
+    renderWithProviders(<MarkdownPreview content={content} />);
 
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Name" })).toBeInTheDocument();
@@ -32,9 +32,23 @@ const value: number = 42;
 \`\`\`
 `;
 
-    render(<MarkdownPreview content={content} />);
+    renderWithProviders(<MarkdownPreview content={content} />);
 
     expect(screen.getByText("typescript")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
+  });
+
+  it("uses the shared Mermaid asset and preserves its source toggle", () => {
+    renderWithProviders(
+      <MarkdownPreview content={"```mermaid\ngraph TD; A-->B\n```"} />,
+    );
+
+    expect(screen.getByText("Diagram")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Source" }));
+    expect(screen.getByText("graph TD; A-->B")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Diagram" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 });

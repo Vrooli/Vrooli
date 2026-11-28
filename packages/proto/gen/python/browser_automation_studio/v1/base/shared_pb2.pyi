@@ -55,6 +55,7 @@ class ArtifactType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ARTIFACT_TYPE_DOM_SNAPSHOT: _ClassVar[ArtifactType]
     ARTIFACT_TYPE_TRACE: _ClassVar[ArtifactType]
     ARTIFACT_TYPE_CUSTOM: _ClassVar[ArtifactType]
+    ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT: _ClassVar[ArtifactType]
 
 class ExportStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -175,6 +176,7 @@ ARTIFACT_TYPE_SCREENSHOT: ArtifactType
 ARTIFACT_TYPE_DOM_SNAPSHOT: ArtifactType
 ARTIFACT_TYPE_TRACE: ArtifactType
 ARTIFACT_TYPE_CUSTOM: ArtifactType
+ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT: ArtifactType
 EXPORT_STATUS_UNSPECIFIED: ExportStatus
 EXPORT_STATUS_READY: ExportStatus
 EXPORT_STATUS_PENDING: ExportStatus
@@ -284,8 +286,30 @@ class AssertionResult(_message.Message):
     message: str
     def __init__(self, mode: _Optional[_Union[AssertionMode, str]] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., actual: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., success: _Optional[bool] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
+class ConditionOutcome(_message.Message):
+    __slots__ = ("type", "outcome", "negated", "operator", "variable", "selector", "expression", "actual", "expected")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    NEGATED_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_FIELD_NUMBER: _ClassVar[int]
+    VARIABLE_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_FIELD_NUMBER: _ClassVar[int]
+    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    outcome: bool
+    negated: bool
+    operator: str
+    variable: str
+    selector: str
+    expression: str
+    actual: _types_pb2.JsonValue
+    expected: _types_pb2.JsonValue
+    def __init__(self, type: _Optional[str] = ..., outcome: _Optional[bool] = ..., negated: _Optional[bool] = ..., operator: _Optional[str] = ..., variable: _Optional[str] = ..., selector: _Optional[str] = ..., expression: _Optional[str] = ..., actual: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+
 class EventContext(_message.Message):
-    __slots__ = ("session_id", "execution_id", "source", "needs_confirmation", "success", "error", "error_code", "retry_status", "assertion", "extracted_data")
+    __slots__ = ("session_id", "execution_id", "source", "needs_confirmation", "success", "error", "error_code", "retry_status", "assertion", "condition", "extracted_data")
     class ExtractedDataEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -302,6 +326,7 @@ class EventContext(_message.Message):
     ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     RETRY_STATUS_FIELD_NUMBER: _ClassVar[int]
     ASSERTION_FIELD_NUMBER: _ClassVar[int]
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
     EXTRACTED_DATA_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     execution_id: str
@@ -312,5 +337,6 @@ class EventContext(_message.Message):
     error_code: str
     retry_status: RetryStatus
     assertion: AssertionResult
+    condition: ConditionOutcome
     extracted_data: _containers.MessageMap[str, _types_pb2.JsonValue]
-    def __init__(self, session_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., source: _Optional[_Union[RecordingSource, str]] = ..., needs_confirmation: _Optional[bool] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ..., retry_status: _Optional[_Union[RetryStatus, _Mapping]] = ..., assertion: _Optional[_Union[AssertionResult, _Mapping]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
+    def __init__(self, session_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., source: _Optional[_Union[RecordingSource, str]] = ..., needs_confirmation: _Optional[bool] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ..., retry_status: _Optional[_Union[RetryStatus, _Mapping]] = ..., assertion: _Optional[_Union[AssertionResult, _Mapping]] = ..., condition: _Optional[_Union[ConditionOutcome, _Mapping]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...

@@ -2,83 +2,139 @@ package bundle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach"
 )
 
-// ListVPSBundles lists bundles under <workdir>/.vrooli/cloud/bundles on the target VPS.
-func ListVPSBundles(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir string) ([]domain.VPSBundleInfo, int64, error) {
-	bundlesPath := shellutil.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles")
-	return listVPSBundlesByPath(ctx, sshRunner, cfg, bundlesPath)
+// This file is the cloud side of the target release inventory. The target
+// owner (`vrooli cloud-target release list|prune`) is the only authority
+// over what lives beneath its release store; the cloud reads the typed
+// listing, plans retention, and asks the owner to prune digests it names.
+// No shell string and no path leaves the cloud.
+
+// TargetRelease is one row of the owner's release listing.
+type TargetRelease struct {
+	Digest       string `json:"digest"`
+	State        string `json:"state"`
+	Role         string `json:"role"`
+	Path         string `json:"path"`
+	SizeBytes    int64  `json:"size_bytes"`
+	ModTime      string `json:"mod_time"`
+	BundleSHA256 string `json:"bundle_sha256"`
 }
 
-// listVPSBundlesByPath lists bundles under the given remote bundlesPath via SSH.
-// bundlesPath should be an absolute path (typically <workdir>/.vrooli/cloud/bundles).
-func listVPSBundlesByPath(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, bundlesPath string) ([]domain.VPSBundleInfo, int64, error) {
-	// List bundles with size and modification time (format: size_bytes\tfilename\tmod_time_unix)
-	listCmd := fmt.Sprintf(
-		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,
-		shellutil.QuoteSingle(bundlesPath),
-	)
+// TargetReleaseListing is the owner's durable release view.
+type TargetReleaseListing struct {
+	DeploymentID string `json:"deployment_id"`
+	Active       *struct {
+		ActiveRelease   string `json:"active_release"`
+		PreviousRelease string `json:"previous_release"`
+	} `json:"active,omitempty"`
+	InterruptedActivation *struct {
+		Candidate string `json:"candidate"`
+		Previous  string `json:"previous"`
+	} `json:"interrupted_activation,omitempty"`
+	Releases []TargetRelease `json:"releases"`
+}
 
-	res, err := sshRunner.Run(ctx, cfg, listCmd, ssh.DefaultRunOptions())
+// PruneReport is the owner's answer to a prune request.
+type PruneReport struct {
+	Deleted        []string          `json:"deleted"`
+	Refused        map[string]string `json:"refused,omitempty"`
+	ReclaimedBytes int64             `json:"reclaimed_bytes"`
+}
+
+var digestPattern = regexp.MustCompile(`^[a-f0-9]{64}$`)
+
+const releaseVerbTimeout = 60 * time.Second
+
+// ownerError is the typed refusal a cloud-target verb prints.
+type ownerError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func decodeOwnerReply(res reach.Result, err error, into any) error {
 	if err != nil {
-		return nil, 0, err
+		return err
 	}
-
-	bundles, totalSize, parseErr := ParseVPSBundleOutput(res.Stdout)
-	if parseErr != nil {
-		return nil, 0, parseErr
+	var reply struct {
+		Error *ownerError `json:"error"`
 	}
-
-	return bundles, totalSize, nil
+	trimmed := strings.TrimSpace(res.Stdout)
+	if trimmed != "" {
+		_ = json.Unmarshal([]byte(trimmed), &reply)
+	}
+	if reply.Error != nil {
+		return fmt.Errorf("%s: %s", reply.Error.Code, reply.Error.Message)
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("target owner exited %d: %s", res.ExitCode, strings.TrimSpace(res.Stderr))
+	}
+	if into == nil {
+		return nil
+	}
+	if err := json.Unmarshal([]byte(trimmed), into); err != nil {
+		return fmt.Errorf("decode target owner reply: %w", err)
+	}
+	return nil
 }
 
-// ParseVPSBundleOutput parses the output from listing VPS bundles.
-// Expected format: size_bytes\tfilename\tmod_time_unix (one per line)
-func ParseVPSBundleOutput(output string) ([]domain.VPSBundleInfo, int64, error) {
-	var bundles []domain.VPSBundleInfo
-	var totalSize int64
+// ListTargetReleases reads the owner's release listing for one deployment.
+func ListTargetReleases(ctx context.Context, r reach.Reach, target identity.TargetRef, deploymentID string) (TargetReleaseListing, error) {
+	var listing TargetReleaseListing
+	res, err := r.Exec(ctx, target, reach.Command{Verb: "cloud-target release list", Args: []string{"--deployment", deploymentID, "--json"}, RequiredScope: "vrooli:read", Timeout: releaseVerbTimeout})
+	if err := decodeOwnerReply(res, err, &listing); err != nil {
+		return TargetReleaseListing{}, err
+	}
+	return listing, nil
+}
 
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
+// PruneTargetReleases asks the owner to remove the named digests. The owner
+// refuses active, previous and in-flight releases whatever is asked.
+func PruneTargetReleases(ctx context.Context, r reach.Reach, target identity.TargetRef, deploymentID string, digests []string) (PruneReport, error) {
+	args := []string{"--deployment", deploymentID}
+	for _, d := range digests {
+		if !digestPattern.MatchString(d) {
+			return PruneReport{}, fmt.Errorf("refusing to prune malformed release digest %q", d)
 		}
-		parts := strings.Split(line, "\t")
-		if len(parts) != 3 {
-			continue
-		}
+		args = append(args, "--release", d)
+	}
+	args = append(args, "--json")
+	var reply struct {
+		Report PruneReport `json:"report"`
+	}
+	res, err := r.Exec(ctx, target, reach.Command{Verb: "cloud-target release prune", Args: args, RequiredScope: "vrooli:write", Effectful: true, Timeout: releaseVerbTimeout})
+	if err := decodeOwnerReply(res, err, &reply); err != nil {
+		return PruneReport{}, err
+	}
+	return reply.Report, nil
+}
 
-		sizeBytes := ParseBytes(parts[0])
-		filename := parts[1]
-		modTimeUnix := ParseBytes(parts[2])
-
-		scenarioID, sha256Hash := ParseBundleFilename(filename)
-
-		bundles = append(bundles, domain.VPSBundleInfo{
-			Filename:   filename,
+// InventoryFromListing renders the owner's listing as the inventory rows the
+// management API and CLI display. Filename carries the release digest (the
+// owner's identity), Sha256 the bundle digest leases protect.
+func InventoryFromListing(listing TargetReleaseListing, scenarioID string) ([]domain.VPSBundleInfo, int64) {
+	var rows []domain.VPSBundleInfo
+	var total int64
+	for _, rel := range listing.Releases {
+		rows = append(rows, domain.VPSBundleInfo{
+			Filename:   rel.Digest,
 			ScenarioID: scenarioID,
-			Sha256:     sha256Hash,
-			SizeBytes:  sizeBytes,
-			ModTime:    time.Unix(modTimeUnix, 0).UTC().Format(time.RFC3339),
+			Sha256:     rel.BundleSHA256,
+			SizeBytes:  rel.SizeBytes,
+			ModTime:    rel.ModTime,
+			Role:       rel.Role,
+			State:      rel.State,
 		})
-		totalSize += sizeBytes
+		total += rel.SizeBytes
 	}
-
-	return bundles, totalSize, nil
-}
-
-// ParseBytes parses a byte count string, returning 0 on error.
-func ParseBytes(s string) int64 {
-	var n int64
-	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
-		return 0
-	}
-	return n
+	return rows, total
 }

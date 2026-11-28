@@ -1,8 +1,11 @@
+import { HistorySafetyBadge } from "./PushSafetyIndicators";
 import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, FileText, X, StepForward, Filter, MoreVertical } from "lucide-react";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Profiler, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { onProfilerRender } from "../lib/profiler";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { RepoHistoryEntry } from "../lib/api";
 import type { GroupingRule } from "./FileList";
@@ -10,6 +13,28 @@ import { HistoryFiltersModal } from "./HistoryFiltersModal";
 import { parseCommitGroup, buildContinueMessage } from "../lib/commitGroup";
 import { useIsMobile } from "../hooks";
 
+function commitCheckBadgeClass(status: string) {
+  switch (status) {
+    case "passed":
+      return "border-emerald-500/35 bg-emerald-500/10 text-emerald-200";
+    case "failed":
+      return "border-red-500/35 bg-red-500/10 text-red-200";
+    case "timeout":
+      return "border-amber-500/35 bg-amber-500/10 text-amber-200";
+    default:
+      return "border-slate-600/60 bg-slate-800/40 text-slate-300";
+  }
+}
+
+function formatCheckTitle(check: NonNullable<RepoHistoryEntry["checks"]>[number]) {
+  const parts = [
+    check.command,
+    `${check.duration_ms}ms`,
+    `exit ${check.exit_code}`,
+    check.timestamp ? new Date(check.timestamp).toLocaleString() : ""
+  ].filter(Boolean);
+  return parts.join(" | ");
+}
 
 interface GitHistoryProps {
   lines?: string[];
@@ -44,6 +69,7 @@ interface GitHistoryProps {
   onExitBlameMode?: () => void;
   // Continuation actions for pN-patterned commits
   onContinueCommit?: (message: string) => void;
+  onOpenProposal?: (id: string) => void;
   // Group filter for pN-patterned commits
   activeGroupFilter?: { prefix: string; count: number } | null;
   onFilterGroup?: (prefix: string) => void;
@@ -119,7 +145,7 @@ function normalizePrefix(prefix: string) {
   return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
 }
 
-export function GitHistory({
+function GitHistoryImpl({
   lines = [],
   entries = [],
   isLoading,
@@ -149,6 +175,7 @@ export function GitHistory({
   blameFileName,
   onExitBlameMode,
   onContinueCommit,
+  onOpenProposal,
   activeGroupFilter,
   onFilterGroup,
   onClearGroupFilter,
@@ -353,21 +380,48 @@ export function GitHistory({
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const hasActiveFilters = Boolean(normalizedSearch || scopeFilter || workingSetOnly);
   const filterNeedsDetails = Boolean(scopeFilter || workingSetOnly);
+  const historyDetailsIndex = useMemo(() => {
+    const byHash = new Map<string, RepoHistoryEntry>();
+    for (const entry of entries) {
+      if (!byHash.has(entry.hash)) byHash.set(entry.hash, entry);
+    }
+    return {
+      byHash,
+      byHashSorted: [...entries].sort((a, b) => a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0),
+    };
+  }, [entries]);
   const resolveDetails = useCallback(
     (hash?: string) => {
       if (!hash) return undefined;
-      const exact = entries.find((entry) => entry.hash === hash);
+      const exact = historyDetailsIndex.byHash.get(hash);
       if (exact) return exact;
-      let match: RepoHistoryEntry | undefined;
-      for (const entry of entries) {
-        if (!entry.hash.startsWith(hash)) continue;
-        if (match) return undefined;
-        match = entry;
+
+      // Abbreviated hashes match the sorted range starting with that prefix.
+      // Binary search keeps filtering and row rendering from scanning all
+      // commit details once for every history line.
+      let low = 0;
+      let high = historyDetailsIndex.byHashSorted.length;
+      while (low < high) {
+        const middle = low + Math.floor((high - low) / 2);
+        const candidate = historyDetailsIndex.byHashSorted[middle];
+        if (candidate && candidate.hash < hash) low = middle + 1;
+        else high = middle;
       }
-      return match;
+      const match = historyDetailsIndex.byHashSorted[low];
+      if (!match?.hash.startsWith(hash)) return undefined;
+      const next = historyDetailsIndex.byHashSorted[low + 1];
+      return next?.hash.startsWith(hash) ? undefined : match;
     },
-    [entries]
+    [historyDetailsIndex]
   );
+  const continuationFor = (entry: HistoryEntry) => resolveDetails(entry.hash)?.continuation_message || (buildContinueMessage(entry.message) ? `${buildContinueMessage(entry.message)}\n\nVrooli-Continues: ${entry.hash}` : null);
+  const groupFor = (entry: HistoryEntry) => {
+    const trailer = resolveDetails(entry.hash)?.trailers?.find((value) => value.known && (value.kind === "effort" || value.key.toLowerCase() === "vrooli-work"));
+    if (trailer) return { prefix: `${trailer.key}: ${trailer.value.split("@")[0]}`, part: 0 };
+    return parseCommitGroup(entry.message);
+  };
+
+
   const visibleEntries = useMemo(() => {
     return historyEntries.filter((entry) => {
       const details = resolveDetails(entry.hash);
@@ -414,6 +468,17 @@ export function GitHistory({
     workingSetOnly,
     workingSetSet
   ]);
+
+  // Virtualize visibleEntries so a multi-thousand-commit history doesn't pay
+  // O(n) per render. Variable row heights (badges + multi-line messages)
+  // require measureElement; estimateSize ~80px is the median per the
+  // 2026-05-03 perf audit.
+  const rowVirtualizer = useVirtualizer({
+    count: visibleEntries.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 80,
+    overscan: 8,
+  });
 
   const countLabel = hasActiveFilters
     ? `${visibleEntries.length}/${totalLines}`
@@ -463,13 +528,14 @@ export function GitHistory({
               </div>
             )}
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className={`h-7 px-2 text-[10px] ${
                 hasActiveFilters ? "bg-white/10 text-white" : ""
               }`}
               onClick={handleOpenFilters}
               type="button"
+              style={{ background: "transparent" }}
             >
               <SlidersHorizontal className="h-3 w-3 mr-1" />
               Filters
@@ -536,8 +602,14 @@ export function GitHistory({
                 </div>
               )}
               {!isLoading && !error && hasLines && hasVisibleEntries && (
-                <div className="relative space-y-1 font-mono text-xs text-slate-200">
-                  {visibleEntries.map((entry, index) => {
+                <div
+                  className="relative font-mono text-xs text-slate-200"
+                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const index = virtualRow.index;
+                    const entry = visibleEntries[index];
+                    if (!entry) return null;
                     const isUnpushed = entry.hash && !entry.isPushed;
                     const isSelected = entry.hash && (
                       selectedCommitHash === entry.hash ||
@@ -554,11 +626,23 @@ export function GitHistory({
                     );
                     const showRemoteBadge = entry.isFirstRemote && entry.remoteBranches.length > 0;
                     const canSelect = Boolean(onSelectCommit && entry.hash && entries.length > 0);
+                    const details = resolveDetails(entry.hash);
+                    const precommitCheck = details?.checks?.find((check) => check.kind === "precommit");
 
                     return (
                       <div
                         key={`${entry.raw}-${index}`}
-                        className={`group relative rounded-lg border px-2 py-2 text-slate-200 transition-colors ${
+                        ref={rowVirtualizer.measureElement}
+                        data-index={index}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          paddingBottom: 4,
+                        }}
+                        className={`group rounded-lg border px-2 py-2 text-slate-200 transition-colors ${
                           isSelected
                             ? "border-amber-500/60 bg-amber-950/40 ring-1 ring-amber-500/30"
                             : "border-slate-800/70 bg-slate-950/30 hover:bg-slate-900/60"
@@ -594,6 +678,7 @@ export function GitHistory({
                                   {entry.hash}
                                 </span>
                               )}
+                              {entry.hash && <HistorySafetyBadge hash={entry.hash} unpushed={Boolean(isUnpushed)} />}
                               {isSelected && (
                                 <span className="rounded border border-amber-500/40 bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200 flex items-center gap-1">
                                   <Eye className="h-2.5 w-2.5" />
@@ -614,12 +699,23 @@ export function GitHistory({
                                   {entry.remoteBranches[0]}
                                 </span>
                               )}
+                              {precommitCheck && (
+                                <span
+                                  className={`rounded border px-1.5 py-0.5 text-[10px] ${commitCheckBadgeClass(precommitCheck.status)}`}
+                                  title={formatCheckTitle(precommitCheck)}
+                                  data-testid="history-precommit-badge"
+                                >
+                                  precommit {precommitCheck.status}
+                                </span>
+                              )}
                             </div>
                             <div className="mt-1 text-xs text-slate-200 whitespace-pre-wrap break-words">
                               {entry.message}
                             </div>
+                            {isSelected && details && <details className="mt-2 text-xs text-slate-400" open onClick={(event) => event.stopPropagation()}><summary className="cursor-pointer">Commit context &amp; links</summary>{details.body && <p className="mt-2 whitespace-pre-wrap break-words">{details.body}</p>}<ul className="mt-2 space-y-1">{details.trailers?.map((trailer, index) => <li key={`${trailer.key}-${index}`} className="break-all" title={trailer.detail}>{trailer.kind === "proposal" && onOpenProposal ? <button className="min-h-8 text-cyan-300 hover:underline" onClick={() => onOpenProposal(trailer.value)}>View proposal · {trailer.value}</button> : <span>{trailer.key}: {trailer.value}</span>}<span className="ml-2 text-[10px] text-slate-500">{trailer.detail}</span></li>)}</ul></details>}
+
                           </div>
-                          {parseCommitGroup(entry.message) && (onContinueCommit || onFilterGroup) && (
+                          {((continuationFor(entry) && onContinueCommit) || (groupFor(entry) && onFilterGroup)) && (
                             isMobile ? (
                               <button
                                 className="p-1 rounded hover:bg-slate-700 transition-all flex-shrink-0 self-center"
@@ -639,10 +735,10 @@ export function GitHistory({
                                     className="p-1 rounded hover:bg-slate-700 transition-all"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const next = buildContinueMessage(entry.message);
+                                      const next = continuationFor(entry);
                                       if (next) onContinueCommit(next);
                                     }}
-                                    title={`Continue as: ${buildContinueMessage(entry.message)}`}
+                                    title={`Continue as: ${continuationFor(entry)}`}
                                     data-testid="history-continue-btn"
                                   >
                                     <StepForward className="h-3 w-3 text-emerald-400" />
@@ -653,10 +749,10 @@ export function GitHistory({
                                     className="p-1 rounded hover:bg-slate-700 transition-all"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const group = parseCommitGroup(entry.message);
+                                      const group = groupFor(entry);
                                       if (group) onFilterGroup(group.prefix);
                                     }}
-                                    title={`Filter group: ${parseCommitGroup(entry.message)?.prefix}`}
+                                    title={`Filter group: ${groupFor(entry)?.prefix}`}
                                     data-testid="history-filter-group-btn"
                                   >
                                     <Filter className="h-3 w-3 text-violet-400" />
@@ -703,24 +799,24 @@ export function GitHistory({
           onClose={() => setMobileActionEntry(null)}
           title="Commit group actions"
         >
-          {mobileActionEntry && onContinueCommit && buildContinueMessage(mobileActionEntry.message) && (
+          {mobileActionEntry && onContinueCommit && continuationFor(mobileActionEntry) && (
             <BottomSheetAction
               icon={<StepForward className="h-5 w-5" />}
-              label={`Continue as: ${buildContinueMessage(mobileActionEntry.message)}`}
+              label={`Continue as: ${continuationFor(mobileActionEntry)}`}
               onClick={() => {
-                const next = buildContinueMessage(mobileActionEntry.message);
+                const next = continuationFor(mobileActionEntry);
                 if (next) onContinueCommit(next);
                 setMobileActionEntry(null);
               }}
               variant="success"
             />
           )}
-          {mobileActionEntry && onFilterGroup && parseCommitGroup(mobileActionEntry.message) && (
+          {mobileActionEntry && onFilterGroup && groupFor(mobileActionEntry) && (
             <BottomSheetAction
               icon={<Filter className="h-5 w-5" />}
-              label={`Filter group: ${parseCommitGroup(mobileActionEntry.message)?.prefix}`}
+              label={`Filter group: ${groupFor(mobileActionEntry)?.prefix}`}
               onClick={() => {
-                const group = parseCommitGroup(mobileActionEntry.message);
+                const group = groupFor(mobileActionEntry);
                 if (group) onFilterGroup(group.prefix);
                 setMobileActionEntry(null);
               }}
@@ -729,5 +825,13 @@ export function GitHistory({
         </BottomSheet>
       )}
     </>
+  );
+}
+
+export function GitHistory(props: GitHistoryProps) {
+  return (
+    <Profiler id="GitHistory" onRender={onProfilerRender}>
+      <GitHistoryImpl {...props} />
+    </Profiler>
   );
 }

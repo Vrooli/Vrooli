@@ -1,12 +1,12 @@
-//go:build integration
-
 package smoketest_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +39,7 @@ func getFixturePath() string {
 }
 
 func TestIntegration_SuccessfulSmokeTest(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
 	fixturePath := getFixturePath()
 	if _, err := os.Stat(fixturePath); err != nil {
 		t.Skip("Test fixture not built")
@@ -46,7 +47,11 @@ func TestIntegration_SuccessfulSmokeTest(t *testing.T) {
 
 	absPath, _ := filepath.Abs(fixturePath)
 
-	store := mocks.NewMockStore()
+	store := &completionCheckingStore{MockStore: mocks.NewMockStore(), onPassed: func() {
+		if _, err := os.Stat(filepath.Join(os.TempDir(), "s2d-integration-test-1")); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("passed status published before job directory cleanup: %v", err)
+		}
+	}}
 	store.AddStatus(&smoketest.Status{
 		SmokeTestID:  "integration-test-1",
 		ScenarioName: "test-scenario",
@@ -108,6 +113,16 @@ func TestIntegration_SuccessfulSmokeTest(t *testing.T) {
 	if status.CurrentState != smoketest.StatePassed {
 		t.Errorf("Expected final state %s, got %s", smoketest.StatePassed, status.CurrentState)
 	}
+	if !strings.Contains(status.LastStdout, "FIXTURE_PROFILE_CREATED=true") {
+		t.Fatal("fixture did not create the isolated desktop profile")
+	}
+	profile := filepath.Join(os.TempDir(), "s2d-integration-test-1")
+	if runtime.GOOS == "linux" && !strings.Contains(status.LastStdout, "FIXTURE_TEMP_ROOT="+profile) {
+		t.Fatalf("child temporary root was not scoped to its job: %s", status.LastStdout)
+	}
+	if _, err := os.Stat(profile); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("profile remains after successful smoke test: %v", err)
+	}
 }
 
 func TestIntegration_TimeoutBehavior(t *testing.T) {
@@ -130,7 +145,7 @@ func TestIntegration_TimeoutBehavior(t *testing.T) {
 	logger := mocks.NewMockLogger()
 
 	// Create service with very short timeout (1 second)
-	config := smoketest.Config{
+	config := smoketest.SmokeTestConfig{
 		TimeoutSeconds:      1, // 1 second timeout
 		TelemetryPathMarker: "[Desktop App] Telemetry initialized at ",
 		SuccessMarker:       "SMOKE_TEST_RESULT=passed",
@@ -182,8 +197,9 @@ func TestIntegration_TimeoutBehavior(t *testing.T) {
 	ctx := context.Background()
 
 	// Set the delay via environment variable to cause timeout
-	// The fixture will delay for 5 seconds, but our timeout is 1 second
-	os.Setenv("SMOKE_TEST_DELAY_MS", "5000")
+	// The executor allows five seconds for bounded diagnostics after the
+	// configured one-second readiness budget. Keep the fixture beyond both.
+	os.Setenv("SMOKE_TEST_DELAY_MS", "10000")
 	defer os.Unsetenv("SMOKE_TEST_DELAY_MS")
 
 	service.PerformSmokeTest(ctx, "integration-timeout", "test-scenario", absPath, "linux")
@@ -481,4 +497,19 @@ func TestIntegration_FixtureScenarios(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Observe the publication boundary, rather than checking only after Run returns.
+type completionCheckingStore struct {
+	*mocks.MockStore
+	onPassed func()
+}
+
+func (s *completionCheckingStore) Update(id string, fn func(*smoketest.Status)) bool {
+	return s.MockStore.Update(id, func(status *smoketest.Status) {
+		fn(status)
+		if status.Status == "passed" {
+			s.onPassed()
+		}
+	})
 }

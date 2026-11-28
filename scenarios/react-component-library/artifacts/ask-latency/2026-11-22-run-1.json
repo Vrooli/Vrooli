@@ -1,0 +1,169 @@
+{
+  "samples": 20,
+  "successful": 19,
+  "failed": 1,
+  "minimum_samples": 20,
+  "p50_ms": 3284.5670925453305,
+  "p95_ms": 5921.835534647109,
+  "max_ms": 6876.791960559785,
+  "p95_target_ms": 8000.0,
+  "citation_contract": "all answer citations resolve to unique supplied result ids",
+  "timing_breakdown": {
+    "service_field": "SearchResponse.tookMs, measured before the AI Gateway answer call",
+    "search_and_status": {
+      "p50_ms": 536.0,
+      "p95_ms": 1449.3000000000006,
+      "max_ms": 1839
+    },
+    "post_search_residual": {
+      "p50_ms": 2123.95,
+      "p95_ms": 5454.036000000001,
+      "max_ms": 6419.79
+    },
+    "samples_with_service_timing": 19
+  },
+  "measurements": [
+    {
+      "index": 1,
+      "query": "landing page",
+      "elapsed_ms": 3284.57,
+      "search_and_status_ms": 1406,
+      "post_search_residual_ms": 1878.57
+    },
+    {
+      "index": 2,
+      "query": "plant care app",
+      "elapsed_ms": 3526.06,
+      "search_and_status_ms": 902,
+      "post_search_residual_ms": 2624.06
+    },
+    {
+      "index": 3,
+      "query": "dashboard",
+      "elapsed_ms": 1929.86,
+      "search_and_status_ms": 535,
+      "post_search_residual_ms": 1394.86
+    },
+    {
+      "index": 4,
+      "query": "settings panel",
+      "elapsed_ms": 4379.02,
+      "search_and_status_ms": 715,
+      "post_search_residual_ms": 3664.02
+    },
+    {
+      "index": 5,
+      "query": "checkout flow",
+      "elapsed_ms": 2265.32,
+      "search_and_status_ms": 415,
+      "post_search_residual_ms": 1850.32
+    },
+    {
+      "index": 6,
+      "query": "profile page",
+      "elapsed_ms": 6876.79,
+      "search_and_status_ms": 457,
+      "post_search_residual_ms": 6419.79
+    },
+    {
+      "index": 7,
+      "query": "analytics overview",
+      "elapsed_ms": 2595.95,
+      "search_and_status_ms": 472,
+      "post_search_residual_ms": 2123.95
+    },
+    {
+      "index": 8,
+      "query": "mobile navigation",
+      "elapsed_ms": 4755.82,
+      "search_and_status_ms": 645,
+      "post_search_residual_ms": 4110.82
+    },
+    {
+      "index": 9,
+      "query": "search results",
+      "elapsed_ms": 4737.27,
+      "search_and_status_ms": 402,
+      "post_search_residual_ms": 4335.27
+    },
+    {
+      "index": 10,
+      "query": "empty state",
+      "elapsed_ms": 4846.63,
+      "search_and_status_ms": 404,
+      "post_search_residual_ms": 4442.63
+    },
+    {
+      "index": 11,
+      "query": "loading indicator",
+      "elapsed_ms": 5815.73,
+      "search_and_status_ms": 469,
+      "post_search_residual_ms": 5346.73
+    },
+    {
+      "index": 12,
+      "query": "error message",
+      "elapsed_ms": 4601.59,
+      "search_and_status_ms": 1248,
+      "post_search_residual_ms": 3353.59
+    },
+    {
+      "index": 13,
+      "query": "calendar view",
+      "elapsed_ms": 2044.96,
+      "search_and_status_ms": 536,
+      "post_search_residual_ms": 1508.96
+    },
+    {
+      "index": 14,
+      "query": "task manager",
+      "elapsed_ms": 1918.41,
+      "search_and_status_ms": 549,
+      "post_search_residual_ms": 1369.41
+    },
+    {
+      "index": 15,
+      "query": "finance app",
+      "elapsed_ms": 3702.04,
+      "search_and_status_ms": 1839,
+      "post_search_residual_ms": 1863.04
+    },
+    {
+      "index": 16,
+      "query": "recipe organizer",
+      "elapsed_ms": 2210.79,
+      "search_and_status_ms": 559,
+      "post_search_residual_ms": 1651.79
+    },
+    {
+      "index": 17,
+      "query": "travel planner",
+      "elapsed_ms": 2343.88,
+      "search_and_status_ms": 478,
+      "post_search_residual_ms": 1865.88
+    },
+    {
+      "index": 18,
+      "query": "fitness tracker",
+      "elapsed_ms": 2094.41,
+      "search_and_status_ms": 512,
+      "post_search_residual_ms": 1582.41
+    },
+    {
+      "index": 20,
+      "query": "user onboarding",
+      "elapsed_ms": 2951.05,
+      "search_and_status_ms": 725,
+      "post_search_residual_ms": 2226.05
+    }
+  ],
+  "failures": [
+    {
+      "index": 19,
+      "query": "music player",
+      "error": "HTTP Error 503: Service Unavailable",
+      "elapsed_ms": 2005.6636575609446
+    }
+  ],
+  "passed": false
+}

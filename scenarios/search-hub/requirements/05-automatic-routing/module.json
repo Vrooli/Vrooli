@@ -1,0 +1,82 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-010",
+      "title": "Provider-description evidence selection",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "description": "Automatic provider selection uses the query and registry natural-language descriptions as evidence without provider-specific routing code. Search Hub uses its active retrieval strategy and a bounded description shortlist when the semantic index is available; the lexical path is an explicit fallback.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Against the composed router.routing suite, routing recall@K \u003e= 0.85; per-provider breakdown and precision reported."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Adding or updating a registry description changes routing evidence without per-provider routing code."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-011",
+      "title": "Evidence ambiguity and explicit override",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "description": "Automatic selection reports ambiguity or missing positive provider evidence explicitly. Explicit --type/--all override automatic selection; --explain exposes routing rationale.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "An ambiguous query preserves bounded evidence and a typed ambiguity reason rather than conflating ambiguity with provider degradation."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "--type overrides automatic provider selection exactly."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-014",
+      "title": "Bounded provider-description retrieval",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "The router shall retrieve only a bounded provider-description shortlist through the shared embedding contract, persist descriptor vectors with model metadata, and name routing_index_unavailable when deterministic relevance-scored enumeration is used as the fallback.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/routing/provider_index_test.go::TestEmbeddingDescriptionIndexShortlistsAndNamesOmissions",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The index returns a bounded shortlist and records omitted providers."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/routing/provider_index_test.go::TestDescriptionIndexReembedsOnlyChangedDescriptorAndSurvivesRestart",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Persisted descriptor vectors are reused across restart and only changed descriptors are re-embedded."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/routing/provider_index_test.go::TestDescriptionIndexUnavailableUsesBoundedFallbackReason",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Unavailable embedding falls back with the stable routing_index_unavailable reason."
+        }
+      ]
+    }
+  ]
+}

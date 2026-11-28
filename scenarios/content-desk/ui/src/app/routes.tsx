@@ -1,0 +1,70 @@
+import {
+  createBrowserRouter,
+  createMemoryRouter,
+  RouterProvider,
+  type RouteObject,
+} from "react-router-dom";
+
+import { AppShell } from "../layout/AppShell";
+import { CreatePage } from "../pages/CreatePage";
+import { SettingsPage } from "../pages/SettingsPage";
+import { TodayPage } from "../pages/TodayPage";
+import { ReviewPage } from "../pages/ReviewPage";
+import { ContentPage } from "../pages/ContentPage";
+import { LearnPage } from "../pages/LearnPage";
+import { PlanPage } from "../pages/PlanPage";
+import { IntakePage } from "../pages/IntakePage";
+
+/**
+ * Canonical route table. Exported so tests can construct an in-memory router
+ * from the same config the production app uses.
+ *
+ * Add new pages by appending to the `children` array.
+ */
+export const routes: RouteObject[] = [
+  {
+    path: "/",
+    element: <AppShell />,
+    children: [
+      { index: true, element: <TodayPage /> },
+      { path: "board", element: <TodayPage /> },
+      { path: "today", element: <TodayPage /> },
+      { path: "plan", element: <PlanPage /> },
+      { path: "create", element: <CreatePage /> },
+      { path: "review", element: <ReviewPage /> },
+      { path: "intake", element: <IntakePage /> },
+      { path: "content", element: <ContentPage /> },
+      { path: "learn", element: <LearnPage /> },
+      { path: "settings", element: <SettingsPage /> },
+    ],
+  },
+];
+
+// Opt in before React Router v7 makes these behaviors the defaults. Data
+// routers own both flags; RouterProvider owns transition scheduling only.
+const dataRouterFuture = {
+  v7_relativeSplatPath: true,
+  v7_startTransition: true,
+};
+const routerProviderFuture = { v7_startTransition: true };
+
+/**
+ * Production router (uses real browser history). Built lazily so module load
+ * doesn't fail in test environments where `window.location` semantics differ
+ * from production.
+ */
+export function AppRouter() {
+  // Re-create per mount so HMR / re-mounts pick up updated routes during dev
+  // and so tests that manipulate `window.history` see fresh routing each time.
+  const router = createBrowserRouter(routes, { future: dataRouterFuture });
+  return <RouterProvider router={router} future={routerProviderFuture} />;
+}
+
+/**
+ * Test helper: render the same routes against an in-memory router with a
+ * specific starting URL. Only used by `routes.test.tsx`.
+ */
+export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
+  const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
+  return <RouterProvider router={router} future={routerProviderFuture} />;
+}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -23,7 +25,13 @@ func FlowDefinitionToProto(definition database.JSONMap) (*basworkflows.WorkflowD
 	if err != nil {
 		return nil, fmt.Errorf("marshal flow_definition: %w", err)
 	}
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, pb); err != nil {
+	raw, err = workflowservice.NormalizeWorkflowDefinitionV2Bytes(raw)
+	if err != nil {
+		return nil, fmt.Errorf("normalize legacy flow_definition: %w", err)
+	}
+	// Do not silently erase contract drift while translating a legacy map at the
+	// ingress boundary. Callers must supply a complete WorkflowDefinitionV2.
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, pb); err != nil {
 		return nil, fmt.Errorf("unmarshal flow_definition: %w", err)
 	}
 	return pb, nil
@@ -36,11 +44,11 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *basapi.W
 	}
 	issueToProto := func(issue workflowvalidator.Issue) *basapi.WorkflowValidationIssue {
 		return &basapi.WorkflowValidationIssue{
-			Severity: StringToValidationSeverity(string(issue.Severity)),
+			Severity: enums.StringToValidationSeverity(string(issue.Severity)),
 			Code:     issue.Code,
 			Message:  issue.Message,
 			NodeId:   issue.NodeID,
-			NodeType: StringToActionType(issue.NodeType),
+			NodeType: enums.StringToActionType(issue.NodeType),
 			Field:    issue.Field,
 			Pointer:  issue.Pointer,
 			Hint:     issue.Hint,
@@ -74,4 +82,3 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *basapi.W
 		DurationMs:    result.DurationMs,
 	}
 }
-

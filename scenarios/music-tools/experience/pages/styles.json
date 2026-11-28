@@ -1,0 +1,200 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "styles",
+    "title": "Styles",
+    "routes": [
+      "/styles",
+      "/styles/:styleId"
+    ],
+    "purpose": "Capture a house sound once as data and reuse it. A style compiles to a caption plus parameters, and is the unit a batch and a maintained inventory are configured with.",
+    "prd_refs": [
+      "OT-P0-007"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The compiled result is visible while editing. A style is only meaningful through what it compiles to, so the caption and parameters the generator will receive are shown, not hidden behind the abstraction."
+    },
+    {
+      "statement": "Built-in styles are clearly distinguished from custom ones and cannot be edited in place; they are duplicated instead."
+    },
+    {
+      "statement": "A style is portable data. Import and export are first-class, so a house sound survives this scenario."
+    },
+    {
+      "statement": "Parameters that decide the result are given the weight they deserve. Tempo, key, and the instruction that the authored caption passes through unmodified are not advanced settings."
+    }
+  ],
+  "states": [
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "No custom styles yet; built-ins are available.",
+      "setup": {
+        "route": "/styles",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "list",
+      "example": "success",
+      "description": "Styles listed, built-in and custom distinguished.",
+      "setup": {
+        "route": "/styles",
+        "query": {
+          "fixture": "list"
+        }
+      }
+    },
+    {
+      "id": "editing",
+      "example": "idle",
+      "description": "A custom style is open for editing with its compiled output visible.",
+      "setup": {
+        "route": "/styles",
+        "query": {
+          "fixture": "editing"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "example": "validation-error",
+      "description": "The style does not compile; the failing field is named.",
+      "setup": {
+        "route": "/styles",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "example": "saving",
+      "description": "Changes are being persisted.",
+      "setup": {
+        "route": "/styles",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "style-row",
+      "role": "listitem",
+      "description": "One style."
+    },
+    {
+      "id": "builtin-badge",
+      "role": "status",
+      "description": "Marks a style as built-in and read-only."
+    },
+    {
+      "id": "caption-template",
+      "role": "textbox",
+      "description": "The caption template."
+    },
+    {
+      "id": "parameter-fields",
+      "role": "group",
+      "description": "Tempo, key, duration, and generation parameters."
+    },
+    {
+      "id": "compiled-preview",
+      "role": "region",
+      "description": "The caption and parameters this style compiles to."
+    },
+    {
+      "id": "import-export",
+      "role": "group",
+      "description": "Import and export a style as data."
+    },
+    {
+      "id": "compile-error",
+      "role": "alert",
+      "description": "Why the style does not compile."
+    }
+  ],
+  "claims": [
+    {
+      "id": "compiled-output-is-visible",
+      "type": "element-present",
+      "statement": "While editing a style, the caption and parameters it compiles to are shown.",
+      "tier": "machine",
+      "elements": [
+        "compiled-preview"
+      ],
+      "states": [
+        "editing"
+      ]
+    },
+    {
+      "id": "builtins-are-distinguished",
+      "type": "element-present",
+      "statement": "Built-in styles are visibly marked and not editable in place.",
+      "tier": "machine",
+      "elements": [
+        "builtin-badge"
+      ],
+      "states": [
+        "list"
+      ]
+    },
+    {
+      "id": "styles-are-portable",
+      "type": "element-present",
+      "statement": "A style can be exported and imported as data.",
+      "tier": "machine",
+      "elements": [
+        "import-export"
+      ],
+      "states": [
+        "list"
+      ]
+    },
+    {
+      "id": "compile-failures-name-the-field",
+      "type": "element-present",
+      "statement": "A style that does not compile names the failing field rather than failing generically.",
+      "tier": "machine",
+      "elements": [
+        "compile-error"
+      ],
+      "states": [
+        "validation-error"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "style-row": {
+        "testid": "style-row"
+      },
+      "builtin-badge": {
+        "testid": "style-builtin-badge"
+      },
+      "caption-template": {
+        "testid": "style-caption-template"
+      },
+      "parameter-fields": {
+        "testid": "style-parameters"
+      },
+      "compiled-preview": {
+        "testid": "style-compiled-preview"
+      },
+      "import-export": {
+        "testid": "style-import-export"
+      },
+      "compile-error": {
+        "testid": "style-compile-error"
+      }
+    }
+  }
+}

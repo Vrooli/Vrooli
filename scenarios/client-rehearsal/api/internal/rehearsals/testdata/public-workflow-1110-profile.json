@@ -1,0 +1,38 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-article",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic article response", "version": "1" },
+        "servers": [{ "url": "https://article.synthetic.invalid" }],
+        "paths": {
+          "/story": {
+            "get": {
+              "responses": { "200": { "content": { "application/json": { "example": { "body": "<html><title>Source title must not persist</title><body>Source body must not persist</body></html>" } } } } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-notion",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic Notion database", "version": "1" },
+        "servers": [{ "url": "https://notion.synthetic.invalid" }],
+        "paths": {
+          "/v1/pages": {
+            "post": {
+              "responses": { "200": { "content": { "application/json": { "example": { "id": "synthetic-page-01", "status": "created" } } } } },
+              "x-n8n-node-type": "n8n-nodes-base.notion",
+              "x-n8n-resource": "databasePage",
+              "x-n8n-operation": "create"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -2,16 +2,97 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
+
+type durableLifecycleMountStub struct {
+	commonconnect.UnimplementedLifecycleMaintenanceServiceHandler
+}
+
+func (durableLifecycleMountStub) Status(context.Context, *connect.Request[commonv1.LifecycleStatusRequest]) (*connect.Response[commonv1.LifecycleStatusResponse], error) {
+	return connect.NewResponse(&commonv1.LifecycleStatusResponse{Standing: &commonv1.LifecycleStanding{
+		Provider: "workspace-sandbox", ProviderInstanceId: "durable-instance", Scenario: "workspace-sandbox",
+		Interlock: "scenario-lock-v1", InventoryComplete: true,
+		FencePersistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE,
+	}}), nil
+}
+
+func TestLifecycleConfiguredExternallyPreventsDefaultProviderShadow(t *testing.T) {
+	path, customHandler := commonconnect.NewLifecycleMaintenanceServiceHandler(durableLifecycleMountStub{})
+	application := http.NewServeMux()
+	application.Handle(path, customHandler)
+	values := map[string]string{
+		"VROOLI_SCENARIO":            "workspace-sandbox",
+		"VROOLI_RUNTIME_INSTANCE_ID": "default-instance",
+	}
+	for _, tc := range []struct {
+		name          string
+		external      bool
+		wantFence     commonv1.LifecycleFencePersistence
+		wantInterlock string
+	}{
+		{name: "external durable owner", external: true, wantFence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE, wantInterlock: "scenario-lock-v1"},
+		{name: "default process-local owner", external: false, wantFence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL, wantInterlock: apilifecycle.ProtocolVersion},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := withDefaults(Config{
+				Handler:                       application,
+				LifecycleConfiguredExternally: tc.external,
+				EnvGetter:                     func(key string) string { return values[key] },
+			})
+			mounted, err := mountLifecycleProvider(cfg)
+			if err != nil {
+				t.Fatalf("mountLifecycleProvider: %v", err)
+			}
+			server := httptest.NewServer(mounted.Handler)
+			defer server.Close()
+			client, err := apilifecycle.NewClient(server.Client(), server.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, err := client.Status(t.Context(), &commonv1.LifecycleStatusRequest{})
+			if err != nil {
+				t.Fatalf("Status: %v", err)
+			}
+			standing := status.GetStanding()
+			if standing.GetFencePersistence() != tc.wantFence || standing.GetInterlock() != tc.wantInterlock {
+				t.Fatalf("mounted lifecycle handler = persistence %s interlock %q; want %s / %q", standing.GetFencePersistence(), standing.GetInterlock(), tc.wantFence, tc.wantInterlock)
+			}
+		})
+	}
+}
+
+type serverTestAuthProvider struct{}
+
+func (serverTestAuthProvider) Source() identity.AuthSource { return identity.SourceCloudflareAccess }
+
+func (serverTestAuthProvider) VerifyRequest(context.Context, *http.Request) (identity.Principal, error) {
+	return identity.Principal{
+		Kind:     identity.ActorHuman,
+		Subject:  "operator-1",
+		Email:    "operator@example.test",
+		Verified: true,
+		Source:   identity.SourceCloudflareAccess,
+	}, nil
+}
 
 // ============================================================================
 // Config Defaults Tests
@@ -67,6 +148,24 @@ func TestWithDefaults_PortFallback(t *testing.T) {
 	}
 }
 
+func TestWithDefaults_BindsLoopbackByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := withDefaults(Config{EnvGetter: func(string) string { return "" }})
+	if cfg.BindAddress != "127.0.0.1" {
+		t.Fatalf("BindAddress = %q, want loopback", cfg.BindAddress)
+	}
+}
+
+func TestWithDefaults_BindAddressExplicit(t *testing.T) {
+	t.Parallel()
+
+	cfg := withDefaults(Config{BindAddress: "0.0.0.0", EnvGetter: func(string) string { return "127.0.0.1" }})
+	if cfg.BindAddress != "0.0.0.0" {
+		t.Fatalf("BindAddress = %q, want explicit address", cfg.BindAddress)
+	}
+}
+
 func TestWithDefaults_Timeouts(t *testing.T) {
 	t.Parallel()
 
@@ -84,6 +183,9 @@ func TestWithDefaults_Timeouts(t *testing.T) {
 	if cfg.ShutdownTimeout != 10*time.Second {
 		t.Errorf("ShutdownTimeout: expected 10s, got %v", cfg.ShutdownTimeout)
 	}
+	if cfg.CleanupTimeout != 10*time.Second {
+		t.Errorf("CleanupTimeout: expected 10s to follow shutdown, got %v", cfg.CleanupTimeout)
+	}
 }
 
 func TestWithDefaults_TimeoutsExplicit(t *testing.T) {
@@ -94,6 +196,7 @@ func TestWithDefaults_TimeoutsExplicit(t *testing.T) {
 		WriteTimeout:    10 * time.Second,
 		IdleTimeout:     60 * time.Second,
 		ShutdownTimeout: 20 * time.Second,
+		CleanupTimeout:  30 * time.Second,
 	}
 
 	cfg = withDefaults(cfg)
@@ -109,6 +212,9 @@ func TestWithDefaults_TimeoutsExplicit(t *testing.T) {
 	}
 	if cfg.ShutdownTimeout != 20*time.Second {
 		t.Errorf("ShutdownTimeout: expected explicit 20s, got %v", cfg.ShutdownTimeout)
+	}
+	if cfg.CleanupTimeout != 30*time.Second {
+		t.Errorf("CleanupTimeout: expected explicit 30s, got %v", cfg.CleanupTimeout)
 	}
 }
 
@@ -141,6 +247,168 @@ func TestRun_RequiresHandler(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Handler is required") {
 		t.Errorf("expected error about Handler, got: %v", err)
+	}
+}
+
+func TestRunInstallsSharedAuthenticationMiddleware(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, principalOK := identity.PrincipalFromContext(r.Context())
+		status, statusOK := identity.StatusFromContext(r.Context())
+		if !principalOK || principal.Subject != "operator-1" {
+			t.Errorf("principal=%#v ok=%t", principal, principalOK)
+		}
+		if !statusOK || status.State != identity.StateVerified || status.Source != identity.SourceCloudflareAccess {
+			t.Errorf("status=%#v ok=%t", status, statusOK)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	sigCh := make(chan os.Signal, 1)
+	port := findFreePort(t)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(Config{
+			Handler:         handler,
+			Port:            port,
+			ShutdownTimeout: time.Second,
+			Authentication:  &authn.Config{Providers: []authn.Provider{serverTestAuthProvider{}}},
+			signalChan:      sigCh,
+			Logger:          func(string, ...interface{}) {},
+		})
+	}()
+
+	waitForServer(t, port)
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/", port))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status=%d want %d", resp.StatusCode, http.StatusNoContent)
+	}
+
+	sigCh <- syscall.SIGTERM
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for server to stop")
+	}
+}
+
+func TestRecoverPanicsReturnsJSONAndLogsStack(t *testing.T) {
+	var logs []string
+	handler := recoverPanics(func(format string, args ...interface{}) { logs = append(logs, fmt.Sprintf(format, args...)) }, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("boom")
+	}))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/actions/example/run", nil))
+	if rr.Code != http.StatusInternalServerError || !strings.Contains(rr.Body.String(), "internal server error") {
+		t.Fatalf("response = %d %q", rr.Code, rr.Body.String())
+	}
+	if len(logs) != 1 || !strings.Contains(logs[0], "path=/actions/example/run") || !strings.Contains(logs[0], "stack=") {
+		t.Fatalf("panic log = %#v", logs)
+	}
+}
+
+func TestAccessLogRecordsStatusAndDuration(t *testing.T) {
+	var logs []string
+	handler := accessLog(func(format string, args ...interface{}) { logs = append(logs, fmt.Sprintf(format, args...)) }, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	}))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/actions/example/run", nil))
+	if len(logs) != 1 || !strings.Contains(logs[0], "method=POST") || !strings.Contains(logs[0], "status=201") {
+		t.Fatalf("access log = %#v", logs)
+	}
+}
+
+// Health probes run for the whole life of a process. Logging each one filled
+// scenario logs with identical lines, so only status transitions are logged.
+func TestAccessLogRecordsHealthProbesOnlyWhenTheStatusChanges(t *testing.T) {
+	var logs []string
+	status := http.StatusOK
+	handler := accessLog(func(format string, args ...interface{}) { logs = append(logs, fmt.Sprintf(format, args...)) }, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+	}))
+	probe := func(code int) {
+		status = code
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/health", nil))
+	}
+	probe(http.StatusOK)
+	probe(http.StatusOK)
+	probe(http.StatusOK)
+	probe(http.StatusServiceUnavailable)
+	probe(http.StatusServiceUnavailable)
+	probe(http.StatusOK)
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/items", nil))
+
+	want := []string{"path=/health status=200", "path=/health status=503", "path=/health status=200", "path=/api/v1/items status=200"}
+	if len(logs) != len(want) {
+		t.Fatalf("access log = %#v, want %d lines", logs, len(want))
+	}
+	for i, fragment := range want {
+		if !strings.Contains(logs[i], fragment) {
+			t.Fatalf("line %d = %q, want it to contain %q", i, logs[i], fragment)
+		}
+	}
+}
+
+// A handler must still see an http.Flusher through the access-log wrapper.
+// Embedding http.ResponseWriter does not promote http.Flusher, so without an
+// explicit passthrough every SSE handler behind the standard server fails its
+// w.(http.Flusher) assertion -- which is exactly how server-sent events broke.
+func TestAccessLogPreservesFlusher(t *testing.T) {
+	var sawFlusher, flushed bool
+	handler := accessLog(func(string, ...interface{}) {}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		sawFlusher = ok
+		if !ok {
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("event: ping\ndata: {}\n\n"))
+		flusher.Flush()
+		flushed = true
+	}))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/repo/precommit/run/stream", nil))
+
+	if !sawFlusher {
+		t.Fatal("handler did not see an http.Flusher through the access-log wrapper")
+	}
+	if !flushed {
+		t.Fatal("handler could not flush through the access-log wrapper")
+	}
+	if !rr.Flushed {
+		t.Fatal("Flush did not reach the underlying ResponseWriter")
+	}
+	if !strings.Contains(rr.Body.String(), "event: ping") {
+		t.Fatalf("streamed body = %q", rr.Body.String())
+	}
+}
+
+// Hijack must reach the underlying writer too, so WebSocket upgrades survive
+// the wrapper. httptest.ResponseRecorder is not a Hijacker, so the contract
+// under test is that we report ErrNotSupported rather than panicking on the
+// failed type assertion.
+func TestAccessLogHijackDegradesCleanly(t *testing.T) {
+	var hijackErr error
+	handler := accessLog(func(string, ...interface{}) {}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			t.Error("handler did not see an http.Hijacker through the access-log wrapper")
+			return
+		}
+		_, _, hijackErr = hijacker.Hijack()
+	}))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/ws", nil))
+
+	if !errors.Is(hijackErr, http.ErrNotSupported) {
+		t.Fatalf("Hijack error = %v, want http.ErrNotSupported", hijackErr)
 	}
 }
 
@@ -330,6 +598,39 @@ func TestRun_CleanupErrorIsLogged(t *testing.T) {
 	}
 }
 
+func TestShutdownAndCleanupRunsOwnerCleanupAfterDrainDeadline(t *testing.T) {
+	t.Parallel()
+
+	var forcedClosed, cleaned bool
+	cleanupSawLiveContext := false
+	shutdown := func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	cfg := withDefaults(Config{
+		ShutdownTimeout: 5 * time.Millisecond,
+		CleanupTimeout:  50 * time.Millisecond,
+		Logger:          func(string, ...interface{}) {},
+		Cleanup: func(ctx context.Context) error {
+			cleaned = true
+			_, hasDeadline := ctx.Deadline()
+			cleanupSawLiveContext = hasDeadline && ctx.Err() == nil
+			return nil
+		},
+	})
+
+	err := shutdownAndCleanup(cfg, shutdown, func() { forcedClosed = true })
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error = %v, want deadline exceeded", err)
+	}
+	if !forcedClosed {
+		t.Fatal("expected forced close after drain deadline")
+	}
+	if !cleaned || !cleanupSawLiveContext {
+		t.Fatalf("cleanup called=%t with live context=%t; cleanup must run after a timed-out drain", cleaned, cleanupSawLiveContext)
+	}
+}
+
 func TestRun_FailsOnPortInUse(t *testing.T) {
 	t.Parallel()
 
@@ -467,10 +768,18 @@ func TestRun_HandlesInFlightRequests(t *testing.T) {
 func findFreePort(t *testing.T) string {
 	t.Helper()
 
-	// Use port 0 to let OS assign a free port, then extract it
-	// For simplicity in tests, we'll use a high random port
-	// In real code, you'd use net.Listen(":0") and extract the port
-	return fmt.Sprintf("%d", 10000+time.Now().UnixNano()%50000)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if closeErr := listener.Close(); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return port
 }
 
 func waitForServer(t *testing.T, port string) {
@@ -649,6 +958,144 @@ func TestRun_CustomServer_CallsCleanup(t *testing.T) {
 
 	if !cleanupCalled {
 		t.Error("expected Cleanup to be called for custom server")
+	}
+}
+
+func TestRun_CallsCleanupWhenGracefulShutdownTimesOut(t *testing.T) {
+	port := findFreePort(t)
+	sigCh := make(chan os.Signal, 1)
+	cleanupCalled := make(chan error, 1)
+	var srv *http.Server
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(Config{
+			Port: port,
+			StartServer: func(addr string) error {
+				listener, err := net.Listen("tcp", addr)
+				if err != nil {
+					return err
+				}
+				srv = &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
+				})}
+				return srv.Serve(listener)
+			},
+			ShutdownServer: func(ctx context.Context) error {
+				<-ctx.Done()
+				_ = srv.Close()
+				return ctx.Err()
+			},
+			ShutdownTimeout: 10 * time.Millisecond,
+			signalChan:      sigCh,
+			Logger:          func(string, ...interface{}) {},
+			Cleanup: func(ctx context.Context) error {
+				cleanupCalled <- ctx.Err()
+				return nil
+			},
+		})
+	}()
+
+	waitForServer(t, port)
+	sigCh <- syscall.SIGTERM
+
+	select {
+	case err := <-errCh:
+		if err == nil || !strings.Contains(err.Error(), "server shutdown failed") {
+			t.Fatalf("Run error = %v, want graceful-shutdown error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for server to stop")
+	}
+	select {
+	case err := <-cleanupCalled:
+		if err != nil {
+			t.Fatalf("cleanup context already canceled: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cleanup was not called after graceful shutdown timeout")
+	}
+}
+
+func TestRun_ForcesSSEStreamsClosedAfterShutdownTimeout(t *testing.T) {
+	port := findFreePort(t)
+	sigCh := make(chan os.Signal, 1)
+	requestCanceled := make(chan struct{})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := io.WriteString(w, "data: ready\n\n"); err != nil {
+			return
+		}
+		flusher.Flush()
+		<-r.Context().Done()
+		close(requestCanceled)
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- Run(Config{
+			Handler:         mux,
+			Port:            port,
+			ShutdownTimeout: 10 * time.Millisecond,
+			signalChan:      sigCh,
+			Logger:          func(string, ...interface{}) {},
+		})
+	}()
+	waitForServerHealth(t, port)
+	requestCtx, cancelRequest := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancelRequest)
+	request, err := http.NewRequestWithContext(requestCtx, http.MethodGet, fmt.Sprintf("http://localhost:%s/events", port), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("SSE response = %d %q, want 200 text/event-stream", response.StatusCode, response.Header.Get("Content-Type"))
+	}
+	type eventResult struct {
+		payload []byte
+		err     error
+	}
+	eventCh := make(chan eventResult, 1)
+	go func() {
+		payload := make([]byte, len("data: ready\n\n"))
+		_, err := io.ReadFull(response.Body, payload)
+		eventCh <- eventResult{payload: payload, err: err}
+	}()
+	select {
+	case event := <-eventCh:
+		if event.err != nil || string(event.payload) != "data: ready\n\n" {
+			t.Fatalf("first SSE event = %q, %v", event.payload, event.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("first SSE event was not flushed to the client")
+	}
+	sigCh <- syscall.SIGTERM
+
+	select {
+	case err := <-errCh:
+		if err == nil || !strings.Contains(err.Error(), "server shutdown failed") {
+			t.Fatalf("Run error = %v, want graceful-shutdown error", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for server to stop")
+	}
+	select {
+	case <-requestCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("active request context was not canceled after forced close")
 	}
 }
 

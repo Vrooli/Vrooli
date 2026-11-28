@@ -2,13 +2,19 @@ package main
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/delivery"
 
 	"github.com/gorilla/mux"
 )
@@ -169,7 +175,6 @@ func TestBuildElectronManifest(t *testing.T) {
 
 func TestHandleUpdateFile_MissingAppKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	hosting := NewDownloadHostingService(db)
@@ -192,7 +197,6 @@ func TestHandleUpdateFile_MissingAppKey(t *testing.T) {
 
 func TestHandleUpdateFile_AppNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	hosting := NewDownloadHostingService(db)
@@ -222,7 +226,6 @@ func TestHandleUpdateFile_AppNotFound(t *testing.T) {
 
 func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -230,7 +233,7 @@ func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 	plans := newTestPlanService(t, "test_bundle")
 
 	// Create an app with an update_api_key
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey:    "test_bundle",
 		AppKey:       "gated-app",
 		Name:         "Gated App",
@@ -285,7 +288,6 @@ func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 
 func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -293,7 +295,7 @@ func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 	plans := newTestPlanService(t, "test_bundle")
 
 	// Create an app without update_api_key (public)
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: "test_bundle",
 		AppKey:    "public-app",
 		Name:      "Public App",
@@ -319,200 +321,149 @@ func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 
 // --- Mock-based handler unit tests (no database required) ---
 
-func TestHandleUpdateFileMock_ManifestServed(t *testing.T) {
-	artifactID := int64(42)
+func TestHandleUpdateFileMock(t *testing.T) {
+	const artifactID = int64(42)
 	artifact := &DownloadArtifact{
-		ID:               artifactID,
-		ReleaseVersion:   "2.0.0",
-		OriginalFilename: "my-app-2.0.0.exe",
-		SHA512:           "fakeSHA512base64==",
-		SizeBytes:        50000000,
-		UpdatedAt:        time.Date(2026, 2, 5, 14, 0, 0, 0, time.UTC),
+		ID: artifactID, ReleaseVersion: "2.0.0", OriginalFilename: "my-app-2.0.0.exe",
+		SHA512: "fakeSHA512base64==", SizeBytes: 50000000,
+		UpdatedAt: time.Date(2026, 2, 5, 14, 0, 0, 0, time.UTC),
+		Bucket:    "test-bucket", ObjectKey: "artifacts/my-app-2.0.0.exe",
 	}
 
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID}, nil
+	cases := []struct {
+		name                string
+		file                string
+		artifactByID        bool
+		currentArtifact     bool
+		assetArtifactID     *int64
+		releaseNotes        string
+		missingSHA512       bool
+		presignError        bool
+		wantStatus          int
+		wantContentType     string
+		wantCacheControl    string
+		wantLocation        string
+		wantBodyFragments   []string
+		wantAssetCalls      int
+		wantArtifactIDCalls int
+		wantCurrentCalls    int
+		wantPresignCalls    int
+	}{
+		{
+			name: "manifest served", file: "latest.yml", artifactByID: true, assetArtifactID: int64Pointer(artifactID),
+			wantStatus: http.StatusOK, wantContentType: "application/x-yaml", wantCacheControl: "no-cache",
+			wantBodyFragments: []string{"version: 2.0.0", "sha512: fakeSHA512base64==", "size: 50000000"},
+			wantAssetCalls:    1, wantArtifactIDCalls: 1,
+		},
+		{
+			name: "manifest includes release notes", file: "latest.yml", artifactByID: true,
+			assetArtifactID: int64Pointer(artifactID), releaseNotes: "Bug fixes and improvements",
+			wantStatus: http.StatusOK, wantContentType: "application/x-yaml", wantCacheControl: "no-cache",
+			wantBodyFragments: []string{"releaseNotes: Bug fixes and improvements"},
+			wantAssetCalls:    1, wantArtifactIDCalls: 1,
+		},
+		{
+			name: "binary redirects to signed URL", file: "my-app-2.0.0.exe", currentArtifact: true,
+			wantStatus: http.StatusFound, wantCacheControl: "no-store", wantLocation: "https://s3.example.com/presigned-url",
+			wantCurrentCalls: 1, wantPresignCalls: 1,
+		},
+		{
+			name: "manifest rejects artifact without digest", file: "latest.yml", artifactByID: true,
+			assetArtifactID: int64Pointer(artifactID), missingSHA512: true,
+			wantStatus: http.StatusNotFound, wantBodyFragments: []string{"sha512"},
+			wantAssetCalls: 1, wantArtifactIDCalls: 1,
+		},
+		{
+			name: "manifest rejects missing artifact link", file: "latest-mac.yml", assetArtifactID: nil,
+			wantStatus: http.StatusNotFound, wantBodyFragments: []string{"no managed artifact linked"}, wantAssetCalls: 1,
+		},
+		{
+			name: "binary reports presign failure", file: "my-app-2.0.0.exe", currentArtifact: true, presignError: true,
+			wantStatus: http.StatusInternalServerError, wantCurrentCalls: 1, wantPresignCalls: 1,
 		},
 	}
-	resolver := &mockUpdateArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return artifact, nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
 
-	handler := handleUpdateFile(assets, resolver, bundles)
-	req := newMockUpdateRequest("test-app", "stable", "latest.yml")
-	w := httptest.NewRecorder()
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			assetCalls, artifactIDCalls, currentCalls, presignCalls := 0, 0, 0, 0
+			assets := &mockUpdateAssetLookup{
+				GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
+					assetCalls++
+					return &DownloadAsset{ArtifactID: tc.assetArtifactID, ReleaseNotes: tc.releaseNotes}, nil
+				},
+			}
+			resolvedArtifact := artifact
+			if tc.missingSHA512 {
+				copy := *artifact
+				copy.SHA512 = ""
+				resolvedArtifact = &copy
+			}
+			resolver := &mockUpdateArtifactResolver{
+				GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
+					artifactIDCalls++
+					return resolvedArtifact, nil
+				},
+				GetCurrentArtifactByFilenameFn: func(_ context.Context, _, _, _, _ string) (*DownloadArtifact, error) {
+					currentCalls++
+					return artifact, nil
+				},
+				PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
+					presignCalls++
+					if tc.presignError {
+						return "", fmt.Errorf("storage unavailable")
+					}
+					return "https://s3.example.com/presigned-url", nil
+				},
+			}
+			if !tc.artifactByID {
+				resolver.GetArtifactFn = func(context.Context, string, int64) (*DownloadArtifact, error) {
+					artifactIDCalls++
+					return nil, fmt.Errorf("unexpected artifact-by-id lookup")
+				}
+			}
+			if !tc.currentArtifact {
+				resolver.GetCurrentArtifactByFilenameFn = func(context.Context, string, string, string, string) (*DownloadArtifact, error) {
+					currentCalls++
+					return nil, fmt.Errorf("unexpected current-artifact lookup")
+				}
+			}
 
-	handler(w, req)
+			handler := handleUpdateFile(assets, resolver, &mockBundleKeyProvider{key: "test_bundle"})
+			req := newMockUpdateRequest("test-app", "stable", tc.file)
+			w := httptest.NewRecorder()
+			handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	if ct := w.Header().Get("Content-Type"); ct != "application/x-yaml" {
-		t.Errorf("expected Content-Type application/x-yaml, got %q", ct)
-	}
-	body := w.Body.String()
-	for _, want := range []string{"version: 2.0.0", "sha512: fakeSHA512base64==", "size: 50000000"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("manifest missing %q\ngot:\n%s", want, body)
-		}
+			if w.Code != tc.wantStatus {
+				t.Fatalf("status = %d, body = %s; want %d", w.Code, w.Body.String(), tc.wantStatus)
+			}
+			if tc.wantContentType != "" {
+				if got := w.Header().Get("Content-Type"); got != tc.wantContentType {
+					t.Errorf("Content-Type = %q, want %q", got, tc.wantContentType)
+				}
+			}
+			if got := w.Header().Get("Cache-Control"); got != tc.wantCacheControl {
+				t.Errorf("Cache-Control = %q, want %q", got, tc.wantCacheControl)
+			}
+			if got := w.Header().Get("Location"); got != tc.wantLocation {
+				t.Errorf("Location = %q, want %q", got, tc.wantLocation)
+			}
+			for _, want := range tc.wantBodyFragments {
+				if !strings.Contains(w.Body.String(), want) {
+					t.Errorf("response body omits %q: %s", want, w.Body.String())
+				}
+			}
+			if assetCalls != tc.wantAssetCalls || artifactIDCalls != tc.wantArtifactIDCalls ||
+				currentCalls != tc.wantCurrentCalls || presignCalls != tc.wantPresignCalls {
+				t.Errorf("asset/id/current/presign calls = %d/%d/%d/%d, want %d/%d/%d/%d",
+					assetCalls, artifactIDCalls, currentCalls, presignCalls,
+					tc.wantAssetCalls, tc.wantArtifactIDCalls, tc.wantCurrentCalls, tc.wantPresignCalls)
+			}
+		})
 	}
 }
 
-func TestHandleUpdateFileMock_ManifestWithReleaseNotes(t *testing.T) {
-	artifactID := int64(42)
-	artifact := &DownloadArtifact{
-		ID:               artifactID,
-		ReleaseVersion:   "2.0.0",
-		OriginalFilename: "my-app-2.0.0.exe",
-		SHA512:           "fakeSHA512base64==",
-		SizeBytes:        50000000,
-		UpdatedAt:        time.Date(2026, 2, 5, 14, 0, 0, 0, time.UTC),
-	}
-
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID, ReleaseNotes: "Bug fixes and improvements"}, nil
-		},
-	}
-	resolver := &mockUpdateArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return artifact, nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateFile(assets, resolver, bundles)
-	req := newMockUpdateRequest("test-app", "stable", "latest.yml")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "releaseNotes: Bug fixes and improvements") {
-		t.Errorf("manifest should include releaseNotes\ngot:\n%s", body)
-	}
-}
-
-func TestHandleUpdateFileMock_BinaryRedirect(t *testing.T) {
-	artifact := &DownloadArtifact{
-		ID:               99,
-		OriginalFilename: "my-app-2.0.0.exe",
-		Bucket:           "test-bucket",
-		ObjectKey:        "artifacts/my-app-2.0.0.exe",
-	}
-
-	assets := &mockUpdateAssetLookup{}
-	resolver := &mockUpdateArtifactResolver{
-		GetCurrentArtifactByFilenameFn: func(_ context.Context, _, _, _, _ string) (*DownloadArtifact, error) {
-			return artifact, nil
-		},
-		PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
-			return "https://s3.example.com/presigned-url", nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateFile(assets, resolver, bundles)
-	req := newMockUpdateRequest("test-app", "stable", "my-app-2.0.0.exe")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusFound {
-		t.Fatalf("expected 302, got %d: %s", w.Code, w.Body.String())
-	}
-	loc := w.Header().Get("Location")
-	if loc != "https://s3.example.com/presigned-url" {
-		t.Errorf("expected redirect to presigned URL, got %q", loc)
-	}
-}
-
-func TestHandleUpdateFileMock_MissingSHA512(t *testing.T) {
-	artifactID := int64(42)
-
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID}, nil
-		},
-	}
-	resolver := &mockUpdateArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return &DownloadArtifact{ID: artifactID, SHA512: ""}, nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateFile(assets, resolver, bundles)
-	req := newMockUpdateRequest("test-app", "stable", "latest.yml")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("expected 404 for missing SHA512, got %d: %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "sha512") {
-		t.Errorf("expected error message to mention sha512, got: %s", w.Body.String())
-	}
-}
-
-func TestHandleUpdateFileMock_NilArtifactID(t *testing.T) {
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: nil}, nil
-		},
-	}
-	resolver := &mockUpdateArtifactResolver{}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateFile(assets, resolver, bundles)
-	req := newMockUpdateRequest("test-app", "stable", "latest-mac.yml")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("expected 404 for nil artifact_id, got %d: %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "no managed artifact linked") {
-		t.Errorf("expected 'no managed artifact linked' message, got: %s", w.Body.String())
-	}
-}
-
-func TestHandleUpdateFileMock_PresignFailure(t *testing.T) {
-	artifact := &DownloadArtifact{
-		ID:               99,
-		OriginalFilename: "my-app-2.0.0.exe",
-	}
-
-	assets := &mockUpdateAssetLookup{}
-	resolver := &mockUpdateArtifactResolver{
-		GetCurrentArtifactByFilenameFn: func(_ context.Context, _, _, _, _ string) (*DownloadArtifact, error) {
-			return artifact, nil
-		},
-		PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
-			return "", fmt.Errorf("storage unavailable")
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateFile(assets, resolver, bundles)
-	req := newMockUpdateRequest("test-app", "stable", "my-app-2.0.0.exe")
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
-	}
-}
+func int64Pointer(value int64) *int64 { return &value }
 
 func TestRequireUpdateAPIKeyMiddleware_Mock(t *testing.T) {
 	apps := &mockUpdateAppLookup{
@@ -554,17 +505,17 @@ func TestRequireUpdateAPIKeyMiddleware_Mock(t *testing.T) {
 // --- Channel discovery tests ---
 
 type mockChannelDiscoveryLookup struct {
-	ListChannelsFn func(bundleKey, appKey string) ([]ChannelInfo, error)
+	ListChannelsFn func(bundleKey, appKey string) ([]delivery.ChannelInfo, error)
 }
 
-func (m *mockChannelDiscoveryLookup) ListChannels(bundleKey, appKey string) ([]ChannelInfo, error) {
+func (m *mockChannelDiscoveryLookup) ListChannels(bundleKey, appKey string) ([]delivery.ChannelInfo, error) {
 	return m.ListChannelsFn(bundleKey, appKey)
 }
 
 func TestHandleChannelDiscovery(t *testing.T) {
 	channelsMock := &mockChannelDiscoveryLookup{
-		ListChannelsFn: func(_, _ string) ([]ChannelInfo, error) {
-			return []ChannelInfo{
+		ListChannelsFn: func(_, _ string) ([]delivery.ChannelInfo, error) {
+			return []delivery.ChannelInfo{
 				{Channel: "stable", Platform: "windows", Version: "1.0.0", UpdatedAt: "2026-01-01T00:00:00Z"},
 				{Channel: "beta", Platform: "windows", Version: "1.1.0-beta", UpdatedAt: "2026-01-02T00:00:00Z"},
 			}, nil
@@ -583,7 +534,7 @@ func TestHandleChannelDiscovery(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var result []ChannelInfo
+	var result []delivery.ChannelInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -596,13 +547,12 @@ func TestHandleChannelDiscovery(t *testing.T) {
 
 func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: "test_bundle",
 		AppKey:    "policy-app",
 		Name:      "Policy App",
@@ -666,13 +616,12 @@ func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 
 func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: plans.BundleKey(),
 		AppKey:    "variant-app",
 		Name:      "Variant App",
@@ -731,13 +680,12 @@ func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 
 func TestListChannels_Integration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: plans.BundleKey(),
 		AppKey:    "channels-app",
 		Name:      "Channels App",
@@ -800,6 +748,17 @@ type mockVerifyArtifactResolver struct {
 	GetArtifactFn        func(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error)
 	PresignGetArtifactFn func(ctx context.Context, bundleKey string, artifact DownloadArtifact) (string, error)
 	HeadArtifactFn       func(ctx context.Context, bundleKey string, artifact DownloadArtifact) error
+	ReadArtifactFn       func(ctx context.Context, bundleKey string, artifact DownloadArtifact) (io.ReadCloser, int64, string, error)
+}
+
+type observableReadCloser struct {
+	io.Reader
+	closeCalls *int
+}
+
+func (r observableReadCloser) Close() error {
+	*r.closeCalls++
+	return nil
 }
 
 func (m *mockVerifyArtifactResolver) GetArtifact(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error) {
@@ -814,199 +773,169 @@ func (m *mockVerifyArtifactResolver) HeadArtifact(ctx context.Context, bundleKey
 	return m.HeadArtifactFn(ctx, bundleKey, artifact)
 }
 
-func TestHandleUpdateVerify_LightweightMatch(t *testing.T) {
-	artifactID := int64(42)
-
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID}, nil
-		},
-	}
-	resolver := &mockVerifyArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return &DownloadArtifact{
-				ID:             artifactID,
-				ReleaseVersion: "2.0.0",
-				SHA512:         "abc123",
-			}, nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateVerify(assets, resolver, bundles)
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0", nil)
-	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode: %v", err)
-	}
-	if resp["match"] != true {
-		t.Errorf("expected match=true, got %v", resp["match"])
-	}
-	if resp["actual_version"] != "2.0.0" {
-		t.Errorf("expected actual_version=2.0.0, got %v", resp["actual_version"])
-	}
-	// Deep fields should NOT be present in lightweight mode
-	if _, ok := resp["artifact_accessible"]; ok {
-		t.Errorf("artifact_accessible should not be present in lightweight mode")
-	}
-	if _, ok := resp["presign_valid"]; ok {
-		t.Errorf("presign_valid should not be present in lightweight mode")
-	}
+func (m *mockVerifyArtifactResolver) ReadArtifact(ctx context.Context, bundleKey string, artifact DownloadArtifact) (io.ReadCloser, int64, string, error) {
+	return m.ReadArtifactFn(ctx, bundleKey, artifact)
 }
 
-func TestHandleUpdateVerify_LightweightMismatch(t *testing.T) {
-	artifactID := int64(42)
+func TestHandleUpdateVerify(t *testing.T) {
+	digest := func(value []byte) string {
+		sum := sha512.Sum512(value)
+		return base64.StdEncoding.EncodeToString(sum[:])
+	}
+	expectedBytes := []byte("verified installer bytes")
+	changedBytes := []byte("modified installer bytes")
 
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID}, nil
+	cases := []struct {
+		name               string
+		deep               bool
+		expectedVersion    string
+		artifactVersion    string
+		expectedSHA512     string
+		artifactSHA512     string
+		actualBytes        []byte
+		declaredSize       int64
+		headError          bool
+		presignError       bool
+		readError          bool
+		wantMatch          bool
+		wantMetadataSHA512 bool
+		wantAccessible     bool
+		wantPresignValid   bool
+		wantBytesVerified  bool
+		wantActualSize     int
+		wantActualSHA512   string
+		wantHeadCalls      int
+		wantPresignCalls   int
+		wantReadCalls      int
+		wantBodyCloseCalls int
+	}{
+		{
+			name: "lightweight match", expectedVersion: "2.0.0", artifactVersion: "2.0.0",
+			expectedSHA512: "abc123", artifactSHA512: "abc123", wantMatch: true, wantMetadataSHA512: true,
+		},
+		{
+			name: "lightweight version mismatch", expectedVersion: "2.0.0", artifactVersion: "1.9.0",
+			expectedSHA512: "abc123", artifactSHA512: "abc123", wantMetadataSHA512: true,
+		},
+		{
+			name: "deep artifact match", deep: true, expectedVersion: "2.0.0", artifactVersion: "2.0.0",
+			expectedSHA512: digest(expectedBytes), artifactSHA512: digest(expectedBytes), actualBytes: expectedBytes, declaredSize: int64(len(expectedBytes)),
+			wantMatch: true, wantMetadataSHA512: true, wantAccessible: true, wantPresignValid: true,
+			wantBytesVerified: true, wantActualSize: len(expectedBytes), wantActualSHA512: digest(expectedBytes),
+			wantHeadCalls: 1, wantPresignCalls: 1, wantReadCalls: 1,
+		},
+		{
+			name: "deep storage checks fail", deep: true, expectedVersion: "2.0.0", artifactVersion: "2.0.0",
+			expectedSHA512: "abc123", artifactSHA512: "abc123", headError: true, presignError: true,
+			wantAccessible: false, wantPresignValid: false, wantHeadCalls: 1, wantPresignCalls: 1,
+		},
+		{
+			name: "deep downloaded bytes differ", deep: true, expectedVersion: "2.0.0", artifactVersion: "2.0.0",
+			expectedSHA512: digest(expectedBytes), artifactSHA512: digest(expectedBytes), actualBytes: changedBytes, declaredSize: int64(len(expectedBytes)),
+			wantAccessible: true, wantPresignValid: true, wantActualSize: len(changedBytes),
+			wantActualSHA512: digest(changedBytes), wantHeadCalls: 1, wantPresignCalls: 1, wantReadCalls: 1,
+		},
+		{
+			name: "read_error_closes_returned_body", deep: true, expectedVersion: "2.0.0", artifactVersion: "2.0.0",
+			expectedSHA512: digest(expectedBytes), artifactSHA512: digest(expectedBytes), actualBytes: expectedBytes, declaredSize: int64(len(expectedBytes)),
+			readError: true, wantAccessible: true, wantPresignValid: true,
+			wantHeadCalls: 1, wantPresignCalls: 1, wantReadCalls: 1, wantBodyCloseCalls: 1,
 		},
 	}
-	resolver := &mockVerifyArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return &DownloadArtifact{
-				ID:             artifactID,
-				ReleaseVersion: "1.9.0",
-				SHA512:         "abc123",
-			}, nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
 
-	handler := handleUpdateVerify(assets, resolver, bundles)
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0", nil)
-	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
-	w := httptest.NewRecorder()
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			artifactID := int64(42)
+			headCalls, presignCalls, readCalls := 0, 0, 0
+			bodyCloseCalls := 0
+			assets := &mockUpdateAssetLookup{
+				GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
+					return &DownloadAsset{ArtifactID: &artifactID}, nil
+				},
+			}
+			artifact := &DownloadArtifact{
+				ID: artifactID, ReleaseVersion: tc.artifactVersion, SHA512: tc.artifactSHA512,
+				Bucket: "test-bucket", ObjectKey: "artifacts/test.exe",
+				SizeBytes: tc.declaredSize,
+			}
+			resolver := &mockVerifyArtifactResolver{
+				GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) { return artifact, nil },
+				HeadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) error {
+					headCalls++
+					if tc.headError {
+						return fmt.Errorf("storage unavailable")
+					}
+					return nil
+				},
+				PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
+					presignCalls++
+					if tc.presignError {
+						return "", fmt.Errorf("presign unavailable")
+					}
+					return "https://s3.example.com/presigned", nil
+				},
+				ReadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (io.ReadCloser, int64, string, error) {
+					readCalls++
+					if tc.readError {
+						return observableReadCloser{Reader: strings.NewReader(string(tc.actualBytes)), closeCalls: &bodyCloseCalls}, int64(len(tc.actualBytes)), "application/octet-stream", fmt.Errorf("read unavailable")
+					}
+					return io.NopCloser(strings.NewReader(string(tc.actualBytes))), int64(len(tc.actualBytes)), "application/octet-stream", nil
+				},
+			}
 
-	handler(w, req)
+			query := url.Values{
+				"channel": {"stable"}, "platform": {"windows"},
+				"expected_version": {tc.expectedVersion}, "expected_sha512": {tc.expectedSHA512},
+			}
+			if tc.deep {
+				query.Set("deep", "true")
+			}
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/updates/test-app/verify?"+query.Encode(), nil)
+			req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
+			w := httptest.NewRecorder()
+			handleUpdateVerify(assets, resolver, &mockBundleKeyProvider{key: "test_bundle"})(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode: %v", err)
-	}
-	if resp["match"] != false {
-		t.Errorf("expected match=false for version mismatch, got %v", resp["match"])
-	}
-	if resp["actual_version"] != "1.9.0" {
-		t.Errorf("expected actual_version=1.9.0, got %v", resp["actual_version"])
-	}
-}
-
-func TestHandleUpdateVerify_DeepMode(t *testing.T) {
-	artifactID := int64(42)
-
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID}, nil
-		},
-	}
-	resolver := &mockVerifyArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return &DownloadArtifact{
-				ID:             artifactID,
-				ReleaseVersion: "2.0.0",
-				SHA512:         "abc123",
-				Bucket:         "test-bucket",
-				ObjectKey:      "artifacts/test.exe",
-			}, nil
-		},
-		HeadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) error {
-			return nil // S3 HEAD succeeds
-		},
-		PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
-			return "https://s3.example.com/presigned", nil
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateVerify(assets, resolver, bundles)
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&deep=true", nil)
-	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode: %v", err)
-	}
-	if resp["match"] != true {
-		t.Errorf("expected match=true, got %v", resp["match"])
-	}
-	if resp["artifact_accessible"] != true {
-		t.Errorf("expected artifact_accessible=true, got %v", resp["artifact_accessible"])
-	}
-	if resp["presign_valid"] != true {
-		t.Errorf("expected presign_valid=true, got %v", resp["presign_valid"])
-	}
-}
-
-func TestHandleUpdateVerify_DeepModeFailed(t *testing.T) {
-	artifactID := int64(42)
-
-	assets := &mockUpdateAssetLookup{
-		GetAssetByVariantFn: func(_, _, _, _ string) (*DownloadAsset, error) {
-			return &DownloadAsset{ArtifactID: &artifactID}, nil
-		},
-	}
-	resolver := &mockVerifyArtifactResolver{
-		GetArtifactFn: func(_ context.Context, _ string, _ int64) (*DownloadArtifact, error) {
-			return &DownloadArtifact{
-				ID:             artifactID,
-				ReleaseVersion: "2.0.0",
-				SHA512:         "abc123",
-			}, nil
-		},
-		HeadArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) error {
-			return fmt.Errorf("S3 not accessible")
-		},
-		PresignGetArtifactFn: func(_ context.Context, _ string, _ DownloadArtifact) (string, error) {
-			return "", fmt.Errorf("presign failed")
-		},
-	}
-	bundles := &mockBundleKeyProvider{key: "test_bundle"}
-
-	handler := handleUpdateVerify(assets, resolver, bundles)
-	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/updates/test-app/verify?channel=stable&platform=windows&expected_version=2.0.0&deep=true", nil)
-	req = mux.SetURLVars(req, map[string]string{"app_key": "test-app"})
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode: %v", err)
-	}
-	if resp["artifact_accessible"] != false {
-		t.Errorf("expected artifact_accessible=false, got %v", resp["artifact_accessible"])
-	}
-	if resp["presign_valid"] != false {
-		t.Errorf("expected presign_valid=false, got %v", resp["presign_valid"])
+			if w.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+			}
+			var got map[string]any
+			if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			want := map[string]any{
+				"app_key": "test-app", "channel": "stable", "platform": "windows",
+				"expected_version": tc.expectedVersion, "actual_version": tc.artifactVersion,
+				"actual_sha512": tc.artifactSHA512, "sha512_match": tc.wantMetadataSHA512,
+				"match": tc.wantMatch,
+			}
+			if tc.deep {
+				want["artifact_accessible"] = tc.wantAccessible
+				want["presign_valid"] = tc.wantPresignValid
+				want["bytes_verified"] = tc.wantBytesVerified
+				want["actual_size_bytes"] = float64(tc.wantActualSize)
+				want["actual_sha512"] = tc.wantActualSHA512
+				want["sha512_match"] = tc.wantBytesVerified
+			}
+			for key, expected := range want {
+				if actual, ok := got[key]; !ok || actual != expected {
+					t.Errorf("%s = %#v (present %v), want %#v", key, actual, ok, expected)
+				}
+			}
+			if !tc.deep {
+				for _, key := range []string{"artifact_accessible", "presign_valid", "bytes_verified", "actual_size_bytes"} {
+					if _, exists := got[key]; exists {
+						t.Errorf("lightweight response unexpectedly contains %q: %#v", key, got[key])
+					}
+				}
+			}
+			if headCalls != tc.wantHeadCalls || presignCalls != tc.wantPresignCalls || readCalls != tc.wantReadCalls {
+				t.Errorf("HEAD/presign/read calls = %d/%d/%d, want %d/%d/%d", headCalls, presignCalls, readCalls, tc.wantHeadCalls, tc.wantPresignCalls, tc.wantReadCalls)
+			}
+			if bodyCloseCalls != tc.wantBodyCloseCalls {
+				t.Errorf("returned read body close calls = %d, want %d", bodyCloseCalls, tc.wantBodyCloseCalls)
+			}
+		})
 	}
 }
 

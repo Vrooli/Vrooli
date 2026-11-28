@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { emitShortcutIntent } from "@vrooli/iframe-bridge";
 
 export function useEscapeKey(onEscape: () => void, enabled = true) {
   useEffect(() => {
@@ -7,6 +8,12 @@ export function useEscapeKey(onEscape: () => void, enabled = true) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onEscape();
+        emitShortcutIntent({
+          action: "dialog.close",
+          outcome: "handled",
+          chord: "Escape",
+          source: "keyboard",
+        });
       }
     };
 

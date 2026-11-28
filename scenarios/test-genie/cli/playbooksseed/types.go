@@ -12,12 +12,12 @@ type ApplyRequest struct {
 
 // ApplyResponse captures seed apply output.
 type ApplyResponse struct {
-	Status       string                 `json:"status"`
-	Scenario     string                 `json:"scenario"`
-	RunID        string                 `json:"run_id"`
-	SeedState    map[string]any         `json:"seed_state,omitempty"`
-	CleanupToken string                 `json:"cleanup_token"`
-	Resources    []map[string]any       `json:"resources,omitempty"`
+	Status       string           `json:"status"`
+	Scenario     string           `json:"scenario"`
+	RunID        string           `json:"run_id"`
+	SeedState    map[string]any   `json:"seed_state,omitempty"`
+	CleanupToken string           `json:"cleanup_token"`
+	Resources    []map[string]any `json:"resources,omitempty"`
 }
 
 // CleanupRequest triggers seed cleanup.

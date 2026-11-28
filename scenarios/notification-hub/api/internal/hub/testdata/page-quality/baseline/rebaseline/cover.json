@@ -1,0 +1,17 @@
+{
+ "question": "Will you run the rebaseline today to install the built and tested disk-capacity update?",
+ "big_picture": "The disk-capacity update is built and its tests pass, but installing it changes how Vrooli saves state in five areas. Only you can approve that switch, and the command will show you the changes before asking for confirmation. If you approve, run the command on your Vrooli computer and tell the install agent; it will finish and check the install. If you hold or do not answer, the installed version stays and disk capacity remains inactive.",
+ "recommend": "approve",
+ "reason": "The update is built and tested, and running the rebaseline makes the disk-capacity feature available.",
+ "options": [
+  {
+   "key": "approve",
+   "label": "Yes — run the rebaseline today and tell the install agent"
+  },
+  {
+   "key": "hold",
+   "label": "Hold — keep the current version; disk capacity stays inactive"
+  }
+ ],
+ "technical_details": "From the Vrooli checkout, run: make rebaseline. It runs the full build check, asks for confirmation, saves the current installed version in the root-rebaseline backup area, pauses automatic updates, installs and checks the new version, then turns automatic updates back on. There is no automatic rollback because the old version cannot read the new stored data; the saved copy allows manual rollback. The persistent-state contract changes cover disk capacity, resources, process records, managed services and operator state. After you report that you ran the command, the install agent finishes the installation work and checks it. The proposal to change the installer stop rule is separate and is not part of this decision."
+}

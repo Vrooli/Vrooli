@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "small-office-audit-mode",
+    "description": "Business-oriented audit and reporting mode.",
+    "prd_ref": "OT-P1-006",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-006",
+      "title": "Small-office mode preserves operational audit evidence",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "business",
+      "criticality": "P1",
+      "description": "The scenario shall provide a small-office profile with change history, policy approval records, outage evidence, resolver health evidence, and exportable reports suitable for local IT operations.",
+      "tags": ["small-office", "audit", "reports"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add audit-mode tests tagged [REQ:NM-P1-006] for approval records, exports, and retention boundaries."
+        }
+      ]
+    }
+  ]
+}

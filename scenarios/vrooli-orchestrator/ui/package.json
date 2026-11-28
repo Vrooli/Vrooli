@@ -4,9 +4,9 @@
   "description": "Profile management dashboard for Vrooli Orchestrator",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "build": "mkdir -p dist && cp -r src/* dist/",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- nodemon server.js",
+    "build": "node scripts/build.mjs",
     "test": "echo 'No tests specified'"
   },
   "keywords": [
@@ -19,11 +19,12 @@
   "license": "MIT",
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "express": "^4.18.2",
+    "axios": "^1.21.0",
     "cors": "^2.8.5",
-    "axios": "^1.6.2"
+    "express": "^4.22.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
-  }
+  },
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

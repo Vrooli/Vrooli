@@ -99,7 +99,7 @@ export default function TabSwitcherDialog() {
   const resourceLoading = useResourcesStore(state => state.loading);
   const resourceHasInitialized = useResourcesStore(state => state.hasInitialized);
   const resourceCount = useResourcesStore(state => state.resources.length);
-  const resourceError = useResourcesStore(state => state.error);
+  const resourceLoadError = useResourcesStore(state => state.loadError);
   const { filteredApps, recentApps } = useAppCatalog({ search: deferredSearch, sort: sortOption, historyLimit: 12 });
   const previewableFilteredApps = useMemo(
     () => filteredApps.filter((app) => !isAppMonitorScenarioId(resolveAppIdentifier(app))),
@@ -109,7 +109,7 @@ export default function TabSwitcherDialog() {
     () => recentApps.filter((app) => !isAppMonitorScenarioId(resolveAppIdentifier(app))),
     [recentApps],
   );
-  const { sortedResources } = useResourcesCatalog({ sort: resourceSortOption });
+  const { sortedResources, loadResources } = useResourcesCatalog({ sort: resourceSortOption });
 
   const {
     activeSegment,
@@ -132,7 +132,7 @@ export default function TabSwitcherDialog() {
   // This prevents infinite loading when the store has initialized but returned empty results
   const isLoadingApps = appLoadingInitial && !appHasInitialized;
 
-  const isLoadingResources = (!resourceHasInitialized && !resourceError)
+  const isLoadingResources = (!resourceHasInitialized && !resourceLoadError)
     && (resourceLoading || resourceCount === 0);
 
   useDialogFocus(dialogRef, searchInputRef);
@@ -339,6 +339,10 @@ export default function TabSwitcherDialog() {
     }
   };
 
+  const handleRetryLoadResources = async (): Promise<void> => {
+    await loadResources({ force: true });
+  };
+
   return (
     <div className="tab-switcher" ref={dialogRef}>
       <TabSwitcherHeader title={activeSegmentLabel} shortcut={shortcut} onClose={handleClose} />
@@ -416,6 +420,9 @@ export default function TabSwitcherDialog() {
               onSortChange={value => setResourceSortOption(normalizeResourceSort(value))}
               onSelect={handleResourceSelect}
               isLoading={isLoadingResources}
+              errorMessage={resourceLoadError}
+              onRetry={() => void handleRetryLoadResources()}
+              isRefreshing={resourceLoading}
               sortOptions={RESOURCE_SORT_OPTIONS}
             />
           </div>

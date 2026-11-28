@@ -1,27 +1,17 @@
+import * as verification from '../../../src/recording/validation/verification';
+import { playwrightProvider } from '../../../src/playwright';
 import { SessionCleanup } from '../../../src/session/cleanup';
 import { SessionManager } from '../../../src/session/manager';
-import { createTestConfig } from '../../helpers';
+import { createTestConfig, createMockBrowser } from '../../helpers';
 
-// Mock playwright
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
-      newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({
-          on: jest.fn(),
-          goto: jest.fn(),
-          close: jest.fn().mockResolvedValue(undefined),
-        }),
-        clearCookies: jest.fn().mockResolvedValue(undefined),
-        clearPermissions: jest.fn().mockResolvedValue(undefined),
-        close: jest.fn().mockResolvedValue(undefined),
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-      isConnected: jest.fn().mockReturnValue(true),
-      version: jest.fn().mockReturnValue('mock-version'),
-    }),
-  },
-}));
+// Exercise the actual configured provider through the existing fixture seam.
+let readinessSpy: jest.SpiedFunction<typeof verification.waitForScriptReady>;
+let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
+beforeEach(() => {
+  launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(createMockBrowser());
+  readinessSpy = jest.spyOn(verification, 'waitForScriptReady').mockResolvedValue({ loaded: true, ready: true, inMainContext: true, handlersCount: 1, loadTime: 1, version: 'fixture' });
+});
+afterEach(() => { launchSpy.mockRestore(); readinessSpy.mockRestore(); });
 
 describe('SessionCleanup', () => {
   let manager: SessionManager;
@@ -113,12 +103,10 @@ describe('SessionCleanup', () => {
       cleanup.start();
 
       // Fast-forward time by cleanup interval
-      jest.advanceTimersByTime(config.session.cleanupIntervalMs);
-      await Promise.resolve(); // Let promises settle
+      await jest.advanceTimersByTimeAsync(config.session.cleanupIntervalMs);
 
       // Fast-forward again - should still call cleanup
-      jest.advanceTimersByTime(config.session.cleanupIntervalMs);
-      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(config.session.cleanupIntervalMs);
 
       expect(cleanupSpy).toHaveBeenCalledTimes(2);
 
@@ -126,18 +114,44 @@ describe('SessionCleanup', () => {
     });
 
     it('should run multiple cleanup cycles', async () => {
-      const cleanupSpy = jest.spyOn(manager, 'cleanupIdleSessions');
+      const cleanupSpy = jest.spyOn(manager, 'cleanupIdleSessions').mockResolvedValue(undefined);
 
       cleanup.start();
 
-      // Fast-forward through 3 cycles
+      // Each async timer advance drains the cleanup promise before the next
+      // tick. A single Promise.resolve() can leave isCleanupInProgress set and
+      // accidentally test overlapping ticks instead of repeated completed runs.
       for (let i = 0; i < 3; i++) {
-        jest.advanceTimersByTime(config.session.cleanupIntervalMs);
-        await Promise.resolve();
+        await jest.advanceTimersByTimeAsync(config.session.cleanupIntervalMs);
       }
 
       expect(cleanupSpy).toHaveBeenCalledTimes(3);
 
+      cleanupSpy.mockRestore();
+    });
+
+    it('should let concurrent stop callers join one in-flight cleanup', async () => {
+      let completeCleanup!: () => void;
+      const cleanupFinished = new Promise<void>((resolve) => { completeCleanup = resolve; });
+      const cleanupSpy = jest.spyOn(manager, 'cleanupIdleSessions').mockReturnValue(cleanupFinished);
+      cleanup.start();
+      jest.advanceTimersByTime(config.session.cleanupIntervalMs);
+      expect(cleanupSpy).toHaveBeenCalledTimes(1);
+      expect(cleanup.isRunningCleanup()).toBe(true);
+
+      let firstStopped = false;
+      let secondStopped = false;
+      const firstStop = cleanup.stop().then(() => { firstStopped = true; });
+      const secondStop = cleanup.stop().then(() => { secondStopped = true; });
+      await Promise.resolve();
+      expect(firstStopped).toBe(false);
+      expect(secondStopped).toBe(false);
+
+      completeCleanup();
+      await Promise.all([firstStop, secondStop]);
+      expect(firstStopped).toBe(true);
+      expect(secondStopped).toBe(true);
+      expect(cleanup.isRunningCleanup()).toBe(false);
       cleanupSpy.mockRestore();
     });
   });
@@ -179,18 +193,18 @@ describe('SessionCleanup', () => {
         required_capabilities: {},
       });
 
-      // Start cleanup
-      realCleanup.start();
-
-      // Wait for session to become idle and cleanup to run
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Session should be cleaned up
-      const sessions = (realManager as unknown as { sessions: Map<string, unknown> }).sessions;
-      expect(sessions.has(sessionId)).toBe(false);
-
-      await realCleanup.stop();
-      await realManager.shutdown();
+      try {
+        expect(await realManager.waitForPipelineReady(sessionId)).toBe(true);
+        jest.useFakeTimers();
+        realCleanup.start();
+        await jest.advanceTimersByTimeAsync(100);
+        expect(realManager.getSessionCount()).toBe(0);
+        expect(launchSpy).toHaveBeenCalled();
+      } finally {
+        await realCleanup.stop();
+        jest.useRealTimers();
+        await realManager.shutdown();
+      }
     }, 10000);
   });
 });

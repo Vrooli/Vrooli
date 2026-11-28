@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-11-12T18:01:28-05:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EXTRACTI-P0-001",
+      "title": "Graded coverage across ten families",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Serve at least 40 data-defined levels, with at least four each for tables, pagination/deep links, search, script-loaded/endless scroll, sessions, downloads, messy markup, changing layouts, rate/errors/timeouts, and owned-ground bot checks.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/rangeengine/engine_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Test file contains [REQ:EXTRACTI-P0-001] evidence for this behavior."
+        }
+      ]
+    },
+    {
+      "id": "EXTRACTI-P0-002",
+      "title": "Known-answer scoring and tool scoreboard",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Hold an expected answer for each level; score submitted records deterministically, prevent duplicate inflation, and keep the best per-tool/per-level score with precision, recall, F1 and pass status.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/rangeengine/engine_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Test file contains [REQ:EXTRACTI-P0-002] evidence for this behavior."
+        }
+      ]
+    },
+    {
+      "id": "EXTRACTI-P0-003",
+      "title": "Reachable owned practice pages",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "Serve each challenge's requested target behavior through lifecycle-managed local pages and publish a stable task/API contract without exposing held answers in level metadata.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/range/site_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Test file contains [REQ:EXTRACTI-P0-003] evidence for this behavior."
+        }
+      ]
+    }
+  ]
+}

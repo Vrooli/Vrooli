@@ -1,0 +1,40 @@
+# Seams — Client Workflow Rehearsal
+
+## Seam Registry
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| `logx.Logger` | `api/internal/logx/logger.go` | `*log.Logger`, wired in `api/main.go` | `api/internal/testutil/mocks/logger.go` (`FakeLogger`) | Substitutes API logging without package-global logger calls. |
+| `rehearsals.TimestampSource` | `api/internal/rehearsals/service.go` | `schedule.Clock.Now`, wired in `handlers/rehearsals/module.go` | `scheduletest.FakeClock.Now` in service tests | Supplies deterministic import, trace, and review timestamps; constructors reject nil. |
+| `rehearsals.N8NWorkflowRuntimeCLI.Environment` | `api/internal/rehearsals/n8n_workflow_runtime.go` | Not yet wired; native runtime remains gated, and a future composition root must supply the allowlisted environment | Injected function in `n8n_workflow_runtime_test.go` | Keeps child-process environment reads outside the domain adapter and controllable in tests. |
+| `rehearsals.N8NWorkflowCommandRunner` | `api/internal/rehearsals/n8n_workflow_runtime.go` | `execN8NWorkflowCommandRunner` | `scriptedN8NRunner` in `n8n_workflow_runtime_test.go` | Controls fixed owner CLI calls and bounded stdin/stdout in tests. |
+
+`internal/testutil/seam_registry_test.go` reconciles each `// seam:` tag with
+this table. The shared `schedule.Clock` used by repository and middleware
+timestamps is supplied by api-core and remains covered by the `Clock` row
+below.
+
+| Seam | Contract | Current implementation | Proof / limit |
+|---|---|---|---|
+| Engine adapter | Imports a credential-free workflow graph; triggers one classified entry; executes/cancels and returns typed trace/failure. Runtime credentials stay behind the resource owner. | Local deterministic DAG adapter supports manual, webhook, schedule, polling, chat, error, and subworkflow entry classifications; HTTP Request, generic native service operation, If, Switch, no-op, subworkflow, and error workflow nodes. | Cross-fixture unit tests only. This is not n8n import or runtime execution. |
+| Simulator catalog | Resolves exact host + method + path from OpenAPI or recorded exchanges; never forwards to a workflow URL. | Multi-service OpenAPI catalog and recorded-exchange matcher; generic n8n node-type/resource/operation bindings declared by OpenAPI `x-n8n-*` extensions; synthetic response generation, fault injection, exact host allowlist, bounded request-body discard. | Cross-fixture tests prove generic operation selection, not native n8n credential/runtime behavior. `ServeHTTP` is not attached to n8n; no hostname routing, TLS, or egress proof. |
+| Repository | Creates immutable revisions/runs, lists and reads records, appends review decision. | Domain-owned SQLite schema/repository. | In-memory service tests and repository persistence tests. |
+| Clock | Supplies import, trace, and review timestamps. | Shared api-core schedule clock. | Fake clock. |
+
+The public contract lives in `packages/proto/schemas/client-rehearsal/v1/rehearsals/rehearsals.proto`; UI and CLI use generated Connect clients. The scenario never sends a workflow-provided URL to an HTTP client.
+
+## Native n8n import and network bridge (open gate)
+
+The production target remains import and execution in a pinned n8n runtime. A typed engine adapter must translate supported n8n exports into n8n's native import shape, substitute every credential reference with a per-task synthetic credential object, and trigger manual, webhook, scheduled, polling, chat, subworkflow, and error flows through owner-controlled operations. It must capture execution IDs and sanitized evidence. The local graph interpreter is not a substitute for this proof.
+
+The HTTP simulator handler currently accepts HTTP requests but has no task-runtime route. For HTTP Request nodes, the candidate bridge is a task-scoped transparent HTTP(S) proxy or host-alias router: route exact documented API hosts to the description-driven simulator, deny unknown hosts before resolution, and never forward. A candidate for built-in HTTPS app nodes is per-task network aliases for each documented API host plus a synthetic CA trusted only in that task's n8n runtime. This is an unverified hypothesis: hostname matching, TLS certificate validation, redirect handling, request host/path preservation, and default-deny external DNS must be proven against the pinned image. Built-in Gmail, Sheets, and CRM nodes must be exercised with executable synthetic credential objects; an HTTP Request pass does not count as app-node integration.
+
+Native protocol nodes such as Postgres require a protocol-aware simulator or an explicit fail-closed unsupported result; HTTP routing cannot virtualize them. Code nodes require a separately reviewed sandbox policy. No per-workflow handwritten stubs are acceptable. Until the resource owner grants the constrained path and tests prove TLS, aliases, DNS denial, credentials and teardown, no n8n runtime may be imported or started for this slice.
+
+## Managed n8n control capability
+
+The resource owner must broker workflow import/list/delete, execution trigger/wait/read, and task reset as typed operations scoped to the Workspace Sandbox UUID and owner-issued n8n runtime ID. It returns workflow/execution identifiers and sanitized evidence only. The rehearsal scenario never receives the n8n API key. The owner resolves it from owner-only transient storage and adds `X-N8N-API-KEY` only to its in-memory request; CLI output, environment inspection, traces, errors, and logs must redact it. Teardown deletes the scoped key and its transient storage with the task runtime.
+
+The documented n8n key creation path is Settings → n8n API with an expiration. The public docs do not document API-key creation through the REST API, and Community keys have full instance access. Therefore unattended provisioning and teardown are a gating owner capability: do not invent an undocumented key-management endpoint or claim native runtime execution until provisioning, expiry/revocation, and redaction are tested against the pinned n8n version. BAS can automate typed browser tasks, but its current contract does not establish a secret sink that transfers the one-time displayed key directly into owner memory without workflow output or persisted browser evidence.
+
+Trigger behavior is adapter-owned and evidence-bearing: manual workflows use an owner-supported execution trigger; webhooks receive only synthetic requests after activation; scheduled workflows use deterministic virtual time; subworkflow fixtures import their dependency closure and execute through a parent; error workflows retain linked error-execution evidence. Each path must prove execution IDs and sanitized results from n8n. The local Go engine does not provide that proof.

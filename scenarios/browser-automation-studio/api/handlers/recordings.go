@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 // ImportRecording handles POST /api/v1/recordings/import
@@ -201,6 +202,13 @@ func (h *Handler) ServeRecordingAsset(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "asset_path", "error": "invalid path"}))
 		return
 	}
+	// HAR files contain request headers, cookies, query parameters, and bodies.
+	// They are protected evidence: the generic asset route may never stream raw
+	// HAR bytes. Consumers receive only sanitized evidence metadata.
+	if isProtectedEvidencePath(cleaned) {
+		h.respondError(w, &APIError{Status: http.StatusForbidden, Code: "PROTECTED_EVIDENCE", Message: "Raw HAR evidence is not available for download"})
+		return
+	}
 
 	baseDir := filepath.Join(h.recordingsRoot, execID.String())
 	assetPath := filepath.Join(baseDir, cleaned)
@@ -208,8 +216,24 @@ func (h *Handler) ServeRecordingAsset(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "asset_path", "error": "path traversal attempt"}))
 		return
 	}
+	canonicalRoot, rootErr := filepath.EvalSymlinks(h.recordingsRoot)
+	canonicalBase, baseErr := filepath.EvalSymlinks(baseDir)
+	canonicalAsset, assetErr := filepath.EvalSymlinks(assetPath)
+	if rootErr != nil || baseErr != nil || assetErr != nil {
+		if os.IsNotExist(rootErr) || os.IsNotExist(baseErr) || os.IsNotExist(assetErr) {
+			h.respondError(w, &APIError{Status: http.StatusNotFound, Code: "ASSET_NOT_FOUND", Message: "Asset not found", Details: map[string]string{"asset": filepath.Base(assetPath)}})
+			return
+		}
+		h.log.WithError(firstPathError(rootErr, baseErr, assetErr)).WithField("asset", assetPath).Error("Failed to resolve recording asset path")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "resolve_asset"}))
+		return
+	}
+	if !recordingPathWithin(canonicalRoot, canonicalBase) || !recordingPathWithin(canonicalBase, canonicalAsset) {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "asset_path", "error": "path escapes recording storage"}))
+		return
+	}
 
-	file, err := os.Open(assetPath)
+	file, err := os.Open(canonicalAsset)
 	if err != nil {
 		if os.IsNotExist(err) {
 			h.respondError(w, &APIError{
@@ -232,18 +256,43 @@ func (h *Handler) ServeRecordingAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	header := make([]byte, 512)
-	n, _ := file.Read(header)
+	contentType := storage.SniffContentType(file)
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "seek_asset"}))
 		return
 	}
 
-	contentType := http.DetectContentType(header[:n])
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	http.ServeContent(w, r, filepath.Base(assetPath), info.ModTime(), file)
+}
+
+func recordingPathWithin(parent, child string) bool {
+	relative, err := filepath.Rel(parent, child)
+	if err != nil || filepath.IsAbs(relative) {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func firstPathError(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isProtectedEvidencePath(path string) bool {
+	parts := strings.FieldsFunc(filepath.ToSlash(path), func(r rune) bool { return r == '/' })
+	for i := 0; i+1 < len(parts); i++ {
+		if parts[i] == "artifacts" && parts[i+1] == "har" {
+			return true
+		}
+	}
+	return strings.EqualFold(filepath.Ext(path), ".har")
 }

@@ -1,0 +1,116 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "trust-tier-badge",
+    "title": "Trust tier badge",
+    "purpose": "Shows which of the four ordered trust tiers a contact holds, as a rank rather than a category, so two tiers can be compared at a glance the way the room ceiling compares them.",
+    "storyRef": "../../../react-component-library/library/components/StatusBadge/versions/1.2.2/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "neutral",
+      "description": "A known contact, the ordinary case."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "An owner, the highest tier."
+    },
+    {
+      "id": "partial",
+      "example": "warning",
+      "description": "A stranger, the default for any unrecognised sender."
+    },
+    {
+      "id": "stale",
+      "example": "long-label",
+      "description": "A long handle that must not break the badge's shape."
+    }
+  ],
+  "elements": [
+    {
+      "id": "tier-root",
+      "role": "status",
+      "name": "Trust tier"
+    },
+    {
+      "id": "tier-rank",
+      "role": "img",
+      "name": "Tier rank"
+    }
+  ],
+  "claims": [
+    {
+      "id": "rank-is-perceivable",
+      "type": "custom",
+      "statement": "The four tiers read as an ordered ladder, so a lower tier is recognisable as lower without reading the label.",
+      "tier": "manual",
+      "elements": [
+        "tier-root",
+        "tier-rank"
+      ],
+      "rationale": "The room ceiling is a minimum across tiers; if tiers do not look ordered, the ceiling rule cannot be understood."
+    },
+    {
+      "id": "not-hue-alone",
+      "type": "state-distinct",
+      "statement": "Tiers are distinguishable without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "tier-root"
+      ]
+    },
+    {
+      "id": "stranger-is-not-alarming",
+      "type": "custom",
+      "statement": "The stranger tier is presented as the ordinary default rather than as an error condition.",
+      "tier": "manual",
+      "elements": [
+        "tier-root"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "Every unrecognised sender is a stranger by design. Styling it as a fault would make the normal case look broken."
+    },
+    {
+      "id": "named-for-screen-readers",
+      "type": "accessible-name",
+      "statement": "The badge announces the tier name, not only a colour or a glyph.",
+      "tier": "aspirational",
+      "elements": [
+        "tier-root"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Tier ordering survives both themes.",
+      "tier": "aspirational",
+      "elements": [
+        "tier-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "tier-root": {
+        "testid": "trust-tier-badge"
+      },
+      "tier-rank": {
+        "testid": "trust-tier-rank"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Which tier this contact holds"
+    },
+    {
+      "statement": "How that tier compares to the others"
+    }
+  ]
+}

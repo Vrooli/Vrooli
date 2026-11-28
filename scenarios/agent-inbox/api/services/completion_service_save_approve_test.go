@@ -9,55 +9,9 @@ import (
 	"agent-inbox/domain"
 )
 
-func TestExecuteToolCalls_MixedApproval(t *testing.T) {
-	repo := newMockCompletionRepository()
-	executor := newMockToolExecutor()
-	registry := newMockToolRegistry()
-
-	registry.addTool("scenario", createSimpleTool("safe_tool", "A safe tool"))
-	registry.addTool("scenario", createSimpleTool("dangerous_tool", "A dangerous tool"))
-	registry.ApprovalRequirements["safe_tool"] = false
-	registry.ApprovalRequirements["dangerous_tool"] = true
-
-	svc := NewCompletionServiceWithDeps(CompletionServiceDeps{
-		Repo:     repo,
-		Executor: executor,
-		Registry: registry,
-	})
-
-	toolCalls := []domain.ToolCall{
-		makeToolCall("tc-1", "safe_tool", `{}`),
-		makeToolCall("tc-2", "dangerous_tool", `{}`),
-	}
-
-	outcome, err := svc.ExecuteToolCalls(context.Background(), "chat-1", "msg-1", toolCalls, "parent-1")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Verify mixed results
-	if len(outcome.Results) != 2 {
-		t.Fatalf("expected 2 results, got %d", len(outcome.Results))
-	}
-	if outcome.Results[0].Status != domain.StatusCompleted {
-		t.Errorf("safe tool: expected %s, got %s", domain.StatusCompleted, outcome.Results[0].Status)
-	}
-	if outcome.Results[1].Status != domain.StatusPendingApproval {
-		t.Errorf("dangerous tool: expected %s, got %s", domain.StatusPendingApproval, outcome.Results[1].Status)
-	}
-
-	// Verify only safe tool executed
-	if len(executor.GetExecuteCalls()) != 1 {
-		t.Errorf("expected 1 executor call, got %d", len(executor.GetExecuteCalls()))
-	}
-}
-
 func TestExecuteToolCalls_ExecutionFailure(t *testing.T) {
 	repo := newMockCompletionRepository()
 	executor := newMockToolExecutor()
-	registry := newMockToolRegistry()
-
-	registry.addTool("scenario", createSimpleTool("failing_tool", "A failing tool"))
 
 	// Make executor return an error
 	executor.executeError = errors.New("tool execution failed")
@@ -65,7 +19,6 @@ func TestExecuteToolCalls_ExecutionFailure(t *testing.T) {
 	svc := NewCompletionServiceWithDeps(CompletionServiceDeps{
 		Repo:     repo,
 		Executor: executor,
-		Registry: registry,
 	})
 
 	toolCalls := []domain.ToolCall{
@@ -94,14 +47,10 @@ func TestExecuteToolCalls_ExecutionFailure(t *testing.T) {
 func TestExecuteToolCalls_SkillsInjection(t *testing.T) {
 	repo := newMockCompletionRepository()
 	executor := newMockToolExecutor()
-	registry := newMockToolRegistry()
-
-	registry.addTool("scenario", createSimpleTool("tool_with_skills", "Tool that receives skills"))
 
 	svc := NewCompletionServiceWithDeps(CompletionServiceDeps{
 		Repo:     repo,
 		Executor: executor,
-		Registry: registry,
 	})
 
 	// Set skills

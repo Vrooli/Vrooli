@@ -1,0 +1,481 @@
+<title>Usage Pass 2 Proposal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Noto+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: report column (theme-aware) with full-width mockup "frames" rendered in Mizar's own dark UI. */
+:root {
+  --bg: #f3f6f9; --surface: #ffffff; --ink: #0f1d2e; --muted: #56677a; --line: #d6dee8;
+  --accent: #0e7fa0; --accent-soft: #e0f1f6;
+  --ok: #1f8a4c; --ok-soft: #e1f4e8; --warn: #9a5b00; --warn-soft: #fbeed8; --bad: #b8322a; --bad-soft: #f9e2e0;
+  --display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --body: "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  /* Mizar app palette (the app is dark-only, so frames keep these in both themes) */
+  --m-bg: #070b14; --m-card: #0b1222; --m-card2: #0f182b; --m-line: #1f2a3c; --m-ink: #eef2f7; --m-muted: #8d9bb0;
+  --m-blue: #3b82f6; --m-blue-soft: #10224a; --m-green: #22c55e; --m-green-soft: #0d2a1b; --m-amber: #f59e0b; --m-amber-soft: #2e220a; --m-red: #f87171; --m-red-soft: #33141a; --m-grey-soft: #1a2333;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1520; --surface: #142131; --ink: #e5edf6; --muted: #9aabbe; --line: #26374b;
+  --accent: #38c6e8; --accent-soft: #0f3343; --ok: #4ade80; --ok-soft: #12352a; --warn: #fbbf24; --warn-soft: #3a2e12; --bad: #f87171; --bad-soft: #3d1c1f; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1520; --surface: #142131; --ink: #e5edf6; --muted: #9aabbe; --line: #26374b;
+  --accent: #38c6e8; --accent-soft: #0f3343; --ok: #4ade80; --ok-soft: #12352a; --warn: #fbbf24; --warn-soft: #3a2e12; --bad: #f87171; --bad-soft: #3d1c1f; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15.5px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 36px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(28px, 4vw, 38px); }
+h2 { font-size: 25px; }
+h3 { font-size: 17px; }
+p { margin: 0; max-width: 72ch; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: .86em; }
+section { display: grid; gap: 20px; min-width: 0; }
+.lede { font-size: 17px; color: var(--muted); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { font-family: var(--mono); font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 5px 11px; border-radius: 999px; text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.page { display: grid; gap: 18px; border-top: 1px solid var(--line); padding-top: 28px; }
+.pair { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
+figure { margin: 0; display: grid; gap: 8px; min-width: 0; }
+figure img { border: 1px solid var(--line); border-radius: 8px; display: block; width: 100%; height: auto; }
+figcaption { font-size: 13px; color: var(--muted); }
+.crit { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.crit li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 14.5px; }
+.crit li::before { content: "✕"; color: var(--bad); font-weight: 700; text-align: center; }
+.crit li.keep::before { content: "✓"; color: var(--ok); }
+.tag { font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.t-bad { color: var(--bad); background: var(--bad-soft); } .t-warn { color: var(--warn); background: var(--warn-soft); } .t-ok { color: var(--ok); background: var(--ok-soft); }
+.label-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* ---------- Mizar mockup frames ---------- */
+.frame-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); }
+.mz { background: var(--m-bg); color: var(--m-ink); font-family: "Noto Sans", system-ui, sans-serif; font-size: 13.5px; line-height: 1.45; min-width: 980px; padding: 26px 30px 30px; display: grid; gap: 18px; color-scheme: dark; }
+.mz.phone { min-width: 0; width: 360px; padding: 16px; font-size: 13px; border-radius: 26px; border: 8px solid #1b2433; }
+.mz h4 { margin: 0; font-size: 15px; font-weight: 600; }
+.mz .pg-title { font-size: 22px; font-weight: 700; }
+.mz .sub { color: var(--m-muted); font-size: 12.5px; }
+.mz .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.mz .between { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.mz .card { background: var(--m-card); border: 1px solid var(--m-line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.mz .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--m-line); }
+.mz .tabs span { padding: 8px 2px; color: var(--m-muted); font-weight: 600; }
+.mz .tabs span.on { color: var(--m-blue); border-bottom: 2px solid var(--m-blue); }
+.mz .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; padding: 2px 9px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+.mz .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.mz .c-red { color: var(--m-red); background: var(--m-red-soft); border-color: #5b2029; }
+.mz .c-green { color: var(--m-green); background: var(--m-green-soft); border-color: #14532d; }
+.mz .c-amber { color: var(--m-amber); background: var(--m-amber-soft); border-color: #5a3d0a; }
+.mz .c-grey { color: var(--m-muted); background: var(--m-grey-soft); border-color: #2a3548; }
+.mz .c-blue { color: #93c5fd; background: var(--m-blue-soft); border-color: #1e3a8a; }
+.mz .plain::before { display: none; }
+.mz .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--m-line); background: var(--m-card2); color: var(--m-ink); min-height: 32px; box-sizing: border-box; }
+.mz .btn.primary { background: var(--m-blue); border-color: var(--m-blue); color: #fff; }
+.mz .bar { height: 8px; border-radius: 4px; background: #1a2436; position: relative; overflow: hidden; }
+.mz .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.mz .num { font-variant-numeric: tabular-nums; }
+.mz .big { font-size: 30px; font-weight: 700; }
+.mz .mono { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--m-muted); }
+.mz .alertband { border: 1px solid #5b2029; background: linear-gradient(0deg, var(--m-red-soft), var(--m-red-soft)); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.mz .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.mz .grid2 { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px; align-items: start; }
+.mz .win.sel { border-color: var(--m-red); box-shadow: 0 0 0 1px var(--m-red); }
+.mz table { width: 100%; border-collapse: collapse; }
+.mz th { text-align: left; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--m-muted); font-weight: 600; padding: 7px 8px; border-bottom: 1px solid var(--m-line); }
+.mz td { padding: 9px 8px; border-bottom: 1px solid var(--m-line); vertical-align: top; }
+.mz tr:last-child td { border-bottom: 0; }
+.mz .right { text-align: right; }
+.mz .lever { display: grid; grid-template-columns: 92px minmax(0, 1fr) 84px; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px dashed var(--m-line); }
+.mz .save { color: var(--m-green); font-weight: 700; text-align: right; }
+.mz .kpi { display: grid; gap: 2px; }
+.mz .kpi b { font-size: 22px; }
+.mz .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.mz .mini { font-size: 11.5px; color: var(--m-muted); }
+.mz a { color: #93c5fd; text-decoration: none; }
+.mz .push { background: rgba(40,48,64,.92); border-radius: 18px; padding: 12px 14px; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+.mz .appicon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(160deg, #15243c, #0b1728); display: grid; place-items: center; }
+.mz .switch { width: 34px; height: 20px; border-radius: 999px; background: var(--m-blue); position: relative; flex: none; }
+.mz .switch::after { content: ""; position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+.mz .switch.off { background: #2a3548; }
+.mz .switch.off::after { right: auto; left: 3px; }
+.mz .setrow { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--m-line); }
+.mz select { background: var(--m-card2); color: var(--m-ink); border: 1px solid var(--m-line); border-radius: 6px; padding: 4px 6px; font: inherit; font-size: 12px; }
+.phones { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+.note { font-size: 13.5px; color: var(--muted); }
+.mz .fixline { font-size: 11px; color: var(--m-green); }
+
+/* decisions */
+.decisions { display: grid; gap: 12px; }
+.dec { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.dec-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.dec-id { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; }
+.opts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.opts li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; font-size: 14.5px; }
+.opts li b { font-family: var(--mono); font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.opts li.rec b { color: var(--ok); }
+
+/* debt */
+.debt { width: 100%; border-collapse: collapse; background: var(--surface); font-size: 14px; }
+.debt th, .debt td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.debt th { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; background: var(--bg); }
+.debt td.n { font-family: var(--mono); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 2px; }
+.stat b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 13px; color: var(--muted); }
+.ws { display: grid; gap: 10px; }
+.ws div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+<header style="display:grid;gap:14px">
+  <div class="eyebrow">Agent Manager · Usage Intelligence · pass 2 proposal · Oct 29, 2026</div>
+  <h1>From "here's a number" to "here's what to do"</h1>
+  <p class="lede">I captured every page that touches usage, friction and statistics on the live app, critiqued each one, and drew the improved version. Numbers in the Overview, Dashboard strip and notification mockups are live. Numbers in the Friction, Details, Runs and dashboard-tile mockups are placeholders for layout. Mockups keep Mizar's existing look and change only what's broken or missing; this follows the pass-1 rule that the UX is improved, not replaced. Thirteen decisions near the end need your answer before work starts.</p>
+  <nav class="toc" aria-label="Sections">
+    <a href="#found">Biggest findings</a><a href="#p-focus">Usage overview</a><a href="#p-friction">Friction</a><a href="#p-details">Details</a><a href="#p-dash">Dashboard</a><a href="#p-runs">Runs list</a><a href="#p-notify">Notifications</a><a href="#p-phone">Phone</a><a href="#decisions">Decisions</a><a href="#debt">Code debt</a><a href="#plan">Plan</a>
+  </nav>
+</header>
+
+<section id="found" aria-labelledby="found-h">
+  <div class="eyebrow">What the research turned up</div>
+  <h2 id="found-h">Four problems you can see today, all fixable</h2>
+  <div class="stats">
+    <div class="stat"><b>9.2×</b><span>Details says 286 B tokens in 7 days. The transcript ledger, which matches provider counters, says 31.0 B.</span></div>
+    <div class="stat"><b>3,633</b><span>"runs" are Web Console test fixtures ("codex session rollout-test123") imported as real work. They fill the Runs list and skew throughput.</span></div>
+    <div class="stat"><b>888 / 1</b><span>Findings: 888 findings share one identical title. None has ever been reviewed or measured.</span></div>
+    <div class="stat"><b>Sep 6</b><span>The newest Investigation. The page shows 15 rows of raw status codes, last touched 7 weeks ago.</span></div>
+  </div>
+</section>
+
+<!-- ============ USAGE OVERVIEW / FOCUS ============ -->
+<section id="p-focus" class="page" aria-labelledby="focus-h">
+  <div class="label-row"><span class="eyebrow">Usage › Overview</span><span class="tag t-bad">most important</span></div>
+  <h2 id="focus-h">The page a "you'll run out" alert opens</h2>
+  <div class="pair">
+    <figure><img src="img/usage-top.jpg" alt="Current Usage overview: three large window cards with charts"><figcaption>Today, top of /usage</figcaption></figure>
+    <figure><img src="img/recs.jpg" alt="Current recommendations list: twelve long rows, each a sentence with a lever chip, saving and confidence"><figcaption>Today, recommendations further down</figcaption></figure>
+  </div>
+  <ul class="crit">
+    <li>The alert lands on the generic page. Nothing says which window triggered it or what to do; the answer is below three tall chart cards, roughly 1,400px down.</li>
+    <li>The 12+ recommendations are flat sentences. Session 76d970de appears 3 times (fan-out, context, idle) and the savings are simply added together.</li>
+    <li>Titles embed whole prompts ("1e5904ed I think we may have a skill for experimentation that was set up recently, where the idea is…").</li>
+    <li>The open detail dumps raw metrics: "Still running: 1 bool", "Basis hours: 22.7 hours", "Projected weekly points 112.3" next to "−46 pts/wk".</li>
+    <li>"What's using it" lists rows at ≈ 0.0 pts and raw labels ("Workflow 5f518188-6df0-48eb-a0f0-0085643e8634 node draft").</li>
+    <li class="keep">Keep: the window cards and chart, the provider-reading freshness line, and the "How this is estimated" disclosure. These tested well.</li>
+  </ul>
+
+  <div class="frame-scroll"><div class="mz" role="img" aria-label="Mockup: Usage overview focused on the Claude weekly window">
+    <div class="between"><div><div class="pg-title">Usage</div><div class="sub">How much subscription capacity your agents use, what uses it, and what to change.</div></div><span class="chip c-green">Coverage 100% · 7 days</span></div>
+    <div class="tabs"><span class="on">Overview</span><span>Friction</span><span>Details</span><span>Coverage</span></div>
+
+    <div class="alertband">
+      <div class="between"><div class="row"><span class="chip c-red">Will run out</span><h4>Claude · weekly runs out around Sat Oct 31, noon, 4 days before it resets</h4></div><span class="mono">opened from notification · 13:32</span></div>
+      <div class="row" style="gap:28px">
+        <div class="kpi"><span class="mini">Used</span><b class="num">30%</b></div>
+        <div class="kpi"><span class="mini">Burning now (24h)</span><b class="num">1.33%/h</b></div>
+        <div class="kpi"><span class="mini">Can afford until reset</span><b class="num">≤ 0.48%/h</b></div>
+        <div class="kpi"><span class="mini">Cut needed</span><b class="num" style="color:var(--m-red)">−64%</b></div>
+        <div class="kpi"><span class="mini">The 2 actions below recover</span><b class="num" style="color:var(--m-green)">≈ −51 pts/wk</b></div>
+      </div>
+      <div class="sub">Both actions together move the run-out from Sat to around Sun Nov 1, which is still 3 days short of the reset. To last until Nov 4, also pause non-urgent Claude work or move it to Codex, which has room.</div>
+    </div>
+
+    <div class="grid3">
+      <div class="card win sel"><div class="between"><h4>Claude · weekly</h4><span class="chip c-red">Will run out</span></div><div class="row"><b class="big num">30%</b><span class="sub">resets Wed Nov 4, 10 AM · read 1m ago</span></div><div class="bar"><i style="width:30%;background:var(--m-red)"></i></div></div>
+      <div class="card win"><div class="between"><h4>Claude · 5-hour</h4><span class="chip c-green">Lasts until reset</span></div><div class="row"><b class="big num">42%</b><span class="sub">resets 11:10 AM · read 1m ago</span></div><div class="bar"><i style="width:42%;background:var(--m-green)"></i></div></div>
+      <div class="card win"><div class="between"><h4>Codex · weekly</h4><span class="chip c-grey">Idle, lasts at this pace</span></div><div class="row"><b class="big num">34%</b><span class="sub">resets Wed Nov 4 · last use 7h ago</span></div><div class="bar"><i style="width:34%;background:#64748b"></i></div><div class="fixline">was "Forecast unknown"; idle is now said plainly</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="between"><h4>Do this first</h4><span class="sub">for Claude · weekly · grouped by what to change</span></div>
+
+        <div class="card" style="background:var(--m-card2)">
+          <div class="between"><div style="display:grid;gap:2px"><b>Agent manager token usage analysis</b><span class="mono">session 76d970de · Claude Code · still running</span></div><div class="right"><div class="save num">≈ −48 pts/wk</div><div class="mini">combined, overlap removed</div></div></div>
+          <div class="row" style="gap:20px"><span class="mini">Used so far <b class="num" style="color:var(--m-ink)">16.0 pts</b> (23h)</span><span class="mini">At this pace this week <b class="num" style="color:var(--m-ink)">≈ 112 pts</b></span><span class="mini">53% of the window's burn</span></div>
+          <div class="lever"><span class="chip c-blue plain">Fan-out</span><span>Brief sub-agents instead of passing the full context: 25 sub-agents each re-read about 225k tokens.</span><span class="save num">−46</span></div>
+          <div class="lever"><span class="chip c-blue plain">Context</span><span>Compact or start fresh: 223k tokens re-read on every request.</span><span class="save num">−5.1</span></div>
+          <div class="lever"><span class="chip c-blue plain">Idle</span><span>34 idle requests were polling; wait on an event instead.</span><span class="save num">−0.6</span></div>
+          <div class="row"><span class="btn primary">Open session</span><span class="btn">Show evidence (25 runs)</span><span class="btn">Dismiss for this week</span></div>
+        </div>
+
+        <div class="card" style="background:var(--m-card2)">
+          <div class="between"><div style="display:grid;gap:2px"><b>Read-then-reread friction</b><span class="mono">1,275 episodes · 21 runs · mostly Read on files over 2k lines</span></div><div class="right"><div class="save num">≈ −12 pts/wk</div><div class="mini">medium confidence</div></div></div>
+          <div class="sub">Agents re-read the same large files. Top files: <span class="mono">api/internal/orchestration/service.go</span>, <span class="mono">ui/src/App.tsx</span>. <a href="#p-friction">See in Friction →</a></div>
+        </div>
+        <div class="sub">+ 6 smaller actions for this window (≈ −9 pts/wk) <a href="#p-focus">Show</a></div>
+      </div>
+
+      <div class="card">
+        <div class="between"><h4>Where it went</h4><span class="sub">Claude · weekly · 30 pts</span></div>
+        <table>
+          <tbody>
+            <tr><td><b>Agent manager token usage analysis</b><div class="mini">operator session · 26 runs</div></td><td style="width:34%"><div class="bar"><i style="width:53%;background:var(--m-blue)"></i></div></td><td class="right num">16.0 · 53%</td></tr>
+            <tr><td><b>Disk usage and automated cleanup</b><div class="mini">operator session · 16 runs</div></td><td><div class="bar"><i style="width:27%;background:var(--m-blue)"></i></div></td><td class="right num">8.0 · 27%</td></tr>
+            <tr><td><b>Git control tower feature requests</b><div class="mini">operator session · 7 runs</div></td><td><div class="bar"><i style="width:19%;background:var(--m-blue)"></i></div></td><td class="right num">5.6 · 19%</td></tr>
+            <tr><td><span class="sub">14 smaller items, under 0.1 pts each</span></td><td></td><td class="right num sub">0.4</td></tr>
+          </tbody>
+        </table>
+        <div class="row"><span class="sub">Group by</span><span class="chip c-blue plain">Session</span><span class="chip c-grey plain">Model</span><span class="chip c-grey plain">Tool</span><span class="chip c-grey plain">Profile</span><span class="chip c-grey plain">Lever</span></div>
+        <div class="fixline">near-zero rows folded; workflow UUIDs shown as "Workflow draft · 5f51…"</div>
+      </div>
+    </div>
+  </div></div>
+  <p class="note">Mockup numbers come from the live forecast and recommendations at 13:31 UTC. The combined saving would be computed by the server so it never double-counts overlapping levers. Opening /usage without a notification shows the same layout without the red band, and the most urgent window is selected.</p>
+</section>
+
+<!-- ============ FRICTION ============ -->
+<section id="p-friction" class="page" aria-labelledby="fr-h">
+  <div class="label-row"><span class="eyebrow">Findings page → Usage › Friction</span><span class="tag t-bad">replace</span></div>
+  <h2 id="fr-h">Friction: one list, in plain words, with an owner and a cost</h2>
+  <div class="pair">
+    <figure><img src="img/findings.jpg" alt="Current Findings page: every card has the same bold title and a hex fingerprint"><figcaption>Today, /findings</figcaption></figure>
+    <div style="display:grid;gap:12px">
+      <ul class="crit">
+        <li>Every card has the same title: "Review the recurring deterministic friction fingerprint and its suspected owner." (888 of 888 findings).</li>
+        <li>Each card leads with a 32-character hex fingerprint; the useful part (<code>agent-manager usage forecast</code>) is in small monospace at the bottom.</li>
+        <li>"occurrences: 1" sits next to "appeared 18 times across 3 distinct runs".</li>
+        <li>Durations use three formats on one page: "3m5s", "6075 ms", "367711744 ms" (4.3 days).</li>
+        <li>The review workflow (decision, effectiveness) has never been used: 888 unreviewed, 888 "not yet measurable".</li>
+        <li>The same friction also appears as R-friction recommendations on Usage and as "Friction overview" on Details: three places, three shapes.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="frame-scroll"><div class="mz" role="img" aria-label="Mockup: Usage Friction tab">
+    <div class="tabs"><span>Overview</span><span class="on">Friction</span><span>Details</span><span>Coverage</span></div>
+    <div class="between"><div class="row" style="gap:28px"><div class="kpi"><span class="mini">Friction this week</span><b class="num">≈ 15 pts</b></div><div class="kpi"><span class="mini">Wall-clock lost</span><b class="num">6 h 12 m</b></div><div class="kpi"><span class="mini">Recurring problems</span><b class="num">31</b></div><div class="kpi"><span class="mini">Reported to owners</span><b class="num">6</b></div></div><div class="row"><span class="chip c-blue plain">Open</span><span class="chip c-grey plain">Reported</span><span class="chip c-grey plain">Dismissed</span><span class="btn">7 days ▾</span></div></div>
+    <div class="card">
+      <table>
+        <thead><tr><th>What keeps going wrong</th><th>Owner</th><th class="right">Seen</th><th class="right">Cost</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><b>Agents re-read the same large files</b><div class="mini">Read on files over 2k lines, repeated in one session · top: orchestration/service.go, App.tsx</div></td><td>agent behaviour</td><td class="right num">1,275× · 21 runs</td><td class="right num">≈ 7.5 pts</td><td class="right"><span class="btn">Suggest a fix</span></td></tr>
+          <tr><td><b><code>agent-manager usage forecast</code> fails, then a fallback is used</b><div class="mini">Exit 1 "unknown flag --window", then retried as <code>usage forecast</code> with no flag</div></td><td>agent-manager</td><td class="right num">18× · 3 runs</td><td class="right num">3 m 5 s</td><td class="right"><span class="btn primary">Report bug</span></td></tr>
+          <tr><td><b><code>search-hub query</code> is slow or stalls</b><div class="mini">Median 41 s; 977 runs affected</div></td><td>search-hub</td><td class="right num">977× · 89 runs</td><td class="right num">≈ 1.2 pts · 4 h</td><td class="right"><span class="chip c-green">Reported · knw-17932…</span></td></tr>
+          <tr><td><b><code>test-genie runs artifact</code> needs a retry</b><div class="mini">First call returns 404 until the run is sealed</div></td><td>test-genie</td><td class="right num">11× · 6 runs</td><td class="right num">47 s</td><td class="right"><span class="btn primary">Report bug</span></td></tr>
+          <tr><td><b>Handoff after a stall</b><div class="mini">Run parks with no wake event and is resumed by hand</div></td><td>agent-manager</td><td class="right num">50× · 11 runs</td><td class="right num">≈ 2.4 pts</td><td class="right"><span class="btn">Dismiss</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sub">"Report bug" files to scenario-qa through the existing report-bug path, with the evidence attached, and marks the row Reported. "Suggest a fix" opens the matching recommendation. The fingerprint stays on the row's detail view, not in the headline.</div>
+  </div></div>
+  <p class="note">Mockup rows are illustrative; the descriptive lines ("Exit 1 …", "Median 41 s") are new server fields that summarise each fingerprint's evidence, so they need real derivation before I can promise their wording.</p>
+</section>
+
+<!-- ============ DETAILS ============ -->
+<section id="p-details" class="page" aria-labelledby="det-h">
+  <div class="label-row"><span class="eyebrow">Usage › Details (old Stats page)</span><span class="tag t-bad">numbers are wrong</span></div>
+  <h2 id="det-h">Details: correct numbers, readable units, honest about imports</h2>
+  <div class="pair">
+    <figure><img src="img/details.jpg" alt="Current Details tab: Tokens 286302.77M, Total cost unknown 0.00 + subscription 0.00, sections stuck loading"><figcaption>Today, /usage?tab=details</figcaption></figure>
+    <ul class="crit">
+      <li>"Tokens 286302.77M" is 9.2× too high (the old run counters, not the verified transcript ledger) and printed in the wrong unit; it should read 31.0 B.</li>
+      <li>"Total cost: unknown 0.00 + subscription 0.00" is a sentence-shaped zero. Subscription work has no dollar cost; it has quota points.</li>
+      <li>"Success rate 100%" and "Throughput 68/hr" count 10,785 imported transcripts and 3,633 test fixtures as runs.</li>
+      <li>"Average duration: sample size 0 is below the minimum meaningful sample of 5": an engineering message where a value belongs.</li>
+      <li>Fallback insights, Friction overview and Run classes still showed "Loading…" after 4 s.</li>
+      <li>Profile "unknown" holds 11,372 rows, and Runner "codex" shows an average time of 3,302.2 h.</li>
+    </ul>
+  </div>
+  <div class="frame-scroll"><div class="mz" role="img" aria-label="Mockup: Usage Details tab">
+    <div class="tabs"><span>Overview</span><span>Friction</span><span class="on">Details</span><span>Coverage</span></div>
+    <div class="between"><div class="row"><span class="chip c-blue plain">Agent Manager runs</span><span class="chip c-grey plain">Operator sessions</span><span class="chip c-grey plain">Everything</span></div><div class="row"><span class="btn">6h</span><span class="btn">24h</span><span class="btn primary">7d</span><span class="btn">30d</span><span class="btn">Export</span></div></div>
+    <div class="kpis">
+      <div class="card kpi"><span class="mini">Runs finished</span><b class="num">1,214</b><span class="mini">97.8% succeeded</span></div>
+      <div class="card kpi"><span class="mini">Tokens</span><b class="num">31.0 B</b><span class="mini">98% re-read cache · 0.42 B new</span></div>
+      <div class="card kpi"><span class="mini">Quota used</span><b class="num">≈ 64 pts</b><span class="mini">Claude 30 · Codex 34</span></div>
+      <div class="card kpi"><span class="mini">Median run time</span><b class="num">7 m 59 s</b><span class="mini">p90 41 m</span></div>
+      <div class="card kpi"><span class="mini">Queue</span><b class="num">0</b><span class="mini">21 active</span></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h4>By model</h4>
+        <table><thead><tr><th>Model</th><th class="right">Requests</th><th class="right">Tokens</th><th class="right">Quota</th></tr></thead>
+        <tbody><tr><td>gpt-6.1-terra</td><td class="right num">8,402</td><td class="right num">18.2 B</td><td class="right num">≈ 21 pts</td></tr><tr><td>claude-opus-5-5</td><td class="right num">2,977</td><td class="right num">7.9 B</td><td class="right num">≈ 24 pts</td></tr><tr><td>claude-sonnet-5-5</td><td class="right num">1,640</td><td class="right num">3.1 B</td><td class="right num">≈ 6 pts</td></tr></tbody></table></div>
+      <div class="card"><h4>By profile</h4>
+        <table><thead><tr><th>Profile</th><th class="right">Runs</th><th class="right">Quota</th></tr></thead>
+        <tbody><tr><td>No profile (interactive)</td><td class="right num">412</td><td class="right num">≈ 49 pts</td></tr><tr><td>prompt-manager-delivery-orchestrator</td><td class="right num">4</td><td class="right num">≈ 3.1 pts</td></tr><tr><td>git-control-tower-staged-message-deep</td><td class="right num">12</td><td class="right num">≈ 0.2 pts</td></tr></tbody></table></div>
+    </div>
+    <div class="sub">Dollar cost is shown only for runs billed per token. Subscription work is measured in quota points everywhere. Friction moves to its own tab, and each section has its own "couldn't load, retry" state instead of an endless "Loading…".</div>
+  </div></div>
+  <p class="note">The Details figures in this mockup are placeholders for layout. The real values come from the corrected token source (see the code debt section) and are not computed yet.</p>
+</section>
+
+<!-- ============ DASHBOARD ============ -->
+<section id="p-dash" class="page" aria-labelledby="dash-h">
+  <div class="label-row"><span class="eyebrow">Dashboard</span><span class="tag t-warn">small changes</span></div>
+  <h2 id="dash-h">Dashboard: keep the strip, make the numbers mean something</h2>
+  <div class="pair">
+    <figure><img src="img/dashboard.jpg" alt="Current dashboard: usage strip, three unlabeled number tiles (21, 83, 11417), System Health and Recent Activity"><figcaption>Today, /</figcaption></figure>
+    <ul class="crit">
+      <li class="keep">Keep the usage strip: it's the clearest thing on the page.</li>
+      <li>"11417 Runs · 7d" is mostly imports and fixtures, and has no thousands separator. "83 Review" doesn't say what needs reviewing, and none of the tiles link anywhere.</li>
+      <li>The red row's link says "7 recommendations →" but doesn't say what you'd gain.</li>
+      <li>Recent Activity shows draft workflow steps and Grok sessions ahead of anything you started.</li>
+      <li>On phone the Refresh button is 40px, under the 44px touch minimum.</li>
+    </ul>
+  </div>
+  <div class="frame-scroll"><div class="mz" role="img" aria-label="Mockup: dashboard top">
+    <div class="between"><div class="pg-title">Dashboard</div><span class="btn">↻</span></div>
+    <div class="card" style="gap:8px">
+      <div class="row"><span class="chip c-green">On track</span><b style="width:150px">Claude · 5-hour</b><div class="bar" style="flex:1"><i style="width:42%;background:var(--m-green)"></i></div><b class="num">42%</b><span class="sub" style="width:220px">resets 11:10 AM</span></div>
+      <div class="row"><span class="chip c-red">Will run out</span><b style="width:150px">Claude · weekly</b><div class="bar" style="flex:1"><i style="width:30%;background:var(--m-red)"></i></div><b class="num">30%</b><span class="sub" style="width:220px">~Sat noon · resets Nov 4</span></div>
+      <div class="row" style="padding-left:116px"><span class="sub">Biggest lever: brief sub-agents in "Agent manager token usage analysis", ≈ −46 pts/wk.</span><a href="#p-focus">What to do →</a></div>
+      <div class="row"><span class="chip c-grey">Idle</span><b style="width:150px">Codex · weekly</b><div class="bar" style="flex:1"><i style="width:34%;background:#64748b"></i></div><b class="num">34%</b><span class="sub" style="width:220px">last use 7h ago · resets Nov 4</span></div>
+    </div>
+    <div class="grid3">
+      <div class="card kpi"><span class="mini">Running now</span><b class="num">21</b><a class="mini">View runs →</a></div>
+      <div class="card kpi"><span class="mini">Waiting for your approval</span><b class="num">83</b><a class="mini">Review →</a></div>
+      <div class="card kpi"><span class="mini">Agent Manager runs · 7 days</span><b class="num">1,214</b><span class="mini">+ 412 operator sessions imported</span></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============ RUNS ============ -->
+<section id="p-runs" class="page" aria-labelledby="runs-h">
+  <div class="label-row"><span class="eyebrow">Runs list</span><span class="tag t-bad">data clean-up</span></div>
+  <h2 id="runs-h">Runs: no test fixtures, sub-agents folded under their parent</h2>
+  <div class="pair">
+    <figure><img src="img/runs.jpg" alt="Current Runs list: dozens of rows titled 'codex session rollout-test123', 'Late Reply Session Title', 'Tailor Session Output Generation'"><figcaption>Today, /runs (left column)</figcaption></figure>
+    <div style="display:grid;gap:12px">
+      <ul class="crit">
+        <li>3,633 rows titled "codex session rollout-test123", "Late Reply Session Title" and similar. They're Web Console unit-test fixtures written into the real sessions folder (bug filed earlier as F-W2-1), then imported every few minutes.</li>
+        <li>823 sub-agent runs sit at top level. My two audit agents from this turn appeared as the first two runs.</li>
+        <li>There is no filter for who started a run (Agent Manager, operator session, sub-agent, workflow draft).</li>
+      </ul>
+      <div class="frame-scroll"><div class="mz" style="min-width:0;padding:16px" role="img" aria-label="Mockup: runs list filters">
+        <div class="row"><span class="chip c-blue plain">All</span><span class="chip c-grey plain">Agent Manager</span><span class="chip c-grey plain">Operator sessions</span><span class="chip c-grey plain">Workflows</span></div>
+        <div class="card" style="gap:4px"><b>/goal W8a part 2: non-overlapping defect fixes</b><span class="mini">Imported · Claude Code · 2h ago · d7f34a6d</span><span class="mini">▸ 25 sub-agents</span></div>
+        <div class="card" style="gap:4px"><b>Vega E2 Logs query and reading journey</b><span class="mini">Agent Manager · Codex · 3h ago · 2d230f9d</span></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NOTIFICATIONS ============ -->
+<section id="p-notify" class="page" aria-labelledby="n-h">
+  <div class="label-row"><span class="eyebrow">Notifications</span><span class="tag t-warn">new</span></div>
+  <h2 id="n-h">Alerts in Agent Manager's own name, with the next step and a follow-up</h2>
+  <div class="phones">
+    <div class="mz phone" role="img" aria-label="Mockup: phone lock screen with two Agent Manager notifications">
+      <div class="sub" style="text-align:center">Thu 7:03 AM</div>
+      <div class="push"><div class="appicon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" aria-hidden="true"><circle cx="7" cy="8" r="2"/><circle cx="17" cy="16" r="2"/><circle cx="16" cy="6" r="1.5"/><path d="M8.6 9.4l6.8 5.2M9 7.6l5.6-1.3"/></svg></div><div><div class="between"><b>Agent Manager</b><span class="mini">now</span></div><b>Claude weekly runs out ~Sat noon</b><div>30% used, 4 days before reset. Biggest lever: brief sub-agents in "Agent manager token usage analysis" (≈ −46 pts/wk).</div></div></div>
+      <div class="push"><div class="appicon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" aria-hidden="true"><circle cx="7" cy="8" r="2"/><circle cx="17" cy="16" r="2"/><circle cx="16" cy="6" r="1.5"/><path d="M8.6 9.4l6.8 5.2M9 7.6l5.6-1.3"/></svg></div><div><div class="between"><b>Agent Manager</b><span class="mini">10:12</span></div><b>Claude 5-hour is back on track</b><div>The earlier warning no longer applies: usage held at 71% until the reset.</div></div></div>
+      <div class="sub" style="text-align:center">Tap opens /usage with that window selected</div>
+    </div>
+    <div class="mz" style="min-width:0;width:min(520px,100%);flex:1" role="img" aria-label="Mockup: Agent Manager Settings, Notifications tab">
+      <div class="between"><h4>Settings</h4><span class="mini">✕</span></div>
+      <div class="tabs" style="flex-wrap:wrap;gap:14px"><span>Orchestration</span><span>Model pricing</span><span class="on">Notifications</span><span>Permissions</span><span>Maintenance</span></div>
+      <div class="card"><div class="between"><div><b>Show notifications in this app</b><div class="mini">Instead of Chimesail, on this phone · installed app · permission granted</div></div><span class="switch"></span></div></div>
+      <div class="card" style="gap:0">
+        <div class="setrow" style="border-top:0"><div><b>Quota runs out early</b><div class="mini">A window is projected to run out before it resets</div></div><div class="row"><select aria-label="Minimum urgency"><option>Normal+</option></select><span class="switch"></span></div></div>
+        <div class="setrow"><div><b>Quota back on track</b><div class="mini">A warning no longer applies · new</div></div><div class="row"><select aria-label="Minimum urgency"><option>Low+</option></select><span class="switch"></span></div></div>
+        <div class="setrow"><div><b>Quota may run out</b><div class="mini">Early heads-up at "at risk" · new</div></div><div class="row"><select aria-label="Minimum urgency"><option>Low+</option></select><span class="switch off"></span></div></div>
+        <div class="setrow"><div><b>Daily usage digest</b><div class="mini">8 AM: windows, top 3 actions · new</div></div><div class="row"><select aria-label="Minimum urgency"><option>Low+</option></select><span class="switch off"></span></div></div>
+        <div class="setrow"><div><b>Authorization requested</b><div class="mini">An agent session is waiting for your consent</div></div><div class="row"><select aria-label="Minimum urgency"><option>Normal+</option></select><span class="switch"></span></div></div>
+        <div class="setrow"><div><b>Run failed</b></div><div class="row"><select aria-label="Minimum urgency"><option>High</option></select><span class="switch"></span></div></div>
+        <div class="setrow"><div><b>Run completed</b></div><div class="row"><select aria-label="Minimum urgency"><option>Low+</option></select><span class="switch off"></span></div></div>
+      </div>
+      <div class="mini">The shared component Web Console and Git Control Tower use (AppNotificationSettings); the same preferences also appear in Web Console's settings.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PHONE ============ -->
+<section id="p-phone" class="page" aria-labelledby="ph-h">
+  <div class="label-row"><span class="eyebrow">Phone</span></div>
+  <h2 id="ph-h">The same focus on a phone</h2>
+  <div class="phones">
+    <figure style="width:300px"><img src="img/phone-usage.jpg" alt="Current phone Usage page: a single tall card for Claude 5-hour fills the screen"><figcaption>Today: the first screen shows the window that's fine.</figcaption></figure>
+    <div class="mz phone" role="img" aria-label="Mockup: phone usage overview">
+      <div class="pg-title" style="font-size:19px">Usage</div>
+      <div class="tabs" style="gap:14px"><span class="on">Overview</span><span>Friction</span><span>Details</span><span>Coverage</span></div>
+      <div class="alertband" style="padding:12px"><div class="row"><span class="chip c-red">Will run out</span></div><b>Claude · weekly runs out ~Sat noon</b><div class="row" style="gap:16px"><span class="mini">used <b class="num" style="color:var(--m-ink)">30%</b></span><span class="mini">burn <b class="num" style="color:var(--m-ink)">1.33%/h</b></span><span class="mini">afford <b class="num" style="color:var(--m-ink)">≤ 0.48</b></span></div><div class="mini">2 actions below push run-out to ~Sun; not enough alone</div></div>
+      <div class="card" style="background:var(--m-card2)"><div class="between"><b>Agent manager token usage analysis</b><span class="save num">−48</span></div><div class="mini">Brief sub-agents (−46) · compact (−5.1) · stop polling (−0.6)</div><span class="btn primary" style="justify-content:center;min-height:44px">Open session</span></div>
+      <div class="card" style="gap:6px"><div class="between"><span>Claude · 5-hour</span><span class="chip c-green">On track</span></div><div class="between"><span>Codex · weekly</span><span class="chip c-grey">Idle</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DECISIONS ============ -->
+<section id="decisions" aria-labelledby="dec-h">
+  <div class="eyebrow">Your answers needed before work starts</div>
+  <h2 id="dec-h">Thirteen decisions</h2>
+  <div class="decisions">
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D1</span><h3>What happens to the Findings page?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Replace it with Usage › Friction (one list grouped by problem, with owner, cost, "Report bug" and "Dismiss"). /findings redirects there, and the generic-text generator and the never-used review fields are deleted.</li><li><b>Alternative</b>Keep a separate Findings page, but rewrite its titles and layout.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D2</span><h3>What happens to the Investigations page?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Take it out of the main navigation; reach it from a run's "Investigate" button and from Health. Translate the raw status codes into words. Its back end stays.</li><li><b>Alternative</b>Leave it as is (debt stays), or retire the investigation feature entirely, which is a bigger change with unknown users.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D3</span><h3>Remove the 3,633 test-fixture runs, and fix the cause?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Yes. Fix the Web Console test (F-W2-1) so it writes to a temporary folder, and delete the imported fixture runs. This needs your deletion grant: rows in Agent Manager's database plus the fixture session folders in Web Console's state directory. The importer will also skip files Web Console marks as test output.</li><li><b>Alternative</b>Hide them with a filter and leave the data.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D4</span><h3>Fold sub-agents under their parent run?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Yes. The Runs list shows "▸ 25 sub-agents" under the parent; a filter shows them flat.</li><li><b>Alternative</b>Keep them at top level.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D5</span><h3>Which usage notifications, and their defaults?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Keep "runs out early" (on). Add "back on track" (on; it withdraws a stale warning), "may run out" (off) and a daily 8 AM digest (off). Every alert names the #1 action and opens /usage on that window. Alerts show in Agent Manager's own installed app.</li><li><b>Alternative</b>Only improve the existing alert's text.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D6</span><h3>One source of truth for tokens</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>All token and quota numbers (Details, run pages, CLI stats) read the verified transcript ledger, and the old run-level token counters are deleted. History is already back-filled, so nothing is lost.</li><li><b>Alternative</b>Keep both and label the old one "estimated". I don't recommend this: two numbers that disagree 9× is the confusion we're removing.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D7</span><h3>Dollar cost for subscription work</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Show quota points for subscription runs and dollars only for runs billed per token. Remove "unknown 0.00 + subscription 0.00".</li><li><b>Alternative</b>Show an equivalent API price ("≈ $412 at list price") as a secondary figure.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D8</span><h3>Count imported operator sessions in run statistics?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Default the Details tab to Agent Manager runs. Tokens and quota count everything (that's your real usage), while success rate, throughput and run time count only runs Agent Manager started. A filter switches to "Operator sessions" or "Everything".</li><li><b>Alternative</b>Count everything everywhere, as today.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D9</span><h3>Should Agent Manager enforce limits, not only advise?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Not in this pass. Finish trustworthy advice and alerts first, use A11 on Nov 5 to show the advice saves quota, then design enforcement (fan-out cap, auto-compact, quota-aware scheduling) as its own effort.</li><li><b>Alternative</b>Add a fan-out budget setting for Agent Manager-launched runs now.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D10</span><h3>How much of the old Stats page stays under Details?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Keep the summary tiles and the model and profile tables, and drop the roughly 6 panels that repeat "Where it went" (runner, tool, capability, cost distribution, run classes, fallback insights). Fallback insights become a Health item. The time window goes in the URL.</li><li><b>Alternative</b>Keep all 16 panels and fix only their numbers.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D11</span><h3>Consolidate REST and RPC duplicates in this pass?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Yes, after a search of every scenario for callers. Move Agent Manager's CLI and UI to RPC, then delete each REST twin that has no remaining outside caller. Any twin another scenario still uses is listed and left in place. This is the biggest single debt cut (−2k to −4k lines) and the riskiest.</li><li><b>Alternative</b>Delete only the routes that have no caller anywhere, and do the transport change as its own effort.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D12</span><h3>One naming rule for providers</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>Subscriptions use the plan name ("Claude · weekly", "Codex · 5-hour"). Runners use the tool name ("Claude Code", "Codex", "OpenCode"). Usage shows tokens and requests; quota is always "pts" (1 pt = 1% of a window). The proto <code>turns</code> field becomes <code>requests</code>.</li><li><b>Alternative</b>"Claude Code" everywhere, including window names.</li></ul></div>
+    <div class="dec"><div class="dec-head"><span class="dec-id">P2-D13</span><h3>Where do runner health checks live?</h3></div><ul class="opts"><li class="rec"><b>Recommended</b>On the Health page only. The dashboard shows a one-line summary ("6 runners available · 1 model-policy warning") that links there, which removes a 174-line copy of the health check UI.</li><li><b>Alternative</b>Keep the full health card on the dashboard.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============ DEBT ============ -->
+<section id="debt" aria-labelledby="debt-h">
+  <div class="eyebrow">Code debt and complexity</div>
+  <h2 id="debt-h">What the code audit found</h2>
+  <p>Two read-only audits covered the Go API and CLI and the React UI. Pass 1 removed about 4,000 lines from the old analytics code but added three new packages. The largest debt sits in parallel paths that compute the same thing differently: two stats engines, two token sources, REST and RPC routes for the same operation, three pricing paths, and four places that show friction.</p>
+  <div class="stats">
+    <div class="stat"><b>156.0k</b><span>API non-test lines (plus 136k test). CLI 16.3k. UI 29.9k.</span></div>
+    <div class="stat"><b>76 / 382</b><span>fields / methods on the one <code>Orchestrator</code> struct; <code>createRun</code> is 736 lines</span></div>
+    <div class="stat"><b>55 of 104</b><span>RPCs that Agent Manager's own CLI and UI never call; the CLI uses 103 REST calls against 32 RPC calls</span></div>
+    <div class="stat"><b>4</b><span>places friction is shown; 5 copies of the provider-name helper; 3 duration formats</span></div>
+    <div class="stat"><b>21</b><span>eslint errors in 8 UI test files (type-check passes)</span></div>
+  </div>
+  <h3>Correctness first: why Details is 9× too high</h3>
+  <p>Details sums each run's <b>lifetime</b> token total at the moment the run ends (<code>invocationreadmodel/project.go:420</code>). An imported session that began in August and ended today counts all of its August tokens in "this week". Two more defects add to it: 247 duplicate imported runs carrying 67 B tokens (most likely forked transcripts; unverified), and 4,917 imported runs with zero tokens counted as runs, which explains "68 runs/hr". "Average duration: sample size 0" is a separate bug: <code>measures.go:303</code> never sets the denominator for run time, so the duration figure is always rejected as too small a sample. The same lifetime counters also feed the runner, profile, model, tool and cohort tables, cost, CLI <code>run stats</code> and the <code>/stats/run-classes</code> route.</p>
+  <div class="tablebox"><table class="debt">
+    <thead><tr><th>Candidate</th><th>Where</th><th>Change</th><th>Lines</th><th>Risk</th></tr></thead>
+    <tbody>
+      <tr><td><b>Windowed totals from the transcript ledger</b></td><td>measures, invocation read model, KPISummary</td><td>Token and quota totals for a time window come only from <code>transcript_usage</code>, by request time. Lifetime counters stay for per-run views. Fix the run-time denominator.</td><td class="n">−150…−250</td><td>med</td></tr>
+      <tr><td><b>Second stats engine</b></td><td><code>internal/stats</code> + REST <code>/stats/operational</code>, <code>/fallback</code>, CLI ops, UI operationalClient</td><td>Move fallback and model-failure insights into Measures procedures, then delete the engine and its schema.</td><td class="n">−1,200</td><td>med</td></tr>
+      <tr><td><b>REST and RPC routes for the same operation</b></td><td><code>handlers.go</code> (120 routes), 55 RPCs with no caller here</td><td>One transport per operation (RPC). Move CLI and UI callers over, then delete the unused twin. Needs a search of other scenarios first.</td><td class="n">−2,000…−4,000</td><td>high</td></tr>
+      <tr><td><b>Routes with no caller anywhere</b></td><td>learning-retry, audit-transcript, canary arm/compare</td><td>Delete.</td><td class="n">−300…−500</td><td>low</td></tr>
+      <tr><td><b>One-shot start-up migrations</b></td><td>16 <code>migrate*</code> functions in <code>connection.go</code>, including a 192-line table rebuild</td><td>Fold into the declarative schema; stop running pass-1 migrations on every start.</td><td class="n">−400</td><td>med</td></tr>
+      <tr><td><b>Findings generator and review fields</b></td><td><code>run_findings</code> publisher, never-used decision and effectiveness fields</td><td>Replace with the Friction view (P2-D1).</td><td class="n">−300…−600</td><td>med</td></tr>
+      <tr><td><b>Temporary repair code (D-15)</b></td><td><code>transcriptindex/repair.go</code> + repository methods</td><td>Confirm the 109 unknown-model rows aren't legacy rows, then delete.</td><td class="n">−280</td><td>low</td></tr>
+      <tr><td><b>Pricing paths</b></td><td><code>pricing.Service</code>, <code>usageattribution.Price</code> fallbacks, PriceBook</td><td>One pricing owner, with the tier and cache defaults as a named fallback source.</td><td class="n">−80</td><td>med</td></tr>
+      <tr><td><b>Error and outcome classifiers</b></td><td>3 hooks per runner codec; 3 outcome classifiers</td><td>One codec classifier and one outcome function.</td><td class="n">−200</td><td>med</td></tr>
+      <tr><td><b>Label helpers</b></td><td>alert.go ("5h"), CLI ("5-hour"), UI (5 copies)</td><td>One owner per side; same names everywhere.</td><td class="n">−150</td><td>low</td></tr>
+      <tr><td><b>Dead functions</b></td><td>about 10 functions in the API; about 20 UI exports, including all of <code>stats/utils/calculations.ts</code></td><td>Delete, along with their tests.</td><td class="n">−350</td><td>low</td></tr>
+      <tr><td><b>Data fetching (UI)</b></td><td>3 private <code>apiRequest</code> copies, 9 raw <code>fetch</code> calls; only Usage and Efforts set a deadline</td><td>One query client with a 30 s deadline; dashboard polling through <code>refetchInterval</code>.</td><td class="n">−300…−400</td><td>med</td></tr>
+      <tr><td><b>Details panels repeat "Where it went"</b></td><td>16 panels in <code>StatsPage.tsx</code>; separate time window held in a module global</td><td>Keep the totals and two tables; drop about 6 duplicate panels; window kept in the URL (P2-D10).</td><td class="n">−1,000…−1,500</td><td>med</td></tr>
+      <tr><td><b>RunDetail and Model Pricing</b></td><td>RunDetail 726-line function; ModelPricingTab has its own copy of an existing dialog and sort header</td><td>Split RunDetail by tab; reuse the shared dialog and header; touch targets of at least 44px.</td><td class="n">−400</td><td>med</td></tr>
+      <tr><td><b>Three card styles and local copies of RCL components</b></td><td>local card/tabs/badge/dialog, raw tables in 14 files</td><td>Move the focus pages to RCL Card, Tabs and Table.</td><td class="n">−200</td><td>low</td></tr>
+      <tr><td><b>Formatters</b></td><td>duration ×3, tokens ×3, missing value "N/A" vs "—"</td><td>One <code>lib/format.ts</code>.</td><td class="n">−120</td><td>low</td></tr>
+      <tr><td><b>Test debt</b></td><td>412 hand-written run literals; 26 unused fixture builders; 21 eslint errors; 9 live-database "tests" that never run</td><td>One run builder; fix the lint errors; move the live checks into a program.</td><td class="n">−600 (tests)</td><td>low</td></tr>
+      <tr><td><b>Orchestrator size</b></td><td><code>createRun</code> 736, <code>runDurable</code> 372, <code>NewOrchestrator</code> 298 lines</td><td>Split into named phases. Roughly line-neutral; worth it for review.</td><td class="n">±0</td><td>med</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">If everything except the transport change is done, the estimate is about <b>−3,000 API</b> and <b>−2,500 to −3,000 UI</b> non-test lines. With the transport change: −5,000 to −7,000 API. All figures are audit estimates, not measurements; each workstream re-measures before and after, as in pass 1.</p>
+</section>
+
+<!-- ============ PLAN ============ -->
+<section id="plan" aria-labelledby="plan-h">
+  <div class="eyebrow">How the work would run</div>
+  <h2 id="plan-h">Workstreams</h2>
+  <p>The same model as pass 1: one orchestrator, sub-agents per workstream, effort docs updated first. Live checks happen in a browser, and every workstream ends with fewer lines than it started with. Waves A and B can run in parallel; C waits for A's corrected numbers.</p>
+  <div class="ws">
+    <div><b>Wave A · Data you can trust</b><span class="muted">Windowed totals from the transcript ledger; run-time denominator fix; imported-session rules (P2-D8); duplicate imported runs; fix the Web Console fixture test and delete the 3,633 fixture runs (P2-D3, needs your deletion grant); reject readings whose reset has already passed; "idle" window state.</span></div>
+    <div><b>Wave A · Alerts</b><span class="muted">App delivery + Settings › Notifications; "back on track", "may run out" and daily digest notification types; alert text that names the #1 action; one set of window names for the API, CLI and UI (P2-D5).</span></div>
+    <div><b>Wave B · Debt in the API</b><span class="muted">Stats engine into Measures; routes with no caller; start-up migrations; D-15; pricing and classifiers; dead functions; one test run builder. Plus the transport change if you choose it (P2-D11).</span></div>
+    <div><b>Wave C · Pages</b><span class="muted">Usage Overview focus layout with grouped actions (the server computes the combined saving); Friction tab replacing Findings (P2-D1); Details trimmed and corrected (P2-D10); Dashboard tiles; Runs filters and sub-agent folding (P2-D4); Investigations and Health placement (P2-D2, P2-D13); RunDetail split; formatters, data fetching and RCL Card, Tabs and Table.</span></div>
+    <div><b>Wave D · Acceptance</b><span class="muted">Browser captures at 1440 and 390 against these mockups; a test notification on your phone that opens /usage on the right window; Test Genie docs and business phases; before/after line counts in DEBT.md; A11 value check on Nov 5.</span></div>
+  </div>
+</section>
+
+<footer>Screenshots: headless Chrome against the live app (1440×900 and 390×844), 13:40 UTC. Numbers: live <code>agent-manager usage</code> commands, Agent Manager's database (runs, run_findings, investigations, transcript_usage) and the Notification Hub timeline. Two read-only code audits (API/CLI and UI) ran in parallel.</footer>
+</div>

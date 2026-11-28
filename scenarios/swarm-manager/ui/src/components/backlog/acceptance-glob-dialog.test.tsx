@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { AcceptanceGlobDialog } from "./acceptance-glob-dialog";
 
@@ -21,7 +22,7 @@ const defaultProps = {
 
 describe("AcceptanceGlobDialog", () => {
   it("renders two textareas with correct labels", () => {
-    render(<AcceptanceGlobDialog {...defaultProps} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} />);
     expect(screen.getByText("Allowed Paths")).toBeInTheDocument();
     expect(screen.getByText("Denied Paths")).toBeInTheDocument();
     expect(screen.getByTestId("allow-textarea")).toBeInTheDocument();
@@ -29,7 +30,7 @@ describe("AcceptanceGlobDialog", () => {
   });
 
   it("pre-populates from initialAllow and initialDeny", () => {
-    render(
+    renderWithCanonicalProviders(
       <AcceptanceGlobDialog
         {...defaultProps}
         initialAllow={["src/**", "docs/**"]}
@@ -41,19 +42,19 @@ describe("AcceptanceGlobDialog", () => {
   });
 
   it("shows placeholder text when textarea is empty", () => {
-    render(<AcceptanceGlobDialog {...defaultProps} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} />);
     const allowTextarea = screen.getByTestId("allow-textarea");
     expect(allowTextarea).toHaveAttribute("placeholder");
   });
 
   it("shows helper text below each label", () => {
-    render(<AcceptanceGlobDialog {...defaultProps} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} />);
     const helpers = screen.getAllByText("One glob pattern per line. Relative to project root.");
     expect(helpers).toHaveLength(2);
   });
 
   it("shows client-side validation errors after blur", async () => {
-    render(<AcceptanceGlobDialog {...defaultProps} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} />);
     const allowTextarea = screen.getByTestId("allow-textarea");
 
     fireEvent.change(allowTextarea, { target: { value: "/absolute/path" } });
@@ -67,7 +68,7 @@ describe("AcceptanceGlobDialog", () => {
   });
 
   it("disables save button when validation errors exist", async () => {
-    render(<AcceptanceGlobDialog {...defaultProps} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} />);
     const allowTextarea = screen.getByTestId("allow-textarea");
 
     fireEvent.change(allowTextarea, { target: { value: "/bad" } });
@@ -79,7 +80,7 @@ describe("AcceptanceGlobDialog", () => {
   });
 
   it("enables save button when input is valid", () => {
-    render(
+    renderWithCanonicalProviders(
       <AcceptanceGlobDialog
         {...defaultProps}
         initialAllow={["src/**"]}
@@ -90,7 +91,7 @@ describe("AcceptanceGlobDialog", () => {
 
   it("calls onSave with correctly parsed arrays on save click", async () => {
     const onSave = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <AcceptanceGlobDialog
         {...defaultProps}
         onSave={onSave}
@@ -109,7 +110,7 @@ describe("AcceptanceGlobDialog", () => {
 
   it("calls onClose on cancel click", async () => {
     const onClose = vi.fn();
-    render(<AcceptanceGlobDialog {...defaultProps} onClose={onClose} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} onClose={onClose} />);
 
     await userEvent.click(screen.getByTestId("glob-dialog-cancel"));
 
@@ -117,13 +118,13 @@ describe("AcceptanceGlobDialog", () => {
   });
 
   it("shows loading state when isSubmitting is true", () => {
-    render(<AcceptanceGlobDialog {...defaultProps} isSubmitting />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} isSubmitting />);
     expect(screen.getByText("Saving…")).toBeInTheDocument();
     expect(screen.getByTestId("glob-dialog-save")).toBeDisabled();
   });
 
   it("does not render when isOpen is false", () => {
-    render(<AcceptanceGlobDialog {...defaultProps} isOpen={false} />);
+    renderWithCanonicalProviders(<AcceptanceGlobDialog {...defaultProps} isOpen={false} />);
     expect(screen.queryByText("Edit Acceptance Globs")).not.toBeInTheDocument();
   });
 });

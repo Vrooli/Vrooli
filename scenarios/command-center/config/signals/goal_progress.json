@@ -1,0 +1,42 @@
+{
+  "id": "goal_progress",
+  "label": "Goal progress",
+  "description": "Progress rows and ETA bands reported by Swarm Manager.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:swarm-manager",
+    "read": "/api/v1/goals",
+    "select": "goal_progress",
+    "ttlSeconds": 300,
+    "integrationId": "swarm-manager",
+    "featureId": "goal_progress",
+    "contractVersion": "legacy.v1",
+    "selector": "goal_progress",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

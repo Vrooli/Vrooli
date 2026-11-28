@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "start",
+    "title": "Start",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Search the library, browse by intent, continue a workspace, or start from a curated template.",
+    "prd_refs": [
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The current continuation and library health are legible before the catalogue wall."
+    }
+  ],
+  "claims": [
+    {
+      "id": "start-state-covered",
+      "type": "state-covered",
+      "tier": "aspirational",
+      "statement": "Start is captured in default, loading, partial and catalog-unavailable states.",
+      "states": [
+        "default",
+        "loading",
+        "partial",
+        "catalog-unavailable"
+      ],
+      "rationale": "The page is implemented against real projections; captures are still required before the claim becomes machine-tier."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Continuation, health, recent assets and signals are visible."
+    },
+    {
+      "id": "loading",
+      "description": "Projections are still resolving; skeletons preserve layout."
+    },
+    {
+      "id": "partial",
+      "description": "Some projections answered while another is unavailable."
+    },
+    {
+      "id": "catalog-unavailable",
+      "description": "The catalog did not answer; nothing is rendered as an empty library."
+    }
+  ],
+  "regions": [
+    {
+      "id": "start-launchpad",
+      "required": true,
+      "purpose": "Render the launchpad, health, continuation and signals without hiding unavailable evidence.",
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "start-launchpad": {
+        "selector": "[data-experience-surface=\"start\"]"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "Start \u00b7 Library \u00b7 Design \u00b7 Review \u00b7 Stats",
+    "status": "active",
+    "plan": "docs/concepts/WORKBENCH-MATURATION.md",
+    "changes": [
+      "Home becomes Start",
+      "Search is server-ranked",
+      "Continue reads workspaces, not legacy designs"
+    ]
+  }
+}

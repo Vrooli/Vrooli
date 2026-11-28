@@ -16,7 +16,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { apiService } from '../services/api'
 import { AutomatedFix, AutomatedFixConfig, AutomatedFixJobSnapshot, AutomatedFixRescanResult, AutomationTriggerSummary } from '../types/api'
-import { Badge } from './common/Badge'
+import { Badge } from './common/BadgeAdapter'
 import { Card } from './common/Card'
 
 type AutomationFormConfig = Pick<AutomatedFixConfig, 'violation_types' | 'severities' | 'strategy' | 'loop_delay_seconds' | 'timeout_seconds' | 'max_fixes' | 'model'>
@@ -265,6 +265,9 @@ export default function AutomatedFixPanel() {
       return job.message || 'No loops executed yet'
     }
     const latest = job.loops[job.loops.length - 1]
+    if (!latest) {
+      return job.message || 'No loops executed yet'
+    }
     const parts: string[] = []
     if (latest.message) {
       parts.push(latest.message)

@@ -1,0 +1,21 @@
+{
+ "question": "How should Image Tools arrange its eight destinations on a phone?",
+ "big_picture": "Eight destinations make the phone bottom bar clip every name, so this is a choice about how the app is organised. You decide which destinations stay closest while editing. Four tabs keep Home, Workspace, Library and Activity one tap away; menu only puts every destination two taps away and gives the image more room; keep leaves today’s clipped tabs in place. If you do not answer, the bar stays as it is today. After an answer, I change the phone layout and send you a capture.",
+ "recommend": "four",
+ "reason": "Editing places stay one tap away with readable names, and all eight destinations remain available.",
+ "options": [
+  {
+   "key": "four",
+   "label": "Keep four readable tabs and put the other four destinations in the menu"
+  },
+  {
+   "key": "menu",
+   "label": "Remove the bottom bar and put all eight destinations in the menu"
+  },
+  {
+   "key": "keep",
+   "label": "Keep all eight tabs with their clipped names"
+  }
+ ],
+ "technical_details": "Source: Image Tools phone navigation decision from Hub ask d37f6abb (15 Nov 2026). The attached captures show today-light.webp and today-dark.webp (current), four-tabs-light.webp and four-tabs-dark.webp plus four-tabs-menu-open-light.webp (four-tab option), menu-only-light.webp (menu option), and today-tabbar-320.webp plus four-tabs-tabbar-320.webp (320 px comparison)."
+}

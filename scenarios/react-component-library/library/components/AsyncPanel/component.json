@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:AsyncPanel",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.3",
+    "1.0.2"
+  ],
+  "description": "Reusable async panel component implementation for the React component library.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Async Panel",
+  "draft": "1.0.8-draft.1",
+  "evictedVersions": [],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:AsyncPanel",
+  "tags": []
+}

@@ -5,8 +5,9 @@
  * and lets the user optionally select them for deletion too.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useId, useCallback } from 'react'
 import { AlertTriangle, Loader2 } from 'lucide-react'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { cn } from '@/lib/utils'
 import { Dialog } from './Dialog'
 import { getTeamExclusiveMembers } from '@/services/teamService'
@@ -29,7 +30,7 @@ export function DeleteTeamDialog({
   onConfirm,
   isLoading = false,
 }: DeleteTeamDialogProps) {
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+  const confirmActionTestId = useId()
 
   const [exclusiveMembers, setExclusiveMembers] = useState<ExclusiveMember[]>([])
   const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(new Set())
@@ -62,9 +63,12 @@ export function DeleteTeamDialog({
   // Auto-focus confirm button when dialog opens
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => confirmButtonRef.current?.focus(), 0)
+      const timer = window.setTimeout(() => {
+        document.querySelector<HTMLButtonElement>(`[data-testid="${confirmActionTestId}"]`)?.focus()
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
-  }, [isOpen])
+  }, [confirmActionTestId, isOpen])
 
   const toggleAgent = useCallback((agentId: string) => {
     setSelectedAgentIds((prev) => {
@@ -96,6 +100,11 @@ export function DeleteTeamDialog({
     : agentCount > 0
       ? `Delete team & ${agentCount} agent${agentCount !== 1 ? 's' : ''}`
       : 'Delete team'
+
+  const actions = [
+    { id: 'delete-team', label: confirmLabel, onSelect: handleConfirm, disabled: isLoading || isFetching, primary: true, testId: confirmActionTestId },
+    { id: 'cancel', label: 'Cancel', onSelect: onClose, disabled: isLoading },
+  ] satisfies OverlayActionList
 
   return (
     <Dialog
@@ -180,34 +189,7 @@ export function DeleteTeamDialog({
       ) : null}
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={isLoading}
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium rounded-lg',
-            'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white',
-            'border border-white/10 transition-colors',
-            isLoading && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          Cancel
-        </button>
-        <button
-          ref={confirmButtonRef}
-          type="button"
-          onClick={handleConfirm}
-          disabled={isLoading || isFetching}
-          className={cn(
-            'flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
-            'bg-red-600 text-white hover:bg-red-500',
-            (isLoading || isFetching) && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          {confirmLabel}
-        </button>
-      </div>
+      <OverlayActionBar actions={actions} className="prompt-overlay-actions prompt-overlay-actions--danger prompt-overlay-actions--secondary-left" />
     </Dialog>
   )
 }

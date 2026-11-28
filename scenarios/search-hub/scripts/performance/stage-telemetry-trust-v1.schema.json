@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/search-hub/stage-telemetry-trust-v1.schema.json",
+  "title": "Reviewed Search Hub stage telemetry public-key allowlist v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "keys"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "keys": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["issuer", "key_id", "modulus_hex", "public_exponent", "enabled", "purpose", "key_fingerprint_sha256", "admission_receipt_id", "admission_receipt_sha256", "reviewer_ids"],
+      "properties": {
+        "issuer": {"type": "string", "minLength": 1}, "key_id": {"type": "string", "minLength": 1},
+        "modulus_hex": {"type": "string", "pattern": "^[1-9a-f][0-9a-f]{511,}$"},
+        "public_exponent": {"type": "integer", "minimum": 3}, "enabled": {"type": "boolean"},
+        "purpose": {"const": "search_hub_stage_telemetry"},
+        "key_fingerprint_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "admission_receipt_id": {"type": "string", "minLength": 1},
+        "admission_receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "reviewer_ids": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    }}
+  }
+}

@@ -3,14 +3,12 @@
  *
  * Manages:
  * - Selected member ID for detail panel
- * - Org chart data (nodes and edges)
  * - Member documents (responsibilities, heartbeat instructions)
  * - Dirty tracking for save indicators
  * - localStorage persistence for unsaved changes
  */
 
 import { create } from 'zustand'
-import type { OrgEdge, MemberDocs } from '@/types/orgChart'
 import {
   PERSISTENCE_DEBOUNCE_MS,
   ENTITY_PERSISTENCE_VERSION,
@@ -27,12 +25,19 @@ interface DirtyState {
   schedule: boolean
 }
 
+/**
+ * Member documents (responsibilities and heartbeat instructions).
+ */
+export interface MemberDocs {
+  /** RESPONSIBILITIES.md content */
+  responsibilities: string
+  /** HEARTBEAT.md content */
+  heartbeatInstructions: string
+}
+
 interface TeamEditorState {
   /** Currently selected member ID for the detail panel */
   selectedMemberId: string | null
-
-  /** Org chart edges (reporting relationships) */
-  edges: OrgEdge[]
 
   /** Member documents cache: agentId -> docs */
   memberDocs: Map<string, MemberDocs>
@@ -53,15 +58,6 @@ interface TeamEditorState {
 interface TeamEditorActions {
   /** Select a member for editing */
   setSelectedMemberId: (id: string | null) => void
-
-  /** Set org chart edges */
-  setEdges: (edges: OrgEdge[]) => void
-
-  /** Update a single edge */
-  updateEdge: (agentId: string, managerId: string | null) => void
-
-  /** Remove an edge */
-  removeEdge: (agentId: string) => void
 
   /** Set member documents */
   setMemberDocs: (agentId: string, docs: MemberDocs) => void
@@ -104,12 +100,6 @@ interface TeamEditorSelectors {
   /** Get dirty state for a member */
   getDirtyState: (agentId: string) => DirtyState | undefined
 
-  /** Get manager ID for a member */
-  getManagerId: (agentId: string) => string | null
-
-  /** Get reports (direct subordinates) for a member */
-  getReportIds: (agentId: string) => string[]
-
   /** Get count of members with dirty changes */
   getDirtyCount: () => number
 
@@ -125,7 +115,6 @@ type TeamEditorStore = TeamEditorState & TeamEditorActions & TeamEditorSelectors
 
 const initialState: TeamEditorState = {
   selectedMemberId: null,
-  edges: [],
   memberDocs: new Map(),
   dirtyState: new Map(),
   isLoadingDocs: false,
@@ -225,48 +214,6 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
     set({ selectedMemberId: id, docsError: null })
   },
 
-  setEdges: (edges) => {
-    set({ edges })
-  },
-
-  updateEdge: (agentId, managerId) => {
-    const { edges } = get()
-
-    if (managerId === null) {
-      // Remove the edge
-      set({ edges: edges.filter((e) => e.reportId !== agentId) })
-    } else {
-      // Check if edge exists
-      const existingIndex = edges.findIndex((e) => e.reportId === agentId)
-
-      if (existingIndex >= 0) {
-        // Update existing edge
-        const newEdges = [...edges]
-        const existingEdge = newEdges[existingIndex]
-        if (!existingEdge) return
-        newEdges[existingIndex] = {
-          id: `${managerId}-${agentId}`,
-          managerId,
-          reportId: existingEdge.reportId,
-        }
-        set({ edges: newEdges })
-      } else {
-        // Add new edge
-        const newEdge: OrgEdge = {
-          id: `${managerId}-${agentId}`,
-          managerId,
-          reportId: agentId,
-        }
-        set({ edges: [...edges, newEdge] })
-      }
-    }
-  },
-
-  removeEdge: (agentId) => {
-    const { edges } = get()
-    set({ edges: edges.filter((e) => e.reportId !== agentId) })
-  },
-
   setMemberDocs: (agentId, docs) => {
     const { memberDocs, dirtyState } = get()
     const newDocs = new Map(memberDocs)
@@ -353,7 +300,7 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
   },
 
   clearMember: (agentId) => {
-    const { memberDocs, dirtyState, edges, selectedMemberId } = get()
+    const { memberDocs, dirtyState, selectedMemberId } = get()
 
     const newDocs = new Map(memberDocs)
     newDocs.delete(agentId)
@@ -361,14 +308,9 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
     const newDirtyState = new Map(dirtyState)
     newDirtyState.delete(agentId)
 
-    const newEdges = edges.filter(
-      (e) => e.managerId !== agentId && e.reportId !== agentId
-    )
-
     set({
       memberDocs: newDocs,
       dirtyState: newDirtyState,
-      edges: newEdges,
       selectedMemberId: selectedMemberId === agentId ? null : selectedMemberId,
     })
     persistState(newDocs, newDirtyState)
@@ -413,17 +355,6 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
 
   getDirtyState: (agentId) => {
     return get().dirtyState.get(agentId)
-  },
-
-  getManagerId: (agentId) => {
-    const edge = get().edges.find((e) => e.reportId === agentId)
-    return edge?.managerId ?? null
-  },
-
-  getReportIds: (agentId) => {
-    return get()
-      .edges.filter((e) => e.managerId === agentId)
-      .map((e) => e.reportId)
   },
 
   /** Get count of members with dirty changes */

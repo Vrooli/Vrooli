@@ -1,0 +1,372 @@
+{
+  "metadata": {
+    "name": "navigate-all-routes-mobile",
+    "description": "Mobile-viewport variant of navigate-all-routes. Walks all six command-center routes at iPhone-14 dimensions (390x844), confirms the metrics drawer (data-testid='metrics-drawer') renders on every dashboard, and captures a full-page screenshot per route so reviewers can visually verify no horizontal overflow.",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /mission-control (mobile)"
+        }
+      }
+    },
+    {
+      "id": "wait-mission-control-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='ground-control']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='ground-control'"
+        }
+      }
+    },
+    {
+      "id": "assert-mission-control-drawer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metrics-drawer']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": {
+          "label": "Assert metrics drawer renders on /mission-control"
+        }
+      }
+    },
+    {
+      "id": "capture-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /mission-control (mobile)"
+        }
+      }
+    },
+    {
+      "id": "navigate-hive",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/hive",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /hive (mobile)"
+        }
+      }
+    },
+    {
+      "id": "wait-hive-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='bioluminescent']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='bioluminescent'"
+        }
+      }
+    },
+    {
+      "id": "assert-hive-drawer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metrics-drawer']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": {
+          "label": "Assert metrics drawer renders on /hive"
+        }
+      }
+    },
+    {
+      "id": "capture-hive",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /hive (mobile)"
+        }
+      }
+    },
+    {
+      "id": "navigate-forge",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/forge",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /forge (mobile)"
+        }
+      }
+    },
+    {
+      "id": "wait-forge-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='foundry']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='foundry'"
+        }
+      }
+    },
+    {
+      "id": "assert-forge-drawer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metrics-drawer']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": {
+          "label": "Assert metrics drawer renders on /forge"
+        }
+      }
+    },
+    {
+      "id": "capture-forge",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /forge (mobile)"
+        }
+      }
+    },
+    {
+      "id": "navigate-ledger",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/ledger",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /ledger (mobile)"
+        }
+      }
+    },
+    {
+      "id": "wait-ledger-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='vault']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='vault'"
+        }
+      }
+    },
+    {
+      "id": "assert-ledger-drawer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metrics-drawer']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": {
+          "label": "Assert metrics drawer renders on /ledger"
+        }
+      }
+    },
+    {
+      "id": "capture-ledger",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /ledger (mobile)"
+        }
+      }
+    },
+    {
+      "id": "navigate-broadcast",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/broadcast",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /broadcast (mobile)"
+        }
+      }
+    },
+    {
+      "id": "wait-broadcast-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='signal-tower']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='signal-tower'"
+        }
+      }
+    },
+    {
+      "id": "assert-broadcast-drawer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metrics-drawer']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": {
+          "label": "Assert metrics drawer renders on /broadcast"
+        }
+      }
+    },
+    {
+      "id": "capture-broadcast",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /broadcast (mobile)"
+        }
+      }
+    },
+    {
+      "id": "navigate-panorama",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/panorama",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /panorama (mobile)"
+        }
+      }
+    },
+    {
+      "id": "wait-panorama-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='cosmos']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='cosmos'"
+        }
+      }
+    },
+    {
+      "id": "assert-panorama-drawer",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metrics-drawer']",
+          "mode": "ASSERTION_MODE_EXISTS"
+        },
+        "metadata": {
+          "label": "Assert metrics drawer renders on /panorama"
+        }
+      }
+    },
+    {
+      "id": "capture-panorama",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /panorama (mobile)"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-mission-control", "target": "wait-mission-control-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-mission-control-theme", "target": "assert-mission-control-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-mission-control-drawer", "target": "capture-mission-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "capture-mission-control", "target": "navigate-hive", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "navigate-hive", "target": "wait-hive-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "wait-hive-theme", "target": "assert-hive-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-hive-drawer", "target": "capture-hive", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "capture-hive", "target": "navigate-forge", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "navigate-forge", "target": "wait-forge-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "wait-forge-theme", "target": "assert-forge-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "assert-forge-drawer", "target": "capture-forge", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "capture-forge", "target": "navigate-ledger", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e13", "source": "navigate-ledger", "target": "wait-ledger-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e14", "source": "wait-ledger-theme", "target": "assert-ledger-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e15", "source": "assert-ledger-drawer", "target": "capture-ledger", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e16", "source": "capture-ledger", "target": "navigate-broadcast", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e17", "source": "navigate-broadcast", "target": "wait-broadcast-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e18", "source": "wait-broadcast-theme", "target": "assert-broadcast-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e19", "source": "assert-broadcast-drawer", "target": "capture-broadcast", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e20", "source": "capture-broadcast", "target": "navigate-panorama", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e21", "source": "navigate-panorama", "target": "wait-panorama-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e22", "source": "wait-panorama-theme", "target": "assert-panorama-drawer", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e23", "source": "assert-panorama-drawer", "target": "capture-panorama", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

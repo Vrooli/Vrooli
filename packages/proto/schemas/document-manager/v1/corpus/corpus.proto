@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package vrooli.document_manager.v1.corpus;
+
+import "google/protobuf/timestamp.proto";
+import "document-manager/v1/shared/document.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/corpus;corpus_v1";
+
+service CorpusService {
+  rpc CreateCollection(CreateCollectionRequest) returns (CreateCollectionResponse);
+  rpc GetCollection(GetCollectionRequest) returns (GetCollectionResponse);
+  rpc ListCollections(ListCollectionsRequest) returns (ListCollectionsResponse);
+  rpc AddDocument(AddDocumentRequest) returns (AddDocumentResponse);
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc Export(ExportRequest) returns (ExportResponse);
+  rpc Import(ImportRequest) returns (ImportResponse);
+  rpc Prune(PruneRequest) returns (PruneResponse);
+}
+
+message Collection {
+  string id = 1;
+  string name = 2;
+  shared.PrivacyClass default_privacy_class = 3;
+  bool federated = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message CollectionDocument {
+  string collection_id = 1;
+  string document_hash = 2;
+  shared.PrivacyClass privacy_class = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message CreateCollectionRequest {
+  string name = 1;
+  shared.PrivacyClass default_privacy_class = 2;
+  bool federated = 3;
+}
+message CreateCollectionResponse { Collection collection = 1; }
+message GetCollectionRequest { string id = 1; }
+message GetCollectionResponse { Collection collection = 1; }
+message ListCollectionsRequest { int32 limit = 1; }
+message ListCollectionsResponse { repeated Collection collections = 1; }
+message AddDocumentRequest {
+  string collection_id = 1;
+  string document_hash = 2;
+  shared.PrivacyClass privacy_class = 3;
+}
+message AddDocumentResponse { CollectionDocument document = 1; }
+message ListDocumentsRequest { string collection_id = 1; int32 limit = 2; }
+message ListDocumentsResponse { repeated CollectionDocument documents = 1; }
+
+// The archive is UTF-8 JSON with a documented schema_version. It is deliberately
+// not a database or proprietary container, so it can be inspected and migrated
+// independently of this service.
+message ExportRequest { string collection_id = 1; }
+message ExportResponse { bytes archive_json = 1; string format = 2; }
+message ImportRequest { bytes archive_json = 1; }
+message ImportResponse { Collection collection = 1; int32 documents_imported = 2; }
+message PruneRequest { bool dry_run = 1; }
+message PruneResponse { bool dry_run = 1; repeated string removed_kinds = 2; int64 reclaimed_bytes = 3; }

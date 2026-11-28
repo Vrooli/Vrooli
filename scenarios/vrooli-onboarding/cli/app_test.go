@@ -1,69 +1,121 @@
 package main
 
 import (
+	"bytes"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
-// [REQ:REQ-P0-003] CLI basic smoke tests
+func TestManifestCommandViewsShareOneLoadedTree(t *testing.T) {
+	loads := 0
+	core := &cliapp.ScenarioApp{}
+	commandGroups, subcommandGroups := cachedManifestGroupCallbacks(func(gotCore *cliapp.ScenarioApp) ([]cliapp.CommandGroup, []cliapp.SubcommandGroup, error) {
+		loads++
+		if gotCore != core {
+			t.Fatalf("loader core = %p, want shared core %p", gotCore, core)
+		}
+		return []cliapp.CommandGroup{{Title: "flat"}}, []cliapp.SubcommandGroup{{Name: "nested"}}, nil
+	})
 
-func TestNewApp(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
+	if got := commandGroups(core); len(got) != 1 || got[0].Title != "flat" {
+		t.Fatalf("flat command groups = %+v", got)
 	}
-	if app == nil {
-		t.Fatal("NewApp() returned nil app")
+	if got := subcommandGroups(core); len(got) != 1 || got[0].Name != "nested" {
+		t.Fatalf("nested command groups = %+v", got)
 	}
-	if app.core == nil {
-		t.Fatal("NewApp() returned app with nil core")
+	if got := subcommandGroups(core); len(got) != 1 || got[0].Name != "nested" {
+		t.Fatalf("reloaded nested command groups = %+v", got)
+	}
+	if loads != 1 {
+		t.Fatalf("manifest group loader calls = %d, want 1", loads)
 	}
 }
 
-func TestAppAPIPath(t *testing.T) {
+func TestNewAppConstructs(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
+		t.Fatalf("NewApp() error: %v", err)
 	}
-
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{name: "absolute path", input: "/health", want: "/api/v1/health"},
-		{name: "relative path", input: "health", want: "/api/v1/health"},
-		{name: "empty input", input: "", want: ""},
-		{name: "path with subpath", input: "/resources/health", want: "/api/v1/resources/health"},
-		{name: "whitespace input", input: "   ", want: ""},
+	if app == nil || app.core == nil || app.core.CLI == nil {
+		t.Fatal("NewApp() returned an incomplete app")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := app.apiPath(tt.input)
-			if got != tt.want {
-				t.Errorf("apiPath(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+	if got := app.core.APIPrefix(); got != "/api" {
+		t.Fatalf("API prefix = %q, want /api for the v2 onboarding routes", got)
 	}
 }
 
-func TestAppHasCommands(t *testing.T) {
+func TestRunVersion(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp() returned error: %v", err)
+		t.Fatalf("NewApp() error: %v", err)
 	}
-
-	// Verify the CLI has registered commands
-	if app.core.CLI == nil {
-		t.Fatal("expected CLI to be initialized")
+	// --version is handled by cli-core; it must not return an error and must not
+	// touch the network (no NeedsAPI path triggered).
+	if err := app.Run([]string{"--version"}); err != nil {
+		t.Fatalf("app.Run(--version) error: %v", err)
 	}
 }
 
-func TestAppConstants(t *testing.T) {
-	if appName != "vrooli-onboarding" {
-		t.Errorf("appName = %q, want %q", appName, "vrooli-onboarding")
+func TestRunHelpListsMigratedDomains(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() error: %v", err)
 	}
-	if appVersion == "" {
-		t.Error("appVersion should not be empty")
+	// Help is rendered by cli-core to stdout; we only verify Run returns without
+	// error. The presence of each domain in the actual help surface is covered
+	// by cli-core's own tests.
+	if err := app.Run([]string{"--help"}); err != nil {
+		t.Fatalf("app.Run(--help) error: %v", err)
+	}
+}
+
+func TestMetadata(t *testing.T) {
+	if !strings.EqualFold(appName, "vrooli-onboarding") {
+		t.Fatalf("appName = %q, want vrooli-onboarding", appName)
+	}
+	if strings.TrimSpace(appVersion) == "" {
+		t.Fatal("appVersion must not be empty")
+	}
+}
+
+func TestRunMain(t *testing.T) {
+	if err := runMain([]string{"--version"}); err != nil {
+		t.Fatalf("runMain() error: %v", err)
+	}
+	var quiet bytes.Buffer
+	if code := runExitCode([]string{"--version"}, &quiet); code != 0 {
+		t.Fatalf("runExitCode() = %d", code)
+	}
+	if quiet.Len() != 0 {
+		t.Fatalf("a successful run must print nothing to stderr, got %q", quiet.String())
+	}
+	var stderr bytes.Buffer
+	if code := runExitCode([]string{"unknown-command"}, &stderr); code == 0 {
+		t.Fatal("unknown command should return a non-zero exit code")
+	}
+	if stderr.Len() == 0 {
+		t.Fatal("a failing run must say why; this CLI exited silently for every error, which during the wizard was indistinguishable from success")
+	}
+}
+
+// TestFailuresAreNeverSilent pins the contract the wizard depends on: an
+// operator who answers a consent prompt and sees the command vanish cannot tell
+// whether the host was changed. Any error must reach stderr.
+func TestFailuresAreNeverSilent(t *testing.T) {
+	for _, args := range [][]string{
+		{"unknown-command"},
+		{"wizard", "unknown-subcommand"},
+		{"wizard", "commit"}, // missing the required --selection
+	} {
+		var stderr bytes.Buffer
+		code := runExitCode(args, &stderr)
+		if code == 0 {
+			continue // not an error path on this build; nothing to assert
+		}
+		if !strings.Contains(stderr.String(), "Error:") {
+			t.Fatalf("%v exited %d without naming the failure; stderr = %q", args, code, stderr.String())
+		}
 	}
 }

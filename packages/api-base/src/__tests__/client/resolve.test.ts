@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolveApiBase, resolveWsBase } from '../../client/resolve.js'
+import type { WindowLike } from '../../shared/types.js'
 import { mockWindow, mockLocalhost, mockRemoteHost, mockProxyContext } from '../helpers/mock-window.js'
 import { mockProxyInfo } from '../helpers/test-utils.js'
 
@@ -179,6 +180,62 @@ describe('resolveApiBase', () => {
       })
 
       expect(result).toBe('/custom/proxy')
+    })
+
+    it('rejects proxy metadata that escapes the current origin and returns to the host route', () => {
+      const validProxy = mockProxyInfo({
+        primary: { path: '/apps/test/proxy' },
+        basePath: '/apps/test/proxy',
+      })
+      const proxied = resolveApiBase({
+        windowObject: mockWindow({
+          hostname: 'example.com',
+          origin: 'https://example.com',
+          pathname: '/apps/test/proxy/index.html',
+          globals: { __VROOLI_PROXY_INFO__: validProxy },
+        }),
+      })
+      expect(proxied).toBe('/apps/test/proxy')
+
+      const unsafeProxy = mockProxyInfo({
+        primary: { path: '//outside.example/api' },
+        ports: [],
+        basePath: '//outside.example/api',
+      })
+      const hostRoute = resolveApiBase({
+        windowObject: mockWindow({
+          hostname: 'example.com',
+          origin: 'https://example.com',
+          pathname: '/apps/test/settings',
+          globals: { __VROOLI_PROXY_INFO__: unsafeProxy },
+        }),
+      })
+      expect(hostRoute).toBe('https://example.com')
+    })
+
+    it('follows direct-host and same-origin proxy route transitions without carrying page queries into the API base', () => {
+      const proxyInfo = mockProxyInfo({
+        primary: { path: '/apps/test/proxy/?tenant=blue' },
+        basePath: '/apps/test/proxy/?tenant=blue',
+      })
+      const windowObject = mockWindow({
+        hostname: 'example.com',
+        origin: 'https://example.com',
+        pathname: '/apps/test/proxy/index.html',
+        globals: { __VROOLI_PROXY_INFO__: proxyInfo },
+      }) as WindowLike & { location: NonNullable<WindowLike['location']> & { search?: string } }
+      const location = windowObject.location!
+      const routes = [
+        { pathname: '/apps/test/proxy/index.html', search: '?draft=local', expected: '/apps/test/proxy/api/v1?tenant=blue' },
+        { pathname: '/apps/test/settings', search: '?draft=local', expected: 'https://example.com/api/v1' },
+        { pathname: '/apps/test/proxy/editor', search: '?draft=remote', expected: '/apps/test/proxy/api/v1?tenant=blue' },
+      ]
+
+      for (const route of routes) {
+        location.pathname = route.pathname
+        location.search = route.search
+        expect(resolveApiBase({ windowObject, appendSuffix: true })).toBe(route.expected)
+      }
     })
   })
 

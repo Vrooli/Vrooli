@@ -6,10 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
@@ -62,7 +63,7 @@ type runStatusResponse struct {
 	ErrorMessage    string  `json:"error_message,omitempty"`
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
 	Active          bool    `json:"active"`
-	TokensUsed      int32   `json:"tokens_used,omitempty"`
+	TokensUsed      int64   `json:"tokens_used,omitempty"`
 	TurnsUsed       int32   `json:"turns_used,omitempty"`
 	CostEstimate    float64 `json:"cost_estimate,omitempty"`
 	ChangedFiles    int32   `json:"changed_files,omitempty"`

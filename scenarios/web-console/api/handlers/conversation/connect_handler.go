@@ -1,0 +1,375 @@
+package conversation
+
+import (
+	"context"
+	"errors"
+	"log"
+	"strings"
+
+	"connectrpc.com/connect"
+
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
+)
+
+// Deps wires the seams the Connect conversation handler needs.
+type Deps struct {
+	Service        Service
+	OptionalSearch OptionalSearchService
+	Logger         *log.Logger
+}
+
+type connectHandler struct {
+	deps Deps
+}
+
+// NewConnectHandler constructs the Connect-RPC handler implementing
+// ConversationServiceHandler.
+func NewConnectHandler(d Deps) *connectHandler {
+	if d.Logger == nil {
+		d.Logger = log.Default()
+	}
+	return &connectHandler{deps: d}
+}
+
+// ErrSessionNotFound is the sentinel for an unknown session id. Mapped to
+// CodeNotFound.
+var ErrSessionNotFound = errors.New("session not found")
+
+// ErrNotFound is the sentinel for an unknown event id or referenced file.
+// Mapped to CodeNotFound.
+var ErrNotFound = errors.New("not found")
+
+// ErrInvalidArgument is the sentinel for malformed/missing fields and
+// validation failures (e.g. summarizing a non-assistant event). Mapped to
+// CodeInvalidArgument.
+var ErrInvalidArgument = errors.New("invalid argument")
+
+func (h *connectHandler) Get(ctx context.Context, req *connect.Request[conversationv1.GetRequest]) (*connect.Response[conversationv1.GetResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	if sessionID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
+	}
+	var state SessionState
+	var err error
+	if req.Msg.GetProjection() == conversationv1.ConversationProjection_CONVERSATION_PROJECTION_MESSAGES {
+		state, err = h.deps.Service.Project(ctx, sessionID, ProjectionQuery{
+			ThreadID: strings.TrimSpace(req.Msg.GetThreadId()), Limit: int(req.Msg.GetLimit()),
+			BeforeSequence: req.Msg.GetBeforeSequence(), SinceSequence: req.Msg.GetSinceSequence(),
+		})
+	} else {
+		state, err = h.deps.Service.Get(ctx, sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
+	}
+	if err != nil {
+		return nil, h.classify(err, "conversation.Get")
+	}
+	// Diagnose capture on every Get. It is the only way a caller can tell an
+	// empty conversation apart from an unreadable one, and paying for it here
+	// keeps that distinction from needing a second, easily-forgotten call.
+	capture := state.Capture
+	if capture.State == CaptureUnspecified {
+		capture = h.deps.Service.CaptureStatus(ctx, sessionID)
+	}
+	return connect.NewResponse(&conversationv1.GetResponse{
+		SessionId:      state.SessionID,
+		Events:         eventsToProto(state.Events),
+		Cursor:         cursorToProto(state.Cursor),
+		HasMore:        state.HasMore,
+		OldestSequence: state.OldestSequence,
+		NewestSequence: state.NewestSequence,
+		TotalCount:     state.TotalCount,
+		Capture:        captureToProto(capture),
+		Threads:        threadsToProto(state.Threads),
+	}), nil
+}
+
+func threadsToProto(in []Thread) []*conversationv1.ConversationThread {
+	out := make([]*conversationv1.ConversationThread, 0, len(in))
+	for _, thread := range in {
+		out = append(out, &conversationv1.ConversationThread{
+			ThreadId: thread.ThreadID, Kind: thread.Kind, Label: thread.Label, Description: thread.Description,
+			ParentThreadId: thread.ParentThreadID, FirstSequence: thread.FirstSequence, LastSequence: thread.LastSequence,
+			MessageCount: int32(thread.MessageCount), WorkCount: int32(thread.WorkCount), StartedAt: thread.StartedAt, EndedAt: thread.EndedAt,
+		})
+	}
+	return out
+}
+
+func workToProto(work *WorkSpan) *conversationv1.ConversationWorkSpan {
+	if work == nil {
+		return nil
+	}
+	return &conversationv1.ConversationWorkSpan{
+		FromSequence: work.FromSequence, ToSequence: work.ToSequence, ToolCalls: int32(work.ToolCalls), ToolResults: int32(work.ToolResults),
+		Reasoning: int32(work.Reasoning), Context: int32(work.Context), StartedAt: work.StartedAt, EndedAt: work.EndedAt,
+	}
+}
+
+// captureStateToProto maps the transport-neutral capture state onto the wire
+// enum. An unrecognized value degrades to UNSPECIFIED rather than guessing a
+// healthier state than the server actually observed.
+func captureStateToProto(state CaptureState) conversationv1.MessageCaptureState {
+	switch state {
+	case CaptureCapturing:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_CAPTURING
+	case CaptureNotApplicable:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_NOT_APPLICABLE
+	case CapturePending:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_PENDING
+	case CaptureUnavailable:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_UNAVAILABLE
+	default:
+		return conversationv1.MessageCaptureState_MESSAGE_CAPTURE_STATE_UNSPECIFIED
+	}
+}
+
+func captureToProto(c CaptureStatus) *conversationv1.MessageCaptureStatus {
+	return &conversationv1.MessageCaptureStatus{
+		State:          captureStateToProto(c.State),
+		ReasonCode:     c.ReasonCode,
+		Summary:        c.Summary,
+		Detail:         c.Detail,
+		Remediation:    c.Remediation,
+		TranscriptPath: c.TranscriptPath,
+		LastCapturedAt: c.LastCapturedAt,
+	}
+}
+
+// searchModeName maps the wire mode onto the service's mode names.
+func searchModeName(mode conversationv1.ConversationSearchMode) string {
+	switch mode {
+	case conversationv1.ConversationSearchMode_CONVERSATION_SEARCH_MODE_REGEX:
+		return "regex"
+	case conversationv1.ConversationSearchMode_CONVERSATION_SEARCH_MODE_FUZZY:
+		return "fuzzy"
+	default:
+		return "text"
+	}
+}
+
+func rangesToProto(ranges []TextRange) []*conversationv1.TextRange {
+	out := make([]*conversationv1.TextRange, 0, len(ranges))
+	for _, r := range ranges {
+		out = append(out, &conversationv1.TextRange{Start: int32(r.Start), End: int32(r.End)})
+	}
+	return out
+}
+
+func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conversationv1.SearchRequest]) (*connect.Response[conversationv1.SearchResponse], error) {
+	result, err := h.deps.Service.Search(ctx, strings.TrimSpace(req.Msg.GetSessionId()), SearchQuery{
+		Query:         req.Msg.GetQuery(),
+		Mode:          searchModeName(req.Msg.GetMode()),
+		CaseSensitive: req.Msg.GetCaseSensitive(),
+		WholeWord:     req.Msg.GetWholeWord(),
+		Role:          req.Msg.GetRoleFilter(),
+		Limit:         int(req.Msg.GetLimit()),
+		AfterSequence: req.Msg.GetAfterSequence(),
+		Kinds:         req.Msg.GetKinds(),
+	})
+	if err != nil {
+		return nil, h.classify(err, "conversation.Search")
+	}
+	out := make([]*conversationv1.SearchMatch, 0, len(result.Matches))
+	for _, match := range result.Matches {
+		out = append(out, &conversationv1.SearchMatch{
+			EventId: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
+			Role: match.Role, CreatedAt: match.CreatedAt, OccurredAt: match.OccurredAt, Kind: match.Kind, ThreadId: match.ThreadID,
+		})
+	}
+	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: result.Truncated, TotalMatches: result.TotalMatches, Error: result.Error, HasMore: result.HasMore, NextAfterSequence: result.NextAfterSequence}), nil
+}
+
+func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Request[conversationv1.SearchArchivedRequest]) (*connect.Response[conversationv1.SearchArchivedResponse], error) {
+	if strings.TrimSpace(req.Msg.GetQuery()) == "" {
+		return connect.NewResponse(&conversationv1.SearchArchivedResponse{}), nil
+	}
+	result, err := h.deps.Service.SearchArchived(ctx, ArchivedSearchFilter{
+		SearchQuery: SearchQuery{
+			Query:         req.Msg.GetQuery(),
+			Mode:          searchModeName(req.Msg.GetMode()),
+			CaseSensitive: req.Msg.GetCaseSensitive(),
+			WholeWord:     req.Msg.GetWholeWord(),
+			Role:          req.Msg.GetRole(),
+			Limit:         int(req.Msg.GetLimit()),
+		},
+		AgentType:    req.Msg.GetAgentType(),
+		CreatedAfter: req.Msg.GetCreatedAfter(),
+	})
+	if err != nil {
+		return nil, h.classify(err, "conversation.SearchArchived")
+	}
+	matches := make([]*conversationv1.ArchivedSearchMatch, 0, len(result.Matches))
+	for _, match := range result.Matches {
+		matches = append(matches, &conversationv1.ArchivedSearchMatch{
+			EventId: match.EventID, SessionId: match.SessionID, Sequence: match.Sequence,
+			Role: match.Role, CreatedAt: match.CreatedAt, OccurredAt: match.OccurredAt, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
+		})
+	}
+	return connect.NewResponse(&conversationv1.SearchArchivedResponse{
+		Matches: matches, Truncated: result.Truncated, TotalMatches: result.TotalMatches,
+		DistinctSessions: result.DistinctSessions, Error: result.Error,
+	}), nil
+}
+
+func (h *connectHandler) SearchSemantic(ctx context.Context, req *connect.Request[conversationv1.SearchSemanticRequest]) (*connect.Response[conversationv1.SearchSemanticResponse], error) {
+	query := strings.TrimSpace(req.Msg.GetQuery())
+	if query == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("query is required"))
+	}
+	if h.deps.OptionalSearch != nil {
+		response, err := h.deps.OptionalSearch.SearchSemantic(ctx, req.Msg)
+		if err != nil {
+			return nil, h.classify(err, "conversation.SearchSemantic")
+		}
+		return connect.NewResponse(response), nil
+	}
+	local, err := h.SearchArchived(ctx, connect.NewRequest(&conversationv1.SearchArchivedRequest{Query: query, Limit: req.Msg.GetLimit()}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&conversationv1.SearchSemanticResponse{
+		Local: local.Msg, SemanticError: "optional semantic search is unavailable",
+	}), nil
+}
+
+func (h *connectHandler) SearchNodeArchive(ctx context.Context, req *connect.Request[conversationv1.SearchNodeArchiveRequest]) (*connect.Response[conversationv1.SearchNodeArchiveResponse], error) {
+	if strings.TrimSpace(req.Msg.GetNodeId()) == "" || strings.TrimSpace(req.Msg.GetQuery()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("node_id and query are required"))
+	}
+	if h.deps.OptionalSearch == nil {
+		return connect.NewResponse(&conversationv1.SearchNodeArchiveResponse{
+			NodeId: req.Msg.GetNodeId(), Degradation: "fleet archive search is unavailable",
+		}), nil
+	}
+	response, err := h.deps.OptionalSearch.SearchNodeArchive(ctx, req.Msg)
+	if err != nil {
+		return nil, h.classify(err, "conversation.SearchNodeArchive")
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *connectHandler) GetRange(ctx context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	var state SessionState
+	var err error
+	if req.Msg.GetProjection() == conversationv1.ConversationProjection_CONVERSATION_PROJECTION_WORK {
+		state, err = h.deps.Service.WorkRange(ctx, sessionID, strings.TrimSpace(req.Msg.GetThreadId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+	} else {
+		state, err = h.deps.Service.GetRange(ctx, sessionID, req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+	}
+	if err != nil {
+		return nil, h.classify(err, "conversation.GetRange")
+	}
+	return connect.NewResponse(&conversationv1.GetResponse{SessionId: state.SessionID, Events: eventsToProto(state.Events), Cursor: cursorToProto(state.Cursor)}), nil
+}
+
+func (h *connectHandler) ResolveEvents(ctx context.Context, req *connect.Request[conversationv1.ResolveEventsRequest]) (*connect.Response[conversationv1.ResolveEventsResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	if sessionID == "" || len(req.Msg.GetEventIds()) == 0 || len(req.Msg.GetEventIds()) > 5000 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id and 1..5000 event_ids are required"))
+	}
+	result, err := h.deps.Service.ResolveEvents(ctx, sessionID, req.Msg.GetEventIds())
+	if err != nil {
+		return nil, h.classify(err, "conversation.ResolveEvents")
+	}
+	return connect.NewResponse(&conversationv1.ResolveEventsResponse{
+		Events: eventsToProto(result.Events), MissingEventIds: result.MissingEventIDs,
+	}), nil
+}
+
+func (h *connectHandler) UpdateCursor(ctx context.Context, req *connect.Request[conversationv1.UpdateCursorRequest]) (*connect.Response[conversationv1.UpdateCursorResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	if sessionID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
+	}
+	cursor, err := h.deps.Service.UpdateCursor(ctx, sessionID, CursorPatch{
+		LastSeenSequence:        req.Msg.GetLastSeenSequence(),
+		HasLastSeenSequence:     req.Msg.GetHasLastSeenSequence(),
+		LastListenedSequence:    req.Msg.GetLastListenedSequence(),
+		HasLastListenedSequence: req.Msg.GetHasLastListenedSequence(),
+	})
+	if err != nil {
+		return nil, h.classify(err, "conversation.UpdateCursor")
+	}
+	return connect.NewResponse(&conversationv1.UpdateCursorResponse{
+		Cursor: cursorToProto(cursor),
+	}), nil
+}
+
+func (h *connectHandler) SummarizeEvent(ctx context.Context, req *connect.Request[conversationv1.SummarizeEventRequest]) (*connect.Response[conversationv1.SummarizeEventResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	eventID := strings.TrimSpace(req.Msg.GetEventId())
+	if sessionID == "" || eventID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id and event_id are required"))
+	}
+	result, err := h.deps.Service.SummarizeEvent(ctx, sessionID, eventID)
+	if err != nil {
+		return nil, h.classify(err, "conversation.SummarizeEvent")
+	}
+	return connect.NewResponse(&conversationv1.SummarizeEventResponse{
+		Summarized:       result.Summarized,
+		SpeechParagraphs: append([]string(nil), result.SpeechParagraphs...),
+		Error:            result.Error,
+	}), nil
+}
+
+// classify maps the package's sentinel errors to Connect codes. Anything
+// unrecognized is logged and returned as CodeInternal so the caller never sees
+// an opaque framework error.
+func (h *connectHandler) classify(err error, op string) error {
+	switch {
+	case errors.Is(err, ErrSessionNotFound), errors.Is(err, ErrNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, ErrInvalidArgument):
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	default:
+		h.deps.Logger.Printf("%s: %v", op, err)
+		return connect.NewError(connect.CodeInternal, err)
+	}
+}
+
+func eventToProto(e Event) *conversationv1.ConversationEvent {
+	return &conversationv1.ConversationEvent{
+		Id:                       e.ID,
+		SessionId:                e.SessionID,
+		Source:                   e.Source,
+		Role:                     e.Role,
+		Text:                     e.Text,
+		SpeechParagraphs:         append([]string(nil), e.SpeechParagraphs...),
+		OriginalSpeechParagraphs: append([]string(nil), e.OriginalSpeechParagraphs...),
+		Summarized:               e.Summarized,
+		CreatedAt:                e.CreatedAt,
+		OccurredAt:               e.OccurredAt,
+		Sequence:                 e.Sequence,
+		DeliveryState:            e.DeliveryState,
+		TtsState:                 e.TTSState,
+		ConsumptionState:         e.ConsumptionState,
+		NativeProvenance: func() *conversationv1.NativeProvenance {
+			if e.NativeProvenance == nil {
+				return nil
+			}
+			return &conversationv1.NativeProvenance{Provider: e.NativeProvenance.Provider, SessionId: e.NativeProvenance.SessionID, TurnId: e.NativeProvenance.TurnID, MessageId: e.NativeProvenance.MessageID, BoundaryId: e.NativeProvenance.BoundaryID, CompactionLineage: e.NativeProvenance.CompactionLineage}
+		}(),
+		Kind:          e.Kind,
+		Author:        e.Author,
+		AuthorName:    e.AuthorName,
+		Label:         e.Label,
+		ThreadId:      e.ThreadID,
+		Work:          workToProto(e.Work),
+		TextTruncated: e.TextTruncated,
+	}
+}
+
+func eventsToProto(in []Event) []*conversationv1.ConversationEvent {
+	out := make([]*conversationv1.ConversationEvent, 0, len(in))
+	for _, e := range in {
+		out = append(out, eventToProto(e))
+	}
+	return out
+}
+
+func cursorToProto(c Cursor) *conversationv1.ConversationCursor {
+	return &conversationv1.ConversationCursor{
+		LastSeenSequence:     c.LastSeenSequence,
+		LastListenedSequence: c.LastListenedSequence,
+	}
+}

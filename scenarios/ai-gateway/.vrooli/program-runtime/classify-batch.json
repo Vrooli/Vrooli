@@ -1,0 +1,168 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "ai-gateway.classify-batch",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Classify up to 32 texts using caller-owned instructions and labels, retaining ordered per-item failures, validated labels, provider identity and measured usage in one bounded batch.",
+  "inputs": {
+    "corpus": {
+      "type": "array",
+      "required": true,
+      "description": "1 to 32 nonempty texts; at most 16384 UTF-8 bytes each and 65536 total."
+    },
+    "labels": {
+      "type": "array",
+      "required": true,
+      "description": "1 to 32 distinct nonempty strings; at most 64 UTF-8 bytes each."
+    },
+    "instruction": {
+      "type": "string",
+      "required": true,
+      "description": "Caller-owned classification instruction; 1 to 4096 UTF-8 bytes."
+    }
+  },
+  "assumptions": [
+    "AI Gateway serves the classify.fast role through its governed batch binding."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once on every execution path.",
+    "One batch RPC at most; provider validation repair remains bounded by AI Gateway.",
+    "Only validated values in the declared label set contribute to labels or counts.",
+    "Every requested index is retained when a positional result is missing or invalid.",
+    "Input texts and provider output text are not copied into the result envelope."
+  ],
+  "bindings": [
+    {
+      "id": "ai-gateway/inference/run-batch",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "ai.batch"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "results": "Ordered item evidence, including null labels and indexed errors for failures.",
+      "labels": "Labels in input order, null for invalid or absent results.",
+      "by_label": "Counts of validated labels only.",
+      "validated": "Number of validated in-set labels.",
+      "requested": "Number of admitted input items.",
+      "usage": "Owner-supplied batch usage; null when unavailable or invalid."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "invalid_response",
+        "invalid_result",
+        "missing_result",
+        "inference_failed",
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Batch binding, role and request/item counts; provider identity and measured usage live in item evidence."
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 1,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "closed-label-live",
+      "inputs": {
+        "corpus": [
+          "The provider timed out."
+        ],
+        "labels": [
+          "infra"
+        ],
+        "instruction": "Choose the primary failure class."
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ],
+        "signals": {
+          "labels": [
+            "infra"
+          ],
+          "validated": 1
+        }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "empty-corpus",
+      "inputs": {
+        "corpus": [],
+        "labels": [
+          "infra"
+        ],
+        "instruction": "Classify."
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "signals": {
+          "requested": 0
+        }
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    },
+    {
+      "id": "duplicate-labels",
+      "inputs": {
+        "corpus": [
+          "x"
+        ],
+        "labels": [
+          "x",
+          "x"
+        ],
+        "instruction": "Classify."
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "ai-gateway"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "ai-gateway"
+}

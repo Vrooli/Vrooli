@@ -10,14 +10,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func newMiddlewareTestRouter(path string, middleware gin.HandlerFunc) *gin.Engine {
+	router := gin.New()
+	router.Use(middleware)
+	router.GET(path, func(c *gin.Context) {
+		c.String(http.StatusOK, "OK")
+	})
+	return router
+}
+
+func sendPreviewRequest(router http.Handler, target, token, remoteAddr string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	if token != "" {
+		req.Header.Set("X-Preview-Token", token)
+	}
+	if remoteAddr != "" {
+		req.RemoteAddr = remoteAddr
+	}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
+}
+
 func TestSecurityHeadersMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	router := gin.New()
-	router.Use(SecurityHeadersMiddleware())
-	router.GET("/test", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
-	})
+	router := newMiddlewareTestRouter("/test", SecurityHeadersMiddleware())
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
@@ -52,11 +70,7 @@ func TestSecurityHeadersMiddlewareWithExtraFrameAncestors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("FRAME_ANCESTORS", "https://preview.example.com https://*.customer.example")
 
-	router := gin.New()
-	router.Use(SecurityHeadersMiddleware())
-	router.GET("/test", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
-	})
+	router := newMiddlewareTestRouter("/test", SecurityHeadersMiddleware())
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
@@ -76,31 +90,39 @@ func TestSecurityHeadersMiddlewareWithExtraFrameAncestors(t *testing.T) {
 
 func TestPreviewAccessMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	t.Setenv("VROOLI_LIFECYCLE", "")
-	t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
-	t.Setenv("SCENARIO_MODE", "")
-	t.Setenv("VROOLI_PHASE", "")
-	t.Setenv("GRAPH_STUDIO_DISABLE_PREVIEW_GUARD", "")
-	t.Setenv("GRAPH_STUDIO_FORCE_PREVIEW_GUARD", "")
+	for _, name := range []string{
+		"VROOLI_LIFECYCLE",
+		"VROOLI_LIFECYCLE_MANAGED",
+		"SCENARIO_MODE",
+		"VROOLI_PHASE",
+		"GRAPH_STUDIO_DISABLE_PREVIEW_GUARD",
+		"GRAPH_STUDIO_FORCE_PREVIEW_GUARD",
+	} {
+		t.Setenv(name, "")
+	}
+	for _, name := range []string{
+		"PREVIEW_ACCESS_TOKEN",
+		"GRAPH_STUDIO_PREVIEW_TOKEN",
+		"VITE_PREVIEW_ACCESS_TOKEN",
+		"SCENARIO_NAME",
+		"VROOLI_SCENARIO",
+		"VROOLI_SCENARIO_NAME",
+		"APP_MONITOR_SCENARIO",
+		"APP_MONITOR_PREVIEW_TOKEN",
+		"APP_MONITOR_PREVIEW_TOKENS",
+		"PREVIEW_TOKEN_FILE",
+		"APP_MONITOR_PREVIEW_TOKEN_FILE",
+		"GRAPH_STUDIO_PREVIEW_TOKEN_FILE",
+	} {
+		t.Setenv(name, "")
+	}
+	t.Setenv("SCENARIO_ROOT", t.TempDir())
 
 	t.Run("no token configured", func(t *testing.T) {
-		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
-		t.Setenv("SCENARIO_NAME", "")
-		t.Setenv("VROOLI_SCENARIO", "")
-		t.Setenv("VROOLI_SCENARIO_NAME", "")
-		t.Setenv("APP_MONITOR_SCENARIO", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when token disabled, got %d", w.Code)
@@ -109,19 +131,10 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("missing token denied", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "secret-token")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 when preview token missing, got %d", w.Code)
@@ -133,29 +146,17 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 	})
 
 	t.Run("legacy env variable supported", func(t *testing.T) {
-		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
 		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "legacy-token")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 when preview token missing, got %d", w.Code)
 		}
 
-		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("X-Preview-Token", "legacy-token")
-		router.ServeHTTP(w, req)
+		w = sendPreviewRequest(router, "/test", "legacy-token", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when legacy preview token matches, got %d", w.Code)
@@ -164,20 +165,10 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("valid token accepted", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "secret-token")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("X-Preview-Token", "secret-token")
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "secret-token", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when preview token matches, got %d", w.Code)
@@ -186,20 +177,10 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("multiple tokens supported", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "token-one, token-two")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("X-Preview-Token", "token-two")
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "token-two", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when using one of multiple preview tokens, got %d", w.Code)
@@ -208,19 +189,10 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("query parameter without header rejected", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "token-from-query")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test?preview_token=token-from-query", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test?preview_token=token-from-query", "", "")
 
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 when preview token only provided via query, got %d", w.Code)
@@ -228,21 +200,12 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 	})
 
 	t.Run("managed lifecycle without token", func(t *testing.T) {
-		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
 		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 		t.Setenv("VROOLI_LIFECYCLE", "active")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when managed lifecycle runs without configured token, got %d", w.Code)
@@ -251,29 +214,18 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("managed lifecycle respects configured token", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "managed-secret")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
 		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 		t.Setenv("VROOLI_LIFECYCLE", "active")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 when header missing under managed lifecycle, got %d", w.Code)
 		}
 
-		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("X-Preview-Token", "managed-secret")
-		router.ServeHTTP(w, req)
+		w = sendPreviewRequest(router, "/test", "managed-secret", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when managed token matches, got %d", w.Code)
@@ -281,22 +233,11 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 	})
 
 	t.Run("scenario mode implies managed lifecycle", func(t *testing.T) {
-		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
-		t.Setenv("VROOLI_LIFECYCLE", "")
 		t.Setenv("SCENARIO_MODE", "true")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when scenario mode enabled without token, got %d", w.Code)
@@ -304,21 +245,12 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 	})
 
 	t.Run("disable guard env bypasses enforcement", func(t *testing.T) {
-		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
 		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 		t.Setenv("GRAPH_STUDIO_DISABLE_PREVIEW_GUARD", "true")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when guard explicitly disabled, got %d", w.Code)
@@ -327,51 +259,27 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("force guard env enforces even without lifecycle", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "forced-token")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
-		t.Setenv("VROOLI_LIFECYCLE", "")
 		t.Setenv("GRAPH_STUDIO_FORCE_PREVIEW_GUARD", "true")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 when guard forced and header missing, got %d", w.Code)
 		}
 
-		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("X-Preview-Token", "forced-token")
-		router.ServeHTTP(w, req)
+		w = sendPreviewRequest(router, "/test", "forced-token", "")
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when guard forced and token provided, got %d", w.Code)
 		}
 	})
 
 	t.Run("scenario name implies managed lifecycle", func(t *testing.T) {
-		t.Setenv("PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
-		t.Setenv("VROOLI_LIFECYCLE", "")
 		t.Setenv("SCENARIO_NAME", "graph-studio")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when scenario name set but token missing, got %d", w.Code)
 		}
@@ -379,29 +287,16 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("scenario name with token", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "scenario-secret")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
-		t.Setenv("VROOLI_LIFECYCLE", "")
 		t.Setenv("SCENARIO_NAME", "graph-studio")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/test", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/test", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/test", nil)
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/test", "", "")
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 when token missing from request, got %d", w.Code)
 		}
 
-		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("X-Preview-Token", "scenario-secret")
-		router.ServeHTTP(w, req)
+		w = sendPreviewRequest(router, "/test", "scenario-secret", "")
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when scenario token matches, got %d", w.Code)
 		}
@@ -409,37 +304,20 @@ func TestPreviewAccessMiddleware(t *testing.T) {
 
 	t.Run("health endpoint allows local probes but enforces token otherwise", func(t *testing.T) {
 		t.Setenv("PREVIEW_ACCESS_TOKEN", "health-token")
-		t.Setenv("GRAPH_STUDIO_PREVIEW_TOKEN", "")
-		t.Setenv("VITE_PREVIEW_ACCESS_TOKEN", "")
-		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "")
 
-		router := gin.New()
-		router.Use(PreviewAccessMiddleware())
-		router.GET("/health", func(c *gin.Context) {
-			c.String(http.StatusOK, "OK")
-		})
+		router := newMiddlewareTestRouter("/health", PreviewAccessMiddleware())
 
-		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/health", nil)
-		req.RemoteAddr = "203.0.113.10:54321"
-		router.ServeHTTP(w, req)
+		w := sendPreviewRequest(router, "/health", "", "203.0.113.10:54321")
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("expected status 403 for remote health access without token, got %d", w.Code)
 		}
 
-		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(http.MethodGet, "/health", nil)
-		req.RemoteAddr = "127.0.0.1:54321"
-		router.ServeHTTP(w, req)
+		w = sendPreviewRequest(router, "/health", "", "127.0.0.1:54321")
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 for local health probe without token, got %d", w.Code)
 		}
 
-		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(http.MethodGet, "/health", nil)
-		req.RemoteAddr = "203.0.113.10:54321"
-		req.Header.Set("X-Preview-Token", "health-token")
-		router.ServeHTTP(w, req)
+		w = sendPreviewRequest(router, "/health", "health-token", "203.0.113.10:54321")
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected status 200 when remote health probe includes header token, got %d", w.Code)
 		}

@@ -1,0 +1,39 @@
+{
+  "createdAt": "2026-11-23T00:00:00Z",
+  "description": "Find an owner skill and exact Program Runtime contract before repeating multi-step CLI work.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "program-discovery",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "search"
+  ],
+  "name": "program-discovery",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "search-hub query",
+      "prompt-manager skill read",
+      "program-runtime library search",
+      "program-runtime library run",
+      "program-runtime bindings describe"
+    ],
+    "scenarios": [
+      "search-hub",
+      "prompt-manager",
+      "program-runtime"
+    ]
+  },
+  "revision": 5,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "program",
+    "workflow",
+    "discovery"
+  ],
+  "updatedAt": "2026-11-23T23:36:00Z"
+}

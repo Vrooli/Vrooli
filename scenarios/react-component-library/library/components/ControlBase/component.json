@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:ControlBase",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.1.1",
+    "1.1.0"
+  ],
+  "description": "Reusable control base component implementation for the React component library.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Control Base",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.1.1",
+    "1.1.0",
+    "1.1.4"
+  ],
+  "latest": "1.2.0",
+  "libraryId": "react-component-library:ControlBase",
+  "tags": []
+}

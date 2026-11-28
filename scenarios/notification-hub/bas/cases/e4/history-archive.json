@@ -1,0 +1,187 @@
+{
+  "edges": [
+    {
+      "id": "edge-navigate-history-to-wait-history-page",
+      "source": "navigate-history",
+      "target": "wait-history-page"
+    },
+    {
+      "id": "edge-wait-history-page-to-assert-answered-listed",
+      "source": "wait-history-page",
+      "target": "assert-answered-listed"
+    },
+    {
+      "id": "edge-assert-answered-listed-to-filter-answered",
+      "source": "assert-answered-listed",
+      "target": "filter-answered"
+    },
+    {
+      "id": "edge-filter-answered-to-assert-still-listed",
+      "source": "filter-answered",
+      "target": "assert-still-listed"
+    },
+    {
+      "id": "edge-assert-still-listed-to-open-answered",
+      "source": "assert-still-listed",
+      "target": "open-answered"
+    },
+    {
+      "id": "edge-open-answered-to-assert-recorded-question",
+      "source": "open-answered",
+      "target": "assert-recorded-question"
+    },
+    {
+      "id": "edge-assert-recorded-question-to-capture-answered",
+      "source": "assert-recorded-question",
+      "target": "capture-answered"
+    }
+  ],
+  "metadata": {
+    "description": "Given the leased disposable recipient with a long answered history, when the owner reads History, then filters keep the answered request, and opening it shows the recorded decision read-only.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "history",
+      "surface": "e4-history-archive"
+    },
+    "name": "e4-history-archive",
+    "requirement": "OT-P0-001",
+    "version": "3"
+  },
+  "nodes": [
+    {
+      "id": "navigate-history",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/history?vrooli_test_mode=1&e4_fixture=nh16.2-history",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed History with the bounded fixture"
+        }
+      }
+    },
+    {
+      "id": "wait-history-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.history",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "History page visible"
+        }
+      }
+    },
+    {
+      "id": "assert-answered-listed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Validate the recording fix"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The newest answered request is listed"
+        },
+        "metadata": {
+          "label": "The newest answered request is listed"
+        }
+      }
+    },
+    {
+      "id": "filter-answered",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/history.filterLink(state=answered)"
+        },
+        "metadata": {
+          "label": "Filter to answered"
+        }
+      }
+    },
+    {
+      "id": "assert-still-listed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.history",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Validate the recording fix"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The answered request stays under the answered filter"
+        },
+        "metadata": {
+          "label": "The answered request stays under the answered filter"
+        }
+      }
+    },
+    {
+      "id": "open-answered",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/history.row(id=e4-test-answered-ask)"
+        },
+        "metadata": {
+          "label": "Open the answered request"
+        }
+      }
+    },
+    {
+      "id": "assert-recorded-question",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.question",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Validate the recording fix"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The recorded decision opens with its question"
+        },
+        "metadata": {
+          "label": "The recorded decision opens with its question"
+        }
+      }
+    },
+    {
+      "id": "capture-answered",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the answered decision at 390 pixel phone width"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    },
+    "viewport_height": 844,
+    "viewport_width": 390
+  }
+}

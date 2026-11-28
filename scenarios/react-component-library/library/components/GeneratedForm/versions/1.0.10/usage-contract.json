@@ -1,0 +1,24 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 24,
+      "maximumLabelCharacters": 32,
+      "primaryAction": "not-applicable",
+      "property": "fields",
+      "stableIdField": "name",
+      "typicalCount": 5
+    },
+    {
+      "labelField": "title",
+      "maximumCount": 10,
+      "maximumLabelCharacters": 32,
+      "primaryAction": "not-applicable",
+      "property": "sections",
+      "stableIdField": "id",
+      "typicalCount": 3
+    }
+  ],
+  "componentId": "react-component-library:GeneratedForm",
+  "version": "1.0.10-draft.1"
+}

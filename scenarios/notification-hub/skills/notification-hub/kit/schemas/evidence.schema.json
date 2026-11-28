@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://notification-hub.local/kit/schemas/evidence.schema.json",
+  "title": "Notification Hub evidence record",
+  "description": "One reusable, short evidence comparison. Attachment paths use Hub folder form: folder-name/relative-path.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "format",
+    "decidedBy",
+    "sides",
+    "verdict",
+    "method",
+    "limits"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable evidence identifier."
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "Short comparison title."
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "image",
+        "audio",
+        "video",
+        "text",
+        "fields",
+        "ui",
+        "measure"
+      ],
+      "description": "Viewer format."
+    },
+    "decidedBy": {
+      "type": "string",
+      "enum": [
+        "automated",
+        "agent",
+        "needs-review",
+        "operator"
+      ],
+      "description": "Who made the verdict."
+    },
+    "workstream": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Workstream ID this evidence supports."
+    },
+    "sides": {
+      "type": "object",
+      "required": [
+        "a",
+        "b"
+      ],
+      "additionalProperties": false,
+      "description": "Compared inputs, keyed by side.",
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/side"
+        },
+        "b": {
+          "$ref": "#/$defs/side"
+        }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "Concise outcome.",
+      "properties": {
+        "headline": {
+          "type": "string",
+          "maxLength": 48,
+          "description": "The result in a few bold words, shown first, e.g. 'Same output.' or '83x faster.'"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "One short verdict sentence. Follows the headline; do not repeat it."
+        },
+        "recommendation": {
+          "type": "string",
+          "maxLength": 90,
+          "description": "Optional recommended choice."
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "description": "Named comparison items (image and measurement inputs).",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "a",
+          "b"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "Item label."
+          },
+          "a": {
+            "type": [
+              "string",
+              "number",
+              "array"
+            ],
+            "description": "Side A value or attachment path.",
+            "items": {
+              "type": "number",
+              "description": "One observed measurement."
+            }
+          },
+          "b": {
+            "type": [
+              "string",
+              "number",
+              "array"
+            ],
+            "description": "Side B value or attachment path.",
+            "items": {
+              "type": "number",
+              "description": "One observed measurement."
+            }
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 20,
+            "description": "Measurement unit."
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "Input prompt or case label."
+          }
+        }
+      }
+    },
+    "facts": {
+      "type": "array",
+      "description": "Supporting facts shown on demand.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "a",
+          "b"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 90,
+            "description": "Fact label."
+          },
+          "a": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null",
+              "object",
+              "array"
+            ],
+            "description": "Side A fact."
+          },
+          "b": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null",
+              "object",
+              "array"
+            ],
+            "description": "Side B fact."
+          },
+          "win": {
+            "enum": ["a", "b"],
+            "description": "The side that is better on this fact; drawn in the success colour."
+          }
+        }
+      }
+    },
+    "method": {
+      "type": "array",
+      "maxItems": 8,
+      "description": "Short method notes.",
+      "items": {
+        "type": "string",
+        "maxLength": 90,
+        "description": "One method step."
+      }
+    },
+    "limits": {
+      "type": "array",
+      "maxItems": 8,
+      "description": "Short limitations.",
+      "items": {
+        "type": "string",
+        "maxLength": 90,
+        "description": "One limitation."
+      }
+    }
+  },
+  "$defs": {
+    "side": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "One side of a comparison.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Side label."
+        },
+        "fidelity": {
+          "type": "string",
+          "enum": ["captured", "composited", "rendered", "sketch"],
+          "description": "How this UI image was produced; shown as a fidelity chip."
+        },
+        "src": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Attachment-relative media path, including folder attachment name."
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 12000,
+          "description": "Compared text."
+        },
+        "fields": {
+          "type": "object",
+          "description": "Compared structured fields.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null",
+              "object",
+              "array"
+            ]
+          }
+        },
+        "fps": {
+          "type": "number",
+          "minimum": 0.1,
+          "description": "Video frame rate."
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Media duration in seconds."
+        },
+        "transcript": {
+          "type": "array",
+          "description": "Timed transcript words for audio follow.",
+          "items": {
+            "type": "object",
+            "required": [
+              "word",
+              "start",
+              "end"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "word": {
+                "type": "string",
+                "maxLength": 80,
+                "description": "Transcript word."
+              },
+              "start": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Word start in seconds."
+              },
+              "end": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Word end in seconds."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

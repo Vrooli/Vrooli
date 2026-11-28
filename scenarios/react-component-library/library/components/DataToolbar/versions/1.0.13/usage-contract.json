@@ -1,0 +1,33 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "filterOptions",
+      "stableIdField": "id",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "views",
+      "stableIdField": "id",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "sortOptions",
+      "stableIdField": "id",
+      "typicalCount": 3
+    }
+  ],
+  "componentId": "react-component-library:DataToolbar",
+  "version": "1.0.13"
+}

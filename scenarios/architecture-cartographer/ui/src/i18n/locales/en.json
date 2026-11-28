@@ -1,0 +1,492 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Architecture Cartographer are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Architecture Cartographer"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainContentLabel": "Main content",
+    "nav": {
+      "overview": "Overview",
+      "targets": "Targets",
+      "history": "History",
+      "settings": "Settings"
+    },
+    "subnav": {
+      "label": "Workspace sections",
+      "graph": "Graph",
+      "domains": "Domains",
+      "conflicts": "Conflicts",
+      "campaign": "Campaign",
+      "apply": "Apply",
+      "analytics": "Analytics"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "campaign": {
+      "title": "Campaigns",
+      "description": "Track an improvement campaign: ingest a test-genie audit, work the prioritized items, reconcile re-audits by stable id.",
+      "loading": "Loading campaigns…",
+      "errorTitle": "Couldn't load campaigns.",
+      "listEmptyTitle": "No campaigns yet",
+      "listEmptyDescription": "Start one from a test-genie --json audit report.",
+      "selectPrompt": "Select a campaign to see its items.",
+      "newButton": "New campaign",
+      "unnamed": "(unnamed)",
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "status": "Status",
+        "created": "Created"
+      },
+      "create": {
+        "heading": "Start a campaign",
+        "nameLabel": "Name (optional)",
+        "namePlaceholder": "e.g. screaming-architecture pass",
+        "reportLabel": "test-genie --json report",
+        "reportPlaceholder": "Paste the output of: vrooli scenario test <scenario> --json",
+        "hint": "Run the audit for {{scenario}} and paste its --json output. Every phase's findings are ingested as Detected.",
+        "parsedCount": "{{count}} finding(s) parsed.",
+        "submit": "Create campaign",
+        "submitting": "Creating…",
+        "cancel": "Cancel",
+        "parseErrorTitle": "Couldn't read that report."
+      },
+      "detail": {
+        "notFound": "Campaign not found.",
+        "scenarioLabel": "Scenario:",
+        "rollup": {
+          "total": "Total",
+          "open": "Open",
+          "resolved": "Resolved",
+          "validated": "Validated",
+          "regressions": "Regressions"
+        },
+        "worklistHeading": "Worklist",
+        "worklistEmpty": "No open items. Re-audit to confirm, then close the campaign.",
+        "regressedBadge": "Regressed",
+        "locationsLabel": "Locations",
+        "suggestionLabel": "Suggestion:",
+        "reauditHeading": "Re-audit",
+        "reauditHint": "Paste a fresh --json report for {{scenario}} to reconcile progress.",
+        "reauditSubmit": "Reconcile re-audit",
+        "reauditting": "Reconciling…",
+        "reauditResult": "{{validated}} validated · {{open}} still open · {{regressions}} regression(s).",
+        "closeButton": "Close campaign",
+        "closing": "Closing…",
+        "closedNote": "This campaign is closed."
+      }
+    },
+    "overview": {
+      "title": "Overview",
+      "description": "Recent targets, active snapshots, and system health.",
+      "recentTargetsHeading": "Recent targets",
+      "activeSnapshotsHeading": "Active snapshots",
+      "healthHeading": "System health",
+      "noActiveSnapshots": "No snapshots have been extracted yet.",
+      "loadingSnapshots": "Loading snapshots…",
+      "snapshotsError": "Couldn't load snapshots.",
+      "loadSnapshots": "Load snapshots",
+      "checkHealth": "Check health",
+      "startExtraction": "New target"
+    },
+    "newTarget": {
+      "title": "New target",
+      "description": "Pick a scenario and extract a fresh graph snapshot.",
+      "scenarioPathLabel": "Scenario name",
+      "scenarioPathHint": "The scenario directory name under scenarios/ (e.g. architecture-cartographer).",
+      "submitButton": "Extract graph",
+      "submitting": "Extracting…",
+      "successMessage": "Snapshot {{snapshotId}} extracted in {{durationMs}} ms.",
+      "fromCacheMessage": "Snapshot {{snapshotId}} served from cache.",
+      "openWorkspace": "Open workspace",
+      "validationRequired": "Enter a scenario name.",
+      "validationInvalid": "Scenario name may not contain slashes or whitespace."
+    },
+    "targetWorkspace": {
+      "title": "Target",
+      "scenarioLabel": "Scenario:"
+    },
+    "conflicts": {
+      "title": "Conflicts",
+      "description": "Review drift findings detected against the manifest.",
+      "listEmptyTitle": "No conflicts",
+      "listEmptyDescription": "Run detection to surface drift findings.",
+      "loading": "Loading conflicts…",
+      "errorTitle": "Couldn't load conflicts.",
+      "detectButton": "Run detection",
+      "detecting": "Detecting…",
+      "validateButton": "Re-validate",
+      "validating": "Validating…",
+      "detailNotFound": "Conflict not found.",
+      "selectConflictPrompt": "Select a conflict to see detail.",
+      "columns": {
+        "id": "ID",
+        "type": "Type",
+        "severity": "Severity",
+        "domains": "Domains"
+      },
+      "evidenceHeading": "Evidence",
+      "noEvidence": "No evidence recorded.",
+      "fixesHeading": "Suggested fixes",
+      "noFixes": "No automated fixes available.",
+      "locationsHeading": "Locations",
+      "snapshotLabel": "Snapshot:",
+      "confidenceLabel": "confidence: {{value}}"
+    },
+    "conflictDetail": {
+      "title": "Conflict",
+      "backToList": "Back to all conflicts"
+    },
+    "targetGraph": {
+      "title": "Graph",
+      "description": "Browse the extracted dependency graph and overlay active conflicts.",
+      "loading": "Loading graph snapshot…",
+      "errorTitle": "Couldn't load the graph snapshot.",
+      "emptyTitle": "No graph snapshot yet",
+      "emptyDescription": "Extract a snapshot for this target to see its dependency graph.",
+      "fallbackTitle": "The graph canvas crashed.",
+      "fallbackMessage": "Rendering the graph hit an unexpected error. Try reloading the page.",
+      "summaryNodes": "{{count}} nodes",
+      "summaryEdges": "{{count}} edges"
+    },
+    "targetApply": {
+      "title": "Apply",
+      "description": "Plan, dry-run, and commit per-domain file moves and import rewrites.",
+      "selectDomainPrompt": "Pick a domain to plan an apply.",
+      "loading": "Loading apply data…",
+      "errorTitle": "Couldn't load apply state.",
+      "noPlan": "No plan generated yet.",
+      "domainHeading": "Domain",
+      "operationsHeading": "Operations",
+      "noOperations": "No operations needed.",
+      "historyHeading": "Recent runs",
+      "historyEmpty": "No apply runs recorded yet.",
+      "baselineHeading": "Build baseline",
+      "baselineUnknown": "Baseline not captured.",
+      "baselineGreen": "Build green ({{toolchain}})",
+      "baselineRed": "Build red ({{toolchain}})",
+      "planButton": "Plan apply",
+      "planning": "Planning…",
+      "dryRunButton": "Dry-run",
+      "applyButton": "Run apply",
+      "applying": "Applying…",
+      "applyUnimplementedTitle": "Apply execution not yet wired",
+      "applyUnimplementedMessage": "v0.1 returns CodeUnimplemented for RunApply. The plan and dry-run paths work; the commit path lands in v0.2.",
+      "forceConfirmTitle": "Force apply over a red baseline?",
+      "forceConfirmMessage": "Build was red before this apply. Provide a note explaining why the apply is acceptable anyway.",
+      "forceNoteLabel": "Note",
+      "forceNotePlaceholder": "Why is this force-apply acceptable?",
+      "forceNoteRequired": "A note is required to force-apply.",
+      "confirmButton": "Confirm",
+      "cancelButton": "Cancel"
+    },
+    "targetDomains": {
+      "title": "Domains",
+      "description": "Review the derived domain map for this scenario.",
+      "loading": "Loading domain map…",
+      "errorTitle": "Couldn't load the domain map.",
+      "empty": "No domain map available yet — extract one to populate this view.",
+      "extractButton": "Extract domains",
+      "extracting": "Extracting…",
+      "domainsHeading": "Derived domains",
+      "sharedSubstrateHeading": "Shared substrate",
+      "nonDomainsHeading": "Non-domains",
+      "declarationsHeading": "Source declarations",
+      "authorityLabel": "(authority)",
+      "noDomains": "No domains derived.",
+      "noSharedSubstrate": "No shared substrate declared.",
+      "noNonDomains": "No non-domains declared.",
+      "columns": {
+        "name": "Domain",
+        "paths": "Paths",
+        "archetype": "Archetype",
+        "provenance": "Provenance"
+      },
+      "convergence": {
+        "heading": "Convergence",
+        "loading": "Loading convergence report…",
+        "errorTitle": "Couldn't load the convergence report.",
+        "converged": "Surfaces converge — no disagreements.",
+        "severityWarn": "Warn",
+        "severityInfo": "Info"
+      },
+      "boundaries": {
+        "heading": "Boundary health",
+        "loading": "Loading boundary health…",
+        "errorTitle": "Couldn't load boundary health — run a graph extract first.",
+        "empty": "No domain coupling to report yet.",
+        "healthScore": "Health",
+        "efferent": "Ce",
+        "afferent": "Ca",
+        "instability": "Instability",
+        "fanOut": "Fan-out",
+        "stableKernel": "Stable kernel",
+        "severityWarn": "Warn",
+        "severityInfo": "Info"
+      }
+    },
+    "targetAnalytics": {
+      "title": "Analytics",
+      "description": "Conflict, placement, and apply outcome history for this scenario.",
+      "statsHeading": "Stats",
+      "statsLoading": "Loading stats…",
+      "statsError": "Couldn't load stats.",
+      "statsConflictsDetected": "Conflicts detected",
+      "statsConflictsResolved": "Conflicts resolved",
+      "statsConflictsForce": "Force-resolved",
+      "statsPlacementsAuto": "Placements (auto)",
+      "statsPlacementsSuggest": "Placements (suggest)",
+      "statsOverrides": "Overrides",
+      "statsVerdictSuccess": "Verdict success rate",
+      "statsVerdictSuppressed": "Suppressed — needs ≥ 5 observations ({{count}} so far).",
+      "eventsHeading": "Events",
+      "eventsLoading": "Loading events…",
+      "eventsError": "Couldn't load events.",
+      "eventsEmpty": "No events recorded yet.",
+      "placementsHeading": "Placements",
+      "placementsLoading": "Loading placements…",
+      "placementsError": "Couldn't load placements.",
+      "placementsEmpty": "No placement verdicts recorded.",
+      "buildDeltasHeading": "Build deltas",
+      "buildDeltasEmpty": "No apply runs to compute build deltas from.",
+      "columns": {
+        "kind": "Kind",
+        "actor": "Actor",
+        "domain": "Domain",
+        "conflictId": "Conflict",
+        "chunkId": "Chunk",
+        "chunkPath": "Path",
+        "outcome": "Outcome"
+      }
+    },
+    "history": {
+      "title": "History",
+      "description": "Cross-target apply, conflict, and placement history.",
+      "scenarioLabel": "Scenario",
+      "noScenario": "Open a target to populate history."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "preferencesHeading": "Preferences",
+      "densityLabel": "Density",
+      "densityComfortable": "Comfortable",
+      "densityDense": "Dense",
+      "reducedMotionLabel": "Reduce motion",
+      "reducedMotionHint": "Disable non-essential animations even when the OS preference is unset.",
+      "handednessLabel": "Mobile primary action placement",
+      "handednessLeft": "Left",
+      "handednessRight": "Right",
+      "defaultScenarioLabel": "Default scenario",
+      "defaultScenarioHint": "Pre-fills the new-target form.",
+      "defaultDomainLabel": "Default graph domain filter",
+      "defaultDomainHint": "Comma-separated domain names."
+    }
+  },
+  "features": {
+    "graph": {
+      "canvas": {
+        "ariaLabel": "Dependency graph for {{scenario}}",
+        "nodeAriaLabel": "{{label}}, domain {{domain}}, {{conflict}}",
+        "nodeConflictPresent": "in {{severity}} conflict",
+        "nodeConflictAbsent": "no active conflict"
+      },
+      "filterBar": {
+        "label": "Filter by domain",
+        "allDomains": "All",
+        "noDomains": "No domains declared in the manifest."
+      },
+      "accessibleList": {
+        "title": "All nodes",
+        "description": "Keyboard-navigable list of every node in the snapshot.",
+        "domainLabel": "Domain:",
+        "noDomain": "(unassigned)",
+        "conflictLabel": "Conflict:",
+        "noConflict": "none"
+      },
+      "legend": {
+        "title": "Legend",
+        "noConflict": "No conflict",
+        "conflictPrefix": "Conflict ({{level}})"
+      }
+    }
+  },
+  "campaign": {
+    "status": {
+      "detected": "Detected",
+      "assigned": "Assigned",
+      "split": "Split",
+      "resolved": "Resolved",
+      "validated": "Validated",
+      "committed": "Committed",
+      "force_resolved": "Force-resolved"
+    },
+    "lifecycle": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "actions": {
+      "resolve": "Resolve",
+      "apply": "Apply",
+      "resolveNotePrompt": "Resolution note (what changed?):",
+      "pending": "Working…"
+    },
+    "profile": {
+      "balanced": "Balanced",
+      "fast": "Fast",
+      "longTerm": "Long-term"
+    }
+  },
+  "conflicts": {
+    "fixKind": {
+      "unspecified": "Unspecified",
+      "move_file": "Move file",
+      "reassign_domain": "Reassign domain",
+      "break_cycle": "Break cycle",
+      "add_dependency": "Add dependency",
+      "add_transitional": "Add transitional"
+    }
+  },
+  "targets": {
+    "recent": {
+      "openButton": "Open",
+      "removeAriaLabel": "Remove {{scenario}} from recent targets",
+      "emptyTitle": "No recent targets",
+      "emptyDescription": "Extract a graph from a scenario to start a workspace.",
+      "openedAt": "Last opened {{at}}"
+    },
+    "snapshots": {
+      "snapshotIdLabel": "Snapshot:",
+      "scenarioLabel": "Scenario:",
+      "extractedAtLabel": "Extracted:",
+      "openButton": "Open"
+    }
+  },
+  "apply": {
+    "status": {
+      "baseline_captured": "Baseline captured",
+      "plan_generated": "Plan generated",
+      "dry_run_ok": "Dry-run OK",
+      "applied": "Applied",
+      "committed": "Committed",
+      "refused_build_break": "Refused (build break)",
+      "force_committed": "Force-committed"
+    },
+    "operationKind": {
+      "unspecified": "Unspecified",
+      "move_file": "Move file",
+      "rewrite_import": "Rewrite import",
+      "delete_file": "Delete file",
+      "create_file": "Create file"
+    }
+  },
+  "analytics": {
+    "eventKind": {
+      "unspecified": "Unspecified",
+      "conflict_detected": "Conflict detected",
+      "conflict_assigned": "Conflict assigned",
+      "conflict_resolved": "Conflict resolved",
+      "conflict_reopened": "Conflict reopened",
+      "conflict_force_resolved": "Conflict force-resolved",
+      "verdict_produced": "Verdict produced",
+      "placement_auto": "Placement (auto)",
+      "placement_suggest": "Placement (suggest)",
+      "override_recorded": "Override recorded",
+      "apply_planned": "Apply planned",
+      "apply_ran": "Apply ran",
+      "apply_build_green": "Apply build green",
+      "apply_build_red": "Apply build red",
+      "apply_reverted": "Apply reverted"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "shared": {
+    "empty": {
+      "title": "Nothing to show",
+      "description": "There's no data here yet."
+    },
+    "loading": {
+      "label": "Loading…"
+    },
+    "error": {
+      "title": "Couldn't load this view",
+      "retry": "Try again"
+    },
+    "dataTable": {
+      "empty": "No rows."
+    },
+    "severity": {
+      "info": "Info",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "diff": {
+      "added": "Added",
+      "removed": "Removed",
+      "unchanged": "Unchanged"
+    },
+    "splitPane": {
+      "resizeHandle": "Resize panels"
+    },
+    "routeError": {
+      "title": "This page failed to load",
+      "message": "Something went wrong while rendering this route. Try again, or return to the overview.",
+      "retry": "Try again",
+      "home": "Back to overview"
+    }
+  }
+}

@@ -1,3 +1,5 @@
+@import "./design-tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -137,8 +139,8 @@ body {
   }
 }
 
-/* ── Prose: lightweight markdown rendering styles ───────────────────
-   Used by renderMarkdown() output in dangerouslySetInnerHTML contexts.
+/* ── Prose: shared markdown rendering styles ────────────────────────
+   Used by the adopted React Component Library MarkdownRenderer.
    Inherits the parent's font-size and color so callers can control
    appearance via normal Tailwind utilities on the wrapper element. */
 .prose-sm-slate h1,
@@ -222,6 +224,40 @@ body {
 .react-flow__node {
   contain: layout style paint;
   content-visibility: auto;
+}
+
+/*
+ * xyflow / React Flow theming + operating-mode phase graph color tokens.
+ *
+ * The xyflow stylesheet (loaded from `@xyflow/react/dist/style.css`) reads a
+ * documented set of CSS custom properties for its <Controls/> buttons. We
+ * declare them here under :root so cascade overrides the package defaults
+ * without per-component className gymnastics. The package version is pinned
+ * in package.json — if xyflow renames variables in a major bump, update
+ * here.
+ *
+ * The --graph-* tokens are consumed by phase-graph.tsx for node/edge/grid
+ * colors so that all phase-graph chrome can be themed in one place rather
+ * than via inline hex literals.
+ */
+:root {
+  /* xyflow Controls (zoom in/out/fit) */
+  --xy-controls-button-background-color: rgba(var(--slate-900), 1);
+  --xy-controls-button-background-color-hover: rgba(var(--slate-800), 1);
+  --xy-controls-button-color: rgba(var(--slate-200), 1);
+  --xy-controls-button-color-hover: rgba(var(--slate-100), 1);
+  --xy-controls-button-border-color: rgba(var(--slate-700), 1);
+
+  /* Phase-graph chrome (consumed by phase-graph.tsx). */
+  --graph-edge-always: rgba(var(--slate-400), 1);          /* slate-400 */
+  --graph-edge-conditional: rgb(251, 191, 36);             /* amber-400 — any guarded edge */
+  --graph-grid: rgba(var(--slate-800), 1);                 /* slate-800 */
+  --graph-edge-label-bg: rgba(var(--slate-900), 0.85);
+  --graph-edge-label-color: rgba(var(--slate-200), 1);
+  --graph-mini-mask: rgba(var(--slate-900), 0.8);
+  --graph-mini-node-start: rgb(52, 211, 153);              /* emerald-400 */
+  --graph-mini-node-terminal: rgb(167, 139, 250);          /* violet-400 */
+  --graph-mini-node-default: rgba(var(--slate-600), 1);    /* slate-600 */
 }
 
 /* Activity pulse for graph nodes receiving real-time updates.

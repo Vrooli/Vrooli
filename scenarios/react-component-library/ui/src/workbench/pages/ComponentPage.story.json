@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Component workspace",
+  "route": "/assets/asset-button",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/assets/asset-button",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "component": {
+              "id": "asset-button",
+              "libraryId": "react-component-library:Button",
+              "displayName": "Button",
+              "description": "The primary action control: one clear action at any density.",
+              "sourcePath": "components/Button/versions/2.2.14/Button.tsx",
+              "version": "2.2.14",
+              "latestVersion": "2.2.14",
+              "tags": [
+                "control",
+                "action"
+              ],
+              "slug": "Button",
+              "manifestPath": "components/Button/component.json",
+              "slot": "ui-primitive",
+              "category": "controls",
+              "assetKind": "ASSET_KIND_COMPONENT",
+              "catalogId": "controls.button",
+              "catalogKind": "component",
+              "catalogDomain": "controls",
+              "catalogDomainOrder": 2,
+              "catalogRung": 2,
+              "catalogRungName": "primitive",
+              "metrics": {
+                "directAdoptionCount": 8,
+                "effectiveAdoptionCount": 80,
+                "versionCount": 3
+              },
+              "designStyles": [
+                {
+                  "styleId": "vrooli-default",
+                  "affinity": "DESIGN_AFFINITY_NATIVE",
+                  "reason": "token-native"
+                }
+              ],
+              "dependencies": [
+                {
+                  "libraryId": "react-component-library:StyleSheet",
+                  "version": "1.0.2"
+                }
+              ],
+              "updatedAt": "2026-11-18T12:00:00Z",
+              "indexedAt": "2026-11-18T11:00:00Z"
+            },
+            "experience": {
+              "componentId": "asset-button",
+              "libraryId": "react-component-library:Button",
+              "version": "2.2.14",
+              "contractId": "exp-1",
+              "title": "Button",
+              "purpose": "One clear action.",
+              "states": [
+                {
+                  "id": "default",
+                  "exampleName": "Primary",
+                  "description": "Primary action"
+                }
+              ],
+              "claims": [
+                {
+                  "id": "c1",
+                  "type": "single-dominant-action",
+                  "statement": "Exactly one action dominates",
+                  "tier": "machine",
+                  "states": [
+                    "default"
+                  ]
+                }
+              ],
+              "evidence": [
+                {
+                  "claimId": "c1",
+                  "verdict": "pass",
+                  "stateId": "default",
+                  "exampleName": "Primary",
+                  "captureRef": "cap-1",
+                  "checkedAt": "2026-11-18T10:00:00Z",
+                  "message": "",
+                  "viewport": "desktop",
+                  "viewportWidth": 1440,
+                  "viewportHeight": 900
+                }
+              ],
+              "evidenceStatus": "fresh",
+              "evidenceMessage": "2 captures"
+            }
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentVersions",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "versions": [
+              {
+                "id": "v1",
+                "componentId": "asset-button",
+                "libraryId": "react-component-library:Button",
+                "version": "2.2.14",
+                "status": "COMPONENT_VERSION_STATUS_RELEASED",
+                "sourcePath": "components/Button/versions/2.2.14/Button.tsx",
+                "contentSha256": "abc",
+                "createdAt": "2026-11-18T10:00:00Z",
+                "releasedAt": "2026-11-18T10:00:00Z",
+                "requiredTokens": []
+              }
+            ]
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "stories": [
+              {
+                "id": "primary",
+                "title": "Primary",
+                "kind": "anatomy",
+                "argsJson": "{\"children\":\"Save changes\",\"variant\":\"primary\"}",
+                "sourcePath": "story.tsx"
+              }
+            ]
+          }
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/ListComponentTestReports",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "reports": []
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Button"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"component-page\"]"
+        }
+      ]
+    }
+  ]
+}

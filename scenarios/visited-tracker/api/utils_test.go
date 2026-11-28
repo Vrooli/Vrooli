@@ -10,7 +10,7 @@ func TestStrPtr(t *testing.T) {
 	ptr := strPtr(test)
 
 	if ptr == nil {
-		t.Error("strPtr should return non-nil pointer")
+		t.Fatal("strPtr should return non-nil pointer")
 	}
 
 	if *ptr != test {

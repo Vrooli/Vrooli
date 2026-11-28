@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "presets",
+    "title": "Presets",
+    "routes": ["/presets"],
+    "purpose": "Review, edit, save, and select the durable lighting policy without confusing a draft with applied output.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    { "id": "loading", "description": "Saved policy definitions are loading." },
+    { "id": "default", "description": "Five policy presets are available with clear active and preview state." },
+    { "id": "empty", "description": "Missing policy definitions are reported without fabricating defaults." },
+    { "id": "partial", "description": "Unavailable metrics and effect limitations explain static fallback." },
+    { "id": "request-error", "description": "Policy save or select errors are visible and preserve the draft." },
+    { "id": "stale", "description": "Source evidence age and stale fallback remain visible." }
+  ]
+}

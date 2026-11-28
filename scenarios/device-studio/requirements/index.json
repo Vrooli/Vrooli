@@ -1,0 +1,27 @@
+{
+  "_metadata": {
+    "description": "Device Studio accepted product contract. P0 committed; P1/P2 explicit later roadmap. Structural linkage is not runtime or craft evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "imports": [
+    "01-contracts/module.json",
+    "02-library/module.json",
+    "03-photographic/module.json",
+    "04-native-motion/module.json",
+    "05-editing/module.json",
+    "06-presentations/module.json",
+    "07-creations/module.json",
+    "08-reviews-rights/module.json",
+    "09-jobs/module.json",
+    "10-safety/module.json",
+    "11-commerce/module.json",
+    "12-desktop/module.json",
+    "13-integration/module.json",
+    "14-output/module.json",
+    "15-batch/module.json",
+    "16-advanced-output/module.json",
+    "17-optical/module.json"
+  ],
+  "requirements": []
+}

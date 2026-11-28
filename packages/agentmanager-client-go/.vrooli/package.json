@@ -1,0 +1,20 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "agentmanager-client-go",
+    "display_name": "github.com/vrooli/vrooli/packages/agentmanager-client-go",
+    "description": "Shared Connect transport and discovery client for Agent Manager consumers.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/agentmanager-client-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api", "scenario_test"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {"strategy": "restart_running_consumers", "restart_running_consumers": true},
+    "docs": ["packages/agentmanager-client-go/README.md"]
+  }
+}

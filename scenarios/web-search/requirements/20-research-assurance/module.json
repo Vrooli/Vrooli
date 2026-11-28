@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-05T00:00:00-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-013",
+      "title": "Append-only research assurance",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "quality",
+      "description": "Research answers shall retain evidence, assessments, corrections, and method lineage as independently inspectable records.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/findings/correction_test.go::TestCorrectionPreservesOriginalFinding",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Owner-local correction persistence is implemented; cross-scenario delivery remains pending."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/LIVE_VALIDATION.md",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Requires a server-owned successor acceptance run."
+        }
+      ]
+    }
+  ]
+}

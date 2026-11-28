@@ -68,13 +68,10 @@ func (s *WorkflowService) RestoreWorkflowVersionAPI(ctx context.Context, workflo
 		return nil, err
 	}
 
-	// Sync workflow index from disk to avoid restoring into a stale file path.
-	_ = s.syncProjectWorkflows(ctx, *index.ProjectID)
-	index, err = s.repo.GetWorkflow(ctx, workflowID)
-	if err != nil {
-		return nil, err
-	}
-
+	// API writers keep DB.FilePath in lockstep with the canonical disk
+	// file, so the previously-stored index is already authoritative —
+	// no pre-flight sync needed. Operators wanting to reconcile an
+	// out-of-band disk edit should call ResyncProjectFiles explicitly.
 	current, err := s.hydrateWorkflowSummary(ctx, index)
 	if err != nil {
 		return nil, err

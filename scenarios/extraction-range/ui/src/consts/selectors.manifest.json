@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.navigation": {
+      "testId": "layout-shell-navigation",
+      "selector": "[data-testid=\"layout-shell-navigation\"]"
+    },
+    "layout.tabs": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
+    },
+    "layout.main": {
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
+    },
+    "layout.brand": {
+      "testId": "layout-shell-brand",
+      "selector": "[data-testid=\"layout-shell-brand\"]"
+    },
+    "layout.skip": {
+      "testId": "layout-shell-skip",
+      "selector": "[data-testid=\"layout-shell-skip\"]"
+    },
+    "settingsPage.themeSelect": {
+      "testId": "page-settings-theme",
+      "selector": "[data-testid=\"page-settings-theme\"]"
+    },
+    "settingsPage.localeSelect": {
+      "testId": "page-settings-locale",
+      "selector": "[data-testid=\"page-settings-locale\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.dashboardHeader": {
+      "testId": "page-dashboard-header",
+      "selector": "[data-testid=\"page-dashboard-header\"]"
+    },
+    "pages.dashboardPlaceholder": {
+      "testId": "page-dashboard-placeholder",
+      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "range.catalog": {
+      "testId": "range-catalog",
+      "selector": "[data-testid=\"range-catalog\"]"
+    },
+    "range.familyFilter": {
+      "testId": "range-family-filter",
+      "selector": "[data-testid=\"range-family-filter\"]"
+    },
+    "range.levelList": {
+      "testId": "range-level-list",
+      "selector": "[data-testid=\"range-level-list\"]"
+    },
+    "range.challenge": {
+      "testId": "range-selected-challenge",
+      "selector": "[data-testid=\"range-selected-challenge\"]"
+    },
+    "range.toolInput": {
+      "testId": "range-tool-input",
+      "selector": "[data-testid=\"range-tool-input\"]"
+    },
+    "range.recordsInput": {
+      "testId": "range-records-input",
+      "selector": "[data-testid=\"range-records-input\"]"
+    },
+    "range.submitButton": {
+      "testId": "range-submit-button",
+      "selector": "[data-testid=\"range-submit-button\"]"
+    },
+    "range.scoreboard": {
+      "testId": "range-scoreboard",
+      "selector": "[data-testid=\"range-scoreboard\"]"
+    },
+    "range.scoreList": {
+      "testId": "range-score-list",
+      "selector": "[data-testid=\"range-score-list\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "range.level": {
+      "description": "Challenge row by stable level id",
+      "selectorPattern": "[data-testid=\"range-level-${key}\"]",
+      "testIdPattern": "range-level-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "string"
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}\"]",
+      "testIdPattern": "layout-nav-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.navTab": {
+      "description": "Phone tab-bar item by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}-tab\"]",
+      "testIdPattern": "layout-nav-${key}-tab",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "settings"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "203753862ac4a8d0a43ec408804826ce1b390e14fc67683eb511935457ef37e0",
+    "ui/src/consts/selectors.ts": "461fec22cffb2c1ebcc2fbfcf73d2bad8a132edd246ef26b8ceaddbcf9fa4463"
+  }
+}

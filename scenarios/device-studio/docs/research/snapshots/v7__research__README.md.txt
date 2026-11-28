@@ -1,0 +1,37 @@
+# Device Studio decision research
+
+Pre-implementation investigation, 2026-10-19. This packet completes the research needed for the next operator decision round. It does not claim that implementation-dependent quality or integration gates have passed. No scenario was generated, production code edited, dependency installed, paid model acquired or image/provider generation purchased.
+
+## Findings that affect the implementation
+
+1. **The architecture is coherent.** A shared device/scene/presentation/shot contract can select photographic composition for stationary hardware and native 3D for physical motion. A distinct browser shot preview can evaluate the same motion/source clocks without pretending to reproduce native lighting. The existing file viewer strips animation and replaces scene lighting; it is not the future editor.
+2. **Full 3D quality and articulation remain real work.** A new bounded import probe confirms the exact phone and laptop assets are static. Whole-device phone motion is straightforward to represent, but still needs appearance/temporal qualification. The laptop contains meshes spanning both lid and base and needs mechanical part assignment, pivot definition and closure testing. The earlier 3D scene finish remains below the operator's benchmark.
+3. **There is existing GPU hardware, but not yet a qualified Blender GPU path.** Supported host inventory detects a roughly 16 GiB RTX 4070 Ti SUPER. The installed Blender 4.0.2 reports CUDA compiled, OptiX not compiled, and currently enumerates only CPU in the recorded probe environment. A parent read also found CUDA driver libraries and no CUDA/NVIDIA visibility override in its own process. This narrows the investigation but does not diagnose the device-discovery failure, prove permanent inability, measure GPU speed or reserve available capacity. Do not prescribe a hardware purchase from the constrained CPU timings.
+4. **Reuse needs actual adapter work.** Capture remains with BAS; raster operations and provider routing with Image Tools/AI Gateway; generic publication metadata with Asset Studio; shared storage and process containment with existing packages/control-plane owners. Asset Studio needs a resolvable artifact-byte contract and honest admission for model/movie/unknown-provenance cases. Device Studio must own its physical qualification and final-look acceptance instead of treating generic upstream release as proof.
+5. **Unattended generation has a route, not yet a quality qualification.** A no-spend route explanation selects an existing cloud image backend. Actual generation controls, returned model identity and known-versus-unknown cost reporting need verification/correction. The accepted chat images do not certify that route. Imported pinned plates keep the private photographic workflow useful independently.
+6. **Broad devices need capability-scoped qualification.** Ten semantic counterexamples cover masks, folds, hinges, multiple screens, mounts, curved/embedded displays and optical targets. Their existence and source integrity were validated; no generalized compiler ran. A family represented in the schema is not automatically a released asset or a supported animation.
+7. **Free acquisition and reusable rights differ.** Actual downloaded phone/laptop source bytes and primary creator/license records were rechecked. Keep actual dependency and attribution evidence. Scene/HDR/material sources can provide free assets, but vendor preview images and site artwork do not automatically inherit the asset license. The reports cite the primary terms; no new legal clearance is claimed.
+
+## Technical recommendations not delegated as user homework
+
+Use the Go/React/Connect scenario template after its current owner validation is assessed. Keep backend-neutral definitions, part/joint/display tracks and immutable recipes. Use a dedicated browser shot stage, Blender for final controlled 3D, and a deterministic perspective compositor for photographic plates. Preserve native packages separately from qualified portable GLBs. Use existing storage primitives and producer-owned references; extend missing upstream contracts at their owners. Implement durable render/creation jobs with explicit child receipts, bounded execution, cancellation, restart behavior and cache invalidation. Do not treat process resource limits as filesystem/network isolation.
+
+Keep the first photographic workflow as an early milestone; it cannot close the ultimate 3D-motion target. Every promised device/scene/motion combination needs scoped qualification. AI creation remains a first-class workflow with source selection, dimension evidence, bounded revisions, reference comparison, retained candidates and release review. Do not require a full mesh editor or complete room reconstruction merely to provide powerful shot editing. Hybrid photographic backgrounds with moving 3D hardware remain optional research after the controlled 3D path works.
+
+The first-release catalog recommendation in the decision packet expands the six structural representatives in the contract report to include tablet and smart-display/frame groups, which the user explicitly requested. This is a proposed completion boundary, not a claim those assets have already been sourced or qualified. User choice determines the final boundary.
+
+## Open decisions and next stage
+
+[decisions.json](decisions.json) contains seven pending operator questions with mutually exclusive choices and recommendations: release coverage, editing depth, output target, deployment, provider/spend policy, capture privacy and AI creation autonomy. Previously settled constraints are listed separately. None of the recommended answers is recorded as accepted.
+
+After answers, update the decision ledger and perform only the dependent research: selected family/rig/scene sourcing, chosen output/worker qualification, platform packaging assessment and generation/critique policy integration. A live paid proof requires configured authority and budget; it was not part of this no-spend investigation. The resulting state/implementation/validation explanation must distinguish proven methods, concrete owner changes, visual acceptance gates and remaining runtime qualification. Formal scenario generation follows the approved scope and the project's plan-before-scaffold workflow; no plan or scaffold was created during this decision round.
+
+## Evidence map
+
+- [Integration and ownership report](integrations.md): actual production code, read-only route checks, upstream gaps and owner recommendations.
+- [Rendering and animation report](rendering.md): exact asset probes, preview limitations, host/backend evidence, retained timings and proposed visual gates.
+- [Device contracts and free-asset report](device-contract.md): primary sources, licenses, family stress cases and acquisition/creation workflow.
+- [Product and validation report](product-validation.md): user flow, scaffold evidence, correctness/visual/job/consumer validation and color pipeline considerations.
+- [Pinned local sources](source-inventory.json), [contract evidence validation](contracts/validation.json), [rendering report validation](rendering/report-validation.json).
+
+No numeric quality score overrides the operator's rejected v5 appearance or their positive v6 direction. More samples, a successful import, metadata checks and a decoded MP4 each prove only their own boundary.

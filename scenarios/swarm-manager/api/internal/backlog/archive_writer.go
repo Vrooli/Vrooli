@@ -32,7 +32,7 @@ func resolveRequirementsDir(itemDir string) (string, error) {
 	}
 
 	// Create at item root.
-	if err := os.MkdirAll(rootReq, 0o755); err != nil {
+	if err := os.MkdirAll(rootReq, 0o750); err != nil {
 		return "", fmt.Errorf("create requirements dir: %w", err)
 	}
 	return rootReq, nil
@@ -160,7 +160,7 @@ func CreateModule(itemDir string, mod CreateModuleInput, position int) error {
 	dirName := fmt.Sprintf("%02d-%s", prefix, mod.ID)
 	modDir := filepath.Join(reqDir, dirName)
 
-	if err := os.MkdirAll(modDir, 0o755); err != nil {
+	if err := os.MkdirAll(modDir, 0o750); err != nil {
 		return fmt.Errorf("create module dir: %w", err)
 	}
 

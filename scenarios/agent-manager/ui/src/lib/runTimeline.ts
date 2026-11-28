@@ -165,7 +165,6 @@ export function getTimelineCategory(event: RunEvent): TimelineCategory {
     case "toolResult":
       return "tools";
     case "error":
-    case "rateLimit":
       return "errors";
     case "status":
     case "progress":
@@ -174,6 +173,7 @@ export function getTimelineCategory(event: RunEvent): TimelineCategory {
       return "artifacts";
     case "metric":
     case "cost":
+    case "rateLimit": // provider quota observation (RUN_EVENT_TYPE_QUOTA), not an error
       return "metrics";
     case "log":
       return isReasoningEvent(event) ? "reasoning" : "logs";
@@ -307,6 +307,12 @@ export function getTimelineEventLabel(entry: TimelineEventEntry): string {
   }
 }
 
+export function getToolResultOutcome(payload: Record<string, unknown>): "success" | "failure" | "unknown" {
+  if (typeof payload.exitCode === "number") return payload.exitCode === 0 ? "success" : "failure";
+  if (payload.outcomeKnown === false) return "unknown";
+  return payload.success && !payload.error ? "success" : "failure";
+}
+
 export function getTimelineEventSummary(entry: TimelineEventEntry): string {
   const { event } = entry;
   const payload = event.data.value as Record<string, unknown>;
@@ -322,7 +328,7 @@ export function getTimelineEventSummary(entry: TimelineEventEntry): string {
     case "toolCall":
       return String(payload.toolName ?? "Unknown tool");
     case "toolResult":
-      return `${payload.success ? "Completed" : "Failed"} ${String(payload.toolName ?? "tool")}`;
+      return `${{ success: "Completed", failure: "Failed", unknown: "Returned (outcome unknown)" }[getToolResultOutcome(payload)]} ${String(payload.toolName ?? "tool")}`;
     case "status":
       return `${String(payload.oldStatus ?? "unknown")} -> ${String(payload.newStatus ?? "unknown")}`;
     case "progress":
@@ -337,8 +343,12 @@ export function getTimelineEventSummary(entry: TimelineEventEntry): string {
         : "Cost update";
     case "error":
       return String(payload.message ?? payload.code ?? "Error");
-    case "rateLimit":
-      return String(payload.message ?? "Rate limited");
+    case "rateLimit": {
+      const scope = [payload.provider, payload.pool].filter(Boolean).join(" ");
+      const reading = payload.usedPercent != null ? `${Number(payload.usedPercent)}%` : payload.status ? String(payload.status) : "";
+      if (reading) return `${scope ? `${scope} ` : ""}quota ${reading}`;
+      return String(payload.message || "Provider quota observation");
+    }
     case "compaction":
       return String(payload.summary ?? payload.trigger ?? "Context compacted");
     case "messageDeleted":

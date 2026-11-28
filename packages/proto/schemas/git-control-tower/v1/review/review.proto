@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.review;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review;review_v1";
+
+// ReviewService owns the typed advisory review lifecycle. A review run is
+// evidence production, not repository mutation, but it is still an API
+// operation and must not remain a handwritten REST writer in greenfield code.
+service ReviewService {
+  rpc Start(StartReviewRequest) returns (StartReviewResponse);
+}
+
+message StartReviewRequest {
+  int64 repository_id = 1;
+  string scenario_name = 2;
+  repeated string checks = 3;
+  int32 details = 4;
+  ReadinessThresholds thresholds = 5;
+}
+
+message ReadinessThresholds {
+  double code_quality_min_score = 1;
+  double test_min_pass_rate = 2;
+  int32 max_blocking_violations = 3;
+  int32 max_warnings = 4;
+  bool require_screenshots = 5;
+  bool require_tests = 6;
+}
+
+message StartReviewResponse {
+  string job_id = 1;
+}

@@ -1,0 +1,17 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Input",
+      "InputGroup",
+      "Select",
+      "Textarea",
+      "Checkbox",
+      "Switch",
+      "Button"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:FormSection",
+  "version": "1.0.8"
+}

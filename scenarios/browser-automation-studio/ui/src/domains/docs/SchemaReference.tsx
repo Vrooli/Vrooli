@@ -9,8 +9,10 @@ import {
 } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { WORKFLOW_SCHEMA_INTRO } from "./content/gettingStarted";
+import { schemaClient } from "../../api/schema";
 
 interface SchemaReferenceProps {
+  // Reserved for future use; the workflow schema is fetched via Connect-RPC.
   apiBaseUrl?: string;
 }
 
@@ -184,7 +186,7 @@ function SchemaProperty({ name, schema, required = false, depth = 0 }: SchemaPro
   );
 }
 
-export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
+export function SchemaReference(_props: SchemaReferenceProps = {}) {
   const [schema, setSchema] = useState<Record<string, unknown>>(EMBEDDED_SCHEMA);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "schema" | "definitions">("overview");
@@ -192,21 +194,24 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
   const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value);
 
-  // Try to fetch live schema from API
+  // Try to fetch live schema from API via Connect-RPC
   useEffect(() => {
-    if (!apiBaseUrl) return;
-
-    fetch(`${apiBaseUrl}/api/schema/workflow`)
-      .then((res) => res.json() as Promise<unknown>)
-      .then((data) => {
-        if (isRecord(data)) {
+    let cancelled = false;
+    schemaClient
+      .getWorkflowSchema({})
+      .then((resp) => {
+        const data = resp.schema as unknown;
+        if (!cancelled && isRecord(data)) {
           setSchema(data);
         }
       })
       .catch(() => {
         // Use embedded schema as fallback
       });
-  }, [apiBaseUrl]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const copySchema = async () => {
     try {

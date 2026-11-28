@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "learn",
+    "title": "Learn",
+    "routes": [
+      "/learn"
+    ],
+    "purpose": "Inspect genuine observations and bounded questions without merging source facts, publication evidence and audience success.",
+    "prd_refs": [
+      "OT-P0-034"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "no-observations",
+      "description": "The no observations state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "incomplete-observation",
+      "description": "The incomplete observation state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "reported",
+      "description": "The reported state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "verified",
+      "description": "The verified state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "conflicting-observations",
+      "description": "The conflicting observations state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "corrected-observation",
+      "description": "The corrected observation state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "experiment-idea",
+      "description": "The experiment idea state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "interpretation-disagreed",
+      "description": "The interpretation disagreed state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "learn-outcome-1",
+      "type": "custom",
+      "statement": "Missing measurements remain unknown; each reported or verified observation names exact post/account, meaning, window and evidence basis.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "learn-outcome-2",
+      "type": "custom",
+      "statement": "The owner can retain an observation while rejecting its interpretation or recurrence; copying never yields a publication receipt.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M08-learning-v04-desktop.png",
+      "design-source/screens/M08-learning-v04-phone.png",
+      "design-source/screens/M25-manual-outcome-v02-phone.png",
+      "design-source/screens/M25-observation-v02-phone.png"
+    ]
+  }
+}

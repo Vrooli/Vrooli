@@ -146,7 +146,7 @@ func createResumedPipelineStatus() *Status {
 			"generate":  {Stage: "generate", Status: StatusCompleted, CompletedAt: now},
 		},
 		StageOrder: []string{"bundle", "preflight", "generate", "build", "smoketest", "deploy"},
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:     "test-scenario",
 			ParentPipelineID: "parent-pipeline-123",
 			ResumeFromStage:  "generate",
@@ -156,7 +156,7 @@ func createResumedPipelineStatus() *Status {
 			PipelineID:   "parent-pipeline-123",
 			ScenarioPath: "/scenarios/test-scenario",
 			DesktopPath:  "/scenarios/test-scenario/platforms/electron",
-			Config: &Config{
+			Config: &PipelineConfig{
 				ScenarioName:   "test-scenario",
 				Platforms:      []string{"linux", "win"},
 				DeploymentMode: "bundled",

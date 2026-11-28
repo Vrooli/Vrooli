@@ -1,0 +1,13 @@
+syntax = "proto3";
+package vrooli.compute_manager.v1.meter;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/meter;meter_v1";
+import "google/protobuf/timestamp.proto";
+message Usage { string instance_id = 1; string tenant = 2; int64 quantity = 3; google.protobuf.Timestamp started_at = 4; google.protobuf.Timestamp ended_at = 5; }
+message Reservation { string id = 1; string intent_id = 2; string instance_id = 3; string supersedes = 4; string meter_key = 5; string state = 6; google.protobuf.Timestamp held_at = 7; google.protobuf.Timestamp settled_at = 8; int64 quantity = 9; }
+message UsageRequest { string instance_id = 1; string tenant = 2; }
+message UsageResponse { repeated Usage usage = 1; }
+message ReservationsRequest { string instance_id = 1; string state = 2; }
+message ReservationsResponse { repeated Reservation reservations = 1; }
+message CeilingRequest { string tenant = 1; }
+message CeilingResponse { int64 used = 1; int64 limit = 2; }
+service MeterService { rpc Usage(UsageRequest) returns (UsageResponse); rpc Reservations(ReservationsRequest) returns (ReservationsResponse); rpc Ceiling(CeilingRequest) returns (CeilingResponse); }

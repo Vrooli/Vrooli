@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Workspace preferences",
+  "route": "/settings",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/settings",
+      "apiState": [],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Workspace preferences"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"settings-page\"]"
+        }
+      ]
+    }
+  ]
+}

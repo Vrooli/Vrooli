@@ -1,13 +1,62 @@
 package httpserver
 
 import (
+	"encoding/json"
+	"github.com/gorilla/mux"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"test-genie/internal/requirements"
 	"testing"
 
-	"io"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
+
+func TestRequirementsRegistryViewDoesNotMaskUnavailableAsEmpty(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{scenarios: &stubScenarioDirectory{scenarioRoot: root}, logger: log.New(io.Discard, "", 0)}
+	request := func() *httptest.ResponseRecorder {
+		r := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/demo/requirements?view=registry", nil), map[string]string{"name": "demo"})
+		w := httptest.NewRecorder()
+		server.handleGetScenarioRequirements(w, r)
+		return w
+	}
+	if w := request(); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing registry returned %d: %s", w.Code, w.Body.String())
+	}
+	reqDir := filepath.Join(scenarioDir, "requirements")
+	if err := os.MkdirAll(reqDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	index := filepath.Join(reqDir, "index.json")
+	if err := os.WriteFile(index, []byte(`{"requirements":[{"id":"UH-CORE-001","validation":[{"type":"test","phase":"business","ref":"test/business.sh"}]}]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	w := request()
+	if w.Code != http.StatusOK {
+		t.Fatalf("valid registry returned %d: %s", w.Code, w.Body.String())
+	}
+	var view requirements.RegistryView
+	if err := json.Unmarshal(w.Body.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Requirements) != 1 || view.Requirements[0].ID != "UH-CORE-001" || view.Requirements[0].Validations[0].Phase != "business" {
+		t.Fatalf("registry contract: %+v", view)
+	}
+	if err := os.WriteFile(index, []byte(`{`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if w := request(); w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("malformed registry returned %d: %s", w.Code, w.Body.String())
+	}
+}
 
 func TestServerResolveScenarioDirUsesScenarioRoot(t *testing.T) {
 	root := t.TempDir()
@@ -23,6 +72,54 @@ func TestServerResolveScenarioDirUsesScenarioRoot(t *testing.T) {
 
 	if got := server.resolveScenarioDir("demo"); got != scenarioDir {
 		t.Fatalf("resolveScenarioDir() = %q, want %q", got, scenarioDir)
+	}
+}
+
+func TestServerResolveScenarioDirUsesRepoContractRoot(t *testing.T) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "test-genie")
+	chdirHTTPTest(t, filepath.Join(repoRoot, "scenarios", "test-genie", "api"))
+
+	server := &Server{logger: log.New(io.Discard, "", 0)}
+
+	if got := server.resolveScenarioDir("test-genie"); got != scenarioDir {
+		t.Fatalf("resolveScenarioDir() = %q, want %q", got, scenarioDir)
+	}
+}
+
+func TestHandleGetConfigUsesRepoContractPaths(t *testing.T) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
+	chdirHTTPTest(t, filepath.Join(repoRoot, "scenarios", "test-genie", "api"))
+
+	server := &Server{logger: log.New(io.Discard, "", 0)}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
+	rec := httptest.NewRecorder()
+
+	server.handleGetConfig(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if got := payload["repoRoot"]; got != repoRoot {
+		t.Fatalf("repoRoot = %#v, want %q", got, repoRoot)
+	}
+	if got := payload["scenariosPath"]; got != filepath.Join(repoRoot, "scenarios") {
+		t.Fatalf("scenariosPath = %#v", got)
+	}
+	if got := payload["testGeniePath"]; got != filepath.Join(repoRoot, "scenarios", "test-genie") {
+		t.Fatalf("testGeniePath = %#v", got)
 	}
 }
 
@@ -88,4 +185,16 @@ func TestServerLoadRequirementsFromFilesBuildsSnapshot(t *testing.T) {
 	if snapshot.Summary.ByLiveStatus["not_run"] != 1 {
 		t.Fatalf("not_run count = %d, want 1", snapshot.Summary.ByLiveStatus["not_run"])
 	}
+}
+
+func chdirHTTPTest(t *testing.T, dir string) {
+	t.Helper()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 }

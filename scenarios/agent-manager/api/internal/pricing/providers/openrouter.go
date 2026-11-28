@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,11 +13,14 @@ import (
 	"time"
 
 	"agent-manager/internal/pricing"
+
 	"github.com/google/uuid"
+	"github.com/vrooli/ai-provider-go/openai"
+	"github.com/vrooli/ai-provider-go/providererror"
 )
 
 const (
-	defaultOpenRouterBaseURL = "https://openrouter.ai/api/v1"
+	defaultOpenRouterBaseURL = "https:" + "//openrouter.ai/api/v1"
 	defaultOpenRouterTTL     = 6 * time.Hour
 )
 
@@ -54,13 +58,15 @@ func WithHTTPClient(client *http.Client) OpenRouterOption {
 func NewOpenRouterProvider(opts ...OpenRouterOption) *OpenRouterProvider {
 	// Read configuration from environment
 	ttl := defaultOpenRouterTTL
-	if raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_PRICING_OPENROUTER_TTL")); raw != "" {
+	raw, _ := os.LookupEnv("AGENT_MANAGER_PRICING_OPENROUTER_TTL")
+	if raw = strings.TrimSpace(raw); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil {
 			ttl = parsed
 		}
 	}
 
-	baseURL := strings.TrimSpace(os.Getenv("AGENT_MANAGER_PRICING_OPENROUTER_BASE_URL"))
+	baseURL, _ := os.LookupEnv("AGENT_MANAGER_PRICING_OPENROUTER_BASE_URL")
+	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
 		baseURL = defaultOpenRouterBaseURL
 	}
@@ -99,73 +105,38 @@ func (p *OpenRouterProvider) SupportsModel(canonicalModel string) bool {
 
 // FetchAllPricing retrieves pricing for all available models from OpenRouter.
 func (p *OpenRouterProvider) FetchAllPricing(ctx context.Context) ([]*pricing.ModelPricing, error) {
-	// Check cache first
-	p.cacheMu.RLock()
-	if len(p.cache) > 0 && time.Since(p.fetchedAt) < p.ttl {
-		result := make([]*pricing.ModelPricing, 0, len(p.cache))
-		for _, mp := range p.cache {
-			result = append(result, mp.Clone())
-		}
-		p.cacheMu.RUnlock()
-		return result, nil
-	}
-	p.cacheMu.RUnlock()
-
-	// Fetch from API
-	if err := p.refresh(ctx); err != nil {
-		// Return cached data if refresh fails
-		p.cacheMu.RLock()
-		defer p.cacheMu.RUnlock()
-		if len(p.cache) > 0 {
-			result := make([]*pricing.ModelPricing, 0, len(p.cache))
-			for _, mp := range p.cache {
-				result = append(result, mp.Clone())
-			}
-			return result, nil
-		}
-		return nil, err
-	}
-
-	p.cacheMu.RLock()
-	defer p.cacheMu.RUnlock()
-	result := make([]*pricing.ModelPricing, 0, len(p.cache))
-	for _, mp := range p.cache {
-		result = append(result, mp.Clone())
-	}
-	return result, nil
+	return fetchAllPricing(ctx, &p.cacheMu, func() (map[string]*pricing.ModelPricing, time.Time, time.Duration) {
+		return p.cache, p.fetchedAt, p.ttl
+	}, p.refresh)
 }
 
 // FetchModelPricing retrieves pricing for a specific model.
 func (p *OpenRouterProvider) FetchModelPricing(ctx context.Context, canonicalModel string) (*pricing.ModelPricing, error) {
-	// Ensure cache is populated
-	if _, err := p.FetchAllPricing(ctx); err != nil {
-		return nil, err
-	}
-
-	p.cacheMu.RLock()
-	defer p.cacheMu.RUnlock()
-
-	if mp, ok := p.cache[canonicalModel]; ok {
-		return mp.Clone(), nil
-	}
-	return nil, nil
+	return fetchModelPricing(ctx, canonicalModel, &p.cacheMu, func() (map[string]*pricing.ModelPricing, time.Time, time.Duration) {
+		return p.cache, p.fetchedAt, p.ttl
+	}, p.refresh)
 }
 
 // refresh fetches fresh pricing data from the OpenRouter API.
 func (p *OpenRouterProvider) refresh(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"/models", nil)
+	body, err := openai.New(openai.Config{
+		ProviderName: "openrouter",
+		BaseURL:      p.baseURL,
+		HTTPClient:   p.client,
+	}).ListModels(ctx)
 	if err != nil {
+		if providerErr, ok := providererror.As(err); ok {
+			if providerErr.HTTPStatus != 0 && providerErr.HTTPStatus != http.StatusOK {
+				return fmt.Errorf("openrouter pricing status %d", providerErr.HTTPStatus)
+			}
+			if providerErr.Code == providererror.CodeUnreachable {
+				return fmt.Errorf("openrouter pricing request failed: %w", providerErr.Unwrap())
+			}
+			if providerErr.Code == providererror.CodeStreamFailed {
+				return fmt.Errorf("openrouter pricing decode: %w", providerErr.Unwrap())
+			}
+		}
 		return fmt.Errorf("openrouter pricing request: %w", err)
-	}
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("openrouter pricing request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("openrouter pricing status %d", resp.StatusCode)
 	}
 
 	var payload struct {
@@ -180,7 +151,7 @@ func (p *OpenRouterProvider) refresh(ctx context.Context) error {
 		} `json:"data"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&payload); err != nil {
 		return fmt.Errorf("openrouter pricing decode: %w", err)
 	}
 

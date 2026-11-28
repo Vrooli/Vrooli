@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Plus, Trash2, File, Link2, StickyNote, Tag } from "lucide-react";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { Badge } from "./ui/badge";
 import type { ContextAttachmentData } from "../types";
 
@@ -86,7 +86,7 @@ export function ContextAttachmentEditor({
             <Button
               key={type.value}
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => addAttachment(type.value)}
               disabled={disabled}
@@ -173,7 +173,7 @@ export function ContextAttachmentEditor({
                     id={`url-${index}`}
                     value={attachment.url || ""}
                     onChange={(e) => updateAttachment(index, { url: e.target.value })}
-                    placeholder="https://..."
+					placeholder="Source URL"
                     disabled={disabled}
                   />
                 </div>

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,15 +17,10 @@ import (
 // TestRegisterDomain_Success verifies domain registration through handlers.
 // [REQ:LD-DOMAIN-REGISTER] Domain registration through handler layer.
 func TestRegisterDomain_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"name": "test-domain", "display_name": "Test Domain", "capabilities": ["events"]}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
@@ -47,15 +41,10 @@ func TestRegisterDomain_Success(t *testing.T) {
 // TestRegisterDomain_MissingName verifies validation for missing name field.
 // [REQ:LD-DOMAIN-REGISTER] Domain registration validation.
 func TestRegisterDomain_MissingName(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"display_name": "Test Domain"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -65,15 +54,10 @@ func TestRegisterDomain_MissingName(t *testing.T) {
 // TestRegisterDomain_InvalidJSON verifies error handling for malformed JSON.
 // [REQ:LD-DOMAIN-REGISTER] Domain registration error handling.
 func TestRegisterDomain_InvalidJSON(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{invalid json`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -83,8 +67,7 @@ func TestRegisterDomain_InvalidJSON(t *testing.T) {
 // TestListDomains_ReturnsAll verifies domain listing through handlers.
 // [REQ:LD-DOMAIN-DISCOVER] Domain discovery through handler layer.
 func TestListDomains_ReturnsAll(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register test domains
 	h.registerTestDomain(t, "domain-1", "Domain One")
@@ -111,8 +94,7 @@ func TestListDomains_ReturnsAll(t *testing.T) {
 // TestListDomains_EmptyResult verifies listing with no registered domains.
 // [REQ:LD-DOMAIN-DISCOVER] Domain discovery with empty result.
 func TestListDomains_EmptyResult(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/domains", nil)
 	rr := httptest.NewRecorder()
@@ -135,8 +117,7 @@ func TestListDomains_EmptyResult(t *testing.T) {
 // TestGetDomain_WithMuxVars verifies single domain retrieval with router variables.
 // [REQ:LD-DOMAIN-DISCOVER] Single domain retrieval through handler layer.
 func TestGetDomain_WithMuxVars(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "get-test", "Get Test Domain")
 
@@ -162,8 +143,7 @@ func TestGetDomain_WithMuxVars(t *testing.T) {
 // TestGetDomain_NotFound verifies 404 response for non-existent domain.
 // [REQ:LD-DOMAIN-DISCOVER] Domain not found error handling.
 func TestGetDomain_NotFound(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/domains/nonexistent", nil)
 	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent"})
@@ -179,16 +159,14 @@ func TestGetDomain_NotFound(t *testing.T) {
 // TestUpdateDomain_Success verifies domain update through handlers.
 // [REQ:LD-DOMAIN-REGISTER] Domain update through handler layer.
 func TestUpdateDomain_Success(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register a domain first
 	h.registerTestDomain(t, "update-test", "Original Name")
 
 	// Update the domain
 	body := `{"display_name": "Updated Name", "description": "New description"}`
-	req := httptest.NewRequest("PATCH", "/api/v1/domains/update-test", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := jsonRequest(t, "PATCH", "/api/v1/domains/update-test", body)
 	req = mux.SetURLVars(req, map[string]string{"name": "update-test"})
 	rr := httptest.NewRecorder()
 
@@ -213,12 +191,10 @@ func TestUpdateDomain_Success(t *testing.T) {
 // TestUpdateDomain_NotFound verifies 404 response for non-existent domain update.
 // [REQ:LD-DOMAIN-REGISTER] Domain update not found error handling.
 func TestUpdateDomain_NotFound(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"display_name": "Updated"}`
-	req := httptest.NewRequest("PATCH", "/api/v1/domains/nonexistent", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := jsonRequest(t, "PATCH", "/api/v1/domains/nonexistent", body)
 	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent"})
 	rr := httptest.NewRecorder()
 
@@ -232,14 +208,12 @@ func TestUpdateDomain_NotFound(t *testing.T) {
 // TestUpdateDomain_InvalidJSON verifies error handling for malformed JSON.
 // [REQ:LD-DOMAIN-REGISTER] Domain update error handling.
 func TestUpdateDomain_InvalidJSON(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	h.registerTestDomain(t, "json-test", "Json Test")
 
 	body := `{invalid json`
-	req := httptest.NewRequest("PATCH", "/api/v1/domains/json-test", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := jsonRequest(t, "PATCH", "/api/v1/domains/json-test", body)
 	req = mux.SetURLVars(req, map[string]string{"name": "json-test"})
 	rr := httptest.NewRecorder()
 
@@ -253,8 +227,7 @@ func TestUpdateDomain_InvalidJSON(t *testing.T) {
 // TestGetDomainHealth_NoHealthURL verifies health check without health URL.
 // [REQ:LD-DOMAIN-HEALTH] Domain health check without configured URL.
 func TestGetDomainHealth_NoHealthURL(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register domain without health URL
 	h.registerTestDomain(t, "no-health-url", "No Health URL Domain")
@@ -284,8 +257,7 @@ func TestGetDomainHealth_NoHealthURL(t *testing.T) {
 // TestGetDomainHealth_NotFound verifies 404 response for non-existent domain health check.
 // [REQ:LD-DOMAIN-HEALTH] Domain health check not found error handling.
 func TestGetDomainHealth_NotFound(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	req := httptest.NewRequest("GET", "/api/v1/domains/nonexistent/health", nil)
 	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent"})
@@ -301,15 +273,10 @@ func TestGetDomainHealth_NotFound(t *testing.T) {
 // TestRegisterDomain_MissingDisplayName verifies validation for missing display_name.
 // [REQ:LD-DOMAIN-REGISTER] Domain registration validation.
 func TestRegisterDomain_MissingDisplayName(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"name": "test-domain"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
@@ -319,15 +286,10 @@ func TestRegisterDomain_MissingDisplayName(t *testing.T) {
 // TestRegisterDomain_WithHealthURL verifies domain registration with health URL.
 // [REQ:LD-DOMAIN-REGISTER] Domain registration with optional fields.
 func TestRegisterDomain_WithHealthURL(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	body := `{"name": "health-test", "display_name": "Health Test", "health_url": "http://localhost:8080/health"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, rr.Code, rr.Body.String())
@@ -345,22 +307,18 @@ func TestRegisterDomain_WithHealthURL(t *testing.T) {
 // TestGetDomainHealth_WithHealthURL_Unhealthy verifies health check with failing health URL.
 // [REQ:LD-DOMAIN-HEALTH] Domain health check with failing URL.
 func TestGetDomainHealth_WithHealthURL_Unhealthy(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register domain with invalid health URL (will fail to connect)
 	body := `{"name": "unhealthy-test", "display_name": "Unhealthy Test", "health_url": "http://localhost:1/invalid"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("Failed to register domain: %s", rr.Body.String())
 	}
 
 	// Check health - should return unhealthy
-	req = httptest.NewRequest("GET", "/api/v1/domains/unhealthy-test/health", nil)
+	req := httptest.NewRequest("GET", "/api/v1/domains/unhealthy-test/health", nil)
 	req = mux.SetURLVars(req, map[string]string{"name": "unhealthy-test"})
 	rr = httptest.NewRecorder()
 
@@ -385,8 +343,7 @@ func TestGetDomainHealth_WithHealthURL_Unhealthy(t *testing.T) {
 // TestGetDomainHealth_WithHealthURL_Healthy verifies health check with healthy URL.
 // [REQ:LD-DOMAIN-HEALTH] Domain health check with successful URL.
 func TestGetDomainHealth_WithHealthURL_Healthy(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create a test server that returns 200
 	healthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -397,17 +354,14 @@ func TestGetDomainHealth_WithHealthURL_Healthy(t *testing.T) {
 
 	// Register domain with test server health URL
 	body := `{"name": "healthy-test", "display_name": "Healthy Test", "health_url": "` + healthServer.URL + `/health"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("Failed to register domain: %s", rr.Body.String())
 	}
 
 	// Check health - should return healthy
-	req = httptest.NewRequest("GET", "/api/v1/domains/healthy-test/health", nil)
+	req := httptest.NewRequest("GET", "/api/v1/domains/healthy-test/health", nil)
 	req = mux.SetURLVars(req, map[string]string{"name": "healthy-test"})
 	rr = httptest.NewRecorder()
 
@@ -432,8 +386,7 @@ func TestGetDomainHealth_WithHealthURL_Healthy(t *testing.T) {
 // TestGetDomainHealth_WithHealthURL_BadStatusCode verifies health check with unhealthy status code.
 // [REQ:LD-DOMAIN-HEALTH] Domain health check with bad status code.
 func TestGetDomainHealth_WithHealthURL_BadStatusCode(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Create a test server that returns 500
 	healthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -444,17 +397,14 @@ func TestGetDomainHealth_WithHealthURL_BadStatusCode(t *testing.T) {
 
 	// Register domain with test server health URL
 	body := `{"name": "bad-status-test", "display_name": "Bad Status Test", "health_url": "` + healthServer.URL + `/health"}`
-	req := httptest.NewRequest("POST", "/api/v1/domains", bytes.NewBufferString(body))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-	h.RegisterDomain(rr, req)
+	rr := jsonHandlerResponse(t, h.RegisterDomain, "POST", "/api/v1/domains", body)
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("Failed to register domain: %s", rr.Body.String())
 	}
 
 	// Check health - should return unhealthy due to status code
-	req = httptest.NewRequest("GET", "/api/v1/domains/bad-status-test/health", nil)
+	req := httptest.NewRequest("GET", "/api/v1/domains/bad-status-test/health", nil)
 	req = mux.SetURLVars(req, map[string]string{"name": "bad-status-test"})
 	rr = httptest.NewRecorder()
 
@@ -531,8 +481,7 @@ func (m *mockDomainRepoWithError) Update(ctx context.Context, name string, updat
 // TestGetDomainHealth_NoHealthURL_WithLastHealthAt verifies no health URL response with last health time.
 // [REQ:LD-DOMAIN-HEALTH] Domain health check no URL with previous health check.
 func TestGetDomainHealth_NoHealthURL_WithLastHealthAt(t *testing.T) {
-	h, db := setupTestHandler(t)
-	defer db.Close()
+	h := setupTestHandler(t)
 
 	// Register domain without health URL, then set last_health_at directly
 	h.registerTestDomain(t, "prev-health-test", "Prev Health Test")

@@ -2,169 +2,181 @@ package scenarios
 
 import (
 	"context"
-	"database/sql"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
-	"test-genie/internal/storage/sqliteutil"
 	"test-genie/internal/testsqlite"
 )
 
-func TestScenarioDirectoryRepositoryList(t *testing.T) {
+func TestScenarioDirectoryRepositorySummarizesExecutionEvidence(t *testing.T) {
 	db := testsqlite.Open(t)
-	repo := NewScenarioDirectoryRepository(db)
 	now := time.Now().UTC()
-	repo.clock = func() time.Time { return now }
-	repo.queueActiveWindow = 24 * time.Hour
-	execID := uuid.New()
-
-	insertSuiteRequest(t, db,
-		"req-1",
-		"ecosystem-manager",
-		`["unit","integration"]`,
-		95,
-		"high",
-		"queued",
-		sql.NullString{String: "Cover OT-P0", Valid: true},
-		now,
-		now,
-	)
-	insertSuiteRequest(t, db,
-		"req-2",
-		"ecosystem-manager",
-		`["unit"]`,
-		90,
-		"normal",
-		"delegated",
-		sql.NullString{},
-		now.Add(-time.Minute),
-		now.Add(-time.Minute),
-	)
-
-	insertExecution(t, db,
-		execID.String(),
-		"ecosystem-manager",
-		sql.NullString{String: "quick", Valid: true},
-		1,
-		`[{"name":"structure","status":"passed","durationSeconds":1}]`,
-		now,
-	)
-	insertExecution(t, db,
-		uuid.NewString(),
-		"ecosystem-manager",
-		sql.NullString{String: "", Valid: false},
-		0,
-		`[{"name":"unit","status":"failed","durationSeconds":2}]`,
-		now.Add(-time.Hour),
-	)
-
-	summaries, err := repo.List(context.Background())
+	if _, err := db.Exec(`INSERT INTO suite_executions (id, run_id, scenario_name, requested_phases, requested_skip_phases, planned_phases, fail_fast, success, started_at, completed_at) VALUES (?, ?, ?, '[]', '[]', '[]', 0, 0, ?, ?)`, "11111111-1111-1111-1111-111111111111", "run-1", "demo", now.Add(-time.Minute).Format(time.RFC3339), now.Format(time.RFC3339)); err != nil {
+		t.Fatal(err)
+	}
+	summaries, err := NewScenarioDirectoryRepository(db).List(context.Background())
 	if err != nil {
-		t.Fatalf("expected list to succeed: %v", err)
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 || summaries[0].ScenarioName != "demo" || summaries[0].TotalExecutions != 1 || summaries[0].LastExecutionID == nil || summaries[0].LastRunID != "run-1" {
+		t.Fatalf("summaries=%+v", summaries)
+	}
+}
+
+func TestLatestUIChangeIgnoresGeneratedTrees(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "src", "App.tsx")
+	generated := filepath.Join(root, "dist", "bundle.js")
+	dependency := filepath.Join(root, "node_modules")
+	dependencyTarget := t.TempDir()
+	for _, path := range []string{source, generated} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(dependencyTarget, dependency); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	old := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	new := old.Add(time.Hour)
+	if err := os.Chtimes(source, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(generated, new, new); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{root, filepath.Join(root, "src")} {
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, ok, err := latestUIChange(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !got.Equal(old) {
+		t.Fatalf("latestUIChange = %v, %t; want %v, true", got, ok, old)
+	}
+}
+
+func TestLatestUIChangeDetectsRemovalThroughParentDirectory(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "deleted.tsx")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	new := old.Add(time.Hour)
+	if err := os.Chtimes(file, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(root, new, new); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(file); err != nil {
+		t.Fatal(err)
+	}
+	// Preserve a deterministic directory timestamp for filesystems with coarse
+	// mtime resolution; it models the directory mutation left by deletion.
+	if err := os.Chtimes(root, new, new); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := latestUIChange(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !got.Equal(new) {
+		t.Fatalf("latestUIChange after deletion = %v, %t; want %v, true", got, ok, new)
+	}
+}
+
+func TestScenarioDirectoryRepositoryRetainsMostRecentExperienceVerdict(t *testing.T) {
+	db := testsqlite.Open(t)
+	older := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Hour)
+	for _, row := range []struct {
+		id, runID, phase, status string
+		at                       time.Time
+	}{
+		{"11111111-1111-1111-1111-111111111111", "experience-run", "experience", "passed", older},
+		{"22222222-2222-2222-2222-222222222222", "unit-run", "unit", "passed", newer},
+	} {
+		if _, err := db.Exec(`INSERT INTO suite_executions (id, run_id, scenario_name, requested_phases, requested_skip_phases, planned_phases, fail_fast, success, started_at, completed_at) VALUES (?, ?, 'demo', '[]', '[]', '[]', 0, 1, ?, ?)`, row.id, row.runID, row.at.Add(-time.Minute).Format(time.RFC3339), row.at.Add(5*time.Minute).Format(time.RFC3339)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO suite_execution_phases (execution_id, ordinal, phase_name, status, completed_at, duration_seconds) VALUES (?, 0, ?, ?, ?, 1)`, row.id, row.phase, row.status, row.at.Format(time.RFC3339)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	summaries, err := NewScenarioDirectoryRepository(db).List(context.Background())
+	if err != nil {
+		t.Fatal(err)
 	}
 	if len(summaries) != 1 {
-		t.Fatalf("expected one summary: %#v", summaries)
+		t.Fatalf("summaries = %#v", summaries)
 	}
-	summary := summaries[0]
-	if summary.ScenarioName != "ecosystem-manager" {
-		t.Fatalf("unexpected summary: %#v", summary)
-	}
-	if summary.PendingRequests != 2 || summary.TotalRequests != 2 {
-		t.Fatalf("unexpected queue counts: %#v", summary)
-	}
-	if summary.LastExecutionPhaseSummary == nil || summary.LastExecutionPhaseSummary.Total != 1 {
-		t.Fatalf("expected phase summary to be calculated: %#v", summary.LastExecutionPhaseSummary)
-	}
-	if summary.LastExecutionID == nil || *summary.LastExecutionID != execID {
-		t.Fatalf("expected execution id %s, got %#v", execID, summary.LastExecutionID)
-	}
-	if summary.LastFailureAt == nil || !summary.LastFailureAt.Equal(now.Add(-time.Hour)) {
-		t.Fatalf("expected failure timestamp to be preserved: %#v", summary.LastFailureAt)
+	got := summaries[0]
+	if got.LastExperienceStatus != "passed" || got.LastExperienceRunID != "experience-run" || got.LastExperienceAt == nil || !got.LastExperienceAt.Equal(older) {
+		t.Fatalf("experience verdict = status %q run %q at %v; want passed / experience-run / %v", got.LastExperienceStatus, got.LastExperienceRunID, got.LastExperienceAt, older)
 	}
 }
 
-func TestScenarioDirectoryRepositoryGet(t *testing.T) {
+func TestScenarioDirectoryRepositoryDoesNotRetainOlderPassOverLatestNotEvaluated(t *testing.T) {
 	db := testsqlite.Open(t)
-	repo := NewScenarioDirectoryRepository(db)
-	now := time.Now().UTC()
-	repo.clock = func() time.Time { return now }
-	repo.queueActiveWindow = 24 * time.Hour
-
-	insertSuiteRequest(t, db,
-		"req-1",
-		"ecosystem-manager",
-		`[]`,
-		95,
-		"normal",
-		"completed",
-		sql.NullString{},
-		now,
-		now,
-	)
-
-	summary, err := repo.Get(context.Background(), "ecosystem-manager")
+	older := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Hour)
+	for _, row := range []struct {
+		id, runID, status string
+		at                time.Time
+	}{
+		{"11111111-1111-1111-1111-111111111111", "passed-run", "passed", older},
+		{"22222222-2222-2222-2222-222222222222", "not-evaluated-run", "not_evaluated", newer},
+	} {
+		if _, err := db.Exec(`INSERT INTO suite_executions (id, run_id, scenario_name, requested_phases, requested_skip_phases, planned_phases, fail_fast, success, started_at, completed_at) VALUES (?, ?, 'demo', '[]', '[]', '[]', 0, 0, ?, ?)`, row.id, row.runID, row.at.Add(-time.Minute).Format(time.RFC3339), row.at.Add(time.Minute).Format(time.RFC3339)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO suite_execution_phases (execution_id, ordinal, phase_name, status, completed_at, duration_seconds) VALUES (?, 0, 'experience', ?, ?, 1)`, row.id, row.status, row.at.Format(time.RFC3339)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	summaries, err := NewScenarioDirectoryRepository(db).List(context.Background())
 	if err != nil {
-		t.Fatalf("expected get to succeed: %v", err)
+		t.Fatal(err)
 	}
-	if summary == nil || summary.ScenarioName != "ecosystem-manager" {
-		t.Fatalf("unexpected summary: %#v", summary)
+	if len(summaries) != 1 {
+		t.Fatalf("summaries = %#v", summaries)
 	}
-	if summary.TotalRequests != 1 {
-		t.Fatalf("expected total requests to be populated: %#v", summary)
-	}
-}
-
-func insertSuiteRequest(t *testing.T, db *sql.DB, id, scenarioName, requestedTypes string, coverageTarget int, priority, status string, notes sql.NullString, createdAt, updatedAt time.Time) {
-	t.Helper()
-	var note any
-	if notes.Valid {
-		note = notes.String
-	}
-	if _, err := db.Exec(`
-INSERT INTO suite_requests (
-	id, scenario_name, requested_types, coverage_target, priority, status, notes, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-`,
-		id,
-		scenarioName,
-		requestedTypes,
-		coverageTarget,
-		priority,
-		status,
-		note,
-		sqliteutil.FormatTimestamp(createdAt),
-		sqliteutil.FormatTimestamp(updatedAt),
-	); err != nil {
-		t.Fatalf("insert suite request %s: %v", id, err)
+	got := summaries[0]
+	if got.LastExperienceStatus != "not_evaluated" || got.LastExperienceRunID != "not-evaluated-run" || got.LastExperienceAt == nil || !got.LastExperienceAt.Equal(newer) {
+		t.Fatalf("latest experience verdict = status %q run %q at %v; want not_evaluated / not-evaluated-run / %v", got.LastExperienceStatus, got.LastExperienceRunID, got.LastExperienceAt, newer)
 	}
 }
 
-func insertExecution(t *testing.T, db *sql.DB, id, scenarioName string, preset sql.NullString, success int, phases string, completedAt time.Time) {
-	t.Helper()
-	var presetValue any
-	if preset.Valid {
-		presetValue = preset.String
+func TestScenarioDirectoryRepositoryComparesFractionalTimestampsAsInstants(t *testing.T) {
+	db := testsqlite.Open(t)
+	for _, row := range []struct {
+		id, runID, status, at string
+	}{
+		{"11111111-1111-1111-1111-111111111111", "earlier-pass", "passed", "2026-11-01T10:00:00.1Z"},
+		{"22222222-2222-2222-2222-222222222222", "later-not-evaluated", "not_evaluated", "2026-11-01T10:00:00.11Z"},
+	} {
+		if _, err := db.Exec(`INSERT INTO suite_executions (id, run_id, scenario_name, requested_phases, requested_skip_phases, planned_phases, fail_fast, success, started_at, completed_at) VALUES (?, ?, 'demo', '[]', '[]', '[]', 0, 0, ?, ?)`, row.id, row.runID, row.at, row.at); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO suite_execution_phases (execution_id, ordinal, phase_name, status, completed_at, duration_seconds) VALUES (?, 0, 'experience', ?, ?, 1)`, row.id, row.status, row.at); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if _, err := db.Exec(`
-INSERT INTO suite_executions (
-	id, scenario_name, preset_used, requested_phases, requested_skip_phases, planned_phases,
-	fail_fast, success, phases, started_at, completed_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`,
-		id,
-		scenarioName,
-		presetValue,
-		`[]`,
-		`[]`,
-		`[]`,
-		0,
-		success,
-		phases,
-		sqliteutil.FormatTimestamp(completedAt.Add(-time.Minute)),
-		sqliteutil.FormatTimestamp(completedAt),
-	); err != nil {
-		t.Fatalf("insert execution %s: %v", id, err)
+	summaries, err := NewScenarioDirectoryRepository(db).List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summaries) != 1 || summaries[0].LastExperienceStatus != "not_evaluated" || summaries[0].LastExperienceRunID != "later-not-evaluated" {
+		t.Fatalf("latest fractional-time experience verdict was not selected: %+v", summaries)
 	}
 }

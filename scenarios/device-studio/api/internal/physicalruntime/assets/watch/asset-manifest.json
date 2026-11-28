@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "status": "candidate_only_unqualified",
+  "artifact_id": "sceneview-series7-generic-neutral-watch-v1",
+  "source": {
+    "path": "scenarios/device-studio/docs/internal/goal/evidence/E4/free-models/sceneview-research/apple_watch_series_7.glb",
+    "sha256": "ac3c33a32bc27c562e6655245e20327d17c77c988f11aab3016496d851e4e5e3",
+    "size_bytes": 5904504,
+    "title": "Apple Watch Series 7 - Free Watch-Face SDC\u2122",
+    "creator_record_sha256": "900a4e5d90c06106979b2c2bc8431f43e4311e0426df43cea65ce95b7f60051a",
+    "creator": "SDC PERFORMANCE\u2122; description attributes base model to bharathsrk13",
+    "listing_url": "https://sketchfab.com/3d-models/apple-watch-series-7-free-watch-face-sdctm-cf15ecbf159f42a28df5e56bdfa666bb",
+    "license": "CC BY 4.0",
+    "attribution": "Apple Watch Series 7 - Free Watch-Face SDC\u2122 by SDC PERFORMANCE\u2122; base model attribution to bharathsrk13; adapted under CC BY 4.0."
+  },
+  "output": {
+    "path": "scenarios/device-studio/api/internal/physicalruntime/assets/watch/series7-generic-neutral-screen.glb",
+    "sha256": "929de3091a06c42dbded6c88312d3285d2ed73857fbecaf188cb94f1ae42b522",
+    "size_bytes": 5905404
+  },
+  "derivation": {
+    "script_sha256": "03be76fb36e5da654952f9e74c39ccbcd0ad59e6e38d35a228a6ee7199087ae7",
+    "source_image_sha256": "bbdb946a84b0229752fef36683dc2c832a0b231c3eaa8cd970e7e13cb272754b",
+    "neutral_png_sha256": "64b86ad58ad7608b48bc7443d281ac5f34122475efb1d41a48f9f00620a96cb5",
+    "neutral_png_bytes": 11888,
+    "padded_image_view_bytes": 139751,
+    "image_view_offset": 5749588,
+    "source_non_image_bin_sha256": "133b5068faeb5e821b6b1dbe93e46821a7aca3da3a8e23712de22efbef13e622",
+    "output_non_image_source_bin_sha256": "133b5068faeb5e821b6b1dbe93e46821a7aca3da3a8e23712de22efbef13e622",
+    "source_bin_bytes": 5889344,
+    "output_source_bin_prefix_bytes": 5889344,
+    "appended_uv_buffer_view": 17,
+    "appended_uv_accessor": 46,
+    "appended_uv_bytes_sha256": "e550fee622f698c858680ca2a519eb96b912443138e7c2d8716f1ae28a9c8ec9",
+    "appended_uv_bytes": 688
+  },
+  "display_binding": {
+    "node_index": 27,
+    "node_name": "Object_27",
+    "mesh_index": 14,
+    "mesh_name": "Object_14",
+    "primitive_index": 0,
+    "material_index": 11,
+    "texture_index": 0,
+    "image_index": 0,
+    "source_uv_accessor": 45,
+    "derivative_uv_accessor": 46,
+    "source_uv_min": [
+      0.03599986433982849,
+      0.023129427805542946
+    ],
+    "source_uv_max": [
+      0.9677384495735168,
+      0.9768704771995544
+    ],
+    "derivative_uv_min": [
+      0,
+      0
+    ],
+    "derivative_uv_max": [
+      1,
+      1
+    ],
+    "referenced_vertex_count": 86,
+    "index_count": 90,
+    "triangle_count": 30,
+    "position_accessor": 43,
+    "normal_accessor": 44,
+    "target_material_policy": {
+      "base_color_factor": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metallic_factor": 0,
+      "roughness_factor": 0.38
+    }
+  },
+  "preservation": {
+    "source_bin_non_image_bytes_unchanged": true,
+    "source_positions_normals_indices_and_triangle_topology_unchanged": true,
+    "non_target_materials_textures_and_images_unchanged": true,
+    "original_uv_accessor_and_all_non_target_uv_references_unchanged": true,
+    "source_hierarchy_and_transforms_unchanged": true,
+    "root_node": 28,
+    "root_name": "sceneview_root",
+    "root_scale_preserved": 0.6430670822618203,
+    "only_source_image_0_and_target_screen_material_and_uv_binding_changed": true
+  },
+  "geometry": {
+    "source_axis_envelope_mm": [
+      25.201,
+      57.579,
+      54.549
+    ],
+    "case_glass_screen_display_frame_mm": [
+      28.344,
+      24.613,
+      7.942
+    ],
+    "source_scale_policy": "Preserve the exact source hierarchy including sceneview_root scale 0.643; no nominal-size fitting or scale normalization.",
+    "variant": "unknown",
+    "measurement_limit": "GLB-derived source geometry under the glTF metre assumption; not independent physical measurement, not a 41 mm/45 mm variant, and the full model AABB is band-dominated.",
+    "exact_source_position_measurements": {
+      "transformed_position_vertex_count": 161468,
+      "minimum_y_m": 0.0,
+      "display_center_vertex_count": 86,
+      "display_center_m": [
+        6.96531631227718e-06,
+        0.03194426510567318,
+        0.015982393424878862
+      ]
+    }
+  },
+  "rights_and_claims": {
+    "adaptation_notice": "Replaced branded source image 0 with a generated neutral dark display image, normalized only the selected display TEXCOORD_0 chart, and changed only display material 11 to neutral replaceable-screen values.",
+    "rights_limit": "CC BY 4.0 attribution applies to the model adaptation; the original branded image is excluded. No manufacturer endorsement, trademark clearance, physical qualification, or round-watch family claim.",
+    "candidate_scope": "Generic rectangular smartwatch-style candidate only; not a round-watch family implementation."
+  }
+}

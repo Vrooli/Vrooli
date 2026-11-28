@@ -4,6 +4,9 @@ package checks
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -88,6 +91,53 @@ func TestRealExecutorContextTimeout(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected context timeout error")
+	}
+}
+
+// =============================================================================
+// control-plane invocation
+// =============================================================================
+
+// writeFakeVrooliBinary writes a shell script at a path the executor will pick
+// up via VROOLI_CMD_PATH. The script echoes one arg per line so tests can
+// recover what was actually invoked.
+func writeFakeVrooliBinary(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fake-vrooli.sh")
+	script := "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake binary: %v", err)
+	}
+	return path
+}
+
+func TestRealExecutorLeavesVrooliArgumentsUntouched(t *testing.T) {
+	fake := writeFakeVrooliBinary(t)
+	t.Setenv("VROOLI_CMD_PATH", fake)
+
+	exec := &RealExecutor{}
+	out, err := exec.Output(context.Background(), "vrooli", "scenario", "status")
+	if err != nil {
+		t.Fatalf("Output() error = %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if got := strings.Join(lines, " "); got != "scenario status" {
+		t.Fatalf("arguments = %q, want %q", got, "scenario status")
+	}
+}
+
+// TestRealExecutor_LeavesNonVrooliCommandsUntouched ensures the injection only
+// fires for the vrooli CLI; other commands (echo, etc.) see their args
+// verbatim.
+func TestRealExecutor_LeavesNonVrooliCommandsUntouched(t *testing.T) {
+	exec := &RealExecutor{}
+	out, err := exec.Output(context.Background(), "echo", "hello", "world")
+	if err != nil {
+		t.Fatalf("Output() error = %v", err)
+	}
+	if got := strings.TrimRight(string(out), "\n"); got != "hello world" {
+		t.Fatalf("Output = %q, want %q", got, "hello world")
 	}
 }
 

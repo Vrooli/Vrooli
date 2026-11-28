@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "triage-experience-debt",
+    "title": "Triage experience debt",
+    "purpose": "An operator goes from 'where is the fleet worst?' to concrete claim evidence in three navigations.",
+    "prd_refs": ["OT-P1-005", "OT-P0-003"]
+  },
+  "steps": [
+    {
+      "page": "fleet",
+      "state": "default",
+      "intent": "Spot the worst scenario at the top of the debt table without searching for it.",
+      "via": "debt-table"
+    },
+    {
+      "page": "scenario-explorer",
+      "state": "default",
+      "intent": "See which of that scenario's pages and states are weakest, and which claims are failing.",
+      "via": "scenario-link"
+    },
+    {
+      "page": "evidence",
+      "state": "default",
+      "intent": "Inspect the failing claim's capture and the accessibility-tree node behind the verdict.",
+      "via": "evidence-link"
+    }
+  ],
+  "claims": [
+    {
+      "id": "three-navigations-max",
+      "type": "custom",
+      "statement": "Concrete evidence is reachable from the fleet landing in at most three navigations, with no dead ends.",
+      "tier": "aspirational",
+      "params": { "maxSteps": 3 },
+      "rationale": "Runtime journey checking is P2 (OT-P2-002), built on workflow-health execution."
+    }
+  ]
+}

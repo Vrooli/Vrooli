@@ -1,0 +1,87 @@
+{
+  "schema": "codex-rollout.turn-errors/v1",
+  "about": "How a Codex turn that ended on an error is handled. A rule matches the task_complete record's error (codex_error_info, HTTP status, message text); the first matching rule names the class, and the class names the recovery. Add a rule when a new error shape is seen; change a class's recovery to change what every consumer does. Read by packages/codex-rollout (Classify) and by anything else that reads this file.",
+  "classes": [
+    {
+      "id": "transient",
+      "meaning": "The connection to the model dropped mid-turn; the session, its work and its goal are intact.",
+      "recovery": {"action": "resume", "max_attempts": 3, "backoff": ["2m", "5m", "10m"], "window": "1h", "stale_after": "1h"}
+    },
+    {
+      "id": "capacity",
+      "meaning": "The provider had no capacity for the model; the same model usually answers again later.",
+      "recovery": {"action": "resume", "max_attempts": 3, "backoff": ["10m", "20m", "40m"], "window": "3h", "stale_after": "2h"}
+    },
+    {
+      "id": "output_limit",
+      "meaning": "The model's reply hit its output limit; a fresh turn carries on from the transcript.",
+      "recovery": {"action": "resume", "max_attempts": 2, "backoff": ["1m", "5m"], "window": "1h", "stale_after": "1h"}
+    },
+    {
+      "id": "configuration",
+      "meaning": "The provider refused the session's model or account setup; resuming repeats the refusal.",
+      "recovery": {"action": "escalate"}
+    },
+    {
+      "id": "policy",
+      "meaning": "The provider flagged the content; someone decides whether to rescope, rephrase or stop.",
+      "recovery": {"action": "escalate"}
+    },
+    {
+      "id": "unrecognised",
+      "meaning": "No rule matches this error yet; someone reads it, decides, and adds a rule here.",
+      "recovery": {"action": "escalate"}
+    }
+  ],
+  "rules": [
+    {
+      "id": "stream-disconnected",
+      "class": "transient",
+      "codex_error_info": "other",
+      "message_contains": "stream disconnected before completion",
+      "seen": "2026-11-20: ended steward-free-host-20261120 and steward-test-o8-20261120 (\"Transport error: network error: error decoding response body\")"
+    },
+    {
+      "id": "upstream-5xx",
+      "class": "transient",
+      "codex_error_info": "http_connection_failed",
+      "http_status_min": 500,
+      "http_status_max": 599,
+      "seen": "2026-11-20: \"unexpected status 503 Service Unavailable: upstream connect error\""
+    },
+    {
+      "id": "rate-limited",
+      "class": "capacity",
+      "codex_error_info": "http_connection_failed",
+      "http_status_min": 429,
+      "http_status_max": 429,
+      "seen": "not yet seen; HTTP 429 is the provider's too-many-requests answer"
+    },
+    {
+      "id": "server-overloaded",
+      "class": "capacity",
+      "codex_error_info": "server_overloaded",
+      "seen": "2026-10-18 to 2026-11-03: \"Selected model is at capacity. Please try a different model.\" (37 turns)"
+    },
+    {
+      "id": "max-output-tokens",
+      "class": "output_limit",
+      "codex_error_info": "other",
+      "message_contains": "reason: max_output_tokens",
+      "seen": "2026-11: \"Incomplete response returned, reason: max_output_tokens\""
+    },
+    {
+      "id": "model-not-found",
+      "class": "configuration",
+      "codex_error_info": "model_not_found",
+      "seen": "2026-11-17: \"The 'luna' model is not supported when using Codex with a ChatGPT account.\""
+    },
+    {
+      "id": "cyber-policy",
+      "class": "policy",
+      "codex_error_info": "cyber_policy",
+      "seen": "2026-11-16: \"This content was flagged for possible cybersecurity risk.\""
+    }
+  ],
+  "fallback": "unrecognised"
+}

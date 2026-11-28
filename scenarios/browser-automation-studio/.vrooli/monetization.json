@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../.vrooli/schemas/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "browser-automation-studio",
+  "product_shape": "feature_gated",
+  "requires_entitlement": true,
+  "account_surface_paths": [
+    "ui/src/components/MonetizationAccount.tsx",
+    "api/main.go"
+  ],
+  "journey_probe_paths": [
+    "api/main.go"
+  ],
+  "features": [
+    {"key": "ai", "class": "A", "enforcement_paths": ["api/middleware/entitlement.go", "api/handlers/ai/ai_analysis.go", "api/handlers/ai/gateway_client.go", "api/handlers/vision_navigation/connect_handler.go"]},
+    {"key": "recording", "class": "B", "enforcement_paths": ["api/middleware/entitlement.go"]},
+    {"key": "watermark_free", "class": "B", "enforcement_paths": ["api/middleware/entitlement.go", "api/services/entitlement/service.go"]}
+  ],
+  "credit_features": [
+    {"id": "browser-automation-studio.ai-writing", "gateway_roles": ["write.default"]}
+  ],
+  "meters": [
+    {"limit_key": "ai_credits", "class": "A", "enforcement_paths": ["api/handlers/ai/gateway_client.go", "api/handlers/vision_navigation/connect_handler.go"]},
+    {"limit_key": "workflow_executions", "class": "B", "reservation": {"kind": "lpbs_atomic", "authority": "landing-page-business-suite", "begin_path": "api/services/entitlement/service.go", "commit_path": "api/services/workflow/service.go", "release_path": "api/services/workflow/service.go"}, "enforcement_paths": ["api/services/entitlement/service.go", "api/services/workflow/service.go", "api/services/workflow/executions.go", "api/services/workflow/adhoc_execution.go", "api/services/scheduler/scheduler.go"]}
+  ]
+}

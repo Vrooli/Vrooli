@@ -8,11 +8,7 @@ import (
 
 // TestDataProcessingWorkflow tests end-to-end data processing workflow
 func TestDataProcessingWorkflow(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	var datasetID string
 
@@ -149,11 +145,7 @@ func TestDataProcessingWorkflow(t *testing.T) {
 
 // TestResourceLifecycle tests complete resource lifecycle
 func TestResourceLifecycle(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	var resourceID string
 
@@ -294,11 +286,7 @@ func TestResourceLifecycle(t *testing.T) {
 
 // TestStreamingPipeline tests streaming data pipeline
 func TestStreamingPipeline(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	var streamID string
 
@@ -367,11 +355,7 @@ func TestStreamingPipeline(t *testing.T) {
 
 // TestErrorHandling tests comprehensive error scenarios
 func TestErrorHandling(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	errorScenarios := []struct {
 		name           string
@@ -448,11 +432,7 @@ func TestErrorHandling(t *testing.T) {
 
 // TestDataQualityAssessment tests comprehensive data quality features
 func TestDataQualityAssessment(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
+	env := newTestEnv(t)
 
 	t.Run("HighQualityData", func(t *testing.T) {
 		validateBody := map[string]interface{}{

@@ -12,7 +12,7 @@
 
 ### Batch Embedding Processing
 **Context:** Initial implementation processed embeddings one at a time
-**Approach:** Switched to batch processing with Ollama's /api/embed endpoint
+**Approach:** Switched to batch processing through `resource-ollama gateway embed`
 **Result:** 10x performance improvement in embedding generation
 **Metrics:** Reduced indexing time from 10 minutes to 1 minute for 1000 documents
 **Reusable:** Applied to all bulk operations across resources

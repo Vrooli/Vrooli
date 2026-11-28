@@ -12,7 +12,8 @@
 
 import { useCallback, useState } from 'react';
 import { FolderTree, ChevronRight, ChevronDown } from 'lucide-react';
-import { type Project } from '@/domains/projects';
+import { selectors } from '@/constants/selectors';
+import type { Project } from '@/domains/projects/store';
 import ProjectModal from '@/domains/projects/ProjectModal';
 import { ProjectPickerModal } from './ProjectPickerModal';
 
@@ -93,6 +94,7 @@ export function ProjectSelector({
     <>
       <button
         type="button"
+        data-testid={selectors.recording.workflowCreation.projectSelector}
         onClick={handleOpenPicker}
         disabled={disabled}
         className={`${baseStyles} ${disabledStyles} ${className}`}

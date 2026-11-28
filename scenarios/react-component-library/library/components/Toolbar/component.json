@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "controls.toolbar",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.7",
+    "1.0.0",
+    "1.0.5",
+    "1.0.6"
+  ],
+  "description": "The composite action row with roving focus, logical groups, separators, overflow menu, responsive collapse, and shortcut hints.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Toolbar",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.7",
+    "1.0.0",
+    "1.0.5",
+    "1.0.6",
+    "1.0.10"
+  ],
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:Toolbar",
+  "tags": []
+}

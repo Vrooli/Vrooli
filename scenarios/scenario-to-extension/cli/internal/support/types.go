@@ -1,0 +1,153 @@
+package support
+
+import "time"
+
+// GenerateResponse is returned by POST /api/v1/extension/generate.
+type GenerateResponse struct {
+	BuildID             string `json:"build_id"`
+	ExtensionPath       string `json:"extension_path"`
+	InstallInstructions string `json:"install_instructions"`
+	TestCommand         string `json:"test_command"`
+	Status              string `json:"status"`
+}
+
+// BuildStatus is returned by GET /api/v1/extension/status/{build_id}.
+type BuildStatus struct {
+	BuildID        string     `json:"build_id"`
+	ScenarioName   string     `json:"scenario_name"`
+	Status         string     `json:"status"`
+	ExtensionPath  string     `json:"extension_path"`
+	ArtifactPath   string     `json:"artifact_path,omitempty"`
+	ArtifactSHA256 string     `json:"artifact_sha256,omitempty"`
+	ArtifactBytes  int64      `json:"artifact_bytes,omitempty"`
+	ManifestSHA256 string     `json:"manifest_sha256,omitempty"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+	BuildLog       []string   `json:"build_log,omitempty"`
+	ErrorLog       []string   `json:"error_log,omitempty"`
+}
+
+// BuildSummary is one entry in the /api/v1/extension/builds list.
+type BuildSummary struct {
+	BuildID        string     `json:"build_id"`
+	ScenarioName   string     `json:"scenario_name"`
+	TemplateType   string     `json:"template_type,omitempty"`
+	Status         string     `json:"status"`
+	ExtensionPath  string     `json:"extension_path,omitempty"`
+	ArtifactSHA256 string     `json:"artifact_sha256,omitempty"`
+	ArtifactBytes  int64      `json:"artifact_bytes,omitempty"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty"`
+}
+
+// CancelResponse is returned by POST /api/v1/extension/cancel/{build_id}.
+type CancelResponse struct {
+	BuildID string `json:"build_id"`
+	Status  string `json:"status"`
+}
+
+// BuildsResponse wraps the /api/v1/extension/builds response.
+type BuildsResponse struct {
+	Builds []BuildSummary `json:"builds"`
+	Count  int            `json:"count"`
+}
+
+// Template is one template entry from /api/v1/extension/templates.
+type Template struct {
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Files       []string `json:"files,omitempty"`
+	Source      string   `json:"source,omitempty"`
+}
+
+// TemplatesResponse wraps the /api/v1/extension/templates response.
+type TemplatesResponse struct {
+	Templates []Template `json:"templates"`
+	Count     int        `json:"count"`
+}
+
+// TestSiteResult mirrors the ExtensionSiteResult API shape.
+type TestSiteResult struct {
+	Site           string   `json:"site"`
+	Loaded         bool     `json:"loaded"`
+	Errors         []string `json:"errors,omitempty"`
+	ScreenshotPath string   `json:"screenshot_path,omitempty"`
+	LoadTime       int      `json:"load_time_ms"`
+}
+
+// TestSummary mirrors ExtensionTestSummary.
+type TestSummary struct {
+	TotalTests  int     `json:"total_tests"`
+	Passed      int     `json:"passed"`
+	Failed      int     `json:"failed"`
+	SuccessRate float64 `json:"success_rate"`
+}
+
+// TestResult mirrors ExtensionTestResult.
+type TestResult struct {
+	Success                  bool                          `json:"success"`
+	Status                   string                        `json:"status"`
+	Reason                   string                        `json:"reason,omitempty"`
+	BuildID                  string                        `json:"build_id,omitempty"`
+	SessionID                string                        `json:"session_id,omitempty"`
+	ExtensionID              string                        `json:"extension_id,omitempty"`
+	ArtifactSHA256           string                        `json:"artifact_sha256,omitempty"`
+	ManifestSHA256           string                        `json:"manifest_sha256,omitempty"`
+	PermissionEvidenceSource string                        `json:"permission_evidence_source,omitempty"`
+	PermissionEvidenceScope  string                        `json:"permission_evidence_scope,omitempty"`
+	PerTabSiteAccess         string                        `json:"per_tab_site_access,omitempty"`
+	LifecycleReceipt         *ExtensionLifecycleRunReceipt `json:"lifecycle_receipt,omitempty"`
+	CleanupReceipt           *BASExtensionLifecycleReceipt `json:"cleanup_receipt,omitempty"`
+	TestResults              []TestSiteResult              `json:"test_results"`
+	Summary                  TestSummary                   `json:"summary"`
+	ReportTime               *time.Time                    `json:"report_time,omitempty"`
+}
+
+// ExtensionLifecycleRunReceipt carries the owner-returned install/reload/
+// validation chain through the CLI without copying any bearer credential.
+type ExtensionLifecycleRunReceipt struct {
+	BuildID             string                       `json:"build_id"`
+	SessionID           string                       `json:"session_id"`
+	ArtifactSHA256      string                       `json:"artifact_sha256"`
+	ManifestSHA256      string                       `json:"manifest_sha256"`
+	RunBinding          BASRunBindingReceipt         `json:"run_binding"`
+	Install             BASExtensionLifecycleReceipt `json:"install"`
+	Reload              BASExtensionLifecycleReceipt `json:"reload"`
+	Validation          BASExtensionValidation       `json:"validation"`
+	InventoryObservedAt time.Time                    `json:"inventory_observed_at"`
+}
+
+type BASRunBindingReceipt struct {
+	Backend       string `json:"backend"`
+	ProfileID     string `json:"profile_id"`
+	PermissionRef string `json:"permission_ref"`
+	OwnerID       string `json:"owner_id"`
+	LeaseID       string `json:"lease_id"`
+	CallerID      string `json:"caller_id"`
+}
+
+type BASExtensionLifecycleReceipt struct {
+	SessionID      string    `json:"session_id"`
+	Backend        string    `json:"backend"`
+	ProfileID      string    `json:"profile_id"`
+	PermissionRef  string    `json:"permission_ref"`
+	OwnerID        string    `json:"owner_id"`
+	LeaseID        string    `json:"lease_id"`
+	CallerID       string    `json:"caller_id"`
+	ArtifactRef    string    `json:"artifact_ref"`
+	Operation      string    `json:"operation"`
+	ExtensionID    string    `json:"extension_id"`
+	Version        string    `json:"version"`
+	Digest         string    `json:"digest"`
+	ManifestSHA256 string    `json:"manifest_sha256"`
+	State          string    `json:"state"`
+	OccurredAt     time.Time `json:"occurred_at"`
+}
+
+type BASExtensionValidation struct {
+	Receipt BASExtensionLifecycleReceipt `json:"receipt"`
+	Valid   bool                         `json:"valid"`
+	Checks  map[string]bool              `json:"checks"`
+	Message string                       `json:"message,omitempty"`
+}

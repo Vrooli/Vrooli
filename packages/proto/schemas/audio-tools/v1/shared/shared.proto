@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.shared;
+
+import "audio-tools/v1/common/common.proto";
+import "audio-tools/v1/diagnostics/diagnostics.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared;shared_v1";
+
+// Shared scenario-local provider-health vocabulary. It is deliberately kept
+// outside a serving domain because both HealthStatusService and TTSService
+// expose it to their consumers.
+// @stability stable
+enum ProviderState {
+  PROVIDER_STATE_UNSPECIFIED = 0;
+  PROVIDER_STATE_AVAILABLE = 1;
+  PROVIDER_STATE_UNAVAILABLE = 2;
+  PROVIDER_STATE_UNKNOWN = 3;
+}
+
+message ProviderHealth {
+  vrooli.audio_tools.v1.diagnostics.Capability capability = 1;
+  vrooli.audio_tools.v1.common.ProviderTier tier = 2;
+  string provider_id = 3;
+  ProviderState state = 4;
+  string last_checked_at = 5;
+  double latency_ms = 6;
+  string error_code = 7;
+  string error_message = 8;
+  bool serving = 9;
+}

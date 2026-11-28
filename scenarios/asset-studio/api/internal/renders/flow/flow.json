@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "renders.render-job.api",
+  "domain": "renders",
+  "description": "The money-bearing render job. A successful job is valid only when immutable provenance and actual cost were captured.",
+  "model": {"module":"RenderJobFlow","seed":"2026072801","maxSteps":7,"traceCount":8,"verify":{"invariants":["TypeOK","TerminalClosure","IllegalTransitionsPreserveState"]}},
+  "states": [
+    {"id":"queued","quint":"Queued","initial":true}, {"id":"running","quint":"Running"},
+    {"id":"succeeded","quint":"Succeeded","terminal":true}, {"id":"failed","quint":"Failed","terminal":true}, {"id":"cancelled","quint":"Cancelled","terminal":true}
+  ],
+  "events": [{"id":"start","quint":"Start"},{"id":"succeed","quint":"Succeed"},{"id":"fail","quint":"Fail"},{"id":"cancel","quint":"Cancel"}],
+  "transitionDefaults":{"invalid":{"to":"self","wantError":true},"terminal":{"to":"self","wantError":true}},
+  "transitions":[
+    {"from":"queued","event":"start","to":"running"},{"from":"queued","event":"cancel","to":"cancelled"},
+    {"from":"running","event":"succeed","to":"succeeded"},{"from":"running","event":"fail","to":"failed"},{"from":"running","event":"cancel","to":"cancelled"}
+  ],
+  "invariants":[
+    {"id":"type_ok","quint":"TypeOK","description":"Status and event values are declared."},
+    {"id":"terminal_closure","quint":"TerminalClosure","description":"Succeeded, failed, and cancelled jobs cannot transition."},
+    {"id":"illegal_transitions_preserve_state","quint":"IllegalTransitionsPreserveState","description":"Rejected events preserve status."}
+  ],
+  "traces":[
+    {"name":"successful_render","initial":"queued","steps":[{"event":"start","want":"running","wantError":false},{"event":"succeed","want":"succeeded","wantError":false}]},
+    {"name":"cancel_before_dispatch","initial":"queued","steps":[{"event":"cancel","want":"cancelled","wantError":false}]},
+    {"name":"backend_failure","initial":"queued","steps":[{"event":"start","want":"running","wantError":false},{"event":"fail","want":"failed","wantError":false}]}
+  ],
+  "runtime":{"go":{"package":"flow","statusType":"RenderStatus","eventType":"RenderEvent","constantPrefix":"RenderJob"}},
+  "replay":{"transition":{"function":"TransitionRender","stateType":"RenderState","statusField":"Status"}}
+}

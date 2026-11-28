@@ -4,7 +4,7 @@ import { makeBacklogNode, makeCaptureNode, makeGraphEdge, makeScenarioNode } fro
 
 describe("computeVisualFocus", () => {
   const nodeA = makeBacklogNode("backlog-item/execute/task-a", { label: "A", status: "queued" });
-  const nodeB = makeCaptureNode("capture/c-1", { label: "C1", status: "classified" });
+  const nodeB = makeCaptureNode("capture/c-1", { label: "C1", status: "classifying" });
   const nodeC = makeScenarioNode("scenario/app", { label: "App", status: "running" });
   const nodes = [nodeA, nodeB, nodeC];
   const edges = [

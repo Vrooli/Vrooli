@@ -1,0 +1,22 @@
+{
+  "actions": {
+    "maximumCount": 1,
+    "maximumLabelCharacters": 24,
+    "primaryAction": "required",
+    "primaryCount": 1,
+    "primarySlot": "deleteLabel / onDelete",
+    "recoveryAction": "retryLabel / onUndo",
+    "typicalCount": 1,
+    "typicalLabelCharacters": 18
+  },
+  "children": {
+    "allowedChildComponents": [
+      "Text",
+      "Link"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 0
+  },
+  "componentId": "react-component-library:UndoableDestructiveAction",
+  "version": "1.0.11"
+}

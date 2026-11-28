@@ -1,0 +1,115 @@
+{
+  "description": "Implement `Rewrite(plan_id?, operations: []FileMove|ImportRewrite) → RewriteResponse`. First call returns a `plan_id` plus a normalized operation log and no disk change. A second call with the `plan_id` and explicit `--apply` flag mutates the filesystem. The scenario never invokes git and never invokes `go build`.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004",
+        "REQ-P0-006",
+        "REQ-P0-007"
+      ],
+      "description": "Implement Rewrite(plan_id?, operations: []FileMove|ImportRewrite) → RewriteResponse as a strict two-step process. The first call (no plan_id) validates and normalizes the operation list, generates a unique plan_id, returns the normalized operation log, and makes zero filesystem changes. The second call (with plan_id and explicit --apply flag) reads the stored plan and mutates the filesystem accordingly. The scenario must never invoke git or go build at any point. On crash during apply, the disk may be in a mid-state; recovery is operator-driven via git. Plan IDs must be globally unique and stable.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "Two-Step Rewrite: Plan Generation and Filesystem Apply",
+      "validation": [
+        {
+          "notes": "Test that a first Rewrite call with valid operations returns a non-empty plan_id and normalized operation log with no filesystem mutation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test plan_id generation produces unique, stable, non-colliding identifiers across concurrent calls",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test operation normalization: duplicate moves are deduplicated, import paths are canonicalized",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a second Rewrite call without --apply flag returns plan details but does not mutate the filesystem",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a second Rewrite call with plan_id and --apply flag applies all operations to the filesystem",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that git and go build are never invoked (mock/spy on exec.Command)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Table-driven tests for FileMove and ImportRewrite operation normalization edge cases",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end plan + apply flow against a fixture module: first call returns plan_id, second call with --apply moves files and rewrites imports correctly",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent plan calls for the same path serialize (only one plan active at a time per path)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rewrite apply on a non-existent plan_id returns a typed error",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Operator can inspect the normalized operation log before committing to filesystem changes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No git or go build invocations appear in server logs during any Rewrite operation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Mid-apply crash leaves files in a deterministic partial state that git status can identify",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Two-Step Rewrite (Plan + Apply)"
+}

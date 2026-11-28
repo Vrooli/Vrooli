@@ -1,0 +1,98 @@
+// Package repo owns the Connect-RPC repo identity surface. It provides the
+// worktree-awareness portion of the complete typed repository-status contract.
+//
+// Testing rule: tests substitute the worktree.Inspector fake; no real
+// git is invoked.
+package repo
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"connectrpc.com/connect"
+
+	"git-control-tower/internal/connecterrors"
+	"git-control-tower/internal/worktree"
+)
+
+// Status is the in-process shape returned by Service.GetRepoStatus.
+type Status struct {
+	Branch   string
+	Detached bool
+	Identity worktree.Identity
+}
+
+// Service is the repo identity domain. It wraps the worktree.Inspector
+// seam — repo status is fundamentally a worktree-identity question once
+// The transport adapter combines this identity with the complete repository
+// status model used by UI and CLI callers.
+type Service struct {
+	inspector worktree.Inspector
+}
+
+type statusSnapshotInspector interface {
+	IdentifyPathWithStatus(context.Context, string, string, string) (worktree.Identity, error)
+}
+
+// NewService wires the seam.
+func NewService(insp worktree.Inspector) *Service {
+	return &Service{inspector: insp}
+}
+
+// GetRepoStatus returns Status for repoPath.
+func (s *Service) GetRepoStatus(ctx context.Context, repoPath string) (Status, error) {
+	if s.inspector == nil {
+		return Status{}, errors.New("repo: inspector seam not wired")
+	}
+	if strings.TrimSpace(repoPath) == "" {
+		return Status{}, fmt.Errorf("%w: repo_path required", ErrInvalid)
+	}
+	id, err := s.inspector.IdentifyPath(ctx, repoPath)
+	if err != nil {
+		return Status{}, err
+	}
+	return Status{
+		Branch:   id.Branch,
+		Detached: id.Detached,
+		Identity: id,
+	}, nil
+}
+
+// GetRepoStatusWithSnapshot reuses branch and HEAD facts already read by the
+// status collector when the inspector supports that fast path. Test and custom
+// inspectors retain the regular behavior through the same domain boundary.
+func (s *Service) GetRepoStatusWithSnapshot(ctx context.Context, repoPath, branch, head string) (Status, error) {
+	if strings.TrimSpace(repoPath) == "" {
+		return Status{}, fmt.Errorf("%w: repo_path required", ErrInvalid)
+	}
+	if inspector, ok := s.inspector.(statusSnapshotInspector); ok {
+		identity, err := inspector.IdentifyPathWithStatus(ctx, repoPath, branch, head)
+		if err != nil {
+			return Status{}, err
+		}
+		return Status{Branch: identity.Branch, Detached: identity.Detached, Identity: identity}, nil
+	}
+	return s.GetRepoStatus(ctx, repoPath)
+}
+
+// ErrInvalid is the InvalidArgument-class error for this domain.
+var ErrInvalid = errors.New("repo: invalid request")
+
+// ErrorCodeFor maps domain errors to connect codes.
+func ErrorCodeFor(err error) connect.Code {
+	switch {
+	case err == nil:
+		return 0
+	case errors.Is(err, ErrInvalid):
+		return connect.CodeInvalidArgument
+	default:
+		return connect.CodeInternal
+	}
+}
+
+// ToConnectError preserves the domain package API while sharing transport conversion.
+func ToConnectError(err error) error {
+	return connecterrors.ToConnectError(err, ErrorCodeFor)
+}

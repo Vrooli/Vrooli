@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.local/schemas/experience-observed-behavior.v1.schema.json",
+  "title": "Observed behavior evidence envelope",
+  "type": "object",
+  "required": ["kind", "schemaVersion", "state", "scenario", "build", "builds", "window", "reportDigest", "totals"],
+  "properties": {
+    "kind": { "const": "experience-observed-behavior" },
+    "schemaVersion": { "const": "experience-observed-behavior/v1" },
+    "state": { "enum": ["fresh", "stale", "absent"] },
+    "scenario": { "type": "string", "minLength": 1 },
+    "build": { "type": ["string", "null"] },
+    "builds": { "type": "array", "items": { "type": "string" } },
+    "sessions": { "type": "array", "items": { "type": "object", "required": ["id", "build", "startedAt", "endedAt"], "properties": { "id": { "type": "string", "minLength": 1 }, "build": { "type": ["string", "null"] }, "startedAt": { "type": "string" }, "endedAt": { "type": "string" } }, "additionalProperties": false } },
+    "expectedBuild": { "type": "string" },
+    "window": {
+      "type": "object",
+      "required": ["from", "to", "sessions"],
+      "properties": {
+        "from": { "type": ["string", "null"] },
+        "to": { "type": ["string", "null"] },
+        "sessions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reportDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "totals": { "type": "object" },
+    "flows": { "type": "array", "items": { "type": "object" } },
+    "routes": { "type": "array", "items": { "type": "object" } },
+    "friction": { "type": "array", "items": { "type": "object" } },
+    "journeys": { "type": "array", "items": { "type": "object" } },
+    "recommendations": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": true
+}

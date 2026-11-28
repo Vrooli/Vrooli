@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "signals",
+    "title": "Signal inbox",
+    "routes": ["/signals"],
+    "purpose": "Let the operator capture external material, import safe archives, retrieve the full permanent journal, and control ambient triage without deleting signals.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002", "OT-P0-008", "OT-P0-009", "OT-P0-010", "OT-P0-013", "OT-P0-014"]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Capture, source controls, corpus retrieval, ambient triage, and category controls are available."
+    }
+  ]
+}

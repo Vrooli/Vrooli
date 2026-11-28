@@ -1,25 +1,32 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // INTEROP-CRITICAL: base must stay relative so proxied, tunneled, and iframe
 // embedded deployments resolve assets correctly outside a domain root.
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/setupTests.ts'],
+    setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],
       reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
-      }
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/test-setup.ts',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**'
+      ],
     }
   }
 });

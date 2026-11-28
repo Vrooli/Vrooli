@@ -1,0 +1,181 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Usage modes · design mockups</title>
+<style>
+:root{color-scheme:dark;--background:hsl(222 47% 5%);--foreground:hsl(210 20% 98%);--card:hsl(222 47% 8%);--popover:hsl(222 40% 13%);--primary:hsl(217 91% 60%);--primary-fg:hsl(210 100% 98%);--secondary:hsl(217 33% 17%);--muted:hsl(215 25% 20%);--muted-fg:hsl(215 20% 72%);--border:hsl(215 20% 22%);--success:hsl(142 71% 45%);--warning:hsl(38 92% 50%);--destructive:hsl(0 62% 50%);--radius:8px;--mode:hsl(262 70% 68%)}
+*{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--foreground);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1240px;margin:auto;padding:32px 20px 80px}
+h1{font-size:clamp(26px,5vw,38px);letter-spacing:-.03em;margin:6px 0 10px}h2{font-size:22px;margin:0 0 6px;letter-spacing:-.02em}h3{font-size:15px;margin:0}h4{font-size:13px;margin:0 0 4px}
+p{margin:0 0 8px;color:var(--muted-fg)}a{color:var(--primary)}.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--primary)}
+.sample{border:1px solid hsl(38 60% 30%);background:hsl(38 60% 10%);color:hsl(38 80% 78%);border-radius:var(--radius);padding:10px 14px;margin:18px 0}
+section.s{padding-top:44px}.pair{display:grid;grid-template-columns:minmax(0,1.5fr) 390px;gap:24px;align-items:start;margin-top:14px}
+.cap{font-size:11px;color:var(--muted-fg);margin:0 0 6px;text-transform:uppercase;letter-spacing:.08em}
+.dscroll{overflow-x:auto;max-width:100%}
+.frame{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 12px 40px #0006}
+.phone{width:min(390px,100%)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600}
+.body{padding:16px;display:grid;gap:14px}.phone .body{padding:14px 14px}
+.card{border:1px solid var(--border);background:hsl(222 47% 10%);border-radius:var(--radius);padding:12px}
+.lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);margin-bottom:6px}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;min-height:44px;background:var(--card)}
+.opt.on{border-color:var(--primary);background:hsl(217 60% 14%)}.opt .r{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--muted-fg);margin-top:3px}.opt.on .r{border-color:var(--primary);background:radial-gradient(var(--primary) 45%,transparent 50%)}
+.opt .ck{flex:none;width:16px;height:16px;border-radius:4px;border:2px solid var(--muted-fg);margin-top:3px}.opt .ck.y{background:var(--primary);border-color:var(--primary)}
+.opt b{display:block;font-size:14px}.opt span.d{font-size:12px;color:var(--muted-fg)}
+.opts{display:grid;gap:6px}.opts.row{grid-template-columns:repeat(2,minmax(0,1fr))}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--secondary);color:var(--foreground);font:600 14px system-ui;text-align:center}
+.btn.p{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}.btn.w{background:transparent;border-color:hsl(38 60% 40%);color:hsl(38 90% 70%)}.btn.g{background:transparent}
+.btns{display:flex;flex-wrap:wrap;gap:8px}.phone .btns .btn{flex:1 1 140px}
+.pill{display:inline-block;font-size:11px;font-weight:600;border-radius:99px;padding:2px 9px;border:1px solid var(--border);color:var(--muted-fg);white-space:nowrap}
+.pill.m{border-color:var(--mode);color:var(--mode)}.pill.w{border-color:hsl(38 60% 40%);color:hsl(38 90% 70%)}.pill.o{border-color:hsl(142 40% 35%);color:hsl(142 60% 65%)}.pill.r{border-color:hsl(0 50% 45%);color:hsl(0 80% 75%)}
+.warn{border-left:3px solid var(--warning);background:hsl(38 60% 9%);padding:8px 12px;border-radius:0 var(--radius) var(--radius) 0;font-size:12px;color:hsl(38 60% 82%)}
+.info{border-left:3px solid var(--primary);background:hsl(217 50% 10%);padding:8px 12px;border-radius:0 var(--radius) var(--radius) 0;font-size:12px}
+.banner{border:1px solid var(--mode);background:linear-gradient(90deg,hsl(262 40% 14%),hsl(222 47% 9%));border-radius:var(--radius);padding:12px 14px;display:grid;gap:10px}
+.banner .top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}.stats b{display:block;font-size:20px;letter-spacing:-.02em}.stats span{font-size:11px;color:var(--muted-fg)}
+.bk{display:grid;gap:6px}.track{position:relative;height:26px;background:var(--muted);border-radius:6px}.track i{position:absolute;top:0;bottom:0;border-radius:6px}
+.mk{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--foreground)}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;font-size:13px}.kv span:nth-child(odd){color:var(--muted-fg)}.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+.concl{font-size:19px;line-height:1.35;letter-spacing:-.01em;font-weight:600;margin:0}.phone .concl{font-size:17px}
+.range{position:relative;height:18px;margin:4px 0}.range:before{content:"";position:absolute;left:0;right:0;top:8px;height:2px;background:var(--border)}.range i{position:absolute;top:4px;height:10px;background:hsl(217 60% 45%);border-radius:5px}.range u{position:absolute;top:2px;width:3px;height:14px;background:var(--foreground)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.phone .grid2,.phone .grid3,.phone .grid4{grid-template-columns:minmax(0,1fr)}
+svg{display:block;width:100%;height:auto}
+.note{font-size:12px;color:var(--muted-fg)}
+.notif{border:1px solid var(--border);background:var(--popover);border-radius:14px;padding:12px;display:grid;gap:8px}.notif .h{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted-fg)}.notif b{font-size:14px}
+.stack{display:grid;gap:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th,.tbl td{padding:6px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}.tbl th{font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:99px;border:1px solid var(--mode);color:var(--mode);background:hsl(262 40% 12%);font-weight:600;font-size:13px}
+.field{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:var(--radius);background:hsl(222 40% 13%);font-size:13px}
+.sel{display:flex;align-items:center;gap:10px;min-height:44px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--muted-fg)}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.states{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.alt{margin-top:18px;font-size:13px}
+@media(max-width:1000px){.pair{grid-template-columns:minmax(0,1fr)}.states{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){main{padding:20px 10px 60px}.dscroll>.frame{min-width:760px}}
+</style></head><body><main>
+<div class="eyebrow">Agent Manager · Web Console · design study · 30 October 2026</div>
+<h1>Usage modes: stretch your plan, and see whether it worked</h1>
+<p>Six surfaces, each drawn for desktop and for a phone. The app has one dark theme today, so there is no light variant to draw; the tokens below are copied from <code>ui/src/styles/global.css</code>.</p>
+<div class="sample"><b>Sample data only.</b> Every number, name, time and percentage here is invented to show layout and wording. None of it is measured from your accounts. Wherever a result is shown, its strength of evidence is shown beside it.</div>
+<p class="note">On a narrow screen the desktop mockups scroll sideways inside their own box; the page itself does not.</p>
+
+<!-- A -->
+<section class="s" id="A"><div class="eyebrow">A / Mode sheet</div><h2>Start a usage mode</h2>
+<p>The preset is the whole decision for most people. Duration, scope and the active-runs choice are visible but already answered; advanced scope is folded away.</p>
+<div class="pair"><div><div class="cap">Desktop · dialog</div><div class="dscroll"><div class="frame">
+<div class="bar"><span>Save usage for a while</span><span class="note">✕</span></div><div class="body">
+<div class="grid2" style="gap:18px;align-items:start"><div class="stack">
+<div><div class="lbl">What to do</div><div class="opts">
+<div class="opt on"><i class="r"></i><div><b>Save usage: one tier down</b><span class="d">New work uses the next cheaper model. Codex: Terra → Luna.</span></div></div>
+<div class="opt"><i class="r"></i><div><b>Save a lot: cheapest tier</b><span class="d">Also shortens how much conversation is kept.</span></div></div></div></div>
+<div><div class="lbl">For how long</div><div class="opts row">
+<div class="opt on"><i class="r"></i><div><b>Until 5-hour reset</b><span class="d">in 2 h 10 min</span></div></div>
+<div class="opt"><i class="r"></i><div><b>Until weekly reset</b><span class="d">Wed 06:57</span></div></div>
+<div class="opt"><i class="r"></i><div><b>Set a time</b><span class="d">Pick date and time</span></div></div>
+<div class="opt"><i class="r"></i><div><b>Until I turn it off</b><span class="d">We remind you daily</span></div></div></div></div>
+<div><div class="lbl">Applies to</div><div class="opts"><div class="opt on"><i class="r"></i><div><b>Everything</b><span class="d">All coding agents on this machine</span></div></div>
+<div class="field"><span>Advanced: runner, role, profile</span><span>⌄</span></div></div></div>
+</div><div class="stack">
+<div class="card"><div class="lbl">Expected effect · not measured yet</div><p style="color:var(--foreground);margin:0 0 6px">Your Codex window might last about <b>1.5x to 3x</b> longer.</p><div class="range"><i style="left:20%;width:40%"></i></div><div class="note" style="display:flex;justify-content:space-between"><span>1x</span><span>2x</span><span>4x</span></div><p class="note" style="margin-top:6px">Based on price ratios alone. A cheaper model can need more attempts, so real savings may be smaller. After a few uses you will see measured results.</p></div>
+<div class="card"><div class="lbl">Reach</div><p style="margin:0 0 4px;color:var(--foreground)">This changes <b>new</b> work started from: terminal and Web Console sessions, and Agent Manager runs.</p><p class="note" style="margin:0">It can't reach: desktop apps and tools started outside Vrooli. Their usage still counts and is still measured.</p></div>
+<div class="card"><div class="lbl">Work already running</div><div class="opts"><div class="opt on"><i class="r"></i><div><b>Leave 3 running sessions as they are</b><span class="d">Recommended</span></div></div>
+<div class="opt"><i class="ck"></i><div><b>Also switch the 3 running sessions</b><span class="d">Each must re-read its whole conversation: about 1.2M tokens in total (sample), and it can pause each session for up to a minute.</span></div></div></div></div>
+</div></div>
+<div class="btns" style="justify-content:flex-end"><span class="btn g">Cancel</span><span class="btn p">Start until 5-hour reset</span></div></div></div></div></div>
+<div><div class="cap">Phone · bottom sheet</div><div class="frame phone"><div class="bar"><span>Save usage for a while</span><span class="btn g" style="min-height:44px;min-width:44px;padding:0">✕</span></div><div class="body">
+<div class="opts"><div class="opt on"><i class="r"></i><div><b>Save usage: one tier down</b><span class="d">New work uses the next cheaper model.</span></div></div></div>
+<div class="opts"><div class="lbl" style="margin:0">For how long</div>
+<div class="opt on"><i class="r"></i><div><b>Until 5-hour reset</b><span class="d">in 2 h 10 min</span></div></div>
+<div class="opt"><i class="r"></i><div><b>Until weekly reset</b><span class="d">Wed 06:57</span></div></div>
+<div class="opt"><i class="r"></i><div><b>Set a time</b></div></div>
+<div class="opt"><i class="r"></i><div><b>Until I turn it off</b><span class="d">We remind you daily</span></div></div></div>
+<div class="field"><span>Applies to: everything</span><span>Change ⌄</span></div>
+<div class="card"><div class="lbl">Expected effect · not measured</div><p style="margin:0;color:var(--foreground)">Might last about <b>1.5x to 3x</b> longer. Price ratios only; real savings may be smaller.</p></div>
+<div class="card"><div class="lbl">Reach</div><p class="note" style="margin:0">Changes new terminal, Web Console and Agent Manager work. Can't reach desktop apps or tools started outside Vrooli.</p></div>
+<div class="opt"><i class="ck"></i><div><b>Also switch 3 running sessions</b><span class="d">Off by default. Each re-reads its whole conversation (about 1.2M tokens, sample).</span></div></div>
+<div class="btns"><span class="btn p">Start until 5-hour reset</span><span class="btn g">Cancel</span></div></div></div></div></div>
+<p class="alt"><b>Alternative:</b> a full page instead of a sheet. Rejected for the main path since the decision is small; the page version suits Learn mode (F).</p></section>
+
+<!-- B -->
+<section class="s" id="B"><div class="eyebrow">B / Agent Manager usage page</div><h2>Banner while a mode is active</h2>
+<p>It sits above the existing usage page. It says what, until when, the burn since start, and how to end or extend.</p>
+<div class="pair"><div><div class="cap">Desktop</div><div class="dscroll"><div class="frame"><div class="bar"><span>Usage</span><span class="note">Codex · Claude · Windows</span></div><div class="body">
+<div class="banner"><div class="top"><div><span class="pill m">Mode on</span> <b style="margin-left:6px">Save usage: one tier down</b><div class="note">New Codex work uses Luna instead of Terra. Started today 18:00 by you.</div></div><div class="btns"><span class="btn">Extend ⌄</span><span class="btn w">End now</span></div></div>
+<div class="stats"><div><b>until 20:10</b><span>5-hour reset, in 2 h 10 min</span></div><div><b>14% of window</b><span>used since start (sample)</span></div><div><b>11 runs</b><span>started under the mode</span></div><div><b>3 running</b><span>unchanged, still on Terra</span></div></div>
+<div class="note">Extend options: to weekly reset · 2 more hours · until I turn it off.</div></div>
+<div class="card"><div class="lbl">Codex 5-hour window</div><svg viewBox="0 0 600 120" role="img" aria-label="Sample window chart with shaded mode period"><rect x="330" y="8" width="270" height="92" fill="hsl(262 70% 68% / .16)"/><text x="336" y="22" fill="hsl(262 70% 75%)" font-size="10">Mode on</text><g stroke="hsl(215 20% 22%)"><line x1="0" x2="600" y1="100" y2="100"/><line x1="0" x2="600" y1="54" y2="54"/><line x1="0" x2="600" y1="8" y2="8"/></g><polyline fill="none" stroke="hsl(217 91% 60%)" stroke-width="2.5" points="0,95 80,80 160,62 240,40 330,24 420,20 480,16"/><line x1="480" y1="16" x2="600" y2="8" stroke="hsl(215 20% 72%)" stroke-dasharray="5 5"/></svg><p class="note" style="margin:6px 0 0">Sample data. Slope flattens after the mode starts.</p></div></div></div></div></div>
+<div><div class="cap">Phone</div><div class="frame phone"><div class="bar"><span>Usage</span></div><div class="body"><div class="banner"><div><span class="pill m">Mode on</span><b style="display:block;margin-top:4px">Save usage: one tier down</b><div class="note">New Codex work uses Luna instead of Terra.</div></div>
+<div class="kv"><span>Until</span><span>20:10 (in 2 h 10 min)</span><span>Used since start</span><span>14% of window</span><span>Runs under the mode</span><span>11</span><span>Running, unchanged</span><span>3</span></div>
+<div class="btns"><span class="btn">Extend ⌄</span><span class="btn w">End now</span></div></div>
+<div class="card"><div class="lbl">Codex 5-hour window</div><svg viewBox="0 0 300 100"><rect x="150" y="6" width="150" height="80" fill="hsl(262 70% 68% / .16)"/><polyline fill="none" stroke="hsl(217 91% 60%)" stroke-width="2.5" points="0,82 40,70 80,52 120,36 150,22 200,18 240,14"/></svg><p class="note" style="margin:6px 0 0">Sample data. Purple band is the mode.</p></div></div></div></div></div></section>
+
+<!-- C -->
+<section class="s" id="C"><div class="eyebrow">C / Web Console launcher</div><h2>Mode chip and "full power for this launch"</h2>
+<p>The chip is a status, not a setting. Each agent card shows the model a new session will actually use, and why.</p>
+<div class="pair"><div><div class="cap">Desktop · New Terminal</div><div class="dscroll"><div class="frame"><div class="bar"><span>New Terminal</span><span class="chip">◆ Saving usage · until 20:10</span></div><div class="body">
+<div class="grid2">
+<div class="card"><div class="sel"><b>Codex</b><span class="pill m">Luna</span></div><p class="note" style="margin:0">Will use <b style="color:var(--foreground)">Luna</b> because Save usage is on. Usually Terra.</p><div class="btns" style="margin-top:8px"><span class="btn p">Launch</span><span class="btn w">Launch at full power</span></div></div>
+<div class="card"><div class="sel"><b>Claude Code</b><span class="pill">Sonnet</span></div><p class="note" style="margin:0">Your usual model. The mode doesn't cover Claude Code.</p><div class="btns" style="margin-top:8px"><span class="btn p">Launch</span></div></div></div>
+<div class="info">"Full power" applies to this one session only. The mode stays on for everything else.</div>
+<div class="card"><div class="lbl">Not covered</div><p class="note" style="margin:0">Choosing a model yourself always wins over the mode.</p></div></div></div></div></div>
+<div><div class="cap">Phone</div><div class="frame phone"><div class="bar"><span>New Terminal</span><span class="note">✕</span></div><div class="body">
+<div class="chip" style="justify-content:center">◆ Saving usage · until 20:10 ›</div>
+<div class="card"><div class="sel"><b>Codex</b><span class="pill m">Luna</span></div><p class="note" style="margin:0 0 8px">Will use <b style="color:var(--foreground)">Luna</b> because Save usage is on. Usually Terra.</p><div class="btns"><span class="btn p">Launch</span><span class="btn w">Full power, this launch</span></div></div>
+<div class="card"><div class="sel"><b>Claude Code</b><span class="pill">Sonnet</span></div><p class="note" style="margin:0 0 8px">Your usual model. Not covered by the mode.</p><div class="btns"><span class="btn p">Launch</span></div></div>
+<div class="info">Full power affects this session only.</div></div></div></div></div></section>
+
+<!-- D -->
+<section class="s" id="D"><div class="eyebrow">D / Evidence</div><h2>Did it save usage, and what did it cost?</h2>
+<p>The conclusion comes first, with its strength of evidence. Charts support it below. Four states follow the main view.</p>
+<div class="pair"><div><div class="cap">Desktop · observational result</div><div class="dscroll"><div class="frame"><div class="bar"><span>Evidence · Save usage, 4 times so far</span><span class="pill w">Observational</span></div><div class="body">
+<p class="concl">Luna probably saved usage: about <b>3.6x cheaper</b> per finished outcome (range 2.6x to 4.5x), though 28% of outcomes are unknown.</p>
+<p class="note" style="margin-top:-8px"><b>Observational:</b> compares periods with and without the mode. Busier or easier work may differ between them, so treat this as a good clue, not proof.</p>
+<div class="card"><div class="lbl">Break-even</div><p style="color:var(--foreground);margin:0 0 8px">Luna costs about <b>5x less</b> per unit used, so it stays cheaper unless it uses over <b>5x as much</b> per outcome. It used <b>1.4x</b> (range 1.1x to 1.9x).</p>
+<div class="bk"><div class="track"><i style="left:0;width:28%;background:hsl(142 55% 35%)"></i><i style="left:28%;width:72%;background:var(--muted);border-radius:0 6px 6px 0"></i><span class="mk" style="left:100%"></span></div><div class="range" style="margin:0"><i style="left:11%;width:8%"></i><u style="left:14%"></u></div>
+<div class="note" style="display:flex;justify-content:space-between"><span>1x (same use)</span><span>Break-even 5x</span></div></div></div>
+<div class="card"><div class="lbl">Usage over time · sample</div><svg viewBox="0 0 640 150" role="img" aria-label="Sample burn chart"><rect x="260" y="6" width="150" height="120" fill="hsl(262 70% 68% / .16)"/><rect x="500" y="6" width="100" height="120" fill="hsl(262 70% 68% / .16)"/><g stroke="hsl(215 20% 22%)"><line x1="0" x2="640" y1="126" y2="126"/><line x1="0" x2="640" y1="66" y2="66"/></g><polyline fill="none" stroke="hsl(217 91% 60%)" stroke-width="2.5" points="0,100 60,70 120,40 180,52 240,24 260,24 300,50 360,80 410,86 460,50 500,36 540,70 600,84"/><polyline fill="none" stroke="hsl(190 70% 55%)" stroke-width="2" stroke-dasharray="1 0" points="0,124 120,120 240,118 300,104 360,96 410,94 460,112 500,100 540,92 600,90"/><text x="266" y="20" font-size="10" fill="hsl(262 70% 78%)">Mode</text><text x="506" y="20" font-size="10" fill="hsl(262 70% 78%)">Mode</text></svg>
+<div class="legend"><span><i style="background:hsl(217 91% 60%)"></i>Terra</span><span><i style="background:hsl(190 70% 55%)"></i>Luna</span><span><i style="background:hsl(262 70% 68% / .4)"></i>Mode on</span></div></div>
+<div class="grid2"><div class="card"><div class="lbl">Cost per finished outcome · with range</div><table class="tbl"><tr><th>Model</th><th>Range (sample)</th></tr><tr><td>Terra<div class="range"><i style="left:55%;width:30%"></i><u style="left:68%"></u></div></td><td>7 to 11 units</td></tr><tr><td>Luna<div class="range"><i style="left:10%;width:20%"></i><u style="left:19%"></u></div></td><td>2 to 3.4 units</td></tr></table></div>
+<div class="card"><div class="lbl">Quality, in plain words</div><div class="kv"><span>Runs that needed a retry</span><span>18% vs 14%</span><span>Work redone within a day</span><span>11% vs 9%</span><span>You stepped in or corrected</span><span>1 in 6 vs 1 in 8</span><span>Outcome unknown</span><span>28%</span></div><p class="note" style="margin:6px 0 0">Mode vs not. Small samples; differences are within the noise.</p></div></div>
+<div class="card"><div class="lbl">How much of your work this covers</div><div class="kv"><span>Headless runs</span><span>92% have usage data</span><span>Interactive sessions</span><span>61%</span><span>Imported sessions</span><span>34%, partial</span></div></div></div></div></div>
+<div class="states"><div class="card"><span class="pill">Not enough data</span><p class="concl" style="margin-top:8px;font-size:16px">Too early to say. Only 3 finished outcomes so far under the mode.</p><p class="note">We'll show a result after about 20, probably in 4 to 6 days at this pace. Until then no ratios are shown, only counts.</p></div>
+<div class="card"><span class="pill o">Randomized</span><p class="concl" style="margin-top:8px;font-size:16px">Luna was about 3.2x cheaper per outcome (2.5x to 4.1x), with no clear drop in quality.</p><p class="note">Learn mode chose which launches used Luna by chance, so this is a fair comparison. Still a range, still sample figures.</p></div>
+<div class="card" style="grid-column:1/-1"><span class="pill">No mode run yet</span><p class="concl" style="margin-top:8px;font-size:16px">You haven't used a usage mode, so there is nothing to compare.</p><p class="note">Expected effect, from price ratios only, is 1.5x to 3x. <span class="btn p" style="margin-left:8px">Start a mode</span> or <span class="btn" style="margin-left:4px">Set up Learn mode</span></p></div></div></div>
+<div><div class="cap">Phone · observational</div><div class="frame phone"><div class="bar"><span>Evidence</span><span class="pill w">Observational</span></div><div class="body">
+<p class="concl">Luna probably saved usage: about <b>3.6x cheaper</b> per outcome (2.6x to 4.5x). 28% of outcomes unknown.</p>
+<p class="note">Compares periods with and without the mode. Treat as a clue, not proof.</p>
+<div class="card"><div class="lbl">Break-even</div><p style="color:var(--foreground);margin:0 0 8px">Luna costs about 5x less, so it stays cheaper unless it uses over 5x as much per outcome. It used <b>1.4x</b> (1.1x to 1.9x).</p><div class="track"><i style="left:0;width:28%;background:hsl(142 55% 35%)"></i><span class="mk" style="left:100%;margin-left:-2px"></span></div><div class="note" style="display:flex;justify-content:space-between"><span>Used 1.4x</span><span>Break-even 5x</span></div></div>
+<div class="card"><div class="lbl">Quality, mode vs not</div><div class="kv"><span>Needed a retry</span><span>18% vs 14%</span><span>Redone in a day</span><span>11% vs 9%</span><span>You corrected</span><span>1 in 6 vs 1 in 8</span></div><p class="note" style="margin:6px 0 0">Within the noise at this sample size.</p></div>
+<div class="card"><div class="lbl">Usage over time</div><svg viewBox="0 0 300 110"><rect x="120" y="4" width="70" height="86" fill="hsl(262 70% 68% / .16)"/><rect x="235" y="4" width="55" height="86" fill="hsl(262 70% 68% / .16)"/><polyline fill="none" stroke="hsl(217 91% 60%)" stroke-width="2.5" points="0,74 30,52 60,30 90,40 120,18 150,40 190,60 220,36 250,28 290,60"/><polyline fill="none" stroke="hsl(190 70% 55%)" stroke-width="2" points="0,88 120,86 150,76 190,70 220,82 250,74 290,68"/></svg><div class="legend"><span><i style="background:hsl(217 91% 60%)"></i>Terra</span><span><i style="background:hsl(190 70% 55%)"></i>Luna</span><span><i style="background:hsl(262 70% 68% / .4)"></i>Mode on</span></div></div>
+<div class="card"><div class="lbl">Coverage</div><div class="kv"><span>Headless</span><span>92%</span><span>Interactive</span><span>61%</span><span>Imported</span><span>34%</span></div></div>
+<div class="lbl" style="margin:0">Other states</div>
+<div class="card"><span class="pill">Not enough data</span><p style="margin:6px 0 0;color:var(--foreground)">Too early to say. 3 outcomes so far; we need about 20.</p></div>
+<div class="card"><span class="pill o">Randomized</span><p style="margin:6px 0 0;color:var(--foreground)">About 3.2x cheaper (2.5x to 4.1x), no clear drop in quality. Launches were assigned by chance.</p></div>
+<div class="card"><span class="pill">No mode run yet</span><p style="margin:6px 0 8px;color:var(--foreground)">Nothing to compare yet.</p><div class="btns"><span class="btn p">Start a mode</span></div></div></div></div></div></div></section>
+
+<!-- E -->
+<section class="s" id="E"><div class="eyebrow">E / Notifications and decisions</div><h2>On a phone, one tap where it helps</h2>
+<p>Only the first is a decision with no default answer. The rest are notices with the one useful action.</p>
+<div class="grid3" style="margin-top:14px">
+<div><div class="cap">Decision · about to run out</div><div class="notif"><div class="h"><span>Agent Manager</span><span>now</span></div><b>Claude may run out at 17:40</b><span class="note">At the current pace your 5-hour window ends about 1 h 20 min before it resets. Saving usage might get you to the reset (not measured).</span><div class="btns"><span class="btn p">Start until reset</span><span class="btn">Not now</span><span class="btn g">Remind me in 30 min</span></div></div></div>
+<div><div class="cap">Ending soon</div><div class="notif"><div class="h"><span>Agent Manager</span><span>19:40</span></div><b>Save usage ends in 30 minutes</b><span class="note">11% of the window is left. New work goes back to Terra after 20:10.</span><div class="btns"><span class="btn p">Extend to weekly reset</span><span class="btn">Let it end</span></div></div></div>
+<div><div class="cap">Until-off reminder</div><div class="notif"><div class="h"><span>Agent Manager</span><span>daily</span></div><b>Save usage is still on</b><span class="note">It has run for 24 hours with no end time. 23 runs have used Luna.</span><div class="btns"><span class="btn">Keep it on</span><span class="btn w">Turn off</span></div></div></div>
+<div><div class="cap">Can't reach some work</div><div class="notif"><div class="h"><span>Agent Manager</span><span>18:12</span></div><b>2 sessions aren't covered</b><span class="note">A desktop app and a tool started outside Vrooli are still on Terra. Their usage is counted, but the mode can't change it.</span><div class="btns"><span class="btn">See which</span><span class="btn g">Dismiss</span></div></div></div>
+<div><div class="cap">Quality drop</div><div class="notif"><div class="h"><span>Agent Manager</span><span>20:02</span></div><b>More retries under Save usage</b><span class="note">Retries rose from 14% to 31% over the last 12 runs. This is a small sample and may be chance, but you may want full power.</span><div class="btns"><span class="btn w">End mode</span><span class="btn">See evidence</span><span class="btn g">Keep going</span></div></div></div>
+</div></section>
+
+<!-- F -->
+<section class="s" id="F"><div class="eyebrow">F / Learn mode setup</div><h2>Find out properly, by chance assignment</h2>
+<p>New launches of the chosen roles are split by chance between the usual model and the cheaper one, so the comparison is fair. The wait is estimated, not promised.</p>
+<div class="pair"><div><div class="cap">Desktop · full page</div><div class="dscroll"><div class="frame"><div class="bar"><span>Set up Learn mode</span><span class="pill">Not started</span></div><div class="body"><div class="grid2" style="gap:18px;align-items:start"><div class="stack">
+<div><div class="lbl">Which roles to test</div><div class="opts"><div class="opt on"><i class="ck y"></i><div><b>Code implementation</b><span class="d">About 14 launches a week (sample)</span></div></div><div class="opt on"><i class="ck y"></i><div><b>Documentation</b><span class="d">About 9 a week</span></div></div><div class="opt"><i class="ck"></i><div><b>Code review</b><span class="d">Left out: reviews keep their model by default</span></div></div></div></div>
+<div><div class="lbl">Split</div><div class="opts row"><div class="opt on"><i class="r"></i><div><b>Half and half</b><span class="d">Fastest answer</span></div></div><div class="opt"><i class="r"></i><div><b>Mostly usual</b><span class="d">80/20: slower, less saved</span></div></div></div></div></div>
+<div class="stack"><div class="card"><div class="lbl">How long until an answer</div><p style="color:var(--foreground);margin:0 0 6px">Probably <b>3 to 6 weeks</b>, and it could take longer.</p><div class="range"><i style="left:20%;width:45%"></i></div><p class="note" style="margin:0">Needs about 40 finished launches per side. At 23 launches a week this takes roughly 3.5 weeks if nothing changes; slow weeks or unknown outcomes stretch it. We'll update the estimate daily.</p></div>
+<div class="warn">While it runs, about half of these launches use the cheaper model, whatever its quality. You can stop at any time and you'll keep what was learned.</div>
+<div class="card"><div class="lbl">Fine print in plain words</div><p class="note" style="margin:0">Running sessions are never changed. Choosing a model yourself still wins. Results appear in Evidence as "Randomized".</p></div></div></div>
+<div class="btns" style="justify-content:flex-end"><span class="btn g">Cancel</span><span class="btn p">Start Learn mode</span></div></div></div></div></div>
+<div><div class="cap">Phone</div><div class="frame phone"><div class="bar"><span>Set up Learn mode</span></div><div class="body">
+<div class="lbl" style="margin:0">Roles to test</div><div class="opts"><div class="opt on"><i class="ck y"></i><div><b>Code implementation</b><span class="d">~14 launches a week (sample)</span></div></div><div class="opt on"><i class="ck y"></i><div><b>Documentation</b><span class="d">~9 a week</span></div></div><div class="opt"><i class="ck"></i><div><b>Code review</b><span class="d">Left out by default</span></div></div></div>
+<div class="lbl" style="margin:0">Split</div><div class="opts"><div class="opt on"><i class="r"></i><div><b>Half and half</b><span class="d">Fastest answer</span></div></div><div class="opt"><i class="r"></i><div><b>Mostly usual (80/20)</b><span class="d">Slower, less saved</span></div></div></div>
+<div class="card"><div class="lbl">Time to an answer</div><p style="color:var(--foreground);margin:0 0 6px">Probably <b>3 to 6 weeks</b>, maybe longer.</p><div class="range"><i style="left:20%;width:45%"></i></div><p class="note" style="margin:0">Needs about 40 finished launches per side. Estimate updates daily.</p></div>
+<div class="warn">About half of these launches will use the cheaper model, whatever its quality. Stop any time.</div>
+<div class="btns"><span class="btn p">Start Learn mode</span><span class="btn g">Cancel</span></div></div></div></div></div></section>
+</main></body></html>

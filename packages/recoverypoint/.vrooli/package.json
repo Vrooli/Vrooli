@@ -1,0 +1,37 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "recoverypoint",
+    "display_name": "github.com/vrooli/vrooli/packages/recoverypoint",
+    "description": "Engine-independent owner of encrypted, checksummed cloud recovery points and their on-disk format.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": [
+      "github.com/vrooli/vrooli/packages/recoverypoint"
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": [
+        "scenario_api",
+        "internal_platform"
+      ],
+      "adoption_modes": [
+        "go_module_replace"
+      ]
+    },
+    "lifecycle": {},
+    "module_boundary": {
+      "status": "intentional_exception",
+      "reason": "Imports root internal packages (credentialpolicy); it stays in the repository module until those seams are public."
+    },
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": [
+      "packages/recoverypoint/README.md",
+      "docs/package-governance.md"
+    ]
+  }
+}

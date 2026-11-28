@@ -10,14 +10,7 @@ type AgentProfile struct {
 	Key         string `json:"key,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	Model       string `json:"model,omitempty"`
-	RunnerType  string `json:"runnerType,omitempty"`
-}
-
-// AgentProfileListResponse wraps a list of profiles.
-type AgentProfileListResponse struct {
-	Profiles []AgentProfile `json:"profiles"`
-	Total    int            `json:"total"`
+	RoleRef     string `json:"roleRef,omitempty"`
 }
 
 // AgentRunRequest is the composite request sent from the UI to create a Task + Run.
@@ -40,7 +33,7 @@ type AgentRunSummary struct {
 	FilesModified []string `json:"filesModified,omitempty"`
 	FilesCreated  []string `json:"filesCreated,omitempty"`
 	FilesDeleted  []string `json:"filesDeleted,omitempty"`
-	TokensUsed    int      `json:"tokensUsed,omitempty"`
+	TokensUsed    int64    `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
 }
@@ -72,17 +65,12 @@ type AgentRun struct {
 	ApprovalState   string           `json:"approvalState,omitempty"`
 	PromptPreview   string           `json:"promptPreview,omitempty"`
 	SandboxID       string           `json:"sandboxId,omitempty"`
+	CommitHash      string           `json:"commitHash,omitempty"`
 	Summary         *AgentRunSummary `json:"summary,omitempty"`
 	Actions         *AgentRunActions `json:"actions,omitempty"`
 	CreatedAt       string           `json:"createdAt"`
 	StartedAt       string           `json:"startedAt,omitempty"`
 	EndedAt         string           `json:"endedAt,omitempty"`
-}
-
-// AgentRunListResponse wraps a list of runs.
-type AgentRunListResponse struct {
-	Runs  []AgentRun `json:"runs"`
-	Total int        `json:"total"`
 }
 
 // AgentRunEvent represents a single event in an agent run's event stream.
@@ -95,11 +83,6 @@ type AgentRunEvent struct {
 	Data      interface{} `json:"data,omitempty"`
 }
 
-// AgentRunEventsResponse wraps a list of events.
-type AgentRunEventsResponse struct {
-	Events []AgentRunEvent `json:"events"`
-}
-
 // AgentRunDiffFile represents a single file in a diff.
 type AgentRunDiffFile struct {
 	Path       string `json:"path"`
@@ -110,27 +93,10 @@ type AgentRunDiffFile struct {
 	Patch      string `json:"patch,omitempty"`
 }
 
-// AgentRunDiffResponse wraps the diff output for a run.
-type AgentRunDiffResponse struct {
-	RunID   string             `json:"runId"`
-	Content string             `json:"content,omitempty"`
-	Files   []AgentRunDiffFile `json:"files"`
-}
-
 // AgentContinueRequest sends a follow-up message to an agent run.
 type AgentContinueRequest struct {
 	Message       string   `json:"message"`
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
-}
-
-// wireUploadAttachmentResponse is the response from agent-manager's upload endpoint.
-type wireUploadAttachmentResponse struct {
-	ID          string `json:"id"`
-	FileName    string `json:"file_name"`
-	ContentType string `json:"content_type"`
-	FileSize    int64  `json:"file_size"`
-	StoragePath string `json:"storage_path"`
-	URL         string `json:"url"`
 }
 
 // AttachmentUploadResponse is the UI-facing response for attachment uploads.

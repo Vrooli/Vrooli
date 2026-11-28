@@ -1,0 +1,39 @@
+.cc-settings-advanced__help {
+  margin: 0.3rem 0 0.55rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.cc-settings-advanced__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+.cc-settings-advanced__actions button {
+  min-height: 2.75rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--cx-border-soft);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--color-background) 60%, transparent);
+  color: var(--color-foreground);
+  cursor: pointer;
+  font: 600 0.8rem var(--font-sans);
+}
+
+.cc-settings-advanced__actions button:last-child:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--cx-border-soft));
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.cc-settings-advanced__actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.cc-settings-advanced__actions button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}

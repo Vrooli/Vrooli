@@ -824,70 +824,40 @@ func TestParseTypeOutput_CompleteIssueFields(t *testing.T) {
 
 // [REQ:TM-LS-003] Fuzz test for lint parser robustness
 func FuzzParseLintOutput(f *testing.F) {
-	// Seed corpus with known formats
-	f.Add("test", "eslint", "file.go:10:5: Error [rule]")
-	f.Add("scenario", "golangci-lint", "api/main.go:42:1: Comment missing (revive)")
-	f.Add("test", "lint", "")
-	f.Add("test", "lint", "malformed input without structure")
-
-	f.Fuzz(func(t *testing.T, scenario, tool, output string) {
-		// Parser must not panic on any input
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("ParseLintOutput panicked on input: scenario=%q tool=%q output=%q", scenario, tool, output)
-			}
-		}()
-
-		issues := ParseLintOutput(scenario, tool, output)
-
-		// Result should never be nil
-		if issues == nil {
-			t.Error("ParseLintOutput returned nil")
-		}
-
-		// All returned issues must have required fields
-		for i, issue := range issues {
-			if issue.Scenario != scenario {
-				t.Errorf("Issue %d: scenario mismatch: expected %q, got %q", i, scenario, issue.Scenario)
-			}
-			if issue.Tool != tool {
-				t.Errorf("Issue %d: tool mismatch: expected %q, got %q", i, tool, issue.Tool)
-			}
-			if issue.Category != "lint" {
-				t.Errorf("Issue %d: expected category 'lint', got %q", i, issue.Category)
-			}
-			// File path should be non-empty for valid issues
-			if issue.File == "" {
-				t.Errorf("Issue %d: File should not be empty", i)
-			}
-		}
+	fuzzParseOutput(f, "ParseLintOutput", "lint", ParseLintOutput, [][3]string{
+		{"test", "eslint", "file.go:10:5: Error [rule]"},
+		{"scenario", "golangci-lint", "api/main.go:42:1: Comment missing (revive)"},
+		{"test", "lint", ""},
+		{"test", "lint", "malformed input without structure"},
 	})
 }
 
-// [REQ:TM-LS-004] Fuzz test for type parser robustness
 func FuzzParseTypeOutput(f *testing.F) {
-	// Seed corpus with known formats
-	f.Add("test", "tsc", "src/App.tsx(10,5): error TS2304: Cannot find name 'foo'")
-	f.Add("scenario", "go", "api/main.go:42:8: undefined: unknownFunc")
-	f.Add("test", "type", "")
-	f.Add("test", "type", "random text")
+	fuzzParseOutput(f, "ParseTypeOutput", "type", ParseTypeOutput, [][3]string{
+		{"test", "tsc", "src/App.tsx(10,5): error TS2304: Cannot find name 'foo'"},
+		{"scenario", "go", "api/main.go:42:8: undefined: unknownFunc"},
+		{"test", "type", ""},
+		{"test", "type", "random text"},
+	})
+}
 
+type parseOutputFunc func(scenario, tool, output string) []Issue
+
+func fuzzParseOutput(f *testing.F, parserName, category string, parse parseOutputFunc, seeds [][3]string) {
+	for _, seed := range seeds {
+		f.Add(seed[0], seed[1], seed[2])
+	}
 	f.Fuzz(func(t *testing.T, scenario, tool, output string) {
-		// Parser must not panic on any input
 		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("ParseTypeOutput panicked on input: scenario=%q tool=%q output=%q", scenario, tool, output)
+			if recovered := recover(); recovered != nil {
+				t.Errorf("%s panicked on input: scenario=%q tool=%q output=%q", parserName, scenario, tool, output)
 			}
 		}()
 
-		issues := ParseTypeOutput(scenario, tool, output)
-
-		// Result should never be nil
+		issues := parse(scenario, tool, output)
 		if issues == nil {
-			t.Error("ParseTypeOutput returned nil")
+			t.Fatalf("%s returned nil", parserName)
 		}
-
-		// All returned issues must have required fields
 		for i, issue := range issues {
 			if issue.Scenario != scenario {
 				t.Errorf("Issue %d: scenario mismatch: expected %q, got %q", i, scenario, issue.Scenario)
@@ -895,10 +865,9 @@ func FuzzParseTypeOutput(f *testing.F) {
 			if issue.Tool != tool {
 				t.Errorf("Issue %d: tool mismatch: expected %q, got %q", i, tool, issue.Tool)
 			}
-			if issue.Category != "type" {
-				t.Errorf("Issue %d: expected category 'type', got %q", i, issue.Category)
+			if issue.Category != category {
+				t.Errorf("Issue %d: expected category %q, got %q", i, category, issue.Category)
 			}
-			// File path should be non-empty for valid issues
 			if issue.File == "" {
 				t.Errorf("Issue %d: File should not be empty", i)
 			}

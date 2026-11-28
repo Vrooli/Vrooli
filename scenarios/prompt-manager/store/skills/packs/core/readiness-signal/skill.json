@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-11-20T00:00:00Z",
+  "description": "Evaluate one deployment readiness check and return its signal: passed, failed, unavailable or unknown, with attributable evidence.",
+  "entry": "SKILL.md",
+  "id": "readiness-signal",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-signal",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
+}

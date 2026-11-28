@@ -1,0 +1,287 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "design-language",
+    "title": "Instrument language",
+    "routes": [
+      "/design-language"
+    ],
+    "purpose": "Render every primitive of the vrooli-annunciator design language in every state it can be in, on one page. It exists so the language can be reviewed as a whole before a real surface consumes it, and so a regression in a primitive is visible without reading a diff.",
+    "prd_refs": [
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The data on this page is fixed, and the page says so.",
+      "notes": "A style fixture that reads live data stops being a fixture the first time the host changes: a state that no longer occurs silently stops being reviewed. Every value here is a chosen sample, and the annunciator grid's caption states that plainly so no reader mistakes these rows for a measurement of this machine."
+    },
+    {
+      "statement": "Every state in the vocabulary appears, including the ones that are easy to forget.",
+      "notes": "The nine signal states exist because nine different facts are routinely collapsed into one another. A fixture that renders only the common ones would let the rare distinctions — no cell authored, mechanism absent, source unreachable — drift out of the language unnoticed."
+    },
+    {
+      "statement": "Status is legible without colour here first.",
+      "notes": "If a reviewer cannot tell two states apart on this page with colour removed, no real surface built from these primitives will do better."
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "Every primitive renders against its fixed sample data: legend plates, the nine annunciator lamp states, segmented rung rings, stat plates, the annunciator grid, and dated declared-blindness notes.",
+      "setup": {
+        "route": "/design-language"
+      }
+    },
+    {
+      "id": "static",
+      "description": "The page performs no reads, so it has no loading, empty or error state of its own. It renders identically whether or not any source is reachable.",
+      "setup": {
+        "route": "/design-language"
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "language-plates",
+      "role": "region",
+      "name": "Legend plates",
+      "description": "Engraved section headers, with and without a real reference tag."
+    },
+    {
+      "id": "language-lamps",
+      "role": "region",
+      "name": "Annunciator lamps",
+      "description": "Every signal state with its mark, short code and label."
+    },
+    {
+      "id": "language-rings",
+      "role": "region",
+      "name": "Segmented rung rings",
+      "description": "Five-arc rings across representative coverage shapes."
+    },
+    {
+      "id": "language-stats",
+      "role": "region",
+      "name": "Stat plates",
+      "description": "Headline figures, including the uncomputable case."
+    },
+    {
+      "id": "language-grid",
+      "role": "region",
+      "name": "Annunciator grid",
+      "description": "Device rows against the five ladder rungs."
+    },
+    {
+      "id": "language-blindness",
+      "role": "region",
+      "name": "Declared blindness",
+      "description": "Dated blind-region notes."
+    }
+  ],
+  "claims": [
+    {
+      "id": "fixture-data-is-labelled-as-fixture",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "The page states that its data is fixed sample data and not a reading of this host.",
+      "rationale": "A style fixture mistaken for a live board is worse than no fixture: it invites a reader to act on numbers nobody measured.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "language-grid"
+      ]
+    },
+    {
+      "id": "every-signal-state-is-rendered",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "All nine signal states appear: covered, partial, excursion, unmeasurable, mechanism absent, not applicable, no cell authored, blind, and source unreachable.",
+      "rationale": "The vocabulary is closed precisely so these stay distinguishable. A state absent from the fixture is a state nobody is reviewing.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "language-lamps"
+      ]
+    },
+    {
+      "id": "states-differ-without-colour",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "Each state carries a distinct mark and short code, so any two remain distinguishable with colour removed.",
+      "rationale": "The scenario's status-not-colour-alone claim is only as good as the primitives it is built from, and this is where that is verifiable in one view.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "language-lamps",
+        "language-grid",
+        "language-rings"
+      ]
+    },
+    {
+      "id": "no-read-and-no-actuation",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "The page performs no API read and offers no control that changes anything.",
+      "rationale": "It is a rendering of a language, not a view of the plant. Anything it read could fail, and a failing style guide teaches nothing about the language.",
+      "states": [
+        "static"
+      ],
+      "elements": [
+        "language-plates",
+        "language-stats"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "language-plates": {
+        "testid": "language-plates"
+      },
+      "language-lamps": {
+        "testid": "language-lamps"
+      },
+      "language-rings": {
+        "testid": "language-rings"
+      },
+      "language-stats": {
+        "testid": "language-stats"
+      },
+      "language-grid": {
+        "testid": "language-grid"
+      },
+      "language-blindness": {
+        "testid": "language-blindness"
+      }
+    },
+    "regions": {
+      "language-plates": {
+        "testid": "language-plates"
+      },
+      "language-lamps": {
+        "testid": "language-lamps"
+      },
+      "language-rings": {
+        "testid": "language-rings"
+      },
+      "language-stats": {
+        "testid": "language-stats"
+      },
+      "language-grid": {
+        "testid": "language-grid"
+      },
+      "language-blindness": {
+        "testid": "language-blindness"
+      }
+    }
+  },
+  "regions": [
+    {
+      "id": "language-plates",
+      "purpose": "Engraved section headers, with and without a real reference tag.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "language-lamps",
+      "purpose": "Every signal state with its mark, short code and label.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "language-rings",
+      "purpose": "Five-arc rings across representative coverage shapes.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "language-stats",
+      "purpose": "Headline figures, including the uncomputable case.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "language-grid",
+      "purpose": "Device rows against the five ladder rungs.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "language-blindness",
+      "purpose": "Dated blind-region notes.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.0"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ]
+}

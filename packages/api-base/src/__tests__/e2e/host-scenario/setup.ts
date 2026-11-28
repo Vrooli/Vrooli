@@ -538,6 +538,10 @@ export async function setupHostScenario(
         hostScenario: 'host-scenario',
         patchFetch: true,
         childBaseTagAttribute: 'data-host-proxy',
+        // The suite includes a child-timeout test. Caching proxied HTML would
+        // return the last document with 200 after the child stops, hiding the
+        // failure path the test exists to prove.
+        cacheProxyHtml: false,
         hostEndpoints: hostOptions?.hostEndpoints,
         fetchAppMetadata: async (appId) => {
           const result = await makeRequest(hostApiPort, `/api/v1/apps/${appId}`)

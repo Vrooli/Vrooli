@@ -56,8 +56,8 @@ func TestMatcher_FindBestMatch_ByRef(t *testing.T) {
 	})
 
 	val := &types.Validation{
-		Type: types.ValTypeTest,
-		Ref:  "src/components/Button.test.ts",
+		Type: types.ValTypeTest, Phase: "unit",
+		Ref: "src/components/Button.test.ts",
 	}
 
 	result := m.FindBestMatch(val, "REQ-001", evidence)
@@ -83,8 +83,8 @@ func TestMatcher_FindBestMatch_ByRefNormalized(t *testing.T) {
 
 	// Validation ref without leading ./
 	val := &types.Validation{
-		Type: types.ValTypeTest,
-		Ref:  "src/components/Button.test.ts",
+		Type: types.ValTypeTest, Phase: "unit",
+		Ref: "src/components/Button.test.ts",
 	}
 
 	result := m.FindBestMatch(val, "REQ-001", evidence)
@@ -160,7 +160,7 @@ func TestMatcher_FindBestMatch_ByRequirementID(t *testing.T) {
 	})
 
 	val := &types.Validation{
-		Type: types.ValTypeTest,
+		Type: types.ValTypeAutomation,
 	}
 
 	result := m.FindBestMatch(val, "REQ-001", evidence)
@@ -196,6 +196,39 @@ func TestMatcher_FindBestMatch_ManualValidation(t *testing.T) {
 	}
 	if result.Evidence != "Manually verified" {
 		t.Errorf("expected evidence notes, got: %s", result.Evidence)
+	}
+}
+
+func TestMatcher_ManualValidationRequiresExplicitManualEvidence(t *testing.T) {
+	m := NewMatcher()
+	evidence := types.NewEvidenceBundle()
+	evidence.PhaseResults.Add(types.EvidenceRecord{
+		RequirementID: "REQ-MANUAL",
+		Status:        types.LivePassed,
+		Phase:         "api",
+		SourcePath:    "api/internal/handlers/handlers_test.go::TestCheckConflictsSuccess",
+	})
+	val := &types.Validation{
+		Type:  types.ValTypeManual,
+		Phase: "api",
+		Ref:   "api/internal/handlers/handlers_test.go::TestCheckConflictsSuccess",
+	}
+
+	if match := m.FindBestMatch(val, "REQ-MANUAL", evidence); match != nil {
+		t.Fatalf("test execution promoted a manual attestation: %+v", match)
+	}
+
+	evidence.ManualValidations = types.NewManualManifest("")
+	evidence.ManualValidations.Add(types.ManualValidation{
+		RequirementID: "REQ-MANUAL",
+		Status:        "passed",
+		ValidatedAt:   time.Now(),
+		ValidatedBy:   "operator",
+		Notes:         "Reviewed the operator-visible behavior",
+	})
+	match := m.FindBestMatch(val, "REQ-MANUAL", evidence)
+	if match == nil || match.Phase != "manual" || match.Status != types.LivePassed {
+		t.Fatalf("explicit manual attestation was not accepted: %+v", match)
 	}
 }
 
@@ -246,7 +279,7 @@ func TestMatcher_FindBestMatch_SelectsBestByPriority(t *testing.T) {
 	})
 
 	val := &types.Validation{
-		Type: types.ValTypeTest,
+		Type: types.ValTypeAutomation,
 	}
 
 	result := m.FindBestMatch(val, "REQ-001", evidence)
@@ -286,7 +319,7 @@ func TestMatcher_FindBestMatch_SelectsMoreRecentForSamePriority(t *testing.T) {
 	})
 
 	val := &types.Validation{
-		Type: types.ValTypeTest,
+		Type: types.ValTypeAutomation,
 	}
 
 	result := m.FindBestMatch(val, "REQ-001", evidence)
@@ -433,7 +466,7 @@ func TestPathContains(t *testing.T) {
 		{"/src/components/Button.test.ts", "components/Button.test.ts", true},
 		{"/src/components/Button.test.ts", "other.test.ts", false},
 		{"./src/Button.test.ts", "src/Button.test.ts", true},
-		{"", "", true},
+		{"", "", false},
 	}
 
 	for _, tt := range tests {
@@ -1136,6 +1169,24 @@ func TestEnricher_Enrich_MatchesEvidence(t *testing.T) {
 	if req.Validations[0].Status != types.ValStatusImplemented {
 		t.Errorf("expected validation Status implemented, got: %s",
 			req.Validations[0].Status)
+	}
+}
+
+func TestEnricher_DoesNotPromoteReflessTestValidation(t *testing.T) {
+	e := New()
+	index := parsing.NewModuleIndex()
+	module := &types.RequirementModule{FilePath: "/test/module.json", Requirements: []types.Requirement{{
+		ID: "REQ-REFLESS", Validations: []types.Validation{{Type: types.ValTypeTest}},
+	}}}
+	mustAddModule(t, index, module)
+	evidence := types.NewEvidenceBundle()
+	evidence.PhaseResults.Add(types.EvidenceRecord{RequirementID: "REQ-REFLESS", Status: types.LivePassed, Phase: "unit"})
+	if err := e.Enrich(context.Background(), index, evidence); err != nil {
+		t.Fatal(err)
+	}
+	validation := index.GetRequirement("REQ-REFLESS").Validations[0]
+	if validation.Status == types.ValStatusImplemented || validation.LiveStatus != "" {
+		t.Fatalf("refless test validation was promoted from requirement-level evidence: %+v", validation)
 	}
 }
 

@@ -6,24 +6,25 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 // [REQ:P2-004-002] CopyDriver Implementation - Basic functionality tests
 
-// TestCopyDriverType verifies CopyDriver returns correct type
-func TestCopyDriverType(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig())
+// TestCopyDriverID verifies CopyDriver returns correct ID
+func TestCopyDriverID(t *testing.T) {
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 
-	if drv.Type() != DriverTypeCopy {
-		t.Errorf("Type() = %v, want %v", drv.Type(), DriverTypeCopy)
+	if drv.ID() != DriverCopy {
+		t.Errorf("ID() = %v, want %v", drv.ID(), DriverCopy)
 	}
 }
 
 // TestCopyDriverVersion verifies CopyDriver has a version string
 func TestCopyDriverVersion(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 
 	version := drv.Version()
 	if version == "" {
@@ -34,7 +35,7 @@ func TestCopyDriverVersion(t *testing.T) {
 // TestCopyDriverIsAvailable verifies CopyDriver is always available
 // [REQ:P2-004-002] CopyDriver.IsAvailable returns true on any platform
 func TestCopyDriverIsAvailable(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	available, err := drv.IsAvailable(ctx)
@@ -63,7 +64,7 @@ func TestCopyDriverMount(t *testing.T) {
 	cfg := Config{
 		BaseDir: filepath.Join(tmpDir, "sandboxes"),
 	}
-	drv := NewCopyDriver(cfg)
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -130,7 +131,7 @@ func TestCopyDriverGetChangedFiles(t *testing.T) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg)
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -240,7 +241,7 @@ func TestCopyDriverGetChangedFilesSkipsOpaqueAndWhiteouts(t *testing.T) {
 		t.Fatalf("failed to create added file: %v", err)
 	}
 
-	drv := NewCopyDriver(DefaultConfig())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	sandbox := &types.Sandbox{
 		ID:       uuid.New(),
 		LowerDir: originalDir,
@@ -269,8 +270,11 @@ func TestCopyDriverGetChangedFilesSkipsOpaqueAndWhiteouts(t *testing.T) {
 	}
 }
 
-// TestCopyDriverIsMounted tests mount state checking
-func TestCopyDriverIsMounted(t *testing.T) {
+// TestCopyDriverMergedDirExists checks the merged-dir lifecycle:
+// before Mount the dir is absent, after Mount it exists, after Cleanup
+// it's gone. Replaces the dropped IsMounted() check — the copy driver
+// has no real mount, so directory presence is the only meaningful signal.
+func TestCopyDriverMergedDirExists(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	sourceDir := filepath.Join(tmpDir, "source")
@@ -279,7 +283,7 @@ func TestCopyDriverIsMounted(t *testing.T) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg)
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -288,82 +292,33 @@ func TestCopyDriverIsMounted(t *testing.T) {
 		ProjectRoot: sourceDir,
 	}
 
-	// Before mount, should return false
-	mounted, err := drv.IsMounted(ctx, sandbox)
-	if err != nil {
-		t.Errorf("IsMounted() error: %v", err)
-	}
-	if mounted {
-		t.Error("IsMounted() should be false before Mount()")
-	}
-
-	// After mount
 	paths, err := drv.Mount(ctx, sandbox)
 	if err != nil {
 		t.Fatalf("Mount() failed: %v", err)
 	}
-	sandbox.MergedDir = paths.MergedDir
-
-	mounted, err = drv.IsMounted(ctx, sandbox)
-	if err != nil {
-		t.Errorf("IsMounted() error after mount: %v", err)
-	}
-	if !mounted {
-		t.Error("IsMounted() should be true after Mount()")
+	if _, err := os.Stat(paths.MergedDir); err != nil {
+		t.Errorf("merged dir should exist after Mount: %v", err)
 	}
 
-	// After cleanup
 	if err := drv.Cleanup(ctx, sandbox); err != nil {
 		t.Errorf("Cleanup() failed: %v", err)
 	}
-	mounted, err = drv.IsMounted(ctx, sandbox)
-	if err != nil {
-		t.Errorf("IsMounted() error after cleanup: %v", err)
-	}
-	if mounted {
-		t.Error("IsMounted() should be false after Cleanup()")
+	if _, err := os.Stat(paths.MergedDir); !os.IsNotExist(err) {
+		t.Errorf("merged dir should be removed after Cleanup, got err=%v", err)
 	}
 }
 
-// TestCopyDriverVerifyMountIntegrity tests integrity verification
-func TestCopyDriverVerifyMountIntegrity(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	sourceDir := filepath.Join(tmpDir, "source")
-	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
-		t.Fatalf("failed to create source dir: %v", err)
+// TestCopyDriverIsNotMountVerifier guards the Phase 2 contract: CopyDriver
+// has no real mount and intentionally does NOT implement MountVerifier.
+// VerifyIfSupported should short-circuit to nil for it.
+func TestCopyDriverIsNotMountVerifier(t *testing.T) {
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
+	if _, ok := interface{}(drv).(MountVerifier); ok {
+		t.Error("CopyDriver should NOT implement MountVerifier")
 	}
-
-	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg)
-	ctx := context.Background()
-
-	sandbox := &types.Sandbox{
-		ID:          uuid.New(),
-		ScopePath:   sourceDir,
-		ProjectRoot: sourceDir,
-	}
-
-	// Mount and verify
-	paths, err := drv.Mount(ctx, sandbox)
-	if err != nil {
-		t.Fatalf("Mount() failed: %v", err)
-	}
-	sandbox.MergedDir = paths.MergedDir
-	sandbox.LowerDir = paths.LowerDir
-
-	err = drv.VerifyMountIntegrity(ctx, sandbox)
-	if err != nil {
-		t.Errorf("VerifyMountIntegrity() should pass: %v", err)
-	}
-
-	// Cleanup and verify should fail
-	if err := drv.Cleanup(ctx, sandbox); err != nil {
-		t.Errorf("Cleanup() failed: %v", err)
-	}
-	err = drv.VerifyMountIntegrity(ctx, sandbox)
-	if err == nil {
-		t.Error("VerifyMountIntegrity() should fail after Cleanup()")
+	// VerifyIfSupported must return nil regardless of sandbox state.
+	if err := VerifyIfSupported(context.Background(), drv, &types.Sandbox{ID: uuid.New()}); err != nil {
+		t.Errorf("VerifyIfSupported on CopyDriver should return nil, got: %v", err)
 	}
 }
 
@@ -377,7 +332,7 @@ func TestCopyDriverRemoveFromUpper(t *testing.T) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg)
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -434,17 +389,26 @@ func TestSelectDriverReturnsDriver(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.BaseDir = t.TempDir()
 
-	drv, err := SelectDriver(ctx, cfg)
+	drv, report, err := SelectDriver(ctx, cfg, testDeps())
 	if err != nil {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}
 	if drv == nil {
 		t.Fatal("SelectDriver() returned nil driver")
 	}
+	if report == nil {
+		t.Fatal("SelectDriver() returned nil SelectionReport")
+	}
+	if report.Selected != drv.ID() {
+		t.Errorf("SelectionReport.Selected=%v but driver.ID()=%v", report.Selected, drv.ID())
+	}
+	if len(report.Candidates) == 0 {
+		t.Error("SelectionReport.Candidates should not be empty")
+	}
 
 	// Verify it's a valid driver
-	if drv.Type() == DriverTypeNone {
-		t.Error("SelectDriver() should return a valid driver type")
+	if drv.ID() == "" {
+		t.Error("SelectDriver() should return a valid driver ID")
 	}
 	if drv.Version() == "" {
 		t.Error("SelectDriver() returned driver with no version")
@@ -460,18 +424,23 @@ func TestSelectDriverFallsBackToCopy(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.BaseDir = t.TempDir()
 
-	drv, err := SelectDriver(ctx, cfg)
+	drv, _, err := SelectDriver(ctx, cfg, testDeps())
 	if err != nil {
 		t.Fatalf("SelectDriver() failed: %v", err)
 	}
 
-	// Should return either overlayfs or copy driver
-	drvType := drv.Type()
-	if drvType != DriverTypeOverlayfs && drvType != DriverTypeCopy {
-		t.Errorf("SelectDriver() returned unexpected type: %v", drvType)
+	// Post-Phase 5 priority: kernel overlayfs > fuse-overlayfs > copy.
+	// Any of those is acceptable; we just want to confirm SelectDriver
+	// produced *some* valid driver.
+	id := drv.ID()
+	switch id {
+	case DriverOverlayfsUserNS, DriverOverlayfsRoot, DriverFuseOverlayfs, DriverCopy:
+		// expected
+	default:
+		t.Errorf("SelectDriver() returned unexpected ID: %v", id)
 	}
 
-	t.Logf("SelectDriver() returned: %v", drvType)
+	t.Logf("SelectDriver() returned: %v", id)
 }
 
 // TestDriverInfoReturnsAllDrivers verifies DriverInfo lists all drivers
@@ -480,20 +449,20 @@ func TestDriverInfoReturnsAllDrivers(t *testing.T) {
 	ctx := context.Background()
 	cfg := DefaultConfig()
 
-	info := DriverInfo(ctx, cfg)
+	info := DriverInfo(ctx, cfg, testDeps())
 
 	if len(info) < 2 {
 		t.Errorf("DriverInfo() returned %d drivers, want at least 2", len(info))
 	}
 
-	// Check for expected driver types
+	// Check for expected driver IDs
 	foundOverlayfs := false
 	foundCopy := false
 	for _, i := range info {
-		if i.Type == DriverTypeOverlayfs {
+		switch i.ID {
+		case DriverOverlayfsUserNS, DriverOverlayfsRoot:
 			foundOverlayfs = true
-		}
-		if i.Type == DriverTypeCopy {
+		case DriverCopy:
 			foundCopy = true
 			// Copy should always be available
 			if !i.Available {
@@ -502,15 +471,15 @@ func TestDriverInfoReturnsAllDrivers(t *testing.T) {
 		}
 		// All drivers should have version and description
 		if i.Version == "" {
-			t.Errorf("Driver %s has no version", i.Type)
+			t.Errorf("Driver %s has no version", i.ID)
 		}
 		if i.Description == "" {
-			t.Errorf("Driver %s has no description", i.Type)
+			t.Errorf("Driver %s has no description", i.ID)
 		}
 	}
 
 	if !foundOverlayfs {
-		t.Error("DriverInfo() should include overlayfs driver")
+		t.Error("DriverInfo() should include an overlayfs driver")
 	}
 	if !foundCopy {
 		t.Error("DriverInfo() should include copy driver")
@@ -526,15 +495,15 @@ func TestDriverInterfaceMethods(t *testing.T) {
 
 	// Test both driver implementations
 	drivers := []Driver{
-		NewOverlayfsDriver(cfg),
-		NewCopyDriver(cfg),
+		NewOverlayfsDriver(cfg, testDeps()),
+		NewCopyDriver(cfg, testDeps()),
 	}
 
 	for _, drv := range drivers {
-		t.Run(string(drv.Type()), func(t *testing.T) {
-			// Type
-			if drv.Type() == "" {
-				t.Error("Type() should not be empty")
+		t.Run(string(drv.ID()), func(t *testing.T) {
+			// ID
+			if drv.ID() == "" {
+				t.Error("ID() should not be empty")
 			}
 
 			// Version
@@ -550,27 +519,29 @@ func TestDriverInterfaceMethods(t *testing.T) {
 	}
 }
 
-// TestDriverTypeConstants verifies driver type constants are defined
-func TestDriverTypeConstants(t *testing.T) {
-	if DriverTypeOverlayfs == "" {
-		t.Error("DriverTypeOverlayfs should not be empty")
+// TestDriverIDConstants verifies driver ID constants are defined and unique.
+func TestDriverIDConstants(t *testing.T) {
+	all := []DriverID{
+		DriverOverlayfsUserNS,
+		DriverOverlayfsRoot,
+		DriverFuseOverlayfs,
+		DriverCopy,
 	}
-	if DriverTypeCopy == "" {
-		t.Error("DriverTypeCopy should not be empty")
-	}
-	if DriverTypeNone == "" {
-		t.Error("DriverTypeNone should not be empty")
-	}
-
-	// Ensure they're distinct
-	if DriverTypeOverlayfs == DriverTypeCopy {
-		t.Error("DriverTypeOverlayfs and DriverTypeCopy should be different")
+	seen := map[DriverID]bool{}
+	for _, id := range all {
+		if id == "" {
+			t.Error("DriverID constant must not be empty")
+		}
+		if seen[id] {
+			t.Errorf("duplicate DriverID: %s", id)
+		}
+		seen[id] = true
 	}
 }
 
 // TestCopyDriverUnmount verifies Unmount is a no-op
 func TestCopyDriverUnmount(t *testing.T) {
-	drv := NewCopyDriver(DefaultConfig())
+	drv := NewCopyDriver(DefaultConfig(), testDeps())
 	ctx := context.Background()
 
 	sandbox := &types.Sandbox{
@@ -600,7 +571,7 @@ func BenchmarkCopyDriverMount(b *testing.B) {
 	}
 
 	cfg := Config{BaseDir: filepath.Join(tmpDir, "sandboxes")}
-	drv := NewCopyDriver(cfg)
+	drv := NewCopyDriver(cfg, testDeps())
 	ctx := context.Background()
 
 	b.ResetTimer()

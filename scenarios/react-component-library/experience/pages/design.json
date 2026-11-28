@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "design",
+    "title": "Design workspaces",
+    "routes": [
+      "/design"
+    ],
+    "purpose": "Find or start a workspace, fork a curated template, and open the page, display and state design studio."
+  },
+  "priorities": [
+    {
+      "statement": "Continue a workspace or choose a curated starting point before authoring a new composition."
+    }
+  ],
+  "claims": [{
+    "id": "design-page-state-covered",
+    "type": "state-covered",
+    "statement": "The design index and workspace studio are reachable through the declared design stories.",
+    "tier": "machine",
+    "states": ["index", "workspace"]
+  }],
+  "states": [
+    {
+      "id": "index",
+      "description": "Find a workspace, start a blank one or fork a curated template.",
+      "setup": {"route": "/design"}
+    },
+    {
+      "id": "workspace",
+      "description": "Edit a workspace composition across pages, displays and states.",
+      "setup": {"route": "/design?workspace=ws_curated_harbor"}
+    }
+  ],
+  "regions": [
+    {
+      "id": "design-overview",
+      "required": true,
+      "purpose": "Browse workspace compositions and curated starting points.",
+      "component": {
+        "local": "design-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "design-overview": {
+        "selector": "[data-experience-surface=\"design-overview\"]"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "implemented",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md",
+    "changes": [
+      "Use the workspace index and curated workspace shelf as the Design front door"
+    ]
+  }
+}

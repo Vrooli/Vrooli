@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 
+	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/middleware"
 )
@@ -51,7 +52,16 @@ func (h *Handlers) CreateChat(w http.ResponseWriter, r *http.Request) {
 		req.Name = "New Chat"
 	}
 	if req.Model == "" {
-		req.Model = "anthropic/claude-3.5-sonnet"
+		// No per-request model: resolve the operator default via policy role.
+		// There is no concrete code default; if the OpenRouter resource is
+		// unavailable and no explicit override is configured, fail clearly.
+		resolved, err := config.ResolveDefaultChatModel(r.Context())
+		if err != nil {
+			log.Printf("[ERROR] [%s] CreateChat default-model resolution failed: %v", middleware.GetRequestID(r.Context()), err)
+			h.WriteAppError(w, r, domain.ErrOpenRouterUnavailable(err))
+			return
+		}
+		req.Model = resolved
 	}
 	if req.ViewMode == "" {
 		req.ViewMode = domain.ViewModeBubble
@@ -147,7 +157,7 @@ func (h *Handlers) GetChat(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-// UpdateChat updates a chat's name, model, or tools_enabled.
+// UpdateChat updates a chat's name or model.
 func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	chatID := h.ParseUUID(w, r, "id")
 	if chatID == "" {
@@ -155,9 +165,8 @@ func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name         *string `json:"name"`
-		Model        *string `json:"model"`
-		ToolsEnabled *bool   `json:"tools_enabled"`
+		Name  *string `json:"name"`
+		Model *string `json:"model"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -165,8 +174,7 @@ func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate using centralized validation (tools_enabled is always valid if provided)
-	if result := domain.ValidateChatUpdate(req.Name, req.Model, req.ToolsEnabled); !result.Valid {
+	if result := domain.ValidateChatUpdate(req.Name, req.Model); !result.Valid {
 		h.WriteAppError(w, r, domain.NewError(
 			domain.ErrCodeNoFieldsToUpdate,
 			domain.CategoryValidation,
@@ -176,7 +184,7 @@ func (h *Handlers) UpdateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chat, err := h.Repo.UpdateChat(r.Context(), chatID, req.Name, req.Model, req.ToolsEnabled)
+	chat, err := h.Repo.UpdateChat(r.Context(), chatID, req.Name, req.Model)
 	if err != nil {
 		log.Printf("[ERROR] [%s] UpdateChat failed: %v", middleware.GetRequestID(r.Context()), err)
 		h.WriteAppError(w, r, domain.ErrDatabaseError("update chat", err))

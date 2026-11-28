@@ -1,0 +1,73 @@
+# CLI Commands
+
+The installed command is `tidiness-manager`.
+
+## scan
+
+```bash
+tidiness-manager scan <scenario> --type tidiness
+tidiness-manager scan <scenario-or-path> --type light --timeout 120
+tidiness-manager scan <scenario> --type smart --file api/main.go --campaign-id 123
+```
+
+`tidiness` is the default and returns maintainability findings plus the provider-local maturity summary. `light` is retained for metrics compatibility. `smart` requires explicit files.
+
+## issues
+
+```bash
+tidiness-manager issues list <scenario> --limit 20
+tidiness-manager issues resolve <issue-id> --notes "Split handler"
+tidiness-manager issues ignore <issue-id> --notes "Generated fixture"
+tidiness-manager issues reopen <issue-id>
+```
+
+Filters include scenario, file, folder, category, severity, status, and limit.
+
+## recommend-refactors
+
+```bash
+tidiness-manager recommend-refactors <scenario> --limit 10
+tidiness-manager recommend-refactors <scenario> --min-lines 200 --format json
+```
+
+Recommendations use the current Code Facts graph. Each entry names its detector, source locations, estimated removable and replacement lines, and calibration provenance. Ranking uses precision × estimated net lines only when the detector has a representative labelled sampling frame or an exact source/config match to a complete target census; otherwise expected net lines and precision remain unknown. Global Go and migration rates remain unknown because the current corpus does not provide a representative complete fleet sample. JavaScript has one exact-body census for prompt-manager, bound to the source/config hashes from a fast Code Facts `parse_units` response; its JS-only source-manifest hash is separate. The full graph recommendation response has not been verified, and the measured predictions came from the local registry owner path. These rates apply only while the requested target's Code Facts hashes match. Synthetic regression cases do not count as measured rates. An unavailable source returns an error; it cannot fall back to stale metric rows. `--min-lines` filters estimated net reduction, and `--format paths` emits candidate locations.
+
+## scenarios
+
+```bash
+tidiness-manager scenarios list
+tidiness-manager scenarios get <scenario>
+```
+
+Shows scenario-level summaries and detail data for dashboard-style inspection.
+
+## score
+
+```bash
+tidiness-manager score <scenario>
+```
+
+Shows the aggregate tidiness score for a scenario.
+
+## campaigns
+
+```bash
+tidiness-manager campaigns list
+tidiness-manager campaigns get <campaign-id>
+tidiness-manager campaigns start <scenario> --max-sessions 10 --max-files 5
+tidiness-manager campaigns pause <scenario>
+tidiness-manager campaigns resume <scenario>
+tidiness-manager campaigns stop <scenario>
+```
+
+Campaign commands manage auto-tidiness sessions and support scenario-name or ID based actions where implemented.
+
+## tracking
+
+```bash
+tidiness-manager tracking visit <file> --scenario <scenario> --note "Refactored"
+tidiness-manager tracking exclude <file> --scenario <scenario> --reason "Generated"
+tidiness-manager tracking campaign-note --scenario <scenario> --note "Handoff"
+```
+
+Tracking wraps visited-tracker workflows used during refactoring campaigns.

@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "code-editor-monaco",
+    "description": "In-browser Monaco editor wired to the API for safe TSX content I/O.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ED-001",
+      "title": "Monaco editor loads a component's TSX content from the API and saves edits back",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "editor",
+      "criticality": "P0",
+      "description": "The UI editor page mounts Monaco configured for TypeScript/JSX. On open, it fetches `GET /api/v1/components/{id}/content`. On save, it PUTs to the same endpoint. Format-on-type is enabled via Monaco defaults; the project does not bundle a TypeScript compiler.",
+      "tags": ["ui", "editor", "monaco"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "UI component test renders the Editor page against a mock client, asserts content roundtrips through the API stub."
+        }
+      ]
+    },
+    {
+      "id": "ED-002",
+      "title": "Content I/O is routed through `package:api-core/storage` with path-traversal rejection",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "editor",
+      "criticality": "P0",
+      "description": "API content endpoints resolve filesystem paths only via `storage.NewResolver` rooted at the configured components root. Any resolved path that escapes the root is rejected with HTTP 400 and a structured error code `path_outside_root`.",
+      "tags": ["editor", "storage", "security"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Handler test feeds malicious component IDs (`..`, absolute paths, symlinks) and asserts 400 with the expected error code."
+        }
+      ]
+    }
+  ]
+}

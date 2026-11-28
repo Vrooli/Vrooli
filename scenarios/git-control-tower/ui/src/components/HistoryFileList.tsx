@@ -1,8 +1,10 @@
+import { HistoryFileSafetyBadge } from "./PushSafetyIndicators";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { File, History, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import type { ViewingCommit } from "./HistoryModeHeader";
+import { formatPath } from "../lib/utils";
 
 interface HistoryFileListProps {
   viewingCommit: ViewingCommit;
@@ -14,30 +16,6 @@ interface HistoryFileListProps {
   onDeletePath?: (path: string, isDir: boolean) => void;
 }
 
-function formatPath(path: string, maxChars: number) {
-  if (path.length <= maxChars) return path;
-
-  const segments = path.split("/");
-  const last = segments[segments.length - 1] || path;
-  const lastTwo = segments.length > 1 ? segments.slice(-2).join("/") : last;
-  const first = segments[0] || path;
-
-  const candidateMiddle = `${first}/.../${lastTwo}`;
-  if (candidateMiddle.length <= maxChars) return candidateMiddle;
-
-  const candidateMiddleShort = `${first}/.../${last}`;
-  if (candidateMiddleShort.length <= maxChars) return candidateMiddleShort;
-
-  const candidateEnd = `.../${lastTwo}`;
-  if (candidateEnd.length <= maxChars) return candidateEnd;
-
-  const candidateEndShort = `.../${last}`;
-  if (candidateEndShort.length <= maxChars) return candidateEndShort;
-
-  const tailMax = Math.max(1, maxChars - 4);
-  return `.../${last.slice(-tailMax)}`;
-}
-
 export function HistoryFileList({
   viewingCommit,
   selectedFile,
@@ -47,6 +25,7 @@ export function HistoryFileList({
   fillHeight = true,
   onDeletePath
 }: HistoryFileListProps) {
+
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
@@ -112,6 +91,7 @@ export function HistoryFileList({
             </div>
           </div>
 
+
           <ScrollArea className="h-full min-w-0 px-2 pt-2 select-none" ref={scrollAreaRef}>
             <div style={{ paddingBottom: 48 }}>
             {sortedFiles.length === 0 ? (
@@ -142,6 +122,7 @@ export function HistoryFileList({
                         <span className="font-mono text-xs truncate block w-full" title={file}>
                           {displayPath}
                         </span>
+                        <HistoryFileSafetyBadge hash={viewingCommit.hash} path={file} />
                       </div>
                       {onDeletePath && (
                         <button

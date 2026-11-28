@@ -1,0 +1,108 @@
+{
+  "template_version": "1",
+  "gates": {
+    "charter_bytes": 25000,
+    "stance_chars": 3500,
+    "kernel_chars": 600,
+    "stance_ending": "Reply \"ready\" and wait for it."
+  },
+  "packet": {
+    "topics_max": 6,
+    "allowance_hours_min": 1,
+    "allowance_hours_max": 72,
+    "allowance_hours_default": 24,
+    "ordered_workstreams_max": 4
+  },
+  "entry_chars_max": 4000,
+  "defaults": {
+    "supervisor_model": "gpt-6-luna",
+    "supervisor_effort": "medium",
+    "owner_model_tier": "inherit"
+  },
+  "session": {
+    "idle_archive_after": "6h",
+    "note": "Web Console idle policy for each launched supervisor session: once its Codex has written nothing for this long, with no goal active and no turn or sub-agent running, Web Console archives the session (freeing its memory) and records why; Reopen brings back the thread and its goal. 6h because a finished 24h lead was measured holding 2.4-2.6 GB idle for 15-21 h, and leads with a blocked goal sat 6-10 h at 0.6 GB (2026-11-21). A Go duration from 15m to 168h."
+  },
+  "models": {
+    "supervisor_model": [
+      "gpt-6-luna",
+      "gpt-6-astra",
+      "gpt-6-sol"
+    ],
+    "supervisor_effort": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "owner_model_tier": [
+      "inherit",
+      "gpt-6-luna",
+      "gpt-6-astra",
+      "gpt-6-sol"
+    ]
+  },
+  "ceilings": {
+    "scheduler_start_bytes": 23000,
+    "scheduler_unit_bytes": 20000,
+    "owner_start_bytes": 7950,
+    "mission_bytes": 20000,
+    "skill_bytes": {
+      "research-coordination/SKILL.md": 6500,
+      "research-coordination/references/mission.md": 5500,
+      "research-coordination/references/operator-attention.md": 5500,
+      "research-coordination/references/supervision.md": 4000,
+      "research-coordination/references/topic-folder.md": 4200,
+      "research-coordination/templates/charter.md": 12000,
+      "research-coordination/templates/owner-brief.md": 3500,
+      "adaptive-research/SKILL.md": 5800,
+      "local-experimentation/SKILL.md": 5600,
+      "local-experimentation/references/trials.md": 3000,
+      "research-review/SKILL.md": 6500
+    }
+  },
+  "read_sets": {
+    "note": "What each role reads. The desk flags a read set over any ceiling here (mission_bytes included) in the preflight and the steward packets the trim; it never refuses a launch for read cost (R1). gates.charter_bytes only warns (a build goes ahead); stance_chars and kernel_chars are hard gates because Codex drops a goal over about 700 characters. skill_bytes keep headroom over the measured sizes; mission_bytes was cut from 40,000 to 20,000 on 2026-11-20.",
+    "scheduler_start": [
+      "charter",
+      "STATE.md",
+      "OPERATOR.md",
+      "research-coordination/templates/owner-brief.md"
+    ],
+    "scheduler_unit": [
+      "charter",
+      "STATE.md",
+      "OPERATOR.md"
+    ],
+    "owner_start": [
+      "research-coordination/templates/owner-brief.md",
+      "adaptive-research/SKILL.md"
+    ],
+    "owner_topic": [
+      "MISSION.md"
+    ],
+    "owner_topic_note": "Each owner also reads its topic's MISSION.md, held to ceilings.mission_bytes; it is not summed into owner_start_bytes, which bounds skill text only.",
+    "measured_before": {
+      "programme-three-20261111": {
+        "charter": 36128,
+        "STATE.md": 6549,
+        "OPERATOR.md": 0,
+        "owner_brief": 3580
+      },
+      "programme-four-20261110": {
+        "charter": 31988,
+        "STATE.md": 9143,
+        "owner_brief": 3700
+      },
+      "standing-teams-w1-20261110": {
+        "charter": 22069,
+        "STATE.md": 4119,
+        "owner_brief": 2706
+      },
+      "long_effort_s2_s3": 17765
+    }
+  },
+  "evidence": {
+    "models": "The Codex models and efforts the research skills allow, from ~/.codex/models_cache.json on 2026-11-11 (gpt-6-luna supports low to max; astra and sol up to ultra). A spec value outside these lists is invalid_spec. Adding a model is an edit here."
+  }
+}

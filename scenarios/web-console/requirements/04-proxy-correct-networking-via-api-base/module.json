@@ -1,69 +1,96 @@
 {
-  "description": "UI uses shared api-base for HTTP/WebSocket routing under parent proxying with no direct-origin assumptions",
-  "module_id": "MOD-P0-004",
-  "prd_ref": "OT-P0-004",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
+  },
   "requirements": [
     {
-      "category": "integration",
-      "children": ["REQ-P0-004b"],
-      "description": "All HTTP REST calls (health, sessions CRUD) route through api-base resolveApiBase/buildApiUrl helpers. No hardcoded origins.",
       "id": "REQ-P0-004a",
-      "prd_ref": "OT-P0-004",
-      "status": "passed",
       "title": "api-base HTTP Integration",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "integration",
+      "description": "All HTTP REST calls (health, sessions CRUD) route through api-base resolveApiBase/buildApiUrl helpers. No hardcoded origins.",
+      "children": [
+        "REQ-P0-004b",
+        "REQ-P0-004c"
+      ],
       "validation": [
         {
-          "notes": "All REST calls use api-base URL builder",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:createSession sends POST",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "All REST calls use api-base URL builder"
         },
         {
-          "notes": "Delete session uses api-base routing",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:deleteSession sends DELETE",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Delete session uses api-base routing"
         }
       ]
     },
     {
-      "category": "integration",
-      "children": ["REQ-P0-004b-i"],
-      "description": "WebSocket connections for terminal I/O use api-base WS URL resolution. Connection upgrades work through reverse proxies.",
       "id": "REQ-P0-004b",
-      "prd_ref": "OT-P0-004",
-      "status": "passed",
       "title": "api-base WebSocket Integration",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "integration",
+      "description": "WebSocket connections for terminal I/O use api-base WS URL resolution. Connection upgrades work through reverse proxies.",
+      "children": [
+        "REQ-P0-004b-i"
+      ],
       "validation": [
         {
-          "notes": "WebSocket URL constructed through api-base resolver",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:buildSessionWsUrl constructs correct WebSocket URL",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "WebSocket URL constructed through api-base resolver"
         }
       ]
     },
     {
+      "id": "REQ-P0-004b-i",
+      "title": "Proxy Connection Upgrade",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
       "category": "integration",
       "description": "WebSocket upgrade requests route through reverse proxy without direct-origin assumptions. Connection negotiation handles proxy headers.",
-      "id": "REQ-P0-004b-i",
-      "prd_ref": "OT-P0-004",
-      "status": "passed",
-      "title": "Proxy Connection Upgrade",
       "validation": [
         {
-          "notes": "WebSocket URL resolution uses api-base WS helpers",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/api.test.ts:buildSessionWsUrl constructs correct WebSocket URL",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "WebSocket URL resolution uses api-base WS helpers"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-004c",
+      "title": "Terminal localhost links use the secure loopback proxy",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "integration",
+      "description": "Opening an HTTP localhost or loopback URL detected in terminal output routes it through the Web Console origin, including temporary ports outside scenario metadata. The shared api-base proxy accepts only loopback client connections, dials 127.0.0.1 or ::1 as selected, excludes Web Console listener ports, requires a short-lived capability bound to loopback family and port, preserves path/query behavior, and sandboxes HTML without exposing its token through wildcard CORS.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/lib/terminalFileLinks.test.ts",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Loopback URL rewriting preserves the URL while selecting the same-origin IPv4 or IPv6 proxy route."
+        },
+        {
+          "type": "test",
+          "ref": "packages/api-base/src/__tests__/server/local-port-proxy.test.ts",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Covers arbitrary ports, capability and CORS boundaries, HTML/CSS/redirect rewriting, WebSockets, and IPv6 loopback."
         }
       ]
     }
-  ],
-  "title": "Proxy-Correct Networking via api-base"
+  ]
 }

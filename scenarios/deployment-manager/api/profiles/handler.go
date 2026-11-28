@@ -160,6 +160,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.repo.Update(r.Context(), profileID, updates)
 	if err != nil {
+		if errors.Is(err, ErrVersionConflict) {
+			shared.JSONError(w, "profile changed while you were editing; reload and retry", http.StatusConflict)
+			return
+		}
 		shared.JSONError(w, "failed to update profile", http.StatusInternalServerError)
 		return
 	}

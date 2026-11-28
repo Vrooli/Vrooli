@@ -314,7 +314,7 @@ func getEnv(key, defaultValue string) string {
 
 func main() {
 	fmt.Println("🎯 File-Tools Go Integration Examples")
-	fmt.Println("=====================================\n")
+	fmt.Print("=====================================\n\n")
 
 	// Check if file-tools API is available
 	resp, err := http.Get(FileToolsAPIURL + "/health")

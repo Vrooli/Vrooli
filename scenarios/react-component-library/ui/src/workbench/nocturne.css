@@ -1,0 +1,1397 @@
+/*
+ * Nocturne — the React Component Library workbench chrome.
+ *
+ * This file is application chrome, not a library theme. It is scoped to
+ * `.wb-root` so published components keep the shared BaseStyles contract and
+ * previews keep their own iframe document. The BaseStyles custom properties are
+ * remapped inside the scope so RCL controls (Button, Input, Card, …) render in
+ * Nocturne without forking them.
+ *
+ * Token ownership: this is the scoped `workbench-tokens` option recorded in
+ * docs/concepts/WORKBENCH-REDESIGN.md. No published component may import it.
+ */
+
+.wb-root {
+  /* Palette */
+  --wb-bg: #0b0a0f;
+  --wb-bg-2: #0d0c12;
+  --wb-panel: #141219;
+  --wb-panel-2: #1a1721;
+  --wb-panel-3: #211c27;
+  --wb-panel-4: #282130;
+  --wb-line: #2b2531;
+  --wb-line-2: #3a3340;
+  --wb-line-3: #4a4150;
+  --wb-ink: #f7f1e8;
+  --wb-ink-2: #ded4c8;
+  --wb-muted: #a79b92;
+  /* 4.9:1 against the darkest panel; the old #71655e was 3.2:1. */
+  --wb-muted-2: #8f8580;
+  --wb-signal: #ffb35c;
+  --wb-signal-strong: #ffc785;
+  --wb-signal-soft: rgba(255, 179, 92, 0.13);
+  --wb-signal-line: rgba(255, 179, 92, 0.28);
+  --wb-signal-ink: #1a1108;
+  --wb-ice: #8fd8ff;
+  --wb-ice-soft: rgba(143, 216, 255, 0.1);
+  --wb-ice-line: rgba(143, 216, 255, 0.26);
+  --wb-green: #82e0b0;
+  --wb-green-soft: rgba(130, 224, 176, 0.11);
+  --wb-amber: #ffcc80;
+  --wb-amber-soft: rgba(255, 204, 128, 0.11);
+  --wb-red: #ff8e8e;
+  --wb-red-soft: rgba(255, 142, 142, 0.11);
+  --wb-violet: #b9a7ff;
+  --wb-violet-soft: rgba(185, 167, 255, 0.12);
+
+  /* Type */
+  --wb-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --wb-sans:
+    Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --wb-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Geometry */
+  --wb-r: 14px;
+  --wb-r-sm: 10px;
+  --wb-r-xs: 8px;
+  --wb-r-pill: 999px;
+  --wb-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  --wb-shadow-soft: 0 10px 34px rgba(0, 0, 0, 0.28);
+  --wb-topbar: 62px;
+
+  /* BaseStyles remap — makes shared RCL controls render in Nocturne. */
+  --color-background: var(--wb-bg);
+  --color-shell: var(--wb-bg);
+  --color-surface: var(--wb-panel);
+  --color-surface-muted: var(--wb-panel-2);
+  --color-surface-raised: var(--wb-panel-3);
+  --color-surface-sunken: var(--wb-bg-2);
+  --color-field: var(--wb-panel-2);
+  --color-foreground: var(--wb-ink);
+  --color-muted-foreground: var(--wb-muted);
+  --color-border: var(--wb-line);
+  --color-border-strong: var(--wb-line-2);
+  --color-border-subtle: var(--wb-line);
+  --color-primary: var(--wb-signal);
+  --color-primary-foreground: var(--wb-signal-ink);
+  --color-primary-hover: var(--wb-signal-strong);
+  --color-primary-strong: var(--wb-signal-strong);
+  --color-focus: var(--wb-signal);
+  --color-focus-ring: var(--wb-signal);
+  --color-danger: var(--wb-red);
+  --color-danger-foreground: var(--wb-red);
+  --color-success: var(--wb-green);
+  --color-success-foreground: var(--wb-green);
+  --color-warning: var(--wb-amber);
+  --color-warning-foreground: var(--wb-amber);
+  --color-info: var(--wb-ice);
+  --color-accent: var(--wb-ice);
+  --font-sans: var(--wb-sans);
+  --radius-panel: var(--wb-r);
+  --radius-control: var(--wb-r-sm);
+
+  color-scheme: dark;
+  min-height: 100dvh;
+  background: var(--wb-bg);
+  color: var(--wb-ink);
+  font-family: var(--wb-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.wb-root *,
+.wb-root *::before,
+.wb-root *::after {
+  box-sizing: border-box;
+}
+
+.wb-root :where(h1, h2, h3, h4, p, figure, blockquote, dl, dd) {
+  margin: 0;
+}
+
+.wb-root :where(a) {
+  color: inherit;
+  text-decoration: none;
+}
+
+.wb-root :where(button) {
+  font: inherit;
+  color: inherit;
+}
+
+.wb-root :where(ul, ol) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-root :where(img, svg) {
+  display: block;
+  max-width: 100%;
+}
+
+.wb-root ::selection {
+  background: var(--wb-signal);
+  color: var(--wb-signal-ink);
+}
+
+.wb-root :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--wb-signal);
+  outline-offset: 2px;
+}
+
+.wb-root ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.wb-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wb-root ::-webkit-scrollbar-thumb {
+  background: #2b2531;
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+.wb-root ::-webkit-scrollbar-thumb:hover {
+  background: #453b4a;
+  background-clip: content-box;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Application shell
+   ───────────────────────────────────────────────────────────────────────────*/
+
+.wb-app-shell {
+  background: var(--wb-bg);
+}
+
+.wb-root .wb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.wb-root .wb-brand-mark {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--wb-signal), #ff7a59);
+  color: var(--wb-signal-ink);
+  box-shadow: 0 0 24px rgba(255, 179, 92, 0.22);
+}
+
+.wb-root .wb-brand-text {
+  display: grid;
+  min-width: 0;
+}
+
+.wb-root .wb-brand-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-root .wb-brand-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  color: var(--wb-muted-2);
+  font: 9px/1.3 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-root .wb-brand-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--wb-muted-2);
+}
+
+.wb-root .wb-brand-dot.is-assigned {
+  background: var(--wb-green);
+}
+
+.wb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: var(--wb-r-sm);
+  color: var(--wb-muted);
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.wb-nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wb-ink);
+}
+
+.wb-nav-item[aria-current="page"] {
+  background: linear-gradient(90deg, var(--wb-signal-soft), rgba(255, 179, 92, 0.02));
+  color: var(--wb-ink);
+  box-shadow: inset 0 0 0 1px var(--wb-signal-line);
+}
+
+.wb-nav-item[aria-current="page"] svg {
+  color: var(--wb-signal);
+}
+
+.wb-shell-utility {
+  display: grid;
+  gap: 10px;
+}
+
+.wb-shell-utility-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.wb-root .wb-brand-mono {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.wb-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: var(--wb-r-sm);
+}
+
+.wb-identity-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #6f5bff, #42b8ff);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.wb-identity > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.wb-identity-name {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-identity-meta {
+  display: block;
+  overflow: hidden;
+  color: var(--wb-muted-2);
+  font: 9px/1.3 var(--wb-mono);
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wb-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  background:
+    radial-gradient(1100px 520px at 75% -10%, rgba(255, 179, 92, 0.07), transparent 62%),
+    radial-gradient(800px 400px at 10% 100%, rgba(143, 216, 255, 0.045), transparent 60%),
+    var(--wb-bg);
+}
+
+.wb-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: var(--wb-topbar);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--wb-line);
+  background: rgba(8, 9, 13, 0.72);
+  backdrop-filter: blur(14px);
+}
+
+.wb-crumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--wb-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.wb-crumb b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--wb-ink);
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.wb-crumb > a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.wb-command {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 250px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-sm);
+  background: #0d1018;
+  color: var(--wb-muted);
+  font-size: 12px;
+  text-align: left;
+}
+
+.wb-command:hover {
+  border-color: var(--wb-line-2);
+  color: var(--wb-ink);
+}
+
+.wb-command > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-command kbd,
+.wb-kbd {
+  margin-left: auto;
+  padding: 2px 5px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: 5px;
+  background: #11141d;
+  color: var(--wb-muted-2);
+  font: 10px/1.3 var(--wb-mono);
+}
+
+.wb-iconbtn {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-sm);
+  background: #0d1018;
+  color: var(--wb-muted);
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.wb-iconbtn:hover {
+  border-color: var(--wb-line-2);
+  background: #121620;
+  color: var(--wb-ink);
+}
+
+.wb-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* AppShell's fill mode sets `overflow: hidden` on the main pane with three
+ * attribute selectors. That is correct for the workspace studio (which owns
+ * its own panes) but it silently disabled page scrolling everywhere else:
+ * `.wb-view`'s single class could not win the specificity contest. Match the
+ * host selector so ordinary pages scroll again, and keep the studio clip. */
+.wb-root [data-rcl-app-shell][data-main-mode="fill"] .wb-view {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.wb-root [data-rcl-app-shell][data-main-mode="fill"] .wb-view.is-workspace-studio {
+  overflow: hidden;
+}
+
+.wb-root .wb-identity {
+  margin-top: 4px;
+  border-top: 1px solid var(--wb-line);
+  padding: 12px 6px 4px;
+}
+
+.wb-page {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 30px 34px 56px;
+}
+
+.wb-page.is-wide {
+  max-width: none;
+  padding: 0;
+}
+
+.wb-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  color: var(--wb-signal);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.wb-kicker::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--wb-signal);
+  opacity: 0.7;
+}
+
+.wb-h1 {
+  margin: 0 0 10px;
+  font-family: var(--wb-serif);
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.wb-h1 em {
+  font-style: normal;
+  background-image: linear-gradient(90deg, var(--wb-signal), #ffe0b0 55%, var(--wb-ice));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.wb-h2 {
+  margin: 0;
+  font-family: var(--wb-serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.wb-lede {
+  max-width: 68ch;
+  margin: 0 0 22px;
+  color: var(--wb-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.wb-pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.wb-pagehead-copy {
+  min-width: 0;
+  flex: 1 1 520px;
+}
+
+.wb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Primitives
+   ───────────────────────────────────────────────────────────────────────────*/
+
+.wb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: var(--wb-r-sm);
+  background: transparent;
+  color: var(--wb-ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.wb-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.wb-btn.primary {
+  background: var(--wb-signal);
+  color: var(--wb-signal-ink);
+  box-shadow: 0 8px 28px rgba(255, 179, 92, 0.16);
+}
+
+.wb-btn.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 34px rgba(255, 179, 92, 0.24);
+}
+
+.wb-btn.secondary {
+  border-color: var(--wb-line-2);
+  background: var(--wb-panel-2);
+  color: var(--wb-ink);
+}
+
+.wb-btn.ghost {
+  border-color: var(--wb-line-2);
+  background: #0d1018;
+  color: var(--wb-ink);
+}
+
+.wb-btn.ghost:hover:not(:disabled) {
+  border-color: var(--wb-line-3);
+  background: #121620;
+}
+
+.wb-btn.quiet {
+  color: var(--wb-muted);
+}
+
+.wb-btn.quiet:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--wb-ink);
+}
+
+.wb-btn.danger {
+  border-color: rgba(255, 142, 142, 0.34);
+  color: var(--wb-red);
+}
+
+.wb-btn.sm {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: var(--wb-r-xs);
+  font-size: 12px;
+}
+
+.wb-btn.wide {
+  width: 100%;
+}
+
+.wb-panel {
+  min-width: 0;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r);
+  background: var(--wb-panel);
+}
+
+.wb-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--wb-line);
+}
+
+.wb-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--wb-ink);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+}
+
+.wb-panel-meta {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-panel-body {
+  padding: 16px;
+}
+
+.wb-panel-body.flush {
+  padding: 0;
+}
+
+.wb-mono {
+  font-family: var(--wb-mono);
+}
+
+.wb-page.is-embedded {
+  padding-top: 0;
+}
+
+.wb-page.is-embedded > .wb-pagehead {
+  display: none;
+}
+
+.wb-muted {
+  color: var(--wb-muted);
+}
+
+.wb-muted-2 {
+  color: var(--wb-muted-2);
+}
+
+.wb-small {
+  font-size: 12px;
+}
+
+.wb-caption {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 9px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-pill);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--wb-muted);
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.wb-chip.is-active {
+  border-color: var(--wb-signal-line);
+  background: var(--wb-signal-soft);
+  color: var(--wb-signal);
+}
+
+.wb-chip.is-green {
+  border-color: rgba(130, 224, 176, 0.26);
+  background: var(--wb-green-soft);
+  color: var(--wb-green);
+}
+
+.wb-chip.is-amber {
+  border-color: rgba(255, 204, 128, 0.26);
+  background: var(--wb-amber-soft);
+  color: var(--wb-amber);
+}
+
+.wb-chip.is-red {
+  border-color: rgba(255, 142, 142, 0.26);
+  background: var(--wb-red-soft);
+  color: var(--wb-red);
+}
+
+.wb-chip.is-ice {
+  border-color: var(--wb-ice-line);
+  background: var(--wb-ice-soft);
+  color: var(--wb-ice);
+}
+
+.wb-chip.is-violet {
+  border-color: rgba(185, 167, 255, 0.26);
+  background: var(--wb-violet-soft);
+  color: var(--wb-violet);
+}
+
+button.wb-chip {
+  cursor: pointer;
+}
+
+button.wb-chip:hover {
+  border-color: var(--wb-line-3);
+  color: var(--wb-ink);
+}
+
+button.wb-chip[aria-pressed="true"] {
+  border-color: var(--wb-signal-line);
+  background: var(--wb-signal-soft);
+  color: var(--wb-signal);
+}
+
+.wb-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.wb-tag {
+  padding: 2px 7px;
+  border: 1px solid var(--wb-line);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--wb-muted-2);
+  font: 9px/1.5 var(--wb-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wb-divider {
+  height: 1px;
+  margin: 16px 0;
+  border: 0;
+  background: var(--wb-line);
+}
+
+.wb-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.wb-kpi {
+  min-width: 0;
+  padding: 14px 16px 15px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r);
+  background: linear-gradient(180deg, var(--wb-panel-2), var(--wb-panel));
+}
+
+.wb-kpi-k {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wb-kpi-v {
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.wb-kpi-v.is-green {
+  color: var(--wb-green);
+}
+
+.wb-kpi-v.is-amber {
+  color: var(--wb-amber);
+}
+
+.wb-kpi-v.is-red {
+  color: var(--wb-red);
+}
+
+.wb-kpi-v.is-signal {
+  color: var(--wb-signal);
+}
+
+.wb-kpi-d {
+  margin-top: 5px;
+  color: var(--wb-muted);
+  font-size: 11px;
+}
+
+.wb-ring {
+  --wb-ring-size: 62px;
+  --wb-ring-color: var(--wb-green);
+  --wb-ring-track: #241f27;
+  --wb-ring-value: 0;
+  position: relative;
+  display: grid;
+  width: var(--wb-ring-size);
+  height: var(--wb-ring-size);
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--wb-ring-color) calc(var(--wb-ring-value) * 1%),
+    var(--wb-ring-track) 0
+  );
+}
+
+.wb-ring::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--wb-panel);
+}
+
+.wb-ring > span {
+  position: relative;
+  z-index: 1;
+  color: var(--wb-ink);
+  font: 11px/1 var(--wb-mono);
+  font-weight: 600;
+}
+
+.wb-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* FormField supplies the stable label/control/description relationships. Keep
+   its composition visually aligned with the compact Nocturne workbench fields. */
+.wb-field[data-rcl-form-field] {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-label-row] {
+  display: contents;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-label] {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-optional] {
+  display: none;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-control-slot] {
+  min-width: 0;
+}
+
+.wb-field[data-rcl-form-field] [data-rcl-form-field-description] {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-field > label,
+.wb-field > span,
+.wb-label {
+  color: var(--wb-muted-2);
+  font: 10px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wb-input,
+.wb-select,
+.wb-textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-xs);
+  background: #0d1018;
+  color: var(--wb-ink);
+  font: 13px/1.4 var(--wb-sans);
+}
+
+.wb-input::placeholder,
+.wb-textarea::placeholder {
+  color: var(--wb-muted-2);
+}
+
+.wb-input:focus,
+.wb-select:focus,
+.wb-textarea:focus {
+  border-color: var(--wb-signal);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 179, 92, 0.14);
+}
+
+.wb-textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.wb-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: #0d1018;
+}
+
+.wb-search:focus-within {
+  border-color: var(--wb-signal);
+  box-shadow: 0 0 0 3px rgba(255, 179, 92, 0.12);
+}
+
+.wb-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--wb-ink);
+  font: 13px/1.4 var(--wb-sans);
+}
+
+.wb-search input::placeholder {
+  color: var(--wb-muted-2);
+}
+
+.wb-seg {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-sm);
+  background: #0d1018;
+}
+
+.wb-seg[data-rcl-button-group][data-variant="segmented"] {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 3px;
+  border: 1px solid var(--wb-line);
+  border-radius: var(--wb-r-sm);
+  background: #0d1018;
+}
+
+.wb-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--wb-muted);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.wb-seg button[aria-pressed="true"] {
+  background: var(--wb-panel-3);
+  color: var(--wb-ink);
+  box-shadow: inset 0 0 0 1px var(--wb-line-2);
+}
+
+.wb-empty {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--wb-muted);
+  text-align: center;
+}
+
+.wb-empty-title {
+  color: var(--wb-ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.wb-empty p {
+  max-width: 48ch;
+  color: var(--wb-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.wb-skeleton {
+  border-radius: var(--wb-r-xs);
+  background: linear-gradient(90deg, #1a1721 25%, #241f2b 37%, #1a1721 63%);
+  background-size: 400% 100%;
+  animation: wb-shimmer 1.4s ease infinite;
+}
+
+@keyframes wb-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.wb-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: var(--wb-r-sm);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--wb-ink-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.wb-banner.is-red {
+  border-color: rgba(255, 142, 142, 0.3);
+  background: var(--wb-red-soft);
+}
+
+.wb-banner.is-amber {
+  border-color: rgba(255, 204, 128, 0.3);
+  background: var(--wb-amber-soft);
+}
+
+.wb-banner.is-ice {
+  border-color: var(--wb-ice-line);
+  background: var(--wb-ice-soft);
+}
+
+.wb-banner b {
+  color: var(--wb-ink);
+}
+
+.wb-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* Compact readout used by Stats and Library cards, independent of the Design
+   index route's stylesheet. */
+.wb-root .wb-health {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wb-root .wb-health-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wb-root .wb-health-copy b {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.wb-root .wb-health-copy span {
+  color: var(--wb-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.wb-root .wb-health-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: var(--wb-signal);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wb-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.wb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.wb-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wb-stack {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.wb-stack.tight {
+  gap: 8px;
+}
+
+.wb-spacer {
+  flex: 1;
+}
+
+.wb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1100px) {
+  .wb-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .wb-topbar {
+    height: 54px;
+    padding: 0 14px;
+  }
+
+  .wb-command {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .wb-command span,
+  .wb-command kbd {
+    display: none;
+  }
+
+  .wb-page {
+    padding: 20px 16px 104px;
+  }
+
+  .wb-h1 {
+    font-size: clamp(30px, 9vw, 42px);
+  }
+
+  .wb-grid-2,
+  .wb-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .wb-crumb {
+    flex: 1 1 0;
+  }
+
+  .wb-top-actions {
+    flex: 0 0 auto;
+  }
+
+  /* A title, a count and an action cannot share 320px. Wrapping keeps the
+     action reachable instead of pushing it past the viewport. */
+  .wb-panel-head {
+    flex-wrap: wrap;
+  }
+
+  /* Four full-width KPI cards push the actual work below the fold on a
+     phone. Two columns keep the numbers scannable without the scroll. */
+  .wb-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .wb-kpi {
+    padding: 11px 12px;
+  }
+
+  .wb-pagehead {
+    gap: 12px;
+  }
+
+  .wb-actions {
+    width: 100%;
+  }
+
+  .wb-actions .wb-btn {
+    flex: 1;
+  }
+
+  .wb-shell-utility {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-root *,
+  .wb-root *::before,
+  .wb-root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .wb-panel,
+  .wb-kpi,
+  .wb-btn,
+  .wb-chip,
+  .wb-input,
+  .wb-select {
+    border-color: CanvasText;
+  }
+
+  /* RCL's control surface keeps its own background through forced colors, so
+     Chromium paints the label as a solid block. Opt this one family out and
+     supply the system pair explicitly. */
+  .wb-btn.primary {
+    forced-color-adjust: none;
+    background: Highlight !important;
+    border-color: Highlight !important;
+    color: HighlightText !important;
+  }
+
+  .wb-btn.primary svg {
+    forced-color-adjust: none;
+    color: HighlightText !important;
+  }
+
+  .wb-btn.primary[data-control-below-tap-target="true"] {
+    border-color: Highlight !important;
+  }
+
+  /* Forced colors flattens background colors, so purely graphical marks need
+     an explicit outline to remain meaning-bearing. */
+  .tpl-swatch,
+  .wb-meter,
+  .wb-matrix-cell,
+  .wb-swatch {
+    border: 1px solid CanvasText;
+  }
+
+  .tpl-divider,
+  .wb-meter-fill {
+    background: CanvasText !important;
+  }
+}
+
+/* Persisted local preferences (Settings). */
+:root[data-wb-density="compact"] .wb-page {
+  padding-top: 22px;
+}
+
+:root[data-wb-density="compact"] .wb-kpi {
+  padding: 11px 13px;
+}
+
+:root[data-wb-density="compact"] .wb-panel-body {
+  padding: 12px;
+}
+
+:root[data-wb-density="compact"] .wb-home-row,
+:root[data-wb-density="compact"] .wb-list-row,
+:root[data-wb-density="compact"] .wb-event {
+  padding-block: 8px;
+}
+
+:root[data-wb-reduce-motion="true"] .wb-root *,
+:root[data-wb-reduce-motion="true"] .wb-root *::before,
+:root[data-wb-reduce-motion="true"] .wb-root *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* The shortcut hint inside the one search field. It is a label for the global
+   palette binding, not a second control. */
+.wb-search-kbd {
+  flex: none;
+  padding: 2px 5px;
+  border: 1px solid var(--wb-line-2);
+  border-radius: 4px;
+  background: #121018;
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+}
+
+.wb-search-modes,
+.wb-search-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.wb-search-modes .wb-btn[aria-pressed="true"] {
+  color: var(--wb-text);
+  border-color: var(--wb-accent);
+}
+
+.wb-search-answer {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--wb-border);
+  border-radius: 12px;
+  background: var(--wb-panel-2);
+}
+
+.wb-search-answer p {
+  margin: 8px 0 10px;
+  line-height: 1.55;
+}

@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"database/sql"
+
+	"git-control-tower/internal/dbschema"
 )
 
 // DBChecker abstracts database health checks to enable testing without a real database.
@@ -24,12 +25,12 @@ type DBChecker interface {
 // SQLDBChecker implements DBChecker by wrapping a *sql.DB.
 // This is the production implementation used when the API is running.
 type SQLDBChecker struct {
-	db *sql.DB
+	db dbschema.DB
 }
 
 // NewSQLDBChecker creates a DBChecker from a *sql.DB.
 // Returns a checker that reports unconfigured if db is nil.
-func NewSQLDBChecker(db *sql.DB) DBChecker {
+func NewSQLDBChecker(db dbschema.DB) DBChecker {
 	return &SQLDBChecker{db: db}
 }
 

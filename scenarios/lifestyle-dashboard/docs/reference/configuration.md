@@ -147,7 +147,6 @@ LD_HEALTH_CHECK_TIMEOUT_SECS=5   # Domain health check timeout
 
 # Standard scenario variables (managed by Vrooli)
 API_PORT=15881                   # API server port
-SQLITE_PATH=/data/lifestyle.db   # Database file path
 ```
 
 ---

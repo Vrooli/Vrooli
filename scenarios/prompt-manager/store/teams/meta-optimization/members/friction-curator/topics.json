@@ -1,0 +1,43 @@
+{
+  "loop_kind": "queue",
+  "intake": [
+    {
+      "prefix": "friction-inbox/*",
+      "taxonomy": "friction-report",
+      "source_team": "*"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "friction-inbox/<scope>/<slug>"
+    },
+    {
+      "prefix": "friction-triage-record/<YYYY-MM-DD>"
+    }
+  ],
+  "output": [
+    {
+      "prefix": "friction-report/toolchain/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-report/run-execution/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-report/prompt-team-agent-storage/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-report/recurring-workaround/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "friction-triage-record/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "external_producers": [
+    "report-friction"
+  ]
+}

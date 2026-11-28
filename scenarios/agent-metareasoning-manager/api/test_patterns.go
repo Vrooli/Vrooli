@@ -1,5 +1,3 @@
-// +build testing
-
 package main
 
 import (
@@ -134,22 +132,6 @@ func invalidPlatformPattern(urlPath string) ErrorTestPattern {
 	}
 }
 
-// invalidWorkflowIDPattern tests handlers with invalid workflow ID
-func invalidWorkflowIDPattern(urlPath string) ErrorTestPattern {
-	return ErrorTestPattern{
-		Name:           "InvalidWorkflowID",
-		Description:    "Test handler with invalid workflow ID",
-		ExpectedStatus: http.StatusBadRequest,
-		Execute: func(t *testing.T, setupData interface{}) *HTTPTestRequest {
-			return &HTTPTestRequest{
-				Method:  "POST",
-				Path:    urlPath,
-				URLVars: map[string]string{"platform": "n8n", "workflowId": ""},
-			}
-		},
-	}
-}
-
 // nonExistentWorkflowPattern tests handlers with non-existent workflow
 func nonExistentWorkflowPattern(urlPath string) ErrorTestPattern {
 	return ErrorTestPattern{
@@ -247,12 +229,12 @@ func (b *TestScenarioBuilder) Build() []ErrorTestPattern {
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}) time.Duration
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}) time.Duration
+	Cleanup     func(setupData interface{})
 }
 
 // ConcurrencyTestPattern defines concurrency testing scenarios

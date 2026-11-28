@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
@@ -80,13 +81,21 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
     expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Variant variant-a');
   });
 
-  it('[REQ:ADMIN-BREADCRUMB] should render breadcrumb for section editor', () => {
+  it('[REQ:ADMIN-BREADCRUMB] labels legacy section bookmarks as presentation editing', () => {
     renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>, { route: '/admin/customization/variants/variant-a/sections/1' });
 
     expect(screen.getByTestId('breadcrumb-0')).toHaveTextContent('Admin');
     expect(screen.getByTestId('breadcrumb-1')).toHaveTextContent('Customization');
     expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('Variant variant-a');
-    expect(screen.getByTestId('breadcrumb-3')).toHaveTextContent('Section 1');
+    expect(screen.getByTestId('breadcrumb-3')).toHaveTextContent('Presentation');
+    expect(screen.queryByText('Section 1')).toBeNull();
+  });
+
+  it('[REQ:ADMIN-BREADCRUMB] renders typed presentation breadcrumbs with the selected variant', () => {
+    renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>, { route: '/admin/presentation/variant-a' });
+    expect(screen.getByTestId('breadcrumb-0')).toHaveTextContent('Admin');
+    expect(screen.getByTestId('breadcrumb-1')).toHaveTextContent('Presentation');
+    expect(screen.getByTestId('breadcrumb-2')).toHaveTextContent('variant-a');
   });
 
   it('should render children content', () => {
@@ -111,6 +120,29 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
   it('should display brand name in header', () => {
     renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
 
-    expect(screen.getByText('Landing Manager')).toBeInTheDocument();
+    expect(screen.getByText('Landing Page Business Suite')).toBeInTheDocument();
+  });
+
+  it('opens the searchable admin page directory and navigates with the keyboard', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
+
+    await user.click(screen.getByTestId('admin-search-trigger'));
+    const input = screen.getByTestId('admin-search-input');
+    await user.type(input, 'branding');
+
+    expect(screen.getByTestId('admin-search-result-branding')).toBeInTheDocument();
+    expect(screen.queryByTestId('admin-search-result-coupons')).toBeNull();
+
+    await user.keyboard('{Enter}');
+    expect(screen.getByTestId('admin-breadcrumb')).toHaveTextContent('Branding');
+  });
+
+  it('opens the search palette with the command shortcut', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
+
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.getByTestId('admin-search-input')).toBeInTheDocument();
   });
 });

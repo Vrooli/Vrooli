@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Check, Copy } from "lucide-react";
-import { useCodeCopy } from "../hooks/useCodeCopy";
+import { useClipboardFeedback } from "../../../hooks/useClipboardFeedback";
 
 interface InlineCodeProps {
   children: ReactNode;
@@ -9,7 +9,7 @@ interface InlineCodeProps {
 
 export function InlineCode({ children }: InlineCodeProps) {
   const textContent = useMemo(() => extractTextContent(children), [children]);
-  const { status, copyCode } = useCodeCopy(textContent);
+  const { status, copyText } = useClipboardFeedback();
   const isCopied = status === "copied";
   const isError = status === "error";
 
@@ -19,7 +19,7 @@ export function InlineCode({ children }: InlineCodeProps) {
       {textContent ? (
         <button
           type="button"
-          onClick={copyCode}
+          onClick={() => { void copyText(textContent); }}
           className={`ml-1 inline-flex align-middle opacity-0 group-hover:opacity-100 transition-opacity ${
             isError ? "text-destructive" : "text-muted-foreground hover:text-foreground"
           }`}

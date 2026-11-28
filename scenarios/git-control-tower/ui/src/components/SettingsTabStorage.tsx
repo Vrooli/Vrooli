@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2, Loader2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useCaptureStorageStats, useClearAllCaptureStorage, useDeleteVisualCapture } from "../lib/hooks";
 
 interface SettingsTabStorageProps {
@@ -103,7 +103,7 @@ export function SettingsTabStorage({ isMobile, repoId }: SettingsTabStorageProps
             <div className="flex items-center gap-2">
               <span className={`text-red-400 ${textXs}`}>Clear all capture data?</span>
               <Button
-                variant="destructive"
+                variant="danger"
                 size="sm"
                 className="h-7 px-3 text-xs"
                 onClick={() => {
@@ -115,20 +115,22 @@ export function SettingsTabStorage({ isMobile, repoId }: SettingsTabStorageProps
                 {clearAll.isPending ? "Clearing..." : "Confirm"}
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="h-7 px-3 text-xs"
                 onClick={() => setConfirmClear(false)}
+                style={{ background: "transparent" }}
               >
                 Cancel
               </Button>
             </div>
           ) : (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className="h-7 px-3 text-xs text-red-400 border-red-900/50 hover:bg-red-950/30"
               onClick={() => setConfirmClear(true)}
+              style={{ background: "transparent" }}
             >
               <Trash2 className="h-3 w-3 mr-1.5" />
               Clear All Snapshots

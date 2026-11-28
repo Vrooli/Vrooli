@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.dispatch;
+
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch;dispatch_v1";
+
+// =============================================================================
+// DISPATCH DOMAIN — the safety gate for remote execution (OT-P0-004)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the DispatchService: the owner asks the control plane to
+// run a typed job — {scenario, verb, args} — on a target node. Dispatch is the
+// allowlist gate: before anything runs it validates the verb against the
+// scenario-CLI manifest's allowlist AND the target node's granted
+// verb-namespace scopes (e.g. "scenario test*" yes, "secrets*" /
+// "scenario deploy*" no), and it NEVER constructs a raw shell string — the job
+// is carried as the typed channel.JobPush envelope to the node-agent, which
+// re-validates against its local manifest and shells via an argv (no `sh -c`).
+//
+// On a valid dispatch the control plane creates a durable Run (runs domain),
+// writes an append-only audit record (audit domain), and pushes the JobPush
+// down the node's held dial-out channel. The response carries the run id; the
+// operator then blocks on `runs wait <id>`.
+//
+// Dry-run: DispatchJob honours X-Dry-Run (cli-core sets it on `--dry-run`). It
+// validates the job and target, then short-circuits with dry_run=true BEFORE
+// creating a run, writing audit, or pushing anything to the node.
+//
+// Consumed by:
+//   - API: handlers/dispatch/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/dispatch/handlers.go via the generated Connect-Go client.
+// =============================================================================
+
+service DispatchService {
+  // DispatchJob validates {scenario, verb, args} against the allowlist + the
+  // node's scopes, creates a durable run, audits the dispatch, and pushes the
+  // typed job to the node. Owner-gated. An undeclared/out-of-scope verb is
+  // rejected with PermissionDenied (and audited as rejected) before any run is
+  // created. A target that is unknown/revoked/offline is rejected with the
+  // matching Connect code. Honours X-Dry-Run.
+  rpc DispatchJob(DispatchJobRequest) returns (DispatchJobResponse);
+}
+
+message DispatchJobRequest {
+  // Target node (registry id). Must be a known, non-revoked, online node.
+  string node_id = 1;
+
+  // The typed job. `verb` is a manifest-declared verb namespace (e.g.
+  // "scenario test"); `args` are typed tokens (e.g. ["web-search"]). Neither is
+  // ever joined into a shell string.
+  string scenario = 2;
+  string verb = 3;
+  repeated string args = 4;
+
+  // Wall-clock budget after which the node aborts the run. 0 uses the server
+  // default dispatch timeout.
+  int64 timeout_seconds = 5;
+
+  // Optional device scope for verbs that reach an attached device through the
+  // target host. Bridge stores only the short-lived authorization record; the
+  // device-control scenario remains the authority for lease semantics.
+  string device_id = 6;
+  string lease_token = 7;
+
+  // Metadata-only mappings for ephemeral credentials. The node validates its
+  // local grant and injects the value into this job's child environment.
+  repeated CredentialInjection credential_injections = 8;
+}
+
+message CredentialInjection {
+  string logical_id = 1;
+  string field = 2;
+  string env_name = 3;
+}
+
+message DispatchJobResponse {
+  // The server-owned durable run id to wait on / re-attach by. Empty on a
+  // dry-run (no run is created).
+  string run_id = 1;
+
+  // True when X-Dry-Run short-circuited: the job validated and would have been
+  // dispatched, but no run was created, no audit written, and nothing pushed.
+  bool dry_run = 2;
+
+  // Echo of the validated job, so the caller can confirm exactly what was (or
+  // would be) dispatched.
+  string node_id = 3;
+  string scenario = 4;
+  string verb = 5;
+  repeated string args = 6;
+
+  // True when the server accepted the job into the node's durable queue but
+  // has not pushed it to the node yet.
+  bool queued = 7;
+}

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remove one stored BAS execution?</title>
+<style>
+  .eyebrow { margin: 0 0 .25rem; color: var(--hub-muted); font-size: .8125rem; }
+  .verdict { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .25rem 0 1rem; }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+  .stat { border: 1px solid var(--hub-border); border-radius: var(--hub-radius); padding: .875rem; background: var(--hub-surface); color: var(--hub-fg); }
+  .stat strong { display: block; font-size: 1.5rem; line-height: 1.2; }
+  .stat span { display: block; margin-top: .375rem; color: var(--hub-muted); }
+  .boundary { padding: .875rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius); background: var(--hub-surface-muted); color: var(--hub-fg); }
+  .boundary p { margin: .35rem 0 0; }
+  .cause { margin: 1rem 0; }
+  @media (max-width: 360px) { .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Browser Automation Studio · stored private conversation text</p>
+  <h1>Build a safe way to remove one execution, then delete it?</h1>
+  <div class="verdict"><span class="hub-chip is-primary">I recommend yes</span><span>It removes the stored text without putting thousands of unrelated runs at risk.</span></div>
+
+  <div class="stats" aria-label="What is stored and what the current cleanup would affect">
+    <div class="stat"><strong>1 execution</strong><span>Contains text from an unrelated live terminal conversation</span></div>
+    <div class="stat"><strong>6,121 unrelated runs</strong><span>Would be deleted by the current workflow cleanup preview</span></div>
+  </div>
+  <div class="boundary">
+    <strong>The safe boundary</strong>
+    <p>Build a cleanup path for this single execution. Delete only files proven to belong to it alone; preserve shared or uncertain files. Have someone else review the path before deletion.</p>
+  </div>
+
+  <h2>Why this decision exists</h2>
+  <p class="cause">A BAS test opened the wrong live terminal conversation and saved its text in a recorded execution. The worker has removed its local output and stopped capturing, but the execution remains stored. The available cleanup tool selects by age, workflow, or project, and its preview for this workflow includes 6,121 unrelated runs. The underlying problem is that BAS has no safe one-execution cleanup path yet.</p>
+
+  <h2>Your choices</h2>
+  <div class="hub-tradeoffs">
+    <section class="is-recommended">
+      <span class="hub-chip is-primary">Recommended</span>
+      <h3>Build, review, then remove this one</h3>
+      <p>First create and independently review a cleanup path that targets exactly this execution and its exclusively owned files. Then remove it and verify unrelated runs remain. The deletion cannot be undone; if the target or file ownership is unclear, the worker stops without deleting.</p>
+      <button type="button" data-answer="clean">Choose this</button>
+    </section>
+    <section>
+      <h3>Hold and keep it stored</h3>
+      <p>Leave the execution in BAS. BAS stays out of this proof until a safe cleanup path exists; other work continues. The private text remains stored for now.</p>
+      <button type="button" class="is-quiet" data-answer="hold">Choose this</button>
+    </section>
+  </div>
+
+  <h2>What approval sets in motion</h2>
+  <p>The worker will build the exact cleanup path, get an independent review, and delete only this execution after the safety checks pass. It will stop without deletion if the target is ambiguous or any file may be shared. This does not permit deleting other runs.</p>
+  <div class="hub-callout is-warning"><strong>If you do not answer,</strong> the result is hold: the execution stays stored and BAS is not used for this proof until a safe path exists. Other work continues.</div>
+
+  <details>
+    <summary>Where these facts come from</summary>
+    <p>The existing workflow cleanup preview includes 6,121 unrelated runs. The worker already deleted its local output files and stopped further captures. The recorded execution is still in BAS.</p>
+  </details>
+
+  <script>
+    document.addEventListener("click", function (e) {
+      var button = e.target.closest && e.target.closest("[data-answer]");
+      if (button && window.hub && window.hub.prefill) {
+        window.hub.prefill("answer", button.getAttribute("data-answer"));
+      }
+    });
+  </script>
+</body>
+</html>

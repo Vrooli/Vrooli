@@ -27,7 +27,7 @@ type TelemetryChainParams struct {
 type DefaultTelemetryChainExecutor struct {
 	telemetryResolver TelemetryPathResolver
 	telemetryIngestor TelemetryIngestor
-	config            Config
+	config            SmokeTestConfig
 	logger            Logger
 }
 
@@ -35,7 +35,7 @@ type DefaultTelemetryChainExecutor struct {
 func NewTelemetryChainExecutor(
 	telemetryResolver TelemetryPathResolver,
 	telemetryIngestor TelemetryIngestor,
-	config Config,
+	config SmokeTestConfig,
 	logger Logger,
 ) *DefaultTelemetryChainExecutor {
 	return &DefaultTelemetryChainExecutor{

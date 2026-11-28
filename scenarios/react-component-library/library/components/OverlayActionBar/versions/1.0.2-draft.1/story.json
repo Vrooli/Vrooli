@@ -1,0 +1,186 @@
+{
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "FiveGermanActions",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-overlay-action-bar] \u003e button",
+          "value": "2"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-overflow-trigger]"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-overlay-action-bar]"
+        }
+      ],
+      "geometry": {
+        "height": "240px",
+        "width": "390px"
+      },
+      "id": "five-german-actions",
+      "mode": "live",
+      "name": "Five long German actions at phone width",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "MissingIDs",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-overlay-action-bar]"
+        }
+      ],
+      "geometry": {
+        "height": "240px",
+        "width": "390px"
+      },
+      "id": "missing-ids",
+      "mode": "live",
+      "name": "Missing stable ids are reported",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PseudoLocalisedLabels",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-overflow-trigger]"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-overlay-action-bar]"
+        }
+      ],
+      "geometry": {
+        "height": "240px",
+        "width": "390px"
+      },
+      "id": "pseudo-localised-labels",
+      "mode": "live",
+      "name": "Pseudo-localised labels retain one row",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "FiveGermanActions",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-overflow-menu]"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-overflow-menu] [role=\"menuitem\"]",
+          "value": "3"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-overlay-action-bar]"
+        }
+      ],
+      "geometry": {
+        "height": "240px",
+        "width": "390px"
+      },
+      "id": "overflow-open",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-overflow-trigger]"
+          }
+        }
+      ],
+      "mode": "live",
+      "name": "Overflow opens for the remaining three actions",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ActionTones",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-overlay-action-bar]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-action-id=\"delete\"][data-tone=\"destructive\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-action-id=\"cancel\"][data-tone=\"default\"]"
+        },
+        {
+          "kind": "layout",
+          "noOverflow": true,
+          "selector": "[data-rcl-overlay-action-bar]"
+        }
+      ],
+      "geometry": {
+        "height": "240px",
+        "width": "390px"
+      },
+      "id": "action-tones",
+      "mode": "live",
+      "name": "Default and destructive action tones remain distinct",
+      "role": "boundary"
+    }
+  ]
+}

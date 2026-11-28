@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-ipad-mini-screen-uv-normalization-v1",
+  "source": {
+    "staged_name": "ipad-mini-neutral-screen.glb",
+    "sha256": "8cd65349dcd38cb4f47fd897779db97dbbbf0fc7f6c81cd6c2ab05eaa6b47b5e",
+    "size_bytes": 1938260,
+    "original_source_sha256": "a462088b7bd84b7752802c109beee04110047c3b1a4f355624c863f790e93d5e",
+    "neutral_screen_sha256": "3cf4703017eeeac32557bf6712cca55514457ff9f20ea6082f2185142b703cf6",
+    "screen_binding": {
+      "node_index": 14,
+      "mesh_index": 10,
+      "primitive_index": 0,
+      "material_index": 10,
+      "texture_index": 1,
+      "image_index": 1,
+      "uv_min": [
+        0.001012146,
+        -0.001258582
+      ],
+      "uv_max": [
+        0.998987794,
+        1.001258969
+      ]
+    }
+  },
+  "normalization": {
+    "uv_min": [
+      0.0010121464729309082,
+      -0.0012585818767547607
+    ],
+    "uv_max": [
+      0.9989877939224243,
+      1.0012589693069458
+    ],
+    "uv_to_position_xy_affine": [
+      0.5973256061711186,
+      1.0023138733032802e-08,
+      -0.2986508529780744,
+      -4.765312755505846e-09,
+      0.8985561453667515,
+      -0.4613478616839823
+    ],
+    "max_uv_position_residual_m": 1e-06,
+    "normalized_uv_sha256": "4b9b15c7a64ebc993ee6dc3879d80d6498d77250e0cfd8579d7b2301844f1953",
+    "invariants": "Preserve existing BIN bytes, all non-screen accessors, hierarchy, meshes, material and images; append one standalone normalized TEXCOORD_0 view and repoint only screen accessor 36.",
+    "node_count": 18,
+    "mesh_count": 13,
+    "vertex_count": 74,
+    "uv_fit_max_residual_m_observed": 4.670761220994499e-07
+  },
+  "output": {
+    "glb_name": "ipad-mini-screen-uv-normalized.glb",
+    "receipt_name": "ipad-screen-uv-normalization.json",
+    "max_bytes": 4194304
+  },
+  "rights_and_claims": {
+    "attribution": "iPad mini 6 2021 by DatSketch, adapted under CC BY 4.0.",
+    "modification": "Starting from the neutral-screen derivative, add a private aligned TEXCOORD_0 accessor normalized from the measured source chart envelope. Existing BIN bytes, mesh positions, all non-screen accessors, hierarchy, materials and images are preserved.",
+    "limits": "Candidate-only geometry mapping adaptation. Not manufacturer CAD, independently measured device dimensions, physical qualification, or Apple endorsement."
+  }
+}

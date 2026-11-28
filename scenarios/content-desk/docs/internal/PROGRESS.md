@@ -1,0 +1,41 @@
+# Progress — Content Desk
+
+| 2026-11-21 | MP2 steward-engine-o14-20261120 | partial | Added `/content` search/status filters over native drafts and exact-draft Review links. Added the projects API domain (active list/create), soft-reference validation when creating drafts, and project selection/creation in campaign-free Create. The artifacts API still preserves explicit Unassigned by default and does not infer project scope for old drafts. UI suite (26 files/117 tests), API `go test ./...`, selector/string/type checks, and committed proto verification pass; full collections, Plan/Review/Learn and 47-state acceptance remain open. |
+| 2026-11-21 | MP2 steward-engine-o14-20261120 | partial | Added `/plan` as an intent summary of drafts, campaigns and projects, and `/learn` as a read-only view over published records and current per-draft metric projections. Plan clearly separates intent from time reservation/provider scheduling; Learn leaves missing and unavailable measurements unknown. UI suite (28 files/122 tests), type-check and generated-catalog checks pass. Full Plan reservation support, Learn observation provenance/interpretation and the selected 47-state journey remain open. |
+
+Historical details: `plan-artifacts/docs-html-progress-20260908/scenarios/content-desk/docs/internal/PROGRESS.md`. See the [runtime-home retention contract](../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract) for backup custody and readiness semantics.
+Copied July 7 template history was removed from this scenario’s log.
+
+Lifecycle log for meaningful scenario changes. Future agents read this
+file to understand what changed without reconstructing history from git.
+
+This is the durable handoff log for landed work; entries distinguish completed
+behavior from follow-on work still owned elsewhere.
+
+## Progress Log
+
+| Date | Author | Status | Summary |
+|---|---|---|---|
+| 2026-11-21 | MP2 steward-engine-o14-20261120 | partial | Added an additive `/review` entry surface around the existing exact-draft review workbench; Today now separates approved release-ready drafts from its waiting/blocked list. The read-only challenger found approved work had been mislabeled as waiting and campaign-free Create accepted empty text/inactive registered types; the implementation now separates approved items, requires non-empty text, and restricts campaign-free admission to active types. Focused regression checks pass; full 0.3 Review queue remains open. |
+| 2026-11-21 | MP2 steward-engine-o14-20261120 | partial | Added `/create` as a truthful one-off draft surface: it reads active native post types, creates an X post draft without a campaign, and assigns new drafts an explicit `unassigned` project reference through the additive `draft_project_refs` relation. It does not approve, schedule, or publish. Focused API/UI checks pass; project creation, assignment, filters, the rest of the 0.3 workspace and 47-state acceptance remain open. |
+| 2026-11-21 | MP2 steward-engine-o14-20261120 | partial | Repository draft admission now accepts campaign-free drafts: it skips campaign-slot reservation when no campaign is selected and abandonment does not decrement a nonexistent slot. A focused regression test confirms no slot is consumed or released. Project/Unassigned ownership, the Create page, and selected-state coverage remain open; this slice does not claim the full one-off requirement. |
+| 2026-11-21 | MP2 steward-engine-o14-20261120 | partial | Added `/today` backed by native draft-list data, honest quiet/loading/unavailable states, exact draft-ID resume routing into the current workbench, and a first desktop/phone composition. Reused RCL controls and locale catalogs. The 47-state source package and original selected visuals remain unavailable; Plan/Create/Review/Learn/Content and state parity remain in progress. No publication or scheduling occurs from this view. |
+| 2026-07-28 | codex | done | Added durable coverage dimensions (`campaign`, `lane`, `channel`, `SKU`) to drafts and exposed ledger contamination and coverage reports over Connect and the discoverable CLI. Coverage reports persisted publish cells and marks stale cells from their latest publish time; repository tests prove fresh and stale outcomes. Post types now persist declared craft/policy failure modes, and review recording refuses missing, extra, or duplicate verdict modes before a run is written. |
+| 2026-07-28 | codex | done | Verified the no-credential boundary over every Content Desk domain schema and Content Desk proto schema: a case-insensitive scan for credential, secret, token, account-handle, API-key, and password terms returned no matches. Credentials and account operations remain outside this scenario. |
+| 2026-07-28 | codex | partial | Completed the operator/agent control-surface slice: the dashboard now reads draft-scoped citations, explains approval blockers from those citations, attaches an existing shared claim to an exact current-body span, and can run a cited claim's verification check. Campaign creation/activation, post-type registration, review verdict recording, draft revision/publish, and claim lifecycle mutations are discoverable through Connect and CLI primitives. Added the paired `content-desk` skill with required post-type-canon reading and an explicit agent no-approval/no-publish boundary. Focused dashboard tests cover attachment and verification actions; claim repository tests cover the draft-scoped read. |
+| 2026-07-28 | codex | partial | Added durable production-ledger behavior across the active content-desk domains: campaign slot reservation is transactional and released exactly once on abandonment; draft revisions are immutable and attributed; approved publishes atomically append a publish record and optional series predecessor link. Claims now preserve evidence, require re-runnable checks for quantitative/existence/status assertions, support verification sweeps, and expire dated novelty evidence. The public Connect and CLI surfaces now support campaign creation/activation, draft revision/publish, and claim create/cite/verify/sweep. The generated `notes` reference domain was removed through `template-manager detemplate`; stale UI navigation and tests were removed with it. Local validation passed API and CLI Go suites, UI type-check and 144 UI tests, endpoint inventory, temporal models, and lifecycle setup. Remaining: agent-facing mutation surfaces for post types and reviews, scenario-specific documentation/calibration, requirement evidence, and full maturity remediation. |
+| 2026-07-28 | claude | done | Scenario generated from `react-vite` 1.6.5 with the `vrooli-default` design kit, replacing the retired `campaign-content-studio` (moved to `/tmp/campaign-content-studio-retired-2026-07-27`, not deleted). Charter authored through the business-health wizard: 14 P0 / 8 P1 / 4 P2 operational targets. Requirements registry built with one module per tier and all 26 requirements enriched with category, tags, and typed validation entries declaring intended evidence — no fabricated refs, every status `planned`. Starter `01-foundation` module removed. Concepts set written: DOMAINS (six real domains plus health, with an explicit not-a-domain table), DATA (ownership, schema map, idempotent import, retention), FLOWS (six flows, three modelled state machines, draft-path diagram), INTEGRATIONS (dependency inventory, deliberate boundaries, failure modes), ARCHITECTURE (layering shape and three invariants). DECISIONS records 11 durable decisions. Validation: `vrooli scenario requirements validate content-desk` PASSED with no findings; `business-health validate scenario content-desk` PASSED; all four contract dimensions at L3. **No implementation code written** — orientation gates 0 and 6–8 remain open. |
+
+## Entry Template
+
+Use this table shape when appending entries.
+
+```markdown
+| YYYY-MM-DD | author | done | Concise summary of the completed change |
+```
+
+## Cross-references
+
+- [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
+- [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map

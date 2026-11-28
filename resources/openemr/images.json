@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "database_version": "12.3.3",
+  "database": "mariadb:12.3.3@sha256:99c125f103f5d081ebbc9ffe064e63daf7f688ac33a5f7f29af2d7260a96debf",
+  "openemr": {
+    "8.4.1": "openemr/openemr@sha256:af4bf44a6f753cf7e28b7b4e2bddd8bf1c0b43fbebe89c73cc204164c0058fc4",
+    "8.5.0": "openemr/openemr:8.5.0@sha256:85c11612314df1be58dcb20a16408593aacf7475bccc8629c43580444d583724"
+  },
+  "license_note": "OpenEMR and MariaDB are third-party software. Validate their applicable licenses and terms before any use beyond local synthetic research."
+}

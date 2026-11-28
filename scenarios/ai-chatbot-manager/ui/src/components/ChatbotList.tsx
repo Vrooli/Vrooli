@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 import type { LucideIcon } from 'lucide-react';
 import {
   Bot,
@@ -173,7 +174,7 @@ function ChatbotList() {
               <dl className="chatbot-meta">
                 <div>
                   <dt>Model</dt>
-                  <dd>{(chatbot.model_config?.model as string) || 'llama3.2'}</dd>
+                  <dd>{(chatbot.model_config?.model as string) || 'chat.default'}</dd>
                 </div>
                 <div>
                   <dt>Created</dt>
@@ -202,10 +203,10 @@ function ChatbotList() {
                     Edit
                   </Link>
                 </div>
-                <button className="ghost-button" onClick={() => copyEmbedCode(chatbot.id)}>
+                <Button className="ghost-button" variant="secondary" onClick={() => copyEmbedCode(chatbot.id)}>
                   <Clipboard size={16} />
                   <span>Copy embed</span>
-                </button>
+                </Button>
               </footer>
             </article>
           ))}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "case_id": "OPS-05",
+  "verdict": "unavailable",
+  "lane": "soak",
+  "requirement_refs": [
+    "STC-P0-043"
+  ],
+  "candidate": {
+    "release_digest": "",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "go test ./perfbudget/ ./certification/ (2026-09-09, PASS, -race)",
+  "artifact_refs": [],
+  "assertions": [
+    "workload retirement (data disposition, access revocation, public route removal) is phase 15's reconciliation/retirement model; not started (P26 standing)"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "soak lane pending EXT-09 (authorised 24-hour staging soak on a disposable target); no soak has run",
+    "real_vps lane pending EXT-01 (authorised disposable VPS); no real target exists",
+    "qemu lane pending EXT-06 (qemu + cloud-localds not installed on the host)",
+    "no retirement operation exists to exercise"
+  ]
+}

@@ -1,0 +1,31 @@
+// Package middleware holds the production middleware stack that wraps
+// the API router. Every middleware accepts its time/log dependencies as
+// parameters so tests can inject fakes.
+package middleware
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/vrooli/api-core/schedule"
+)
+
+// NewLoggingMiddleware returns a middleware that logs each request's
+// method, path, and elapsed duration without query strings or bodies. Time is read from the injected
+// Clock so tests using scheduletest.FakeClock can assert exact durations
+// without depending on the wall schedule. Logger defaults to log.Default()
+// when nil; tests inject a buffer-backed *log.Logger to capture output.
+func NewLoggingMiddleware(clk schedule.Clock, logger *log.Logger) func(http.Handler) http.Handler {
+	if logger == nil {
+		logger = log.Default()
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := clk.Now()
+			next.ServeHTTP(w, r)
+			// Query strings are not needed for request-shape telemetry and can
+			// expose credentials or signaling material supplied by integrations.
+			logger.Printf("[%s] %s %s", r.Method, r.URL.Path, clk.Now().Sub(start))
+		})
+	}
+}

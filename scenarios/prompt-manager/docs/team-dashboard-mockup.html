@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt Manager — Team Dashboard Concept</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d111b;
+      --surface: #151b28;
+      --surface-2: #1b2332;
+      --surface-3: #222d3f;
+      --line: #2e3a4e;
+      --text: #f3f6fb;
+      --muted: #98a6ba;
+      --faint: #6f7d92;
+      --blue: #79a9ff;
+      --blue-soft: #1c355d;
+      --green: #55d39a;
+      --green-soft: #153b31;
+      --amber: #f4c56a;
+      --amber-soft: #493818;
+      --red: #ff8e8e;
+      --red-soft: #4d2028;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .25);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at 15% 0%, #1b2941 0, transparent 32%), var(--bg); color: var(--text); }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1460px; margin: 0 auto; padding: 28px; }
+    .prototype-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+    .prototype-bar h1 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .prototype-bar p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .switcher { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px; border: 1px solid var(--line); background: rgba(21, 27, 40, .88); border-radius: 12px; }
+    .switcher button { border: 0; border-radius: 8px; padding: 8px 11px; color: var(--muted); background: transparent; font-size: 12px; }
+    .switcher button.active { background: var(--blue-soft); color: var(--text); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 22px; align-items: start; }
+    .main { min-width: 0; }
+    .team-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; margin-bottom: 18px; }
+    .identity { display: flex; gap: 14px; align-items: flex-start; }
+    .team-icon { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid #42649a; border-radius: 14px; background: linear-gradient(145deg, #294875, #17253b); color: #b8d2ff; font-size: 23px; box-shadow: var(--shadow); }
+    h2, h3, h4, p { margin-top: 0; }
+    h2 { margin-bottom: 7px; font-size: 25px; letter-spacing: -.04em; }
+    h3 { margin-bottom: 14px; font-size: 15px; letter-spacing: -.01em; }
+    h4 { margin-bottom: 5px; font-size: 13px; }
+    .eyebrow { margin-bottom: 7px; color: var(--blue); font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .subtitle { color: var(--muted); font-size: 13px; }
+    .badges, .actions, .chip-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+    .badge, .chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; color: var(--muted); font-size: 11px; }
+    .badge.good, .chip.good { border-color: #287d60; color: var(--green); background: var(--green-soft); }
+    .badge.warn, .chip.warn { border-color: #896925; color: var(--amber); background: var(--amber-soft); }
+    .badge.bad, .chip.bad { border-color: #8f3c49; color: var(--red); background: var(--red-soft); }
+    .button { border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; color: var(--text); background: var(--surface-2); font-size: 12px; }
+    .button:hover { border-color: var(--blue); background: var(--surface-3); }
+    .button.primary { border-color: #4d79bd; background: var(--blue-soft); }
+    .hero { border: 1px solid #344866; border-radius: 17px; padding: 24px; background: linear-gradient(120deg, rgba(42, 70, 117, .72), rgba(21, 27, 40, .96) 70%); box-shadow: var(--shadow); }
+    .hero-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+    .hero-icon { color: #a8c8ff; font-size: 21px; }
+    .mission { margin: 0; max-width: 780px; color: #e9f1ff; font-size: clamp(20px, 3vw, 29px); line-height: 1.22; letter-spacing: -.035em; }
+    .edit-hint { margin-top: 15px; color: #a9bee1; font-size: 11px; }
+    .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 18px 0 24px; }
+    .stat { min-height: 88px; border: 1px solid var(--line); border-radius: 12px; padding: 13px; background: rgba(21, 27, 40, .86); }
+    .stat-label { color: var(--muted); font-size: 11px; }
+    .stat-value { margin-top: 7px; font-size: 18px; font-weight: 700; letter-spacing: -.03em; }
+    .stat-note { margin-top: 3px; color: var(--faint); font-size: 11px; }
+    .section { margin-top: 24px; }
+    .section-title { display: flex; justify-content: space-between; align-items: baseline; gap: 15px; margin-bottom: 12px; }
+    .section-title h3 { margin: 0; }
+    .section-title a { color: var(--blue); font-size: 11px; text-decoration: none; }
+    .card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 13px; padding: 16px; background: var(--surface); }
+    .card.emphasis { border-color: #3f649d; background: linear-gradient(145deg, rgba(27, 48, 83, .8), var(--surface)); }
+    .card-top { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
+    .card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .card .next { margin-top: 13px; color: var(--text); font-size: 12px; }
+    .card .next strong { color: var(--blue); }
+    .progress { height: 5px; margin: 14px 0 10px; overflow: hidden; border-radius: 999px; background: #303b4e; }
+    .progress span { display: block; height: 100%; width: 68%; border-radius: inherit; background: var(--green); }
+    .progress.amber span { width: 41%; background: var(--amber); }
+    .schedule-row, .activity-row, .member-row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(46, 58, 78, .7); }
+    .schedule-row:last-child, .activity-row:last-child, .member-row:last-child { border-bottom: 0; }
+    .avatar { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; background: #30466b; color: #d7e5ff; font-size: 12px; font-weight: 700; }
+    .row-main { min-width: 0; flex: 1; }
+    .row-main strong { display: block; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .row-main span { display: block; margin-top: 3px; overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .row-end { flex: 0 0 auto; color: var(--muted); font-size: 11px; text-align: right; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .dot.warn { background: var(--amber); }
+    .dot.bad { background: var(--red); }
+    .side { position: sticky; top: 24px; }
+    .side-card { border: 1px solid var(--line); border-radius: 13px; padding: 16px; background: rgba(21, 27, 40, .9); }
+    .side-card + .side-card { margin-top: 12px; }
+    .side-card h3 { margin-bottom: 10px; }
+    .side-card p, .side-card li { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .side-card ul { margin: 0; padding-left: 17px; }
+    .side-card li + li { margin-top: 8px; }
+    .notice { display: flex; gap: 10px; margin-bottom: 18px; border: 1px solid #795d22; border-radius: 12px; padding: 13px; background: rgba(73, 56, 24, .58); color: var(--amber); font-size: 12px; line-height: 1.5; }
+    .notice strong { display: block; margin-bottom: 2px; color: #ffe0a0; }
+    .muted-box { border: 1px dashed #435067; border-radius: 12px; padding: 18px; color: var(--muted); font-size: 12px; }
+    details { border-top: 1px solid var(--line); padding-top: 14px; }
+    details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+    .config-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+    .config { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--surface-2); }
+    .config span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .footer-note { margin-top: 28px; color: var(--faint); font-size: 11px; }
+    @media (max-width: 1050px) { .layout { grid-template-columns: 1fr; } .side { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .side-card + .side-card { margin-top: 0; } }
+    @media (max-width: 720px) { .shell { padding: 16px; } .team-header, .hero-head { flex-direction: column; } .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats .stat:last-child { grid-column: span 2; } .card-grid, .config-grid, .side { grid-template-columns: 1fr; } .actions { width: 100%; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="prototype-bar">
+      <div>
+        <h1>Team Dashboard — proposed information architecture</h1>
+        <p>Standalone concept mockup. Use the controls to compare team types and operating states.</p>
+      </div>
+      <div class="switcher" aria-label="Mockup scenarios">
+        <button class="active" data-scenario="delivery">Delivery team</button>
+        <button data-scenario="supervision">Supervisor</button>
+        <button data-scenario="domain">Domain team</button>
+        <button data-scenario="paused">Paused / blocked</button>
+      </div>
+    </div>
+
+    <div id="app"></div>
+  </main>
+  <script>
+    const scenarios = {
+      delivery: {
+        icon: '↗', name: 'Aquila Launch', type: 'Delivery', lifetime: 'Finite', status: 'Healthy', statusTone: 'good', enabled: 'Enabled', mission: 'Ship the Aquila launch with a verified, operator-ready handoff.', members: '4', next: 'in 18 min', nextNote: 'launch-coordinator', work: '3', workNote: '1 active · 1 waiting', activity: '12 min ago', activityNote: 'latest owner run', effortTitle: 'Aquila launch readiness', effortTone: 'good', effortState: 'On track', effortDesc: 'Release checklist is moving through validation. The next milestone is the production handoff review.', nextAction: 'Complete the deployment smoke test and attach the receipt.', progress: '68%', progressClass: '', schedule: [['LC', 'Launch coordinator', 'Smoke test', 'in 18 min'], ['PM', 'Product manager', 'Handoff review', 'in 2 hr'], ['QA', 'Release reviewer', 'Evidence sweep', 'tomorrow']], activityRows: [['LC', 'Launch coordinator', 'Completed validation phase', '12 min ago', 'good'], ['QA', 'Release reviewer', 'Accepted evidence bundle', '41 min ago', 'good'], ['PM', 'Product manager', 'Waiting for smoke test', '1 hr ago', 'warn']], configs: [['Runtime', 'Multi-process'], ['Coordination', 'Leader-led'], ['Execution', 'Bounded parallel']], sideTitle: 'Next best action', sideBody: 'Review the smoke-test receipt when the coordinator finishes. The team is otherwise moving normally.'
+      },
+      supervision: {
+        icon: '◉', name: 'Effort Supervision', type: 'Supervision', lifetime: 'Standing', status: 'Watching', statusTone: 'good', enabled: 'Enabled', mission: 'Maintain truthful progress coverage and intervene when active efforts become blocked.', members: '1', next: 'in 4 min', nextNote: 'effort-supervisor', work: '5', workNote: '2 active · 3 observed', activity: '4 min ago', activityNote: 'latest assessment', effortTitle: 'Portfolio coverage', effortTone: 'good', effortState: '5 efforts observed', effortDesc: 'The supervisor has fresh observations for active efforts. One delivery team is waiting on an external decision.', nextAction: 'Reassess the waiting effort after its next owner heartbeat.', progress: '82%', progressClass: '', schedule: [['ES', 'Effort supervisor', 'Coverage sweep', 'in 4 min'], ['ES', 'Effort supervisor', 'Receipt review', 'in 19 min'], ['ES', 'Effort supervisor', 'Stale-effort check', 'in 34 min']], activityRows: [['ES', 'Effort supervisor', 'Recorded fresh coverage receipt', '4 min ago', 'good'], ['ES', 'Effort supervisor', 'Marked one effort waiting', '28 min ago', 'warn'], ['ES', 'Effort supervisor', 'No intervention required', '1 hr ago', 'good']], configs: [['Runtime', 'Single-process'], ['Coordination', 'Leader-led'], ['Execution', 'Serialized']], sideTitle: 'Coverage status', sideBody: 'Observations are current. Remember that observation is not steering authority, and runtime completion is not outcome acceptance.'
+      },
+      domain: {
+        icon: '◇', name: 'Marketing Crew', type: 'Domain stewardship', lifetime: 'Standing', status: 'Healthy', statusTone: 'good', enabled: 'Enabled', mission: 'Grow the company’s reach through clear messaging, useful evidence, and durable audience systems.', members: '6', next: 'in 42 min', nextNote: 'content strategist', work: '8', workNote: '6 open · 2 waiting', activity: '27 min ago', activityNote: 'latest heartbeat', effortTitle: 'Content and audience systems', effortTone: 'warn', effortState: 'Needs attention', effortDesc: 'The team has several open contributions. Two are waiting for source material before they can progress.', nextAction: 'Assign source collection to the research lane.', progress: '41%', progressClass: 'amber', schedule: [['CS', 'Content strategist', 'Editorial planning', 'in 42 min'], ['RS', 'Research specialist', 'Source collection', 'in 1 hr'], ['DG', 'Design partner', 'Asset review', 'tomorrow']], activityRows: [['CS', 'Content strategist', 'Drafted audience brief', '27 min ago', 'good'], ['RS', 'Research specialist', 'Waiting for source material', '2 hr ago', 'warn'], ['DG', 'Design partner', 'Updated campaign asset', 'yesterday', 'good']], configs: [['Runtime', 'Multi-process'], ['Coordination', 'Peer'], ['Execution', 'Bounded parallel']], sideTitle: 'Needs attention', sideBody: 'Two contributions are waiting on source material. The dashboard surfaces the next unblock instead of making you inspect every member.'
+      },
+      paused: {
+        icon: '!', name: 'Landing Page Qualification', type: 'Delivery', lifetime: 'Finite', status: 'Paused', statusTone: 'bad', enabled: 'Disabled', mission: 'Qualify the landing-page business suite for a reliable VPS deployment decision.', members: '3', next: 'not scheduled', nextNote: 'heartbeats paused', work: '2', workNote: '1 blocked · 1 waiting', activity: 'yesterday', activityNote: 'last owner activity', effortTitle: 'VPS qualification', effortTone: 'bad', effortState: 'Blocked', effortDesc: 'The team is paused while required operator input is missing. No new work should be inferred from the stale activity record.', nextAction: 'Provide the missing deployment constraints, then resume the team intentionally.', progress: '24%', progressClass: 'amber', schedule: [['—', 'All members', 'Heartbeat paused', 'manual'], ['—', 'Owner state', 'Input required', 'blocked']], activityRows: [['QA', 'Qualification reviewer', 'Blocked on operator input', 'yesterday', 'bad'], ['PM', 'Delivery lead', 'Team paused manually', 'yesterday', 'warn']], configs: [['Runtime', 'Multi-process'], ['Coordination', 'Leader-led'], ['Execution', 'Serialized']], sideTitle: 'Action required', sideBody: 'Do not resume yet. Resolve the missing operator input first, then verify the owner state and intended next action.'
+      }
+    };
+
+    function render(s) {
+      const stateNotice = s.status === 'Paused' ? `<div class="notice"><span>⚠</span><div><strong>Team is paused</strong>Heartbeats are disabled. Existing activity is retained, but no current execution should be inferred.</div></div>` : '';
+      const effortTone = s.effortTone === 'bad' ? 'bad' : s.effortTone === 'warn' ? 'warn' : 'good';
+      const schedule = s.schedule.map(row => `<div class="schedule-row"><div class="avatar">${row[0]}</div><div class="row-main"><strong>${row[1]}</strong><span>${row[2]}</span></div><div class="row-end">${row[3]}</div></div>`).join('');
+      const activity = s.activityRows.map(row => `<div class="activity-row"><span class="dot ${row[4] === 'bad' ? 'bad' : row[4] === 'warn' ? 'warn' : ''}"></span><div class="row-main"><strong>${row[1]}</strong><span>${row[2]}</span></div><div class="row-end">${row[3]}</div></div>`).join('');
+      const members = ['Lead / coordinator', 'Research specialist', 'Release reviewer', 'Design partner'].slice(0, Math.min(Number(s.members), 4)).map((name, i) => `<div class="member-row"><div class="avatar">${name.split(' ').map(x => x[0]).join('').slice(0, 2)}</div><div class="row-main"><strong>${name}</strong><span>${i === 0 ? 'Primary responsibility' : 'Registered member'} · active</span></div><span class="dot"></span></div>`).join('');
+      return `<div class="layout"><div class="main">${stateNotice}
+        <header class="team-header"><div class="identity"><div class="team-icon">${s.icon}</div><div><div class="eyebrow">Team overview</div><h2>${s.name}</h2><div class="badges"><span class="badge">${s.type}</span><span class="badge">${s.lifetime}</span><span class="badge ${s.statusTone}">● ${s.status}</span><span class="badge">${s.enabled}</span></div></div></div><div class="actions"><button class="button">Configure</button><button class="button primary">Open work feed ↗</button></div></header>
+        <section class="hero"><div class="hero-head"><div><div class="eyebrow">Mission</div><p class="mission">${s.mission}</p><div class="edit-hint">Click to edit · saves automatically</div></div><div class="hero-icon">✦</div></div></section>
+        <div class="stats"><div class="stat"><div class="stat-label">Team health</div><div class="stat-value" style="color:var(--${s.statusTone === 'bad' ? 'red' : 'green'})">${s.status}</div><div class="stat-note">based on current owner evidence</div></div><div class="stat"><div class="stat-label">Members</div><div class="stat-value">${s.members}</div><div class="stat-note">registered members</div></div><div class="stat"><div class="stat-label">Next activity</div><div class="stat-value">${s.next}</div><div class="stat-note">${s.nextNote}</div></div><div class="stat"><div class="stat-label">Open work</div><div class="stat-value">${s.work}</div><div class="stat-note">${s.workNote}</div></div><div class="stat"><div class="stat-label">Last activity</div><div class="stat-value">${s.activity}</div><div class="stat-note">${s.activityNote}</div></div></div>
+        <section class="section"><div class="section-title"><h3>Current work</h3><a href="#">View all work ↗</a></div><div class="card-grid"><article class="card emphasis"><div class="card-top"><div><div class="eyebrow">Primary effort</div><h4>${s.effortTitle}</h4></div><span class="badge ${effortTone}">${s.effortState}</span></div><p>${s.effortDesc}</p><div class="progress ${s.progressClass}"><span style="width:${s.progress}"></span></div><div class="chip-row"><span class="chip">${s.work} work items</span><span class="chip">Fresh observation</span></div><p class="next"><strong>Next:</strong> ${s.nextAction}</p></article><article class="card"><div class="card-top"><div><div class="eyebrow">Decision surface</div><h4>What needs your attention?</h4></div><span class="badge ${s.statusTone === 'bad' ? 'bad' : s.effortTone === 'warn' ? 'warn' : 'good'}">${s.status === 'Paused' ? 'Blocked' : s.effortTone === 'warn' ? '2 waiting' : 'Nothing urgent'}</span></div><p>${s.sideBody}</p><button class="button" style="margin-top:15px">Review details</button></article></div></section>
+        <section class="section"><div class="section-title"><h3>Schedule</h3><a href="#">Manage heartbeats ↗</a></div><article class="card">${schedule}</article></section>
+        <section class="section"><div class="section-title"><h3>People <span style="color:var(--muted);font-weight:400">(${s.members})</span></h3><a href="#">Manage members ↗</a></div><article class="card">${members}<div style="padding-top:12px;color:var(--muted);font-size:11px">Showing the most relevant members · open Members for the full roster</div></article></section>
+        <section class="section"><div class="section-title"><h3>Recent activity</h3><a href="#">Open full history ↗</a></div><article class="card">${activity}<details><summary>Coverage and owner evidence</summary><p style="margin:12px 0 0;color:var(--muted);font-size:12px">Evidence detail, unavailable reads, runtime states, assignments, and receipt references belong here rather than in the primary reading path.</p></details></article></section>
+        <section class="section"><div class="section-title"><h3>Operating model</h3><a href="#">Configure ↗</a></div><article class="card"><div class="config-grid">${s.configs.map(c => `<div class="config"><div class="eyebrow">${c[0]}</div><strong>${c[1]}</strong><span>Current team setting</span></div>`).join('')}</div></article></section>
+        <div class="footer-note">team/${s.name.toLowerCase().replaceAll(' ', '-')} · updated moments ago · dashboard concept</div>
+      </div><aside class="side"><div class="side-card"><div class="eyebrow">Operator guidance</div><h3>${s.sideTitle}</h3><p>${s.sideBody}</p><button class="button primary" style="width:100%">Take me there</button></div><div class="side-card"><h3>Why this layout</h3><ul><li>Identity and mission come first.</li><li>Current work is more prominent than configuration.</li><li>Evidence remains available without dominating the overview.</li><li>Team-specific differences change the content, not the page structure.</li></ul></div><div class="side-card"><h3>Advanced</h3><p>Authority grants, temporary assignments, discovery limitations, and plan-of-record paths are intentionally secondary.</p><details><summary>Show advanced sections</summary><div style="margin-top:12px"><button class="button">Open authority details</button></div></details></div></aside></div>`;
+    }
+
+    const app = document.querySelector('#app');
+    function selectScenario(key) {
+      app.innerHTML = render(scenarios[key]);
+      document.querySelectorAll('[data-scenario]').forEach(button => button.classList.toggle('active', button.dataset.scenario === key));
+    }
+    document.querySelectorAll('[data-scenario]').forEach(button => button.addEventListener('click', () => selectScenario(button.dataset.scenario)));
+    selectScenario('delivery');
+  </script>
+</body>
+</html>

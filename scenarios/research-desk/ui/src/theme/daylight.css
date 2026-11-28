@@ -1,0 +1,363 @@
+/*
+ * Daylight — Research Desk's design language.
+ *
+ * The generated `design-tokens.css` is the shared Vrooli vocabulary. This file
+ * is the scenario's intentional expression layer, exactly like a design-kit
+ * overlay: it remaps the semantic tokens the component library already reads
+ * and adds the handful of named roles this product needs (a saturated hero,
+ * three pastel tiles, a signal lime, the soft card shadow).
+ *
+ * Rules for this file:
+ *   1. Only token declarations. Component selectors belong in `styles.css`;
+ *      shared component anatomy belongs in the component library.
+ *   2. Every value here is named once. `styles.css` consumes these names and
+ *      never repeats a hex value.
+ *   3. Light is the designed default. Dark is a first-class, lower-glare
+ *      translation of the same roles, not an inverted screenshot.
+ */
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../assets/fonts/plus-jakarta-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../assets/fonts/plus-jakarta-sans-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* ── Daylight palette ───────────────────────────────────────────────── */
+  --rd-canvas: #f3f4f6;
+  --rd-surface: #ffffff;
+  --rd-surface-raised: #ffffff;
+  --rd-surface-muted: #f2f4f7;
+  --rd-ink: #0f1115;
+  --rd-ink-soft: #374151;
+  --rd-muted: #5f6774;
+  --rd-line: #e9ebef;
+  --rd-line-soft: #f1f2f4;
+
+  --rd-blue: #1b6bff;
+  --rd-blue-strong: #0f5bea;
+  --rd-blue-ink: #ffffff;
+  --rd-blue-soft: #e9f0ff;
+
+  --rd-lime: #d8f84c;
+  --rd-lime-ink: #3a4300;
+
+  --rd-green: #16a34a;
+  --rd-green-ink: #0f6b34;
+  --rd-green-soft: #e6f7ee;
+
+  --rd-amber: #f59e0b;
+  --rd-amber-ink: #92540a;
+  --rd-amber-soft: #fff4e5;
+
+  --rd-red: #ef4444;
+  --rd-red-ink: #b42323;
+  --rd-red-soft: #feecec;
+
+  --rd-lavender: #f2e9ff;
+  --rd-lavender-ink: #6d28d9;
+  --rd-peach: #ffe9d9;
+  --rd-peach-ink: #a5540b;
+  --rd-mint: #e6f7ee;
+  --rd-mint-ink: #137a3b;
+
+  /* The one saturated block on a screen. */
+  --rd-hero-from: #2a7bff;
+  --rd-hero-to: #0c59e8;
+  --rd-hero-ink: #ffffff;
+  --rd-on-hero-pill: #ffffff;
+  --rd-on-hero-pill-ink: #0f1115;
+  --rd-hero-muted: #ffffff;
+  --rd-hero-line: rgba(255, 255, 255, 0.16);
+  --rd-hero-panel: rgba(3, 18, 52, 0.14);
+
+  /* ── Shared semantic aliases the component library reads ────────────── */
+  --color-background: var(--rd-canvas);
+  --color-shell: var(--rd-canvas);
+  --color-surface: var(--rd-surface);
+  --color-surface-raised: var(--rd-surface-raised);
+  --color-surface-muted: var(--rd-surface-muted);
+  --color-surface-sunken: #eceef2;
+  --color-foreground: var(--rd-ink);
+  --color-muted-foreground: var(--rd-muted);
+  --color-border: var(--rd-line);
+  --color-border-strong: #d6dae1;
+  /*
+   * In Daylight the primary *action* is ink, not the brand blue: black pills
+   * are the confident move, and blue is saved for the one hero block, rings,
+   * the active day and key data. Components that mean "brand" read --rd-blue.
+   */
+  --color-primary: var(--rd-ink);
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #24262c;
+  --color-primary-strong: var(--rd-ink);
+  --color-on-primary: #ffffff;
+  --color-accent: var(--rd-lavender-ink);
+  --color-accent-subtle: var(--rd-lavender);
+  --color-success: var(--rd-green);
+  --color-success-foreground: var(--rd-green-ink);
+  --color-warning: var(--rd-amber);
+  --color-warning-foreground: var(--rd-amber-ink);
+  --color-warning-subtle: var(--rd-amber-soft);
+  --color-danger: var(--rd-red);
+  --color-danger-foreground: var(--rd-red-ink);
+  --color-danger-subtle: var(--rd-red-soft);
+  --color-info: var(--rd-blue);
+  --color-focus: var(--rd-blue);
+
+  /* ── Type ───────────────────────────────────────────────────────────── */
+  --font-sans: "Plus Jakarta Sans", "Manrope", ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+
+  --text-body-size: 15px;
+  --text-body-line: 23px;
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-body-sm: 500 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
+  --text-body-sm-size: 13px;
+  --text-body-sm-line: 19px;
+  --text-label: 600 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-label-size: 12px;
+  --text-label-line: 16px;
+  --text-label-tracking: -0.005em;
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-caption-size: 11px;
+  --text-caption-line: 15px;
+  --text-subheading-size: 15px;
+  --text-subheading-line: 20px;
+  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+  --text-heading: 650 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  --text-heading-size: 20px;
+  --text-heading-line: 26px;
+  --text-heading-sm: 650 16px / 22px var(--font-sans);
+  --text-heading-sm-size: 16px;
+  --text-heading-sm-line: 22px;
+  --text-heading-lg: 700 24px / 30px var(--font-sans);
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+  --text-title-size: 28px;
+  --text-title-line: 34px;
+  --text-title-tracking: -0.03em;
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
+  --text-display-size: 44px;
+  --text-display-line: 46px;
+  --text-wall: clamp(3rem, 14vw, 5.5rem);
+  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+
+  /* Named metric roles: the number is the hero, its label is quiet. */
+  --rd-text-metric: 700 44px / 44px var(--font-sans);
+  --rd-text-metric-lg: 700 clamp(3rem, 9vw, 4.25rem) / 0.92 var(--font-sans);
+  --rd-text-metric-sm: 700 26px / 28px var(--font-sans);
+  --rd-tracking-metric: -0.055em;
+
+  /* ── Shape, depth, air ─────────────────────────────────────────────── */
+  --radius-panel: 1.5rem;
+  --radius-control: 9999px;
+  --radius-overlay: 1.75rem;
+  --radius-sheet: 2rem;
+  --radius-card: 1.5rem;
+  --radius-card-lg: 1.75rem;
+  --radius-tile: 1rem;
+  --panel-radius: var(--radius-panel);
+  --panel-padding: 1.25rem;
+  --rd-card-padding: 1.25rem;
+  --rd-card-padding-lg: 1.5rem;
+  --rd-gap: 0.75rem;
+  --rd-gap-lg: 1.25rem;
+
+  --elev-flat: none;
+  --elev-subtle: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --elev-raised: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 30px rgba(15, 23, 42, 0.05);
+  --elev-floating: 0 4px 12px rgba(15, 23, 42, 0.06), 0 16px 36px rgba(15, 23, 42, 0.08);
+  --elev-overlay: 0 2px 6px rgba(15, 23, 42, 0.05), 0 12px 28px rgba(15, 23, 42, 0.08);
+  --elev-modal: 0 8px 24px rgba(15, 23, 42, 0.1), 0 32px 80px rgba(15, 23, 42, 0.16);
+  --rd-shadow-card: var(--elev-raised);
+  --rd-shadow-hero: 0 16px 34px rgba(27, 107, 255, 0.24);
+
+  --rd-dot-live: var(--rd-green);
+  --rd-dot-wait: var(--rd-amber);
+  --rd-dot-stop: var(--rd-red);
+  --rd-dot-quiet: #c3c8d0;
+
+  --dur-fast: 140ms;
+  --dur-quick: 180ms;
+  --dur-standard: 220ms;
+}
+
+/* ── Dark: the same roles, lower glare ───────────────────────────────── */
+:root[data-resolved-theme="dark"],
+.dark {
+  --rd-canvas: #0b0d12;
+  --rd-surface: #151821;
+  --rd-surface-raised: #1a1e29;
+  --rd-surface-muted: #1c2130;
+  --rd-ink: #f5f7fa;
+  --rd-ink-soft: #d5dae4;
+  --rd-muted: #9aa4b5;
+  --rd-line: #262c3a;
+  --rd-line-soft: #202533;
+
+  --rd-blue: #6aa0ff;
+  --rd-blue-strong: #8ab6ff;
+  --rd-blue-ink: #071223;
+  --rd-blue-soft: #17233d;
+
+  --rd-lime: #d8f84c;
+  --rd-lime-ink: #22280a;
+
+  --rd-green: #34d27b;
+  --rd-green-ink: #7ff0b0;
+  --rd-green-soft: #12281d;
+
+  --rd-amber: #fbbf24;
+  --rd-amber-ink: #ffd77a;
+  --rd-amber-soft: #2c2311;
+
+  --rd-red: #ff7b7b;
+  --rd-red-ink: #ffb3b3;
+  --rd-red-soft: #2e1719;
+
+  --rd-lavender: #241c34;
+  --rd-lavender-ink: #c4a7ff;
+  --rd-peach: #2e241c;
+  --rd-peach-ink: #ffbf8a;
+  --rd-mint: #14251c;
+  --rd-mint-ink: #7fe3ac;
+
+  --rd-hero-from: #1d5fd6;
+  --rd-hero-to: #0a3fa8;
+  --rd-hero-ink: #ffffff;
+  --rd-on-hero-pill: #ffffff;
+  --rd-on-hero-pill-ink: #0f1115;
+  --rd-hero-muted: #ffffff;
+  --rd-hero-line: rgba(255, 255, 255, 0.18);
+  --rd-hero-panel: rgba(0, 0, 0, 0.22);
+
+  --color-background: var(--rd-canvas);
+  --color-shell: var(--rd-canvas);
+  --color-surface: var(--rd-surface);
+  --color-surface-raised: var(--rd-surface-raised);
+  --color-surface-muted: var(--rd-surface-muted);
+  --color-surface-sunken: #10131b;
+  --color-foreground: var(--rd-ink);
+  --color-muted-foreground: var(--rd-muted);
+  --color-border: var(--rd-line);
+  --color-border-strong: #3a4152;
+  --color-primary: var(--rd-ink);
+  --color-primary-foreground: #0b0d12;
+  --color-primary-hover: #ffffff;
+  --color-primary-strong: var(--rd-ink);
+  --color-on-primary: #0b0d12;
+  --color-accent: var(--rd-lavender-ink);
+  --color-accent-subtle: var(--rd-lavender);
+  --color-success: var(--rd-green);
+  --color-success-foreground: var(--rd-green-ink);
+  --color-warning: var(--rd-amber);
+  --color-warning-foreground: var(--rd-amber-ink);
+  --color-warning-subtle: var(--rd-amber-soft);
+  --color-danger: var(--rd-red);
+  --color-danger-foreground: var(--rd-red-ink);
+  --color-danger-subtle: var(--rd-red-soft);
+  --color-info: var(--rd-blue);
+  --color-focus: var(--rd-blue);
+
+  --elev-subtle: 0 1px 2px rgba(0, 0, 0, 0.36);
+  --elev-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.34);
+  --elev-floating: 0 4px 12px rgba(0, 0, 0, 0.4), 0 16px 36px rgba(0, 0, 0, 0.42);
+  --elev-overlay: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.4);
+  --elev-modal: 0 8px 24px rgba(0, 0, 0, 0.5), 0 32px 80px rgba(0, 0, 0, 0.6);
+  --rd-shadow-hero: 0 16px 34px rgba(0, 0, 0, 0.45);
+  --rd-dot-quiet: #4a5262;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]) {
+    --rd-canvas: #0b0d12;
+    --rd-surface: #151821;
+    --rd-surface-raised: #1a1e29;
+    --rd-surface-muted: #1c2130;
+    --rd-ink: #f5f7fa;
+    --rd-ink-soft: #d5dae4;
+    --rd-muted: #9aa4b5;
+    --rd-line: #262c3a;
+    --rd-line-soft: #202533;
+
+    --rd-blue: #6aa0ff;
+    --rd-blue-strong: #8ab6ff;
+    --rd-blue-ink: #071223;
+    --rd-blue-soft: #17233d;
+    --rd-lime: #d8f84c;
+    --rd-lime-ink: #22280a;
+    --rd-green: #34d27b;
+    --rd-green-ink: #7ff0b0;
+    --rd-green-soft: #12281d;
+    --rd-amber: #fbbf24;
+    --rd-amber-ink: #ffd77a;
+    --rd-amber-soft: #2c2311;
+    --rd-red: #ff7b7b;
+    --rd-red-ink: #ffb3b3;
+    --rd-red-soft: #2e1719;
+    --rd-lavender: #241c34;
+    --rd-lavender-ink: #c4a7ff;
+    --rd-peach: #2e241c;
+    --rd-peach-ink: #ffbf8a;
+    --rd-mint: #14251c;
+    --rd-mint-ink: #7fe3ac;
+
+    --rd-hero-from: #1d5fd6;
+    --rd-hero-to: #0a3fa8;
+
+    --color-background: var(--rd-canvas);
+    --color-shell: var(--rd-canvas);
+    --color-surface: var(--rd-surface);
+    --color-surface-raised: var(--rd-surface-raised);
+    --color-surface-muted: var(--rd-surface-muted);
+    --color-surface-sunken: #10131b;
+    --color-foreground: var(--rd-ink);
+    --color-muted-foreground: var(--rd-muted);
+    --color-border: var(--rd-line);
+    --color-border-strong: #3a4152;
+    --color-primary: var(--rd-ink);
+    --color-primary-foreground: #0b0d12;
+    --color-primary-hover: #ffffff;
+    --color-primary-strong: var(--rd-ink);
+    --color-on-primary: #0b0d12;
+    --color-accent: var(--rd-lavender-ink);
+    --color-accent-subtle: var(--rd-lavender);
+    --color-success: var(--rd-green);
+    --color-success-foreground: var(--rd-green-ink);
+    --color-warning: var(--rd-amber);
+    --color-warning-foreground: var(--rd-amber-ink);
+    --color-warning-subtle: var(--rd-amber-soft);
+    --color-danger: var(--rd-red);
+    --color-danger-foreground: var(--rd-red-ink);
+    --color-danger-subtle: var(--rd-red-soft);
+    --color-info: var(--rd-blue);
+    --color-focus: var(--rd-blue);
+
+    --elev-subtle: 0 1px 2px rgba(0, 0, 0, 0.36);
+    --elev-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.34);
+    --elev-floating: 0 4px 12px rgba(0, 0, 0, 0.4), 0 16px 36px rgba(0, 0, 0, 0.42);
+    --elev-overlay: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.4);
+    --elev-modal: 0 8px 24px rgba(0, 0, 0, 0.5), 0 32px 80px rgba(0, 0, 0, 0.6);
+    --rd-shadow-hero: 0 16px 34px rgba(0, 0, 0, 0.45);
+    --rd-dot-quiet: #4a5262;
+    color-scheme: dark;
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "local": {
+      "name": "local-balanced",
+      "mode": "enforce",
+      "on_refusal": "drop_variation",
+      "classifiers": [
+        {
+          "id": "falconsai-nsfw",
+          "threshold": 0.3,
+          "strict_threshold": 0.1,
+          "input_hw": [
+            224,
+            224
+          ]
+        },
+        {
+          "id": "adamcodd-vit-nsfw",
+          "threshold": 0.8,
+          "strict_threshold": 0.7,
+          "input_hw": [
+            384,
+            384
+          ]
+        }
+      ],
+      "aggregate": "any",
+      "face": {
+        "id": "yunet",
+        "score_threshold": 0.5,
+        "min_px": 40,
+        "crop_margin": 1.35,
+        "max_faces": 16
+      },
+      "age": {
+        "id": "fairface-vit-age",
+        "threshold": 0.2
+      },
+      "second_opinion": {
+        "enabled": true,
+        "min_age": 25,
+        "min_confidence": "medium",
+        "judge_role": "vision.default",
+        "models": [
+          "qwen3-vl:2b",
+          "llava:7b"
+        ]
+      },
+      "on_minor_face": "refuse",
+      "on_unassessable": "second_opinion",
+      "max_image_pixels": 128000000,
+      "reviewer_version": "2026-11-23",
+      "quarantine_hours": 168
+    },
+    "public": {
+      "name": "public-strict",
+      "mode": "enforce",
+      "on_refusal": "fail_job",
+      "classifiers": [
+        {
+          "id": "falconsai-nsfw",
+          "threshold": 0.3,
+          "strict_threshold": 0.1,
+          "input_hw": [
+            224,
+            224
+          ]
+        },
+        {
+          "id": "adamcodd-vit-nsfw",
+          "threshold": 0.8,
+          "strict_threshold": 0.7,
+          "input_hw": [
+            384,
+            384
+          ]
+        }
+      ],
+      "aggregate": "any",
+      "face": {
+        "id": "yunet",
+        "score_threshold": 0.5,
+        "min_px": 40,
+        "crop_margin": 1.35,
+        "max_faces": 16
+      },
+      "age": {
+        "id": "fairface-vit-age",
+        "threshold": 0.2
+      },
+      "second_opinion": {
+        "enabled": true,
+        "min_age": 25,
+        "min_confidence": "medium",
+        "judge_role": "vision.default",
+        "models": [
+          "qwen3-vl:2b",
+          "llava:7b"
+        ]
+      },
+      "on_minor_face": "refuse",
+      "on_unassessable": "second_opinion",
+      "max_image_pixels": 128000000,
+      "reviewer_version": "2026-11-23",
+      "quarantine_hours": 0
+    }
+  }
+}

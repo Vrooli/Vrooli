@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/storage"
 )
 
 var (
@@ -57,19 +57,24 @@ type AutomatedFixRecord struct {
 }
 
 type automatedFixStoreData struct {
-	Config  AutomatedFixConfig   `json:"config"`
-	History []AutomatedFixRecord `json:"history"`
+	Config AutomatedFixConfig `json:"config"`
+}
+
+type automatedFixHistoryData struct {
+	History    []AutomatedFixRecord `json:"history"`
+	LastUpdate time.Time            `json:"last_update"`
 }
 
 type AutomatedFixStore struct {
-	mu         sync.RWMutex
-	config     AutomatedFixConfig
-	history    []AutomatedFixRecord
-	dataPath   string
-	maxHistory int
+	mu          sync.RWMutex
+	config      AutomatedFixConfig
+	history     []AutomatedFixRecord
+	configPath  string
+	historyPath string
+	maxHistory  int
 }
 
-var automatedFixStore = initAutomatedFixStore()
+var automatedFixStore = newAutomatedFixStore()
 
 const (
 	defaultAutomatedFixStrategy = "critical_first"
@@ -78,8 +83,8 @@ const (
 	defaultMaxFixes             = 0
 )
 
-func initAutomatedFixStore() *AutomatedFixStore {
-	store := &AutomatedFixStore{
+func newAutomatedFixStore() *AutomatedFixStore {
+	return &AutomatedFixStore{
 		config: AutomatedFixConfig{
 			Enabled:        false,
 			ViolationTypes: []string{"security"},
@@ -88,32 +93,30 @@ func initAutomatedFixStore() *AutomatedFixStore {
 			LoopDelay:      defaultLoopDelaySeconds,
 			TimeoutSeconds: defaultTimeoutSeconds,
 			MaxFixes:       defaultMaxFixes,
-			Model:          openRouterModel,
+			Model:          openRouterModel(),
 			UpdatedAt:      time.Now().UTC(),
 		},
 		maxHistory: 100,
 	}
-	store.enablePersistence()
-	return store
 }
 
 func (s *AutomatedFixStore) enablePersistence() {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if strings.TrimSpace(vrooliRoot) == "" {
-		home := os.Getenv("HOME")
-		if strings.TrimSpace(home) == "" {
-			return
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
+	if s.configPath != "" || s.historyPath != "" {
+		return
 	}
-
-	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to ensure data directory %s", dataDir), err)
+	configPath, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "automated-fix-config.json")
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor automated fix config path", err)
+		return
+	}
+	historyPath, err := resolveScenarioAuditorStoragePath(storage.ClassData, "automated-fix-history.json")
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor automated fix history path", err)
 		return
 	}
 
-	s.dataPath = filepath.Join(dataDir, "automated-fixes.json")
+	s.configPath = configPath
+	s.historyPath = historyPath
 	if err := s.loadFromDisk(); err != nil {
 		logger.Error("Failed to load automated fix store", err)
 		// Continue with defaults
@@ -121,10 +124,25 @@ func (s *AutomatedFixStore) enablePersistence() {
 }
 
 func (s *AutomatedFixStore) loadFromDisk() error {
-	if strings.TrimSpace(s.dataPath) == "" {
+	if err := s.loadConfigFromDisk(); err != nil {
+		return err
+	}
+	if err := s.loadHistoryFromDisk(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *AutomatedFixStore) persistLocked() {
+	s.persistConfigLocked()
+	s.persistHistoryLocked()
+}
+
+func (s *AutomatedFixStore) loadConfigFromDisk() error {
+	if strings.TrimSpace(s.configPath) == "" {
 		return nil
 	}
-	data, err := os.ReadFile(s.dataPath)
+	data, err := os.ReadFile(s.configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -136,8 +154,26 @@ func (s *AutomatedFixStore) loadFromDisk() error {
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return err
 	}
-
 	s.config = sanitizeConfig(payload.Config)
+	return nil
+}
+
+func (s *AutomatedFixStore) loadHistoryFromDisk() error {
+	if strings.TrimSpace(s.historyPath) == "" {
+		return nil
+	}
+	data, err := os.ReadFile(s.historyPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	var payload automatedFixHistoryData
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
 	s.history = payload.History
 	if len(s.history) > s.maxHistory {
 		s.history = s.history[len(s.history)-s.maxHistory:]
@@ -145,21 +181,36 @@ func (s *AutomatedFixStore) loadFromDisk() error {
 	return nil
 }
 
-func (s *AutomatedFixStore) persistLocked() {
-	if strings.TrimSpace(s.dataPath) == "" {
+func (s *AutomatedFixStore) persistConfigLocked() {
+	if strings.TrimSpace(s.configPath) == "" {
 		return
 	}
-	payload := automatedFixStoreData{
-		Config:  s.config,
-		History: append([]AutomatedFixRecord(nil), s.history...),
+	payload := automatedFixStoreData{Config: s.config}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		logger.Error("Failed to serialise automated fix config", err)
+		return
+	}
+	if err := storage.WriteFileAtomic(s.configPath, data, storage.DefaultFilePerm); err != nil {
+		logger.Error("Failed to persist automated fix config", err)
+	}
+}
+
+func (s *AutomatedFixStore) persistHistoryLocked() {
+	if strings.TrimSpace(s.historyPath) == "" {
+		return
+	}
+	payload := automatedFixHistoryData{
+		History:    append([]AutomatedFixRecord(nil), s.history...),
+		LastUpdate: time.Now().UTC(),
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
-		logger.Error("Failed to serialise automated fix store", err)
+		logger.Error("Failed to serialise automated fix history", err)
 		return
 	}
-	if err := os.WriteFile(s.dataPath, data, 0o644); err != nil {
-		logger.Error("Failed to persist automated fix store", err)
+	if err := storage.WriteFileAtomic(s.historyPath, data, storage.DefaultFilePerm); err != nil {
+		logger.Error("Failed to persist automated fix history", err)
 	}
 }
 
@@ -284,15 +335,15 @@ func (s *AutomatedFixStore) applyInputLocked(enabled bool, input AutomatedFixCon
 	strategy := sanitizeStrategy(input.Strategy, s.config.Strategy)
 	loopDelay := s.config.LoopDelay
 	if input.LoopDelay != nil {
-		loopDelay = sanitizeLoopDelay(*input.LoopDelay, s.config.LoopDelay)
+		loopDelay = sanitizeNonNegativeInt(*input.LoopDelay, s.config.LoopDelay)
 	}
 	timeout := s.config.TimeoutSeconds
 	if input.TimeoutSeconds != nil {
-		timeout = sanitizeTimeout(*input.TimeoutSeconds, s.config.TimeoutSeconds)
+		timeout = sanitizeNonNegativeInt(*input.TimeoutSeconds, s.config.TimeoutSeconds)
 	}
 	maxFixes := s.config.MaxFixes
 	if input.MaxFixes != nil {
-		maxFixes = sanitizeMaxFixes(*input.MaxFixes, s.config.MaxFixes)
+		maxFixes = sanitizeNonNegativeInt(*input.MaxFixes, s.config.MaxFixes)
 	}
 	model := sanitizeAutomationModel(input.Model, s.config.Model)
 
@@ -326,10 +377,10 @@ func sanitizeConfig(cfg AutomatedFixConfig) AutomatedFixConfig {
 			cfg.TimeoutSeconds = defaultTimeoutSeconds
 		}
 	}
-	cfg.LoopDelay = sanitizeLoopDelay(cfg.LoopDelay, defaultLoopDelaySeconds)
-	cfg.TimeoutSeconds = sanitizeTimeout(cfg.TimeoutSeconds, defaultTimeoutSeconds)
-	cfg.MaxFixes = sanitizeMaxFixes(cfg.MaxFixes, defaultMaxFixes)
-	cfg.Model = sanitizeAutomationModel(cfg.Model, openRouterModel)
+	cfg.LoopDelay = sanitizeNonNegativeInt(cfg.LoopDelay, defaultLoopDelaySeconds)
+	cfg.TimeoutSeconds = sanitizeNonNegativeInt(cfg.TimeoutSeconds, defaultTimeoutSeconds)
+	cfg.MaxFixes = sanitizeNonNegativeInt(cfg.MaxFixes, defaultMaxFixes)
+	cfg.Model = sanitizeAutomationModel(cfg.Model, openRouterModel())
 	return cfg
 }
 
@@ -395,24 +446,7 @@ func sanitizeStrategy(value, fallback string) string {
 	}
 }
 
-func sanitizeLoopDelay(value, fallback int) int {
-	if value < 0 {
-		return fallback
-	}
-	if value == 0 {
-		return 0
-	}
-	return value
-}
-
-func sanitizeTimeout(value, fallback int) int {
-	if value < 0 {
-		return fallback
-	}
-	return value
-}
-
-func sanitizeMaxFixes(value, fallback int) int {
+func sanitizeNonNegativeInt(value, fallback int) int {
 	if value < 0 {
 		return fallback
 	}
@@ -425,7 +459,7 @@ func sanitizeAutomationModel(value, fallback string) string {
 		trimmed = strings.TrimSpace(fallback)
 	}
 	if trimmed == "" {
-		trimmed = openRouterModel
+		trimmed = openRouterModel()
 	}
 	return normalizeAgentModel(trimmed)
 }

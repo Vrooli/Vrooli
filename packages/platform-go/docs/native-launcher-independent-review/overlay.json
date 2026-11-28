@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/matthalloran8/Vrooli-native-lighting/packages/platform-go/independent_native_launcher_review_test.go": "/home/matthalloran8/Vrooli-native-lighting/packages/platform-go/docs/native-launcher-independent-review/adversarial_test.go.txt"
+  }
+}

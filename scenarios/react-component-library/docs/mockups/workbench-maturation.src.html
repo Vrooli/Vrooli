@@ -1,0 +1,1978 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maturing the workbench — five places, one model</title>
+<style>
+  :root{
+    --bg:#0b0a0f; --bg2:#0d0c12; --panel:#141219; --panel2:#1a1721; --panel3:#211c27;
+    --line:#2b2531; --line2:#3a3340; --line3:#4a4150;
+    --ink:#f7f1e8; --ink2:#ded4c8; --muted:#a79b92; --muted2:#8f8580;
+    --signal:#ffb35c; --signal2:#ffc785; --signal-soft:rgba(255,179,92,.13);
+    --signal-line:rgba(255,179,92,.28); --signal-ink:#1a1108;
+    --ice:#8fd8ff; --ice-soft:rgba(143,216,255,.10); --ice-line:rgba(143,216,255,.26);
+    --green:#82e0b0; --green-soft:rgba(130,224,176,.11);
+    --amber:#ffcc80; --amber-soft:rgba(255,204,128,.11);
+    --red:#ff8e8e; --red-soft:rgba(255,142,142,.11);
+    --violet:#b9a7ff; --violet-soft:rgba(185,167,255,.12);
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --r:14px; --r-sm:10px; --r-xs:8px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.55;
+    background:
+      radial-gradient(1000px 560px at 82% -8%, rgba(255,179,92,.07), transparent 62%),
+      radial-gradient(820px 480px at -5% 8%, rgba(143,216,255,.04), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  img{display:block;max-width:100%}
+  .wrap{max-width:1240px;margin:0 auto;padding:56px 32px 96px}
+  .mono{font-family:var(--mono)}
+  .i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .i.sm{width:13px;height:13px}
+  .i.lg{width:20px;height:20px}
+  .muted{color:var(--muted)}
+  .muted2{color:var(--muted2)}
+  .tiny{font-size:12px}
+  .caption{font:10px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted2)}
+  h1,h2,h3,h4{margin:0}
+  h1{font-family:var(--serif);font-size:68px;line-height:.96;letter-spacing:-.035em;font-weight:500}
+  h1 em{font-style:normal;color:var(--signal)}
+  h2{font-family:var(--serif);font-size:40px;line-height:1.05;letter-spacing:-.025em;font-weight:500}
+  h3{font-family:var(--serif);font-size:26px;line-height:1.1;letter-spacing:-.015em;font-weight:500}
+  h4{font-size:14px;font-weight:650;letter-spacing:-.005em}
+  p{margin:0}
+  .lede{font-size:17px;line-height:1.7;color:var(--ink2);max-width:820px}
+  .kicker{display:flex;align-items:center;gap:10px;font:10px/1.4 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--signal);margin-bottom:22px}
+  .kicker:before{content:"";width:26px;height:1px;background:var(--signal);opacity:.7}
+  .head{max-width:980px}
+  .head .lede{margin-top:22px}
+  .stamprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+  .stamp{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#0d0c12;color:var(--muted);font-size:11px}
+  .stamp b{color:var(--ink);font-weight:600}
+  .statstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:42px 0 0}
+  .stat{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,#121017,#0d0c12);padding:14px 16px}
+  .stat .n{font:600 26px/1 var(--mono);letter-spacing:-.04em}
+  .stat .n span{font-size:11px;color:var(--muted2);font-weight:400;letter-spacing:0}
+  .stat .l{font-size:11px;color:var(--muted2);margin-top:8px;line-height:1.35}
+  .recbox{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start;margin-top:36px;padding:20px 22px;border:1px solid var(--signal-line);border-radius:14px;background:linear-gradient(120deg,rgba(255,179,92,.09),rgba(255,179,92,.02) 58%),#110f15}
+  .recbox .mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--signal);color:var(--signal-ink)}
+  .recbox b{color:var(--signal2);font-weight:650}
+  .recbox p{color:var(--ink2);font-size:14px;line-height:1.6}
+  .section{margin-top:88px;padding-top:34px;border-top:1px solid var(--line)}
+  .section-head{display:grid;grid-template-columns:64px 1fr;gap:22px;align-items:start;margin-bottom:34px}
+  .section-no{font:11px/1 var(--mono);color:var(--signal);padding-top:8px;letter-spacing:.14em}
+  .section-head h2{margin-bottom:12px}
+  .section-head .lede{font-size:16px;max-width:900px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#121017,#0e0d13);overflow:hidden}
+  .card-pad{padding:18px 20px}
+  .shot{position:relative;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a090e}
+  .shot img{width:100%;height:auto}
+  .shot .fid{position:absolute;top:10px;left:10px}
+  .fid{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;border:1px solid currentColor;font:9.5px/1.6 var(--mono);letter-spacing:.08em;text-transform:uppercase;background:rgba(10,9,14,.78);backdrop-filter:blur(6px)}
+  .fid.captured{color:var(--green)}
+  .fid.rendered{color:var(--ice)}
+  .fid.composited{color:var(--amber)}
+  .fid.sketch{color:var(--red)}
+  .figcap{padding:11px 2px 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .figcap b{color:var(--ink2);font-weight:600}
+  .findings{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;margin-top:26px}
+  .finding{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:15px 0;border-top:1px solid var(--line)}
+  .finding .n{font:10px/1.4 var(--mono);color:var(--signal);padding-top:3px}
+  .finding b{display:block;font-size:13.5px;font-weight:650;margin-bottom:4px}
+  .finding p{font-size:13px;line-height:1.6;color:var(--muted)}
+  .callout{margin-top:22px;padding:18px 20px;border-left:2px solid var(--ice);background:linear-gradient(90deg,var(--ice-soft),transparent 70%);border-radius:0 12px 12px 0}
+  .callout b{color:var(--ice)}
+  .callout p{font-size:13.5px;color:var(--ink2);line-height:1.65}
+  /* layers */
+  .layers{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:10px}
+  .layer{position:relative;border:1px solid var(--line);border-radius:13px;background:linear-gradient(180deg,#121017,#0d0c12);padding:16px}
+  .layer:after{content:"";position:absolute;top:50%;right:-13px;width:13px;height:1px;background:var(--line2)}
+  .layer:last-child:after{display:none}
+  .layer .tag{display:inline-flex;padding:3px 7px;border-radius:6px;font:9px/1.6 var(--mono);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line2);color:var(--muted)}
+  .layer h4{margin:13px 0 3px;font-family:var(--serif);font-size:19px;font-weight:500}
+  .layer .count{font:10px/1.5 var(--mono);color:var(--signal)}
+  .layer p{font-size:12px;line-height:1.55;color:var(--muted);margin-top:10px}
+  .layer ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+  .layer li{font-size:11.5px;color:var(--ink2);display:flex;gap:6px;align-items:center}
+  .layer li:before{content:"";width:4px;height:4px;border-radius:50%;background:var(--line3);flex:none}
+  .entity-note{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+  .entity-note .card-pad{padding:18px 20px}
+  .entity-note h4{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .entity-note p{font-size:13px;line-height:1.65;color:var(--muted)}
+  .entity-note p + p{margin-top:8px}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+  .dot.g{background:var(--green)} .dot.a{background:var(--amber)} .dot.i{background:var(--ice)} .dot.r{background:var(--red)}
+  /* option chrome */
+  .option{margin-top:36px;border:1px solid var(--line);border-radius:18px;background:#0d0c12;overflow:hidden}
+  .option-head{display:grid;grid-template-columns:54px 1fr auto;gap:16px;align-items:start;padding:24px 26px 20px;border-bottom:1px solid var(--line)}
+  .letter{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;border:1px solid var(--line2);background:#121018;font-family:var(--serif);font-size:22px;color:var(--signal)}
+  .option-head h3{margin-bottom:4px}
+  .option-head .idea{font-size:13.5px;color:var(--muted);line-height:1.6;max-width:720px}
+  .option-tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .tag{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid var(--line2);border-radius:999px;font-size:10.5px;color:var(--muted)}
+  .tag.hot{color:var(--signal);border-color:var(--signal-line);background:var(--signal-soft)}
+  .tag.cool{color:var(--ice);border-color:var(--ice-line);background:var(--ice-soft)}
+  .mockwrap{padding:22px;background:
+    linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+    background-size:32px 32px;}
+  .viewswitch{display:flex;gap:6px;justify-content:flex-end;margin-bottom:12px}
+  .vbtn{padding:5px 10px;border:1px solid var(--line2);border-radius:7px;background:#111018;color:var(--muted);font-size:11px}
+  .vbtn[aria-pressed="true"]{background:var(--signal);border-color:var(--signal);color:var(--signal-ink);font-weight:650}
+  .mock{position:relative;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:var(--bg);box-shadow:0 30px 90px rgba(0,0,0,.5)}
+  .mock .view{display:none}
+  .mock .view.on{display:block}
+  .apprail{width:172px;flex:none;border-right:1px solid var(--line);background:linear-gradient(180deg,#0e0c12,#0a090e);padding:14px 11px;display:flex;flex-direction:column;gap:3px}
+  .appbrand{display:flex;align-items:center;gap:8px;padding:2px 7px 16px;font-size:11px;font-weight:650;letter-spacing:-.01em;min-width:0}
+  .appbrand .mark{width:23px;height:23px;border-radius:7px;flex:none;background:linear-gradient(145deg,var(--signal),#d9862a);display:grid;place-items:center;color:#1a1108;font:700 9px/1 var(--mono)}
+  .appbrand > span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .appbrand small{display:block;font:8px/1.4 var(--mono);color:var(--muted2);letter-spacing:.12em;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .anav{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:11px;color:var(--muted)}
+  .anav.on{background:var(--signal-soft);color:var(--ink);box-shadow:inset 0 0 0 1px var(--signal-line)}
+  .anav .n{margin-left:auto;font:8.5px/1 var(--mono);color:var(--muted2)}
+  .appmain{flex:1;min-width:0}
+  .apptop{display:flex;align-items:center;justify-content:space-between;gap:10px;height:44px;padding:0 16px;border-bottom:1px solid var(--line);background:rgba(11,10,15,.7)}
+  .crumb{font-size:10.5px;color:var(--muted2)}
+  .crumb b{color:var(--ink2);font-weight:600}
+  .topcmd{display:flex;align-items:center;gap:6px;width:198px;height:27px;padding:0 8px;border:1px solid var(--line);border-radius:7px;background:#0d0c12;color:var(--muted2);font-size:10px}
+  .topcmd kbd{margin-left:auto;font:8.5px/1 var(--mono);border:1px solid var(--line2);border-radius:4px;padding:2px 4px;background:#121018}
+  .appbody{padding:20px 22px 26px}
+  .appbody.tight{padding:16px}
+  .pagekicker{font:8.5px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--signal);margin-bottom:10px}
+  .pageh1{font-family:var(--serif);font-size:32px;line-height:1;letter-spacing:-.03em;font-weight:500}
+  .pageh1 em{font-style:normal;color:var(--signal)}
+  .pagelede{font-size:11.5px;color:var(--muted);line-height:1.6;max-width:560px;margin-top:9px}
+  .omni{display:flex;align-items:center;gap:9px;height:44px;padding:0 13px;border:1px solid var(--signal-line);border-radius:10px;background:#0d0c12;box-shadow:0 0 0 3px rgba(255,179,92,.08)}
+  .omni .q{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;color:var(--ink)}
+  .omni .ph{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;color:var(--muted2)}
+  .omni kbd{font:9px/1 var(--mono);border:1px solid var(--line2);border-radius:4px;padding:3px 5px;color:var(--muted2);background:#121018}
+  .modes{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .mode{padding:4px 8px;border:1px solid var(--line);border-radius:999px;background:#0d0c12;font-size:10px;color:var(--muted)}
+  .mode.on{background:var(--signal-soft);border-color:var(--signal-line);color:var(--signal2)}
+  .mode .c{font:8.5px/1 var(--mono);color:var(--muted2);margin-left:4px}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .filter{display:inline-flex;align-items:center;gap:5px;padding:4px 7px;border:1px solid var(--line);border-radius:6px;background:#0d0c12;font-size:9.5px;color:var(--muted)}
+  .filter.on{border-color:var(--ice-line);background:var(--ice-soft);color:var(--ice)}
+  .browse-title{display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 10px}
+  .browse-title b{font-size:12px;font-weight:650}
+  .browse-title span{font:9px/1 var(--mono);color:var(--muted2)}
+  .catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .cat{position:relative;padding:11px;border:1px solid var(--line);border-radius:9px;background:linear-gradient(180deg,#121018,#0d0c12);text-align:left;transition:.16s}
+  .cat:hover{border-color:var(--line3);transform:translateY(-1px)}
+  .cat .ico{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;background:var(--signal-soft);color:var(--signal);border:1px solid var(--signal-line);margin-bottom:8px}
+  .cat b{display:block;font-size:10.5px;font-weight:650}
+  .cat .count{font:8.5px/1.4 var(--mono);color:var(--muted2);margin-top:3px}
+  .cat .ex{font-size:9px;color:var(--muted);line-height:1.45;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .strip{display:flex;gap:8px;margin-top:8px}
+  .recent-card{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:9px;border:1px solid var(--line);border-radius:8px;background:#0d0c12}
+  .recent-card .mini{width:34px;height:26px;border-radius:4px;flex:none;background:#17131c;border:1px solid var(--line2);overflow:hidden}
+  .recent-card b{display:block;font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .recent-card small{display:block;font:8px/1.4 var(--mono);color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* results */
+  .results-layout{display:grid;grid-template-columns:136px 1fr;gap:14px;margin-top:16px}
+  .facets{display:grid;gap:12px;align-content:start}
+  .facet{border-top:1px solid var(--line);padding-top:8px}
+  .facet .fcap{font:8px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+  .facet button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:3px 4px;border-radius:4px;font-size:9.5px;color:var(--muted)}
+  .facet button:hover{background:#15121a;color:var(--ink2)}
+  .facet button.on{color:var(--signal2)}
+  .facet .n{font:8px/1 var(--mono);color:var(--muted2)}
+  .resgroup{margin-bottom:12px}
+  .resgroup-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .resgroup-head b{font:8.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+  .resgroup-head .n{font:8.5px/1 var(--mono);color:var(--muted2);border:1px solid var(--line);border-radius:999px;padding:1px 5px}
+  .resgroup-head .line{flex:1;height:1px;background:var(--line)}
+  .resrow{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border:1px solid transparent;border-radius:8px;text-align:left}
+  .resrow:hover{background:#15121a;border-color:var(--line)}
+  .resrow.best{background:linear-gradient(90deg,var(--signal-soft),rgba(255,179,92,.02));border-color:var(--signal-line)}
+  .resicon{width:28px;height:28px;flex:none;border-radius:7px;border:1px solid var(--line2);background:#121018;display:grid;place-items:center;color:var(--muted)}
+  .resrow.best .resicon{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+  .resmain{min-width:0;flex:1}
+  .resmain b{display:block;font-size:11px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .resmain small{display:block;font-size:9px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .resmeta{display:flex;align-items:center;gap:5px;flex:none}
+  .pill{display:inline-flex;align-items:center;gap:3px;padding:2px 5px;border:1px solid var(--line2);border-radius:999px;font:8px/1.5 var(--mono);color:var(--muted)}
+  .pill.g{color:var(--green);border-color:rgba(130,224,176,.3);background:var(--green-soft)}
+  .pill.a{color:var(--amber);border-color:rgba(255,204,128,.3);background:var(--amber-soft)}
+  .pill.i{color:var(--ice);border-color:var(--ice-line);background:var(--ice-soft)}
+  .pill.sig{color:var(--signal2);border-color:var(--signal-line);background:var(--signal-soft)}
+  .besttags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .besttags span{font-size:8.5px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .cmdrow kbd{margin-left:auto;font:8px/1 var(--mono);border:1px solid var(--line2);border-radius:4px;padding:2px 4px;color:var(--muted2);background:#121018}
+  /* spotlight overlay */
+  .dimwrap{position:relative}
+  .dimwrap .under{filter:blur(2px) brightness(.5);transform:scale(.995)}
+  .overlay{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding:8px;background:rgba(5,4,8,.62);backdrop-filter:blur(3px)}
+  .sheet{width:min(720px,100%);max-height:calc(100% - 8px);overflow:hidden;border:1px solid var(--line2);border-radius:12px;background:var(--panel);box-shadow:0 40px 120px rgba(0,0,0,.65)}
+  .sheet-top{padding:10px}
+  .sheet .omni{height:38px;border-color:var(--line2);box-shadow:none}
+  .sheet .omni .q{font-size:12px}
+  .sheet-body{display:grid;grid-template-columns:1.25fr .75fr;height:438px;max-height:438px}
+  .sheet-results{padding:0 10px 10px;overflow:auto;border-right:1px solid var(--line);mask-image:linear-gradient(to bottom,black calc(100% - 20px),transparent)}
+  .sheet-preview{padding:12px;background:#0f0d14;overflow:auto}
+  .sheet-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 12px;border-top:1px solid var(--line);font:8.5px/1.4 var(--mono);color:var(--muted2);white-space:nowrap;overflow:hidden}
+  .sheet-foot span{display:inline-flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .prev-thumb{border:1px solid var(--line2);border-radius:8px;overflow:hidden;background:#0b0a0f}
+  .prev-thumb .mini-page{height:120px}
+  .prev-title{font-family:var(--serif);font-size:19px;line-height:1.1;margin:10px 0 3px}
+  .prev-sub{font:8.5px/1.5 var(--mono);color:var(--muted2)}
+  .prev-meta{display:grid;gap:4px;margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font-size:9px;color:var(--muted)}
+  .prev-meta div{display:flex;justify-content:space-between;gap:8px}
+  .prev-meta b{color:var(--ink2);font-weight:600}
+  .prev-actions{display:grid;gap:5px;margin-top:10px}
+  .pbtn{display:flex;align-items:center;justify-content:center;gap:5px;height:26px;border-radius:6px;border:1px solid var(--line2);background:#15121a;font-size:9.5px;color:var(--ink2)}
+  .pbtn.primary{background:var(--signal);border-color:var(--signal);color:var(--signal-ink);font-weight:650}
+  /* mini pages */
+  .mini-page{position:relative;height:100%;min-height:70px;background:#f4efe5;color:#221b16;overflow:hidden}
+  .mini-page .mp-bar{display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid rgba(34,27,22,.12)}
+  .mini-page .mp-mark{width:9px;height:9px;border-radius:3px;background:#cf5b32}
+  .mini-page .mp-lines{margin-left:auto;display:flex;gap:3px}
+  .mini-page .mp-lines i{width:10px;height:2px;background:rgba(34,27,22,.28);border-radius:2px}
+  .mini-page .mp-hero{padding:12px 10px 8px}
+  .mini-page .mp-eyebrow{font:6px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#a35a3d}
+  .mini-page .mp-title{font-family:var(--serif);font-size:17px;line-height:.98;letter-spacing:-.04em;margin:4px 0 4px;max-width:80%}
+  .mini-page .mp-sub{font-size:6px;line-height:1.45;color:#6d5c51;max-width:70%}
+  .mini-page .mp-cta{display:inline-block;margin-top:6px;padding:3px 6px;border-radius:3px;background:#221b16;color:#f4efe5;font:5.5px/1.3 var(--mono)}
+  .mini-page .mp-foot{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px 8px}
+  .mini-page .mp-block{height:22px;border-radius:3px;background:#e6d8c8;border:1px solid rgba(34,27,22,.08)}
+  .mini-page.dark{background:#0e1118;color:#eef3fb}
+  .mini-page.dark .mp-bar{border-color:rgba(255,255,255,.1)}
+  .mini-page.dark .mp-mark{background:#d6ff5e}
+  .mini-page.dark .mp-lines i{background:rgba(255,255,255,.25)}
+  .mini-page.dark .mp-eyebrow{color:#d6ff5e}
+  .mini-page.dark .mp-sub{color:#8b94a7}
+  .mini-page.dark .mp-cta{background:#d6ff5e;color:#10140a}
+  .mini-page.dark .mp-block{background:#1b202b;border-color:rgba(255,255,255,.07)}
+  .mini-page.ice{background:#eef3f8}
+  .mini-page.ice .mp-mark{background:#3c6fb5}
+  .mini-page.ice .mp-eyebrow{color:#3c6fb5}
+  .mini-page.ice .mp-block{background:#dbe5ef;border-color:rgba(20,30,50,.08)}
+  .mini-page.ice .mp-title{font-size:14px}
+  /* concierge */
+  .askhero{max-width:780px;margin:6px auto 0;padding:26px 0 0;text-align:center}
+  .askhero .pagekicker{justify-content:center;display:flex}
+  .askhero h3{font-size:34px;margin-bottom:8px}
+  .askhero p{font-size:11.5px;color:var(--muted);max-width:500px;margin:0 auto}
+  .askbox{margin-top:18px;border:1px solid var(--signal-line);border-radius:12px;background:#0d0c12;box-shadow:0 0 0 4px rgba(255,179,92,.06);padding:8px}
+  .askbox .row{display:flex;align-items:center;gap:8px;padding:4px 6px}
+  .askbox .asktext{flex:1;text-align:left;font-size:12px;color:var(--ink)}
+  .askbox .go{width:26px;height:26px;border-radius:7px;background:var(--signal);color:var(--signal-ink);display:grid;place-items:center}
+  .askmodes{display:flex;align-items:center;gap:5px;padding:5px 2px 1px;border-top:1px solid var(--line);margin-top:5px}
+  .askmodes .mode{font-size:9px;padding:3px 7px}
+  .suggest{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+  .suggest button{font-size:9.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:#0d0c12}
+  .suggest button:hover{color:var(--ink2);border-color:var(--line2)}
+  .answer{margin-top:14px;border:1px solid var(--ice-line);border-radius:11px;background:linear-gradient(120deg,var(--ice-soft),rgba(143,216,255,.02));padding:13px 14px;text-align:left}
+  .answer .atop{display:flex;align-items:center;gap:6px;font:8.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ice);margin-bottom:7px}
+  .answer p{font-size:11px;line-height:1.65;color:var(--ink2)}
+  .answer .cite{display:inline-flex;align-items:center;padding:0 4px;margin:0 1px;border:1px solid var(--ice-line);border-radius:3px;background:rgba(143,216,255,.08);font:8px/1.5 var(--mono);color:var(--ice);vertical-align:1px}
+  .answer .aactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .answer .aactions .pbtn{height:23px;padding:0 8px;font-size:9px}
+  .why{margin-top:8px;font-size:9px;color:var(--muted2)}
+  .why summary{cursor:pointer;color:var(--ice);font-size:9px}
+  /* option notes */
+  .option-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);background:#0f0d14}
+  .onote{padding:16px 20px;border-right:1px solid var(--line)}
+  .onote:last-child{border-right:0}
+  .onote .caption{margin-bottom:6px}
+  .onote p{font-size:12.5px;line-height:1.6;color:var(--muted)}
+  .onote b{color:var(--ink2)}
+  /* phone */
+  .phones{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .phone{width:340px;height:680px;flex:none;border:1px solid var(--line2);border-radius:26px;background:#08070b;padding:7px;box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative}
+  .phone .screen{position:relative;height:100%;border-radius:20px;overflow:hidden;background:var(--bg);border:1px solid var(--line)}
+  .phone .notch{position:absolute;top:7px;left:50%;transform:translateX(-50%);width:80px;height:16px;border-radius:999px;background:#050408;z-index:5}
+  .phone .status{display:flex;justify-content:space-between;padding:9px 14px 3px;font:8px/1.4 var(--mono);color:var(--muted2)}
+  .phone .pbody{padding:10px 14px}
+  .phone .ptitle{font-family:var(--serif);font-size:26px;line-height:1;letter-spacing:-.03em;margin:8px 0 6px}
+  .phone .ptitle em{font-style:normal;color:var(--signal)}
+  .phone .pomni{height:38px;margin-top:10px;border-radius:9px}
+  .phone .pomni .q,.phone .pomni .ph{font-size:10.5px}
+  .phone .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+  .phone .pcat{padding:9px;border:1px solid var(--line);border-radius:8px;background:#0d0c12}
+  .phone .pcat b{display:block;font-size:9.5px}
+  .phone .pcat .count{font:8px/1.4 var(--mono);color:var(--muted2);margin-top:2px}
+  .phone .pcat .ex{font-size:8px;color:var(--muted);margin-top:4px;line-height:1.4}
+  .phone .prow{display:flex;align-items:center;gap:7px;padding:7px 0;border-top:1px solid var(--line)}
+  .phone .prow .resicon{width:24px;height:24px}
+  .phone .prow b{font-size:9.5px;display:block}
+  .phone .prow small{font-size:8px;color:var(--muted2);display:block}
+  .phone .pgroup{font:8px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin:12px 0 4px}
+  .phone .pnav{position:absolute;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 4px 10px;border-top:1px solid var(--line);background:rgba(12,10,16,.92);backdrop-filter:blur(8px)}
+  .phone .pnav div{display:grid;place-items:center;gap:2px;font-size:7px;color:var(--muted2)}
+  .phone .pnav .on{color:var(--signal)}
+  .phone .fab{position:absolute;right:14px;bottom:58px;width:34px;height:34px;border-radius:50%;background:var(--signal);color:var(--signal-ink);display:grid;place-items:center;box-shadow:0 8px 24px rgba(255,179,92,.28)}
+  /* recommendation table */
+  .rectable{width:100%;border-collapse:collapse;margin-top:6px}
+  .rectable th,.rectable td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:top}
+  .rectable th{font:9px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);font-weight:400}
+  .rectable td:first-child{font-weight:600;color:var(--ink2);width:150px}
+  .rectable td{color:var(--muted)}
+  .rectable b{color:var(--ink2)}
+  .plan{display:grid;gap:0;margin-top:18px;border:1px solid var(--line);border-radius:13px;overflow:hidden}
+  .planstep{display:grid;grid-template-columns:64px 1fr auto;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line);background:#0f0d14}
+  .planstep:last-child{border-bottom:0}
+  .planstep .pn{font:10px/1.4 var(--mono);color:var(--signal);padding-top:2px}
+  .planstep b{display:block;font-size:13px;margin-bottom:3px}
+  .planstep p{font-size:12px;color:var(--muted);line-height:1.55}
+  .planstep .when{font:9px/1.5 var(--mono);color:var(--muted2);white-space:nowrap;padding-top:2px}
+  .accept{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:14px}
+  .accept div{display:flex;gap:8px;font-size:12.5px;color:var(--muted);line-height:1.55;padding:8px 0;border-top:1px solid var(--line)}
+  .accept .i{color:var(--green);margin-top:2px}
+  .footer{margin-top:74px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted2);font-size:11.5px;line-height:1.7}
+  .footer b{color:var(--muted)}
+  details.provenance{margin-top:22px;border:1px solid var(--line);border-radius:12px;background:#0f0d14}
+  details.provenance summary{cursor:pointer;padding:14px 18px;font-size:13px;font-weight:600;color:var(--ink2)}
+  details.provenance .card-pad{padding-top:0}
+  details.provenance dl{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;margin:0;font-size:12px}
+  details.provenance dt{color:var(--muted2);font-family:var(--mono);font-size:10.5px}
+  details.provenance dd{margin:0;color:var(--muted);overflow-wrap:anywhere}
+  @media (max-width:1100px){
+    .statstrip{grid-template-columns:repeat(3,1fr)}
+    .layers{grid-template-columns:1fr 1fr}
+    .layer:after{display:none}
+    .catgrid{grid-template-columns:repeat(2,1fr)}
+    .sheet-body{grid-template-columns:1fr}
+    .sheet-preview{display:none}
+  }
+  @media (max-width:800px){
+    .wrap{padding:36px 18px 70px}
+    h1{font-size:44px}
+    h2{font-size:31px}
+    .section-head{grid-template-columns:1fr;gap:8px}
+    .section-no{padding-top:0}
+    .grid3,.grid2,.entity-note,.findings,.option-notes,.accept{grid-template-columns:1fr}
+    .statstrip{grid-template-columns:1fr 1fr}
+    .option-head{grid-template-columns:44px 1fr;gap:10px;padding:18px}
+    .option-tags{grid-column:1 / -1;justify-content:flex-start}
+    .mockwrap{padding:10px}
+    .apprail{display:none}
+    .apptop{height:40px;padding:0 12px}
+    .apptop .topcmd{display:none}
+    .crumb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .results-layout{grid-template-columns:1fr}
+    .facets{display:none}
+    .catgrid{grid-template-columns:1fr 1fr}
+    .strip{flex-direction:column}
+    .recbox{grid-template-columns:1fr}
+    .sheet-foot span:last-child{display:none}
+    .phones{gap:16px}
+    .phone{width:320px;height:640px}
+  }
+/* ── Workbench maturation additions ─────────────────────────────────────── */
+.proto{margin-top:22px;border:1px solid var(--line);border-radius:16px;background:#0d0c12;overflow:hidden}
+.proto-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:#100e15;flex-wrap:wrap}
+.proto-bar .plabel{font:9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--signal)}
+.proto-bar .pnote{font-size:10px;color:var(--muted2)}
+.proto-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.proto-tab{padding:5px 9px;border:1px solid var(--line);border-radius:6px;font-size:10px;color:var(--muted);background:#0d0c12}
+.proto-tab:hover{color:var(--ink2);border-color:var(--line2)}
+.proto-tab.on{background:var(--signal);color:var(--signal-ink);border-color:var(--signal);font-weight:650}
+.appframe{height:790px;display:flex;background:var(--bg);position:relative;overflow:hidden}
+.appframe .apprail{width:198px}
+.appframe .appmain{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
+.appframe .apptop{flex:none;height:44px}
+.pagebody{display:none;flex:1;min-height:0;overflow:auto;padding:20px 24px}
+.pagebody.on{display:block}
+.pagebody.is-full{padding:0;overflow:hidden}
+.mobileonly{display:none}
+
+/* Start */
+.start-layout{display:grid;grid-template-columns:minmax(0,1fr) 266px;gap:18px}
+.start-main{min-width:0}
+.start-rail{display:grid;gap:9px;align-content:start}
+.railcard{border:1px solid var(--line);border-radius:10px;background:#0f0d14;padding:11px 12px}
+.railcard .rh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.railcard .rh b{font-size:10.5px;font-weight:650}
+.railcard .rh span{font:8px var(--mono);color:var(--muted2);letter-spacing:.08em}
+.pulse-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:9.5px;color:var(--muted)}
+.pulse-row:first-of-type{border-top:0}
+.pulse-row b{font:600 13px var(--mono);color:var(--ink2)}
+.pulse-row .neg{color:var(--red)}
+.pulse-row .warn{color:var(--amber)}
+.continue-card{border:1px solid var(--signal-line);border-radius:10px;background:linear-gradient(120deg,var(--signal-soft),rgba(255,179,92,.02)),#0f0d14;padding:11px 12px}
+.continue-card b{display:block;font-size:11px;margin-top:3px}
+.continue-card small{display:block;font-size:9px;color:var(--muted2);margin-top:2px}
+.continue-card .cc-actions{display:flex;gap:5px;margin-top:8px}
+.mini-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:24px;padding:0 8px;border:1px solid var(--line2);border-radius:6px;background:#15121a;font-size:9px;color:var(--ink2)}
+.mini-btn.primary{background:var(--signal);border-color:var(--signal);color:var(--signal-ink);font-weight:650}
+.tpllist{display:grid;gap:5px}
+.tplrow{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--line);border-radius:7px;background:#0d0c12}
+.tplrow .thumb{width:34px;height:26px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line2)}
+.tplrow b{display:block;font-size:9.5px}
+.tplrow small{display:block;font:8px var(--mono);color:var(--muted2)}
+.suggestlist{display:grid;gap:4px}
+.suggestrow{display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--muted);padding:3px 0}
+.suggestrow kbd{margin-left:auto;font:8px var(--mono);border:1px solid var(--line2);border-radius:4px;padding:2px 4px;background:#121018;color:var(--muted2)}
+.viewtabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.viewtabs .vbtn{font-size:9px;padding:4px 7px}
+.subview{display:none}
+.subview.on{display:block}
+
+/* Library */
+.lib-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0}
+.lib-toolbar .grow{flex:1;min-width:160px}
+.asset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.asset-card{border:1px solid var(--line);border-radius:9px;background:#0f0d14;overflow:hidden;transition:.16s}
+.asset-card:hover{border-color:var(--line3);transform:translateY(-1px)}
+.asset-art{height:70px;background:radial-gradient(200px 90px at 30% 0%,rgba(255,179,92,.12),transparent 70%),#121018;border-bottom:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+.asset-info{padding:8px 9px}
+.asset-info b{display:block;font-size:10px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset-info small{display:block;font:8px var(--mono);color:var(--muted2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset-foot{display:flex;align-items:center;gap:4px;margin-top:6px}
+.mini-ui{display:flex;align-items:center;gap:4px;padding:8px}
+.mini-ui .mbtn{width:36px;height:11px;border-radius:4px;background:var(--signal)}
+.mini-ui .mcard{width:42px;height:28px;border-radius:4px;background:#1b1620;border:1px solid var(--line2)}
+.mini-ui .mline{width:30px;height:4px;border-radius:2px;background:#2a2430}
+.mini-ui .msq{width:16px;height:16px;border-radius:4px;background:var(--ice);opacity:.6}
+.collection-row{display:flex;align-items:center;gap:7px;padding:5px 0;font-size:9.5px;color:var(--muted)}
+.collection-row .bar{flex:1;height:4px;background:#211c27;border-radius:3px;overflow:hidden}
+.collection-row .bar span{display:block;height:100%;background:var(--signal);opacity:.7}
+.collection-row .n{font:8px var(--mono);color:var(--muted2);width:22px;text-align:right}
+.featured{border:1px solid var(--line2);border-radius:9px;background:linear-gradient(160deg,#15121a,#0d0c12);padding:10px}
+.featured .fmeta{display:flex;justify-content:space-between;font:8px var(--mono);color:var(--muted2);margin-bottom:7px}
+.featured .fname{font-family:var(--serif);font-size:16px;margin-bottom:2px}
+.featured .fdesc{font-size:9px;color:var(--muted);line-height:1.5}
+.featured .fbtns{display:flex;gap:4px;margin-top:8px}
+
+/* Workspaces */
+.ws-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.ws-card{display:grid;grid-template-columns:116px minmax(0,1fr);gap:10px;border:1px solid var(--line);border-radius:10px;background:#0f0d14;padding:10px;text-align:left;transition:.16s}
+.ws-card:hover{border-color:var(--line3);transform:translateY(-1px)}
+.ws-card.tpl{border-color:var(--signal-line)}
+.ws-art{height:104px;border-radius:6px;overflow:hidden;border:1px solid var(--line2);position:relative}
+.ws-title{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ws-title b{font-size:12px;font-weight:650}
+.ws-desc{font-size:9px;color:var(--muted);line-height:1.5;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ws-stats{display:flex;gap:8px;margin-top:8px}
+.ws-stat{font-size:8px;color:var(--muted2);line-height:1.3}
+.ws-stat b{display:block;font:600 13px var(--mono);color:var(--ink2)}
+.ws-foot{display:flex;align-items:center;gap:5px;margin-top:8px}
+.ws-empty{display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed var(--line2);border-radius:10px;min-height:128px;color:var(--muted);font-size:10px}
+.ws-note{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#100e15;margin-top:12px;font-size:9.5px;color:var(--muted)}
+.ws-note b{color:var(--ink2)}
+.ws-note .hier-mini{display:flex;align-items:center;gap:5px;font:8px var(--mono);color:var(--muted2);margin-left:auto;white-space:nowrap}
+.ws-note .hier-mini span{padding:2px 5px;border:1px solid var(--line);border-radius:4px}
+
+/* Studio */
+.studio-panel{display:flex;flex-direction:column;height:100%;min-height:0}
+.studio-toolbar{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);background:#100e15;flex-wrap:wrap}
+.studio-title{display:flex;align-items:center;gap:6px;font-family:var(--serif);font-size:16px}
+.studio-title .tag{font-family:var(--mono);font-size:7px;padding:2px 5px}
+.studio-sep{width:1px;height:18px;background:var(--line);margin:0 2px}
+.studio-select{display:flex;align-items:center;gap:5px;height:26px;padding:0 7px;border:1px solid var(--line2);border-radius:6px;background:#0d0c12;font-size:9px;color:var(--ink2)}
+.studio-select .muted2{font-family:var(--mono);font-size:7px}
+.studio-actions{margin-left:auto;display:flex;align-items:center;gap:4px}
+.icon-mini{width:24px;height:24px;border:1px solid var(--line);border-radius:5px;display:grid;place-items:center;background:#0d0c12;color:var(--muted)}
+.icon-mini.on{color:var(--signal);border-color:var(--signal-line);background:var(--signal-soft)}
+.flow-strip{display:flex;align-items:center;gap:4px;padding:6px 12px;border-bottom:1px solid var(--line);background:#0d0c12;overflow:auto}
+.fchip{display:inline-flex;align-items:center;gap:4px;padding:4px 7px;border:1px solid var(--line);border-radius:5px;background:#111018;font-size:8.5px;color:var(--muted);white-space:nowrap}
+.fchip.on{background:var(--signal-soft);border-color:var(--signal-line);color:var(--signal2)}
+.fchip .n{font:7px var(--mono);color:var(--muted2)}
+.farrow{color:var(--line3);font-size:10px}
+.studio-grid{flex:1;min-height:0;display:grid;grid-template-columns:208px minmax(0,1fr) 252px}
+.studio-left{overflow:auto;border-right:1px solid var(--line);background:#0e0c12}
+.pane-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--line);font:8px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+.page-item{display:flex;align-items:center;gap:6px;width:100%;padding:7px 9px;border-left:2px solid transparent;text-align:left;font-size:9.5px;color:var(--muted)}
+.page-item:hover{background:#15121a}
+.page-item.on{background:var(--signal-soft);border-left-color:var(--signal);color:var(--ink2)}
+.page-item .pnum{width:13px;font:7px var(--mono);color:var(--muted2)}
+.page-item .pmeta{margin-left:auto;font:7px var(--mono);color:var(--muted2)}
+.page-item.on .pmeta{color:var(--signal)}
+.layer-row{display:flex;align-items:center;gap:5px;padding:4px 9px;font-size:8.5px;color:var(--muted)}
+.layer-row.on{background:#17131d;color:var(--ink2)}
+.layer-row .indent{width:8px}
+.layer-row .ltype{margin-left:auto;font:6.5px var(--mono);color:var(--muted2)}
+.studio-canvas{overflow:auto;background:radial-gradient(500px 260px at 50% 0%,rgba(255,179,92,.04),transparent 70%),#0b0a0f;padding:12px}
+.canvas-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.canvas-head b{font-size:10px}
+.canvas-head span{font:8px var(--mono);color:var(--muted2)}
+.display-row{display:grid;grid-template-columns:1.1fr 1fr 0.9fr;gap:8px;align-items:start}
+.display{border:1px solid var(--line);border-radius:7px;background:#121018;overflow:hidden}
+.display.on{border-color:var(--signal-line);box-shadow:0 0 0 2px rgba(255,179,92,.12)}
+.display-head{display:flex;align-items:center;gap:4px;padding:4px 6px;border-bottom:1px solid var(--line);font:7px var(--mono);color:var(--muted2)}
+.display-head b{color:var(--ink2);font-weight:600}
+.display-head .size{margin-left:auto}
+.display-screen{height:232px;background:#f5f0e7;position:relative;overflow:hidden;color:#241c17}
+.display-screen.tablet{height:232px}
+.display-screen.phone{height:286px;background:#f5f0e7}
+.mini-form{position:absolute;inset:0;padding:9px;display:flex;flex-direction:column;gap:4px}
+.mini-form .mf-nav{display:flex;align-items:center;gap:4px;padding-bottom:5px;border-bottom:1px solid rgba(36,28,23,.12);margin-bottom:2px}
+.mini-form .mf-mark{width:7px;height:7px;border-radius:2px;background:#cf5b32}
+.mini-form .mf-navl{display:flex;gap:3px;margin-left:auto}
+.mini-form .mf-navl i{width:8px;height:2px;background:rgba(36,28,23,.25);border-radius:2px}
+.mini-form .mf-step{font:6px var(--mono);color:#a35a3d;letter-spacing:.08em;text-transform:uppercase}
+.mini-form .mf-title{font-family:var(--serif);font-size:16px;line-height:1;letter-spacing:-.03em;margin:1px 0 3px}
+.mini-form .mf-sub{font-size:6px;color:#6d5c51;line-height:1.4}
+.mini-form .mf-field{height:14px;border:1px solid rgba(36,28,23,.16);border-radius:3px;background:#fbf8f2;display:flex;align-items:center;padding:0 4px;font-size:5.5px;color:#6d5c51}
+.mini-form .mf-field.err{border-color:#c34c3c;background:#fff2ef;color:#a33a2c}
+.mini-form .mf-row{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.mini-form .mf-cta{margin-top:auto;align-self:flex-start;padding:4px 7px;border-radius:3px;background:#241c17;color:#f5f0e7;font:5px var(--mono)}
+.mini-form .mf-prog{display:flex;gap:2px;margin-top:4px}
+.mini-form .mf-prog i{height:2px;flex:1;background:rgba(36,28,23,.16);border-radius:2px}
+.mini-form .mf-prog i.on{background:#cf5b32}
+.mini-form .mf-side{display:none}
+.mini-form.desktop .mf-body{display:grid;grid-template-columns:1fr 1.2fr;gap:8px}
+.mini-form.desktop .mf-side{display:grid;align-content:start;gap:4px;background:#ece2d4;border-radius:3px;padding:5px;font-size:5.5px;color:#6d5c51}
+.mini-form.phone .mf-title{font-size:12px}
+.mini-form.phone .mf-row{grid-template-columns:1fr}
+.mini-form.phone .mf-field{height:12px}
+.mini-form.phone .mf-cta{margin-top:6px}
+.mini-form.phone .mf-prog{display:none}
+.state-row{display:flex;flex-wrap:wrap;gap:3px;padding:5px 6px;border-top:1px solid var(--line);background:#0e0c12}
+.schip{font-size:7px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;color:var(--muted);white-space:nowrap}
+.schip.on{background:var(--signal-soft);border-color:var(--signal-line);color:var(--signal2)}
+.schip.miss{border-style:dashed;color:var(--muted2)}
+.studio-right{overflow:auto;border-left:1px solid var(--line);background:#0e0c12;padding:10px}
+.sel-path{font:7.5px var(--mono);line-height:1.7;color:var(--muted2)}
+.sel-path b{color:var(--ink2)}
+.sel-path span{color:var(--signal)}
+.insblock{border-top:1px solid var(--line);margin-top:9px;padding-top:8px}
+.insblock .ih{display:flex;align-items:center;justify-content:space-between;font:7.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+.insrow{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:8.5px;padding:3px 0;color:var(--muted)}
+.insrow b{color:var(--ink2);font-weight:600}
+.insrow .val{font-family:var(--mono);font-size:7.5px;color:var(--muted2)}
+.insev{display:flex;align-items:center;gap:4px;font-size:8px;padding:3px 0;color:var(--muted)}
+.insev .dot{width:5px;height:5px}
+.addstate{display:flex;align-items:center;justify-content:center;gap:4px;height:22px;border:1px dashed var(--line2);border-radius:5px;font-size:8px;color:var(--muted2);margin-top:5px}
+.evidence-miss{font-size:8px;color:var(--amber);line-height:1.5}
+
+/* Flow */
+.flow-wrap{display:grid;grid-template-columns:minmax(0,1fr) 244px;gap:12px;height:auto;min-height:0}
+.flow-canvas{display:flex;flex-direction:column;align-items:stretch;gap:0;overflow:auto;padding:16px;border:1px solid var(--line);border-radius:10px;background:radial-gradient(600px 260px at 50% 0%,rgba(255,179,92,.045),transparent 70%),#0b0a0f}
+.flow-card{width:156px;flex:none;border:1px solid var(--line);border-radius:9px;background:#0f0d14;overflow:hidden}
+.flow-card.on{border-color:var(--signal-line);box-shadow:0 0 0 2px rgba(255,179,92,.12)}
+.flow-card .thumb{height:104px;border-bottom:1px solid var(--line);overflow:hidden}
+.flow-card .fbody{padding:8px}
+.flow-card .ftitle{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:650}
+.flow-card .ftype{font:7px var(--mono);color:var(--muted2);margin-top:2px}
+.flow-card .fstats{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.flow-card .fstats span{font:6.5px var(--mono);border:1px solid var(--line);border-radius:3px;padding:1px 3px;color:var(--muted2)}
+.flow-card .fdev{display:flex;gap:3px;margin-top:5px}
+.flow-card .fdev i{width:7px;height:7px;border-radius:2px;background:#2a2430;border:1px solid var(--line2)}
+.flow-card .fdev i.on{background:var(--signal);border-color:var(--signal)}
+.flow-arrow{width:20px;flex:none;display:grid;place-items:center;color:var(--line3);font-size:14px}
+.flow-track{display:flex;align-items:center;gap:0}
+.flow-transitions{margin-top:14px;border-top:1px solid var(--line);padding-top:9px;display:grid;gap:4px}
+.ftrow{display:flex;align-items:center;gap:6px;font-size:8px;color:var(--muted)}
+.ftrow b{color:var(--ink2);font-weight:600}
+.ftrow .ftarrow{margin-left:auto;font:7px var(--mono);color:var(--muted2)}
+.flow-side{border:1px solid var(--line);border-radius:10px;background:#0f0d14;padding:11px;overflow:auto}
+.flow-side h4{font-size:11px;margin-bottom:4px}
+.flow-side p{font-size:8.5px;color:var(--muted);line-height:1.55}
+.flow-side .side-stat{display:flex;justify-content:space-between;font-size:8.5px;padding:4px 0;border-top:1px solid var(--line);color:var(--muted)}
+.flow-side .side-stat b{font-family:var(--mono);color:var(--ink2)}
+
+/* Review */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.kpi{border:1px solid var(--line);border-radius:9px;background:#0f0d14;padding:9px 11px}
+.kpi .n{font:600 20px/1 var(--mono);letter-spacing:-.03em}
+.kpi .l{font-size:8.5px;color:var(--muted2);margin-top:5px;line-height:1.4}
+.review-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:12px}
+.review-col{border:1px solid var(--line);border-radius:9px;background:#0f0d14;padding:8px}
+.review-col .ch{display:flex;align-items:center;gap:5px;font:8px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);margin-bottom:5px}
+.finding-card{border:1px solid var(--line);border-radius:6px;background:#121018;padding:7px;margin-top:5px}
+.finding-card.on{border-color:var(--signal-line);background:var(--signal-soft)}
+.finding-card b{display:block;font-size:9px;line-height:1.4}
+.finding-card small{display:block;font:7px var(--mono);color:var(--muted2);margin-top:2px}
+.finding-card .frow{display:flex;align-items:center;gap:4px;margin-top:5px}
+.detail{border:1px solid var(--line);border-radius:9px;background:#0f0d14;padding:10px;margin-top:10px}
+.detail h4{font-size:10px;margin-bottom:3px}
+.detail p{font-size:8.5px;color:var(--muted);line-height:1.55}
+.detail .actions{display:flex;gap:4px;margin-top:7px}
+
+/* Stats */
+.stats-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 12px}
+.stats-tab{padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:9px;color:var(--muted);background:#0d0c12}
+.stats-tab.on{background:var(--signal-soft);border-color:var(--signal-line);color:var(--signal2)}
+.stats-tab .src{font:7px var(--mono);color:var(--muted2);margin-left:3px}
+.stats-view{display:none}
+.stats-view.on{display:block}
+.kpis.five{grid-template-columns:repeat(5,1fr)}
+.stats-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:10px;margin-top:10px}
+.bigpanel{border:1px solid var(--line);border-radius:9px;background:#0f0d14;padding:11px}
+.bigpanel .bh{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.bigpanel .bh b{font-size:10px}
+.bigpanel .bh span{font:7.5px var(--mono);color:var(--muted2)}
+.bar-row{display:grid;grid-template-columns:82px 1fr 26px;gap:7px;align-items:center;font-size:8.5px;color:var(--muted);margin-top:5px}
+.bar-track{height:5px;border-radius:3px;background:#211c27;overflow:hidden}
+.bar-fill{height:100%;background:var(--signal);opacity:.8}
+.bar-fill.g{background:var(--green)} .bar-fill.i{background:var(--ice)} .bar-fill.a{background:var(--amber)} .bar-fill.r{background:var(--red)}
+.bar-row .bn{font:7px var(--mono);color:var(--muted2);text-align:right}
+.ring-wrap{display:flex;align-items:center;gap:12px;margin:4px 0 8px}
+.ring{width:72px;height:72px;border-radius:50%;background:conic-gradient(var(--signal) 0deg 0deg,#241f29 0deg 360deg);display:grid;place-items:center;position:relative;flex:none}
+.ring:after{content:"";position:absolute;inset:7px;border-radius:50%;background:#0f0d14}
+.ring b{position:relative;z-index:1;font:600 17px var(--mono)}
+.ring-copy b{display:block;font-size:10px}
+.ring-copy span{font-size:8px;color:var(--muted);line-height:1.5}
+.trail-event{display:flex;align-items:flex-start;gap:7px;padding:6px 0;border-top:1px solid var(--line)}
+.trail-event .ico{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;background:#17131d;border:1px solid var(--line2);flex:none;color:var(--signal)}
+.trail-event b{display:block;font-size:8.5px;line-height:1.4}
+.trail-event small{display:block;font:7px var(--mono);color:var(--muted2);margin-top:1px}
+.trail-event .time{margin-left:auto;font:7px var(--mono);color:var(--muted2)}
+.matrix{width:100%;border-collapse:collapse;font-size:8px}
+.matrix th{font:7px var(--mono);color:var(--muted2);text-align:right;padding:3px;font-weight:400}
+.matrix th:first-child{text-align:left}
+.matrix td{padding:3px;border-top:1px solid var(--line);text-align:right;font:7.5px var(--mono);color:var(--muted)}
+.matrix td:first-child{text-align:left;color:var(--ink2);font-family:var(--sans);font-size:8.5px}
+.matrix .c1{color:var(--red)} .matrix .c2{color:var(--amber)} .matrix .c3{color:var(--ice)} .matrix .c4{color:var(--green)} .matrix .c5{color:var(--signal2)}
+.service-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.service{border:1px solid var(--line);border-radius:8px;background:#121018;padding:8px}
+.service .sh{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:650}
+.service p{font-size:7.5px;color:var(--muted);line-height:1.5;margin-top:3px}
+.service .cmd{font:7px var(--mono);color:var(--muted2);border:1px solid var(--line);border-radius:4px;padding:3px 4px;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.next-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-top:1px solid var(--line);font-size:8.5px}
+.next-row .rank{font:7px var(--mono);color:var(--signal);width:16px}
+.next-row b{font-size:8.5px}
+.next-row small{display:block;font:7px var(--mono);color:var(--muted2)}
+.next-row .meta{margin-left:auto;font:7px var(--mono);color:var(--muted2)}
+
+/* IA + hierarchy + ledger */
+.map{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:16px}
+.mapcol{border:1px solid var(--line);border-radius:10px;background:#0f0d14;padding:12px}
+.mapcol .mh{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:650}
+.mapcol .mh .dot{width:6px;height:6px}
+.mapcol p{font-size:9px;color:var(--muted);line-height:1.5;margin-top:5px}
+.mapcol ul{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+.mapcol li{font-size:8.5px;color:var(--muted2);display:flex;gap:4px}
+.mapcol li:before{content:"·";color:var(--line3)}
+.redirects{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.redirect{display:inline-flex;align-items:center;gap:4px;padding:4px 7px;border:1px solid var(--line);border-radius:5px;background:#0d0c12;font:8px var(--mono);color:var(--muted2)}
+.redirect b{color:var(--ice);font-weight:400}
+.hier{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.hier-card{position:relative;border:1px solid var(--line);border-radius:10px;background:#0f0d14;padding:12px}
+.hier-card:after{content:"›";position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--line3);font-size:16px}
+.hier-card:last-child:after{display:none}
+.hier-card .ht{font:8px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--signal)}
+.hier-card h4{font-family:var(--serif);font-size:18px;margin:4px 0 3px;font-weight:500}
+.hier-card p{font-size:9px;color:var(--muted);line-height:1.55}
+.hier-card .ex{margin-top:7px;font:8px var(--mono);color:var(--muted2);line-height:1.6}
+.ledger td:first-child{width:190px}
+.ledger .dest{color:var(--ink2);font-weight:600}
+.ledger .kept{color:var(--green)}
+.ledger .moved{color:var(--ice)}
+.ledger .gone{color:var(--muted2)}
+.schema{display:grid;gap:6px;margin-top:10px}
+.schemabox{border:1px solid var(--line);border-radius:8px;background:#0d0c12;padding:9px 11px;font:8.5px/1.7 var(--mono);color:var(--ink2)}
+.schemabox b{color:var(--signal2)}
+.schemabox .c{color:var(--muted2)}
+
+/* Phones additions */
+.pwork{border:1px solid var(--line);border-radius:8px;background:#0f0d14;padding:8px;margin-top:7px}
+.pwork .pwt{display:flex;align-items:center;gap:4px;font-size:9.5px;font-weight:650}
+.pwork .pws{display:flex;gap:6px;margin-top:5px;font:7px var(--mono);color:var(--muted2)}
+.pwork .pws b{color:var(--ink2);font-weight:600}
+.pstudio{border:1px solid var(--signal-line);border-radius:8px;background:linear-gradient(160deg,var(--signal-soft),rgba(255,179,92,.02));padding:8px;margin-top:7px}
+.pstudio .pst{display:flex;align-items:center;gap:4px;font-size:9px}
+.pstudio .pst .tag{font-size:6px}
+.pdisplay{margin-top:6px;border:1px solid var(--line2);border-radius:6px;background:#f5f0e7;overflow:hidden;height:120px;position:relative;color:#241c17}
+.pdisplay .pdhead{display:flex;align-items:center;justify-content:space-between;padding:3px 5px;background:#121018;border-bottom:1px solid var(--line);font:6px var(--mono);color:var(--muted2)}
+.pdisplay .pdhead b{color:var(--ink2)}
+.pdisplay .pdbody{padding:6px;font-size:6px}
+.pdisplay .pdbody .t{font-family:var(--serif);font-size:12px;line-height:1}
+.pdisplay .pdbody .f{height:11px;border:1px solid rgba(36,28,23,.18);border-radius:2px;margin-top:4px;background:#fbf8f2}
+.pdisplay .pdbody .f.err{border-color:#c34c3c;background:#fff2ef}
+.pstate{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px}
+.pstate span{font-size:6px;border:1px solid var(--line);border-radius:3px;padding:1px 3px;color:var(--muted2)}
+.pstate span.on{border-color:var(--signal);color:var(--signal)}
+.pstate span.miss{border-style:dashed;color:var(--red)}
+
+@media (max-width:1100px){
+  .start-layout{grid-template-columns:1fr}
+  .start-rail{grid-template-columns:1fr 1fr;display:grid}
+  .asset-grid{grid-template-columns:1fr 1fr}
+  .ws-grid{grid-template-columns:1fr}
+  .studio-grid{grid-template-columns:180px minmax(0,1fr);}
+  .studio-right{display:none}
+  .hier{grid-template-columns:1fr 1fr}
+  .map{grid-template-columns:1fr 1fr}
+}
+@media (max-width:800px){
+  .rectable{table-layout:fixed;width:100%}
+  .rectable th,.rectable td{white-space:normal;overflow-wrap:anywhere;font-size:10px}
+  .ledger td:first-child{width:auto}
+  .schemabox{overflow-wrap:anywhere}
+  .appframe{height:auto;min-height:700px}
+  .appframe .apprail{display:none}
+  .pagebody{padding:14px}
+  .start-layout{grid-template-columns:1fr}
+  .start-rail{grid-template-columns:1fr}
+  .asset-grid{grid-template-columns:1fr}
+  .ws-grid{grid-template-columns:1fr}
+  .display-row{grid-template-columns:1fr}
+  .flow-wrap{grid-template-columns:1fr}
+  .flow-side{display:none}
+  .review-cols{grid-template-columns:1fr}
+  .kpis,.kpis.five{grid-template-columns:1fr 1fr}
+  .stats-grid{grid-template-columns:1fr}
+  .service-grid{grid-template-columns:1fr}
+  .map{grid-template-columns:1fr}
+  .hier{grid-template-columns:1fr}
+  .hier-card:after{display:none}
+  .proto-tabs{margin-left:0}
+}
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 0 0 0-6z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5"/><path d="M12 12v9"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m13 2-9 12h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="3.5"/><path d="m10 13 8-8 2 2-3 3 2 2-2 2-2-2-2 2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></symbol>
+  <symbol id="i-arrowup" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></symbol>
+</svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-tablet" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-flow" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/><path d="M9 6h4a2 2 0 0 1 2 2v7"/><path d="m13 13 2 2 2-2"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="m8.5 10.8 7-3.6M8.5 13.2l7 3.6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15 20a5 5 0 0 1 6-4.9"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14 4l2-2"/><path d="M20 20v-5h-5"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20z"/><path d="M12 9v5M12 17h.01"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 5h12l-2 4 2 4H5"/></symbol>
+</svg>
+<div class="wrap">
+  <header class="head">
+    <div class="kicker">Workbench maturation · React Component Library · 2026-11-19</div>
+    <h1>Five places. One model. <em>Nothing lost.</em></h1>
+    <p class="lede">
+      You liked the search index and the phone composition. This pass matures the rest of the
+      workbench around them: Home becomes <b>Start</b>, Coverage + Activity + Capabilities become one
+      <b>Stats</b> page, and the design studio becomes a real <b>Workspace</b> with pages, displays and
+      states. Every module currently on Home, Coverage, Activity or Capabilities has a named new home.
+    </p>
+    <div class="stamprow">
+      <span class="stamp"><b>7 → 5</b> primary destinations</span>
+      <span class="stamp"><b>0</b> features dropped</span>
+      <span class="stamp"><b>4</b> levels: workspace, page, display, state</span>
+      <span class="stamp"><b>3</b> pages absorbed into Stats</span>
+      <span class="stamp"><b>5</b> mobile tabs, same five</span>
+    </div>
+
+    <div class="statstrip">
+      <div class="stat"><div class="n">5</div><div class="l">Start, Library, Design, Review, Stats</div></div>
+      <div class="stat"><div class="n">1</div><div class="l">unified health page for quality, activity and services</div></div>
+      <div class="stat"><div class="n">3</div><div class="l">views per display: desktop, tablet, phone</div></div>
+      <div class="stat"><div class="n">3+</div><div class="l">states per display: default, filled, error, loading…</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">separate template store after migration</div></div>
+    </div>
+
+    <div class="recbox">
+      <div class="mark"><svg class="i lg"><use href="#i-flow"/></svg></div>
+      <div>
+        <p><b>Recommendation.</b> Ship the five-destination shell and the workspace hierarchy before
+        the search index is called finished. Search is the front door to the model; if the model still
+        calls a page a “design” and a display a “frame”, the omnibox can only be as clear as the data
+        beneath it. Keep <b>Review</b> as a work queue. Make <b>Stats</b> the one place for “is the
+        library healthy?”. Make <b>New</b> an action, not a destination.</p>
+      </div>
+    </div>
+  </header>
+
+  <section class="section" id="map">
+    <div class="section-head">
+      <div class="section-no">01 / MAP</div>
+      <div>
+        <h2>The five destinations.</h2>
+        <p class="lede">
+          Each destination answers one question. The mobile bottom navigation uses the same five,
+          so the product does not fork its mental model at 390 px.
+        </p>
+      </div>
+    </div>
+
+    <div class="map">
+      <div class="mapcol">
+        <div class="mh"><span class="dot g"></span>Start</div>
+        <p>“What can I make or find?” Search, browse by intent, continue a workspace, start from a template.</p>
+        <ul><li>Atlas / Spotlight / Ask</li><li>Continue</li><li>Curated templates</li><li>Library pulse</li></ul>
+      </div>
+      <div class="mapcol">
+        <div class="mh"><span class="dot i"></span>Library</div>
+        <p>“What is it built from?” Assets, recent, featured, collections, verification state.</p>
+        <ul><li>Components, patterns, hooks</li><li>Recently published</li><li>Featured asset</li><li>Collections</li></ul>
+      </div>
+      <div class="mapcol">
+        <div class="mh"><span class="dot a"></span>Design</div>
+        <p>“What am I composing?” Workspaces, pages, displays, states, flows, templates.</p>
+        <ul><li>Workspace index</li><li>Page/display/state studio</li><li>Flow view</li><li>Fork a template</li></ul>
+      </div>
+      <div class="mapcol">
+        <div class="mh"><span class="dot r"></span>Review</div>
+        <p>“What needs a person?” Findings, blockers, evidence debt, captures waiting for a decision.</p>
+        <ul><li>Severity board</li><li>Triage</li><li>Evidence links</li><li>Owner handoff</li></ul>
+      </div>
+      <div class="mapcol">
+        <div class="mh"><span class="dot"></span>Stats</div>
+        <p>“Is the library healthy?” Quality, activity and services in one measured surface.</p>
+        <ul><li>Overview</li><li>Quality <span class="muted2">(Coverage)</span></li><li>Activity</li><li>Services <span class="muted2">(Capabilities)</span></li></ul>
+      </div>
+    </div>
+
+    <div class="redirects">
+      <span class="redirect">/coverage <b>→ /stats?view=quality</b></span>
+      <span class="redirect">/activity <b>→ /stats?view=activity</b></span>
+      <span class="redirect">/capabilities <b>→ /stats?view=services</b></span>
+      <span class="redirect">/catalog <b>→ /components</b></span>
+      <span class="redirect">/new <b>→ global New action</b></span>
+      <span class="redirect">React? <b>Single-purpose routes stay</b></span>
+    </div>
+
+    <div class="callout" style="border-left-color:var(--ice);background:linear-gradient(90deg,var(--ice-soft),transparent 70%)">
+      <p><b>Why not keep Coverage, Activity and Capabilities separate?</b> They answer three
+      facets of the same question. When they are separate, Home duplicates their summaries, the rail
+      grows to seven items, and the phone hides two of them. One Stats page with four tabs keeps the
+      depth and removes the duplication. Review stays separate because it is a queue with actions,
+      not a measurement.</p>
+    </div>
+  </section>
+
+  <section class="section" id="ledger">
+    <div class="section-head">
+      <div class="section-no">02 / LEDGER</div>
+      <div>
+        <h2>Every module has a new home.</h2>
+        <p class="lede">
+          This is the anti-loss ledger. Nothing on Home, Coverage, Activity or Capabilities is
+          deleted; it is re-homed. The prototype below is the proof that each destination still has a
+          visible surface.
+        </p>
+      </div>
+    </div>
+
+    <table class="rectable ledger">
+      <thead><tr><th>Current module</th><th>Was on</th><th>New home</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Search box + browse</td><td>Home</td><td class="dest">Start → Atlas</td><td>Search is the front door, not one card on a dashboard.</td></tr>
+        <tr><td>Recently touched assets</td><td>Home</td><td class="dest">Library → Recent</td><td>Asset-level work belongs where assets live.</td></tr>
+        <tr><td>Continue designing</td><td>Home</td><td class="dest">Start → Continue + Design</td><td>Workspace-level continuation is a launchpad job.</td></tr>
+        <tr><td>Library health ring</td><td>Home</td><td class="dest">Stats → Overview</td><td>Measurement belongs in Stats, not the front door.</td></tr>
+        <tr><td>Signals (capabilities, drafts, recency)</td><td>Home</td><td class="dest">Stats → Services / Activity</td><td>Split by what the signal actually measures.</td></tr>
+        <tr><td>New in collection</td><td>Home</td><td class="dest">Library → Recently published</td><td>Browsing additions is a library task.</td></tr>
+        <tr><td>Live specimen</td><td>Home</td><td class="dest">Library → Featured asset</td><td>Showcase the asset where the asset is inspectable.</td></tr>
+        <tr><td>KPI strip</td><td>Home</td><td class="dest">Stats → Overview; compact pulse on Start</td><td>Keep one number in reach, not a second dashboard.</td></tr>
+        <tr><td>Maturity matrix, definition of ready, next work</td><td>Coverage</td><td class="dest">Stats → Quality</td><td>All quality measures in one scroll.</td></tr>
+        <tr><td>Change trail, actors, durability note</td><td>Activity</td><td class="dest">Stats → Activity</td><td>Audit trail is a view of health, not a destination.</td></tr>
+        <tr><td>Service status + recovery commands</td><td>Capabilities</td><td class="dest">Stats → Services</td><td>Readiness is part of library health.</td></tr>
+        <tr><td>Findings queue + triage</td><td>Review</td><td class="dest kept">Review (kept)</td><td>A queue with actions is not a measurement.</td></tr>
+        <tr><td>Create / Extract / Adopt</td><td>Create</td><td class="dest">Global New action</td><td>An action should not consume a primary destination.</td></tr>
+        <tr><td>Settings</td><td>Settings</td><td class="dest kept">Settings (kept)</td><td>Preferences remain secondary and global.</td></tr>
+        <tr><td>Component + Preview</td><td>Routes</td><td class="dest kept">Object routes (kept)</td><td>Deep links are not navigation destinations.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section" id="model">
+    <div class="section-head">
+      <div class="section-no">03 / MODEL</div>
+      <div>
+        <h2>Workspace, Page, Display, State.</h2>
+        <p class="lede">
+          This is the correction to the earlier single-page recommendation. A design-studio object is
+          a <b>Workspace</b>. It contains multiple <b>Pages</b>. Each Page has multiple <b>Displays</b>
+          (desktop, tablet, phone). Each Display has multiple <b>States</b> (props and/or UI state).
+          A curated <b>Template</b> is a workspace snapshot that forks on use.
+        </p>
+      </div>
+    </div>
+
+    <div class="hier">
+      <div class="hier-card">
+        <div class="ht">Level 1</div>
+        <h4>Workspace</h4>
+        <p>The authored object and the template unit. A flow is a workspace with ordered pages.</p>
+        <div class="ex">Harbor · onboarding<br>4 pages · 3 displays · 12 states</div>
+      </div>
+      <div class="hier-card">
+        <div class="ht">Level 2</div>
+        <h4>Page</h4>
+        <p>One screen or route. Realizes a page type from the catalog.</p>
+        <div class="ex">Profile · FormPage<br>3 displays · 3 states</div>
+      </div>
+      <div class="hier-card">
+        <div class="ht">Level 3</div>
+        <h4>Display</h4>
+        <p>One device frame for that page: desktop, tablet or phone.</p>
+        <div class="ex">Phone · 390 × 844<br>3 states</div>
+      </div>
+      <div class="hier-card">
+        <div class="ht">Level 4</div>
+        <h4>State</h4>
+        <p>A named prop/state variant of one display. Capturable and testable.</p>
+        <div class="ex">Validation error<br>email=invalid · error shown</div>
+      </div>
+    </div>
+
+    <div class="entity-note">
+      <div class="card">
+        <div class="card-pad">
+          <h4><span class="dot g"></span> Template = curated workspace snapshot</h4>
+          <p>“Use template” forks the workspace into your own copy and keeps the origin. Curated
+          workspaces are immutable, so a showcase cannot drift. A single-page template is just a
+          workspace with one page; an onboarding template is a workspace with four pages.</p>
+          <p>This removes the separate <span class="mono">studio_templates</span> store. The shelf
+          becomes a filtered view of workspaces: <span class="mono">provenance=curated</span>.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-pad">
+          <h4><span class="dot a"></span> Page type = intent, not a rendering</h4>
+          <p>A workspace page can declare <span class="mono">realizes: templates.onboarding-page</span>.
+          The page type stays the requirement/blueprint: regions, states, capabilities. The page is the
+          concrete composition. That link lets search answer “show me every onboarding page and the
+          workspaces that realize it.”</p>
+          <p>States are first-class search and evidence targets:
+          <span class="mono">Harbor / Profile / Phone / Validation error</span> is a stable address.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="border-left-color:var(--signal);background:linear-gradient(90deg,var(--signal-soft),transparent 70%)">
+      <p><b>The current model maps cleanly.</b> A <span class="mono">DesignDocument</span> is a Page.
+      Its <span class="mono">frames</span> are Displays. Add a Workspace wrapper and a states
+      collection; migrate <span class="mono">studio_templates</span> into curated workspaces. No
+      existing composition is thrown away.</p>
+    </div>
+  </section>
+
+  <section class="section" id="prototype">
+    <div class="section-head">
+      <div class="section-no">04 / PROTOTYPE</div>
+      <div>
+        <h2>Walk the mature workbench.</h2>
+        <p class="lede">
+          Rendered in the Nocturne tokens, not captured from the running app. Use the tabs to move
+          between the five destinations and the two Design views. The Start page has three query
+          states; Stats has four views.
+        </p>
+      </div>
+    </div>
+
+    <div class="proto">
+      <div class="proto-bar">
+        <span class="plabel">Prototype</span>
+        <span class="pnote">Rendered · not the running app · sample counts</span>
+        <div class="proto-tabs">
+          <button class="proto-tab on" data-goto="start">Start</button>
+          <button class="proto-tab" data-goto="library">Library</button>
+          <button class="proto-tab" data-goto="design">Design</button>
+          <button class="proto-tab" data-goto="studio">Studio</button>
+          <button class="proto-tab" data-goto="flow">Flow</button>
+          <button class="proto-tab" data-goto="review">Review</button>
+          <button class="proto-tab" data-goto="stats">Stats</button>
+        </div>
+      </div>
+      <div class="appframe" id="wb">
+        <aside class="apprail">
+          <div class="appbrand"><span class="mark">RCL</span><span>React Component Library<small>BRAND NOT ASSIGNED</small></span></div>
+          <button class="anav on" data-goto="start"><svg class="i sm"><use href="#i-search"/></svg>Start</button>
+          <button class="anav" data-goto="library"><svg class="i sm"><use href="#i-box"/></svg>Library<span class="n">275</span></button>
+          <button class="anav" data-goto="design"><svg class="i sm"><use href="#i-flow"/></svg>Design</button>
+          <button class="anav" data-goto="review"><svg class="i sm"><use href="#i-check"/></svg>Review<span class="n">251</span></button>
+          <button class="anav" data-goto="stats"><svg class="i sm"><use href="#i-chart"/></svg>Stats</button>
+          <div style="margin-top:auto;padding:8px;border-top:1px solid var(--line)">
+            <button class="anav" data-goto="new"><svg class="i sm"><use href="#i-plus"/></svg>New<span class="n">N</span></button>
+            <button class="anav" data-goto="settings"><svg class="i sm"><use href="#i-settings"/></svg>Settings</button>
+          </div>
+        </aside>
+        <div class="appmain">
+          <div class="apptop">
+            <div class="crumb">React Component Library <span class="muted2">/</span> <b id="crumb">Start</b></div>
+            <div class="topcmd"><svg class="i sm"><use href="#i-search"/></svg><span>Search the workbench</span><kbd>⌘K</kbd></div>
+          </div>
+
+          <section class="pagebody on" data-panel="start">
+            <div class="pagekicker">The shared UI layer · 275 assets · 2 workspaces</div>
+            <div class="start-layout">
+              <div class="start-main">
+                <div class="pageh1">Find the surface.</div>
+                <p class="pagelede">Start from an intent, a workspace, an asset or a command. Nothing here requires a query.</p>
+                <div class="omni" style="margin-top:12px">
+                  <svg class="i" style="color:var(--signal)"><use href="#i-search"/></svg>
+                  <span class="q" data-start-q>Search workspaces, pages, assets, commands…</span>
+                  <kbd>⌘K</kbd>
+                </div>
+                <div class="modes"><span class="mode on">All</span><span class="mode">Workspaces</span><span class="mode">Pages</span><span class="mode">Assets <span class="c">275</span></span><span class="mode">Commands <span class="c">12</span></span></div>
+
+                <div class="viewtabs" data-subswitch="start">
+                  <button class="vbtn" data-subview="start-empty" aria-pressed="true">Empty</button>
+                  <button class="vbtn" data-subview="start-landing" aria-pressed="false">“landing page”</button>
+                  <button class="vbtn" data-subview="start-onboarding" aria-pressed="false">“onboarding flow”</button>
+                </div>
+
+                <div class="subview on" data-subpanel="start-empty">
+                  <div class="browse-title"><b>Browse by intent</b><span>FROM THE CATALOG · 478</span></div>
+                  <div class="catgrid">
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-layout"/></svg></div><b>Landing pages</b><div class="count">4 page types · 3 designs</div><div class="ex">LandingPage, PricingPage, DocumentationPage</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-flow"/></svg></div><b>Onboarding flows</b><div class="count">1 workspace · 4 pages</div><div class="ex">Harbor, OnboardingPage, OnboardingFlow</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-grid"/></svg></div><b>Workspaces</b><div class="count">6 page types · 5 designs</div><div class="ex">AnalyticsPage, CommandCenterPage</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-box"/></svg></div><b>Collections &amp; data</b><div class="count">47 data-display assets</div><div class="ex">CollectionPage, DataTable, FacetedFilter</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-file"/></svg></div><b>Forms &amp; auth</b><div class="count">35 forms · 2 page types</div><div class="ex">AuthenticationPage, FormPage</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-compass"/></svg></div><b>Navigation &amp; shell</b><div class="count">23 navigation</div><div class="ex">AppShell, NavigationRail, Tabs</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-bolt"/></svg></div><b>Foundations</b><div class="count">15 foundations</div><div class="ex">BaseStyles, ThemeProvider, IconRegistry</div></div>
+                    <div class="cat"><div class="ico"><svg class="i sm"><use href="#i-key"/></svg></div><b>Hooks &amp; services</b><div class="count">61 runtime assets</div><div class="ex">useAsync, CommandRegistry, ToastManager</div></div>
+                  </div>
+                  <div class="browse-title" style="margin-top:14px"><b>Recently opened</b><span>THIS BROWSER</span></div>
+                  <div class="strip">
+                    <div class="recent-card"><div class="mini"><div class="mini-page dark" style="min-height:26px"><div class="mp-bar" style="padding:4px 5px"><span class="mp-mark" style="width:5px;height:5px"></span><div class="mp-lines"><i style="width:6px"></i><i style="width:6px"></i></div></div></div></div><div style="min-width:0"><b>Harbor</b><small>workspace · 4 pages · 2h ago</small></div></div>
+                    <div class="recent-card"><div class="mini"><div class="mini-page" style="min-height:26px"><div class="mp-bar" style="padding:4px 5px"><span class="mp-mark" style="width:5px;height:5px"></span><div class="mp-lines"><i style="width:6px"></i><i style="width:6px"></i></div></div></div></div><div style="min-width:0"><b>Marlow</b><small>template · 1 page · 1d ago</small></div></div>
+                    <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--signal)"><svg class="i sm"><use href="#i-box"/></svg></div><div style="min-width:0"><b>Button</b><small>asset · 2.2.14 · 3d ago</small></div></div>
+                  </div>
+                </div>
+
+                <div class="subview" data-subpanel="start-landing">
+                  <div class="resgroup" style="margin-top:4px"><div class="resgroup-head"><b>Best match</b><span class="line"></span></div>
+                    <div class="resrow best"><div class="resicon"><svg class="i sm"><use href="#i-layout"/></svg></div><div class="resmain"><b>LandingPage</b><small>Page type · templates.landing-page · configurable product-marketing surface</small><div class="besttags"><span>hero</span><span>proof</span><span>sections</span><span>conversion</span><span class="pill a">blueprint</span></div></div><div class="resmeta"><span class="pill">19 page types</span><svg class="i sm"><use href="#i-chevron"/></svg></div></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Workspaces &amp; templates</b><span class="n">3</span><span class="line"></span></div>
+                    <div class="resrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-flow"/></svg></div><div class="resmain"><b>Marlow</b><small>Template · 1 page · 3 displays · 4 states · editorial commerce</small></div><span class="pill sig">template</span></div>
+                    <div class="resrow"><div class="resicon" style="color:var(--ice)"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Northwind launch brief</b><small>Workspace · 4 pages · 3 displays · 8 states · unbound</small></div><span class="pill i">workspace</span></div>
+                    <div class="resrow"><div class="resicon" style="color:var(--violet)"><svg class="i sm"><use href="#i-flow"/></svg></div><div class="resmain"><b>Aperture</b><small>Workspace · 3 pages · 3 displays · 6 states</small></div><span class="pill i">workspace</span></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Assets used</b><span class="n">12</span><span class="line"></span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Page · Section · ScrollReveal</b><small>Structure and entrance</small></div><span class="pill g">built</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>Button · Card · Stat</b><small>Conversion and proof</small></div><span class="pill g">verified</span></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Commands</b><span class="n">2</span><span class="line"></span></div>
+                    <div class="resrow cmdrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div class="resmain"><b>New page from Marlow</b><small>Fork the template into a workspace</small></div><kbd>⌘N</kbd></div>
+                    <div class="resrow cmdrow"><div class="resicon"><svg class="i sm"><use href="#i-layers"/></svg></div><div class="resmain"><b>Open design studio</b><small>Continue the closest workspace</small></div><kbd>⌘⇧D</kbd></div>
+                  </div>
+                </div>
+
+                <div class="subview" data-subpanel="start-onboarding">
+                  <div class="resgroup" style="margin-top:4px"><div class="resgroup-head"><b>Best match</b><span class="line"></span></div>
+                    <div class="resrow best"><div class="resicon"><svg class="i sm"><use href="#i-flow"/></svg></div><div class="resmain"><b>Harbor</b><small>Workspace · onboarding flow · 4 pages · 3 displays each · 12 states</small><div class="besttags"><span>curated</span><span>onboarding</span><span>fork on use</span></div></div><div class="resmeta"><span class="pill sig">template</span><svg class="i sm"><use href="#i-chevron"/></svg></div></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Pages in this workspace</b><span class="n">4</span><span class="line"></span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-flag"/></svg></div><div class="resmain"><b>Welcome</b><small>OnboardingPage · 3 displays · 4 states · 4/4 designed</small></div><span class="pill g">complete</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Profile</b><small>FormPage · 3 displays · 3 states · 2/3 designed</small></div><span class="pill a">1 missing</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-file"/></svg></div><div class="resmain"><b>Preferences</b><small>SettingsPage · 3 displays · 3 states · 3/3 designed</small></div><span class="pill g">complete</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-check"/></svg></div><div class="resmain"><b>Done</b><small>StatePage · 3 displays · 2 states · 1/2 designed</small></div><span class="pill a">1 missing</span></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Intent &amp; assets</b><span class="line"></span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-layout"/></svg></div><div class="resmain"><b>OnboardingPage</b><small>Page type · progress, step, guidance</small></div><span class="pill a">blueprint</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>OnboardingFlow</b><small>Pattern · progress, optional steps, completion</small></div><span class="pill g">built</span></div>
+                    <div class="resrow"><div class="resicon"><svg class="i sm"><use href="#i-box"/></svg></div><div class="resmain"><b>FormStep · Spotlight · Button</b><small>3 of 9 assets it composes</small></div><span class="pill g">verified</span></div>
+                  </div>
+                  <div class="resgroup"><div class="resgroup-head"><b>Commands</b><span class="n">2</span><span class="line"></span></div>
+                    <div class="resrow cmdrow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div class="resmain"><b>Fork Harbor</b><small>Copy 4 pages, 12 displays and 12 states</small></div><kbd>⌘N</kbd></div>
+                    <div class="resrow cmdrow"><div class="resicon"><svg class="i sm"><use href="#i-flow"/></svg></div><div class="resmain"><b>Open flow view</b><small>See the page order and transitions</small></div><kbd>⌘⇧F</kbd></div>
+                  </div>
+                </div>
+              </div>
+
+              <aside class="start-rail">
+                <div class="continue-card">
+                  <span class="caption">Continue</span>
+                  <b>Northwind launch brief</b>
+                  <small>Workspace · 4 pages · 2h ago</small>
+                  <div class="cc-actions"><button class="mini-btn primary" data-goto="studio">Open workspace</button><button class="mini-btn" data-goto="design">All</button></div>
+                </div>
+                <div class="railcard">
+                  <div class="rh"><b>Library pulse</b><span>LIVE</span></div>
+                  <div class="pulse-row"><span>Assets</span><b>275</b></div>
+                  <div class="pulse-row"><span>Production ready</span><b class="neg">0%</b></div>
+                  <div class="pulse-row"><span>Open findings</span><b class="warn">251</b></div>
+                  <div class="pulse-row"><span>Workspaces</span><b>5</b></div>
+                  <button class="mini-btn" style="width:100%;margin-top:6px" data-goto="stats">Open Stats</button>
+                </div>
+                <div class="railcard">
+                  <div class="rh"><b>Curated templates</b><span>8</span></div>
+                  <div class="tpllist">
+                    <div class="tplrow"><div class="thumb"><div class="mini-page" style="min-height:26px"><div class="mp-bar" style="padding:3px 4px"><span class="mp-mark" style="width:4px;height:4px"></span></div></div></div><div><b>Marlow</b><small>landing · 1 page</small></div></div>
+                    <div class="tplrow"><div class="thumb"><div class="mini-page ice" style="min-height:26px"><div class="mp-bar" style="padding:3px 4px"><span class="mp-mark" style="width:4px;height:4px"></span></div></div></div><div><b>Harbor</b><small>onboarding · 4 pages</small></div></div>
+                    <div class="tplrow"><div class="thumb"><div class="mini-page dark" style="min-height:26px"><div class="mp-bar" style="padding:3px 4px"><span class="mp-mark" style="width:4px;height:4px"></span></div></div></div><div><b>Nocturne Ops</b><small>command · 1 page</small></div></div>
+                  </div>
+                </div>
+                <div class="railcard">
+                  <div class="rh"><b>Shortcuts</b><span>KEYBOARD</span></div>
+                  <div class="suggestlist">
+                    <div class="suggestrow">Search everything<kbd>⌘K</kbd></div>
+                    <div class="suggestrow">New workspace<kbd>N</kbd></div>
+                    <div class="suggestrow">Go to Design<kbd>G D</kbd></div>
+                    <div class="suggestrow">Go to Stats<kbd>G S</kbd></div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+                    <section class="pagebody" data-panel="library">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div>
+                <div class="pagekicker">Library · 275 published assets</div>
+                <div class="pageh1">Library</div>
+                <p class="pagelede">Every component, pattern, hook and foundation. Recent additions and the featured asset live here now, not on the front door.</p>
+              </div>
+              <div style="display:flex;gap:5px"><button class="mini-btn">Import</button><button class="mini-btn primary" data-goto="new"><svg class="i sm"><use href="#i-plus"/></svg>New asset</button></div>
+            </div>
+            <div class="modes" style="margin-top:10px"><span class="mode on">All <span class="c">275</span></span><span class="mode">Components <span class="c">201</span></span><span class="mode">Patterns <span class="c">32</span></span><span class="mode">Hooks &amp; services <span class="c">61</span></span><span class="mode">Foundations <span class="c">15</span></span></div>
+            <div class="lib-toolbar">
+              <div class="omni grow" style="height:34px;box-shadow:none;border-color:var(--line2)"><svg class="i sm" style="color:var(--muted2)"><use href="#i-search"/></svg><span class="ph">Search assets, ids, props, evidence…</span><kbd>/</kbd></div>
+              <span class="filter on">Recent</span><span class="filter">Verified</span><span class="filter">Drafts</span><span class="filter">Domain: all</span><span class="filter">Sort: attention</span>
+            </div>
+            <div class="start-layout">
+              <div class="start-main">
+                <div class="browse-title" style="margin-top:2px"><b>Recently published</b><span>FROM HOME · NEW IN COLLECTION</span><button class="mini-btn" style="height:20px;font-size:8px">View all</button></div>
+                <div class="strip" style="margin-bottom:10px">
+                  <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--signal)"><svg class="i sm"><use href="#i-box"/></svg></div><div style="min-width:0"><b>Selection Store</b><small>services · 2.0.2 · 47m</small></div></div>
+                  <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--ice)"><svg class="i sm"><use href="#i-box"/></svg></div><div style="min-width:0"><b>createScopedStore</b><small>services · 1.0.1 · 47m</small></div></div>
+                  <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--violet)"><svg class="i sm"><use href="#i-box"/></svg></div><div style="min-width:0"><b>UndoManager</b><small>services · 1.0.2 · 47m</small></div></div>
+                  <div class="recent-card"><div class="mini" style="display:grid;place-items:center;color:var(--green)"><svg class="i sm"><use href="#i-box"/></svg></div><div style="min-width:0"><b>ToastManager</b><small>services · 1.0.3 · 47m</small></div></div>
+                </div>
+
+                <div class="browse-title"><b>All assets</b><span>275 RESULTS · SORTED BY ATTENTION</span></div>
+                <div class="asset-grid">
+                  <div class="asset-card"><div class="asset-art"><div class="mini-ui"><span class="mbtn"></span><span class="mline"></span></div></div><div class="asset-info"><b>Button</b><small>controls.button · 2.2.14</small><div class="asset-foot"><span class="pill g">verified</span><span class="pill">7/7</span></div></div></div>
+                  <div class="asset-card"><div class="asset-art"><div class="mini-ui"><span class="mcard"></span><span class="mline"></span><span class="mline" style="width:18px"></span></div></div><div class="asset-info"><b>DataTable</b><small>data-display.data-table · 2.1.0</small><div class="asset-foot"><span class="pill g">verified</span><span class="pill">built</span></div></div></div>
+                  <div class="asset-card"><div class="asset-art"><div class="mini-ui"><span class="msq"></span><span class="mline"></span><span class="mline" style="width:20px"></span></div></div><div class="asset-info"><b>CommandPalette</b><small>overlays.command-palette · 2.0.6</small><div class="asset-foot"><span class="pill g">verified</span><span class="pill">6 direct</span></div></div></div>
+                  <div class="asset-card"><div class="asset-art"><div class="mini-ui"><span class="mcard"></span><span class="mcard" style="width:26px"></span></div></div><div class="asset-info"><b>OnboardingFlow</b><small>patterns.onboarding-flow · 1.2.0</small><div class="asset-foot"><span class="pill a">1 missing</span><span class="pill">pattern</span></div></div></div>
+                  <div class="asset-card"><div class="asset-art"><div class="mini-ui"><span class="mline" style="width:42px;height:5px"></span><span class="mline" style="width:28px;height:5px"></span></div></div><div class="asset-info"><b>Section</b><small>primitives.section · 1.0.4</small><div class="asset-foot"><span class="pill g">verified</span><span class="pill">3 direct</span></div></div></div>
+                  <div class="asset-card"><div class="asset-art"><div class="mini-ui"><span class="msq"></span><span class="msq" style="background:var(--signal)"></span><span class="msq" style="background:var(--green)"></span></div></div><div class="asset-info"><b>BaseStyles</b><small>foundations.base-styles · 3.0.0</small><div class="asset-foot"><span class="pill g">verified</span><span class="pill">token</span></div></div></div>
+                </div>
+              </div>
+              <aside class="start-rail">
+                <div class="railcard">
+                  <div class="rh"><b>Collections</b><span>22</span></div>
+                  <div class="collection-row"><span class="dot i"></span>data-display<span class="bar"><span style="width:92%"></span></span><span class="n">47</span></div>
+                  <div class="collection-row"><span class="dot a"></span>forms<span class="bar"><span style="width:72%"></span></span><span class="n">35</span></div>
+                  <div class="collection-row"><span class="dot g"></span>primitives<span class="bar"><span style="width:64%"></span></span><span class="n">38</span></div>
+                  <div class="collection-row"><span class="dot r"></span>patterns<span class="bar"><span style="width:54%"></span></span><span class="n">32</span></div>
+                  <div class="collection-row"><span class="dot"></span>navigation<span class="bar"><span style="width:42%"></span></span><span class="n">23</span></div>
+                  <button class="mini-btn" style="width:100%;margin-top:5px">All collections</button>
+                </div>
+                <div class="featured">
+                  <div class="fmeta"><span>FEATURED ASSET</span><span>7/7 CHECKS</span></div>
+                  <div class="fname">Button</div>
+                  <div class="fdesc">The primary action control. Stable dimensions, pending/success/failure, 44 px touch target.</div>
+                  <div class="fbtns"><button class="mini-btn primary">Open asset</button><button class="mini-btn">Preview</button></div>
+                  <div style="margin-top:7px;font:7px var(--mono);color:var(--muted2)">FROM HOME · LIVE SPECIMEN</div>
+                </div>
+                <div class="railcard">
+                  <div class="rh"><b>Health</b><span>STATS</span></div>
+                  <div class="pulse-row"><span>Coverage</span><b class="neg">0%</b></div>
+                  <div class="pulse-row"><span>Findings</span><b class="warn">251</b></div>
+                  <button class="mini-btn" style="width:100%;margin-top:5px" data-goto="stats">Open library health</button>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <section class="pagebody" data-panel="design">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div>
+                <div class="pagekicker">Design · Workspaces</div>
+                <div class="pageh1">What are you composing?</div>
+                <p class="pagelede">A workspace holds pages, displays and states. Templates are curated workspaces; “use” forks one into yours.</p>
+              </div>
+              <button class="mini-btn primary" data-goto="studio"><svg class="i sm"><use href="#i-plus"/></svg>New workspace</button>
+            </div>
+            <div class="modes" style="margin-top:10px"><span class="mode on">All <span class="c">5</span></span><span class="mode">Templates <span class="c">3</span></span><span class="mode">Mine <span class="c">2</span></span><span class="mode">Imported <span class="c">1</span></span></div>
+
+            <div class="browse-title" style="margin-top:12px"><b>Curated templates</b><span>FORK ON USE · IMMUTABLE</span></div>
+            <div class="ws-grid">
+              <button class="ws-card tpl" data-goto="studio">
+                <div class="ws-art"><div class="mini-page"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">Welcome</div><div class="mp-title">A calmer start.</div><div class="mp-sub">Three questions. Then your workspace is ready.</div><div class="mp-cta">Begin →</div></div><div class="mp-foot"><div class="mp-block"></div><div class="mp-block"></div><div class="mp-block"></div></div></div></div>
+                <div>
+                  <div class="ws-title"><b>Harbor</b><span class="pill sig">template</span><span class="pill i">flow</span></div>
+                  <div class="ws-desc">Onboarding flow. Four pages, three displays, states for success, validation and skip.</div>
+                  <div class="ws-stats"><div class="ws-stat"><b>4</b>pages</div><div class="ws-stat"><b>12</b>displays</div><div class="ws-stat"><b>12</b>states</div><div class="ws-stat"><b>2</b>bound</div></div>
+                  <div class="ws-foot"><span class="pill g">complete</span><span class="pill a">2 states missing</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">2d ago</span></div>
+                </div>
+              </button>
+
+              <button class="ws-card tpl" data-goto="studio">
+                <div class="ws-art"><div class="mini-page"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">The quiet collection</div><div class="mp-title">Objects for the quiet home.</div><div class="mp-sub">A slower kind of commerce. Made in small runs, repaired forever.</div><div class="mp-cta">Explore →</div></div><div class="mp-foot"><div class="mp-block"></div><div class="mp-block"></div><div class="mp-block"></div></div></div></div>
+                <div>
+                  <div class="ws-title"><b>Marlow</b><span class="pill sig">template</span><span class="pill">landing</span></div>
+                  <div class="ws-desc">Editorial commerce. One page with a product-led hero, proof sections and a quiet close.</div>
+                  <div class="ws-stats"><div class="ws-stat"><b>1</b>page</div><div class="ws-stat"><b>3</b>displays</div><div class="ws-stat"><b>4</b>states</div><div class="ws-stat"><b>1</b>bound</div></div>
+                  <div class="ws-foot"><span class="pill g">complete</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">3d ago</span></div>
+                </div>
+              </button>
+
+              <button class="ws-card tpl" data-goto="studio">
+                <div class="ws-art"><div class="mini-page dark"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">LIVE SIGNAL</div><div class="mp-title">The signal is holding.</div><div class="mp-sub">Retention improved for the third week. One segment needs a decision.</div><div class="mp-cta">Open signals →</div></div><div class="mp-foot"><div class="mp-block"></div><div class="mp-block"></div><div class="mp-block"></div></div></div></div>
+                <div>
+                  <div class="ws-title"><b>Nocturne Ops</b><span class="pill sig">template</span><span class="pill">command</span></div>
+                  <div class="ws-desc">Command center. One page, three displays, dense evidence and a priority queue.</div>
+                  <div class="ws-stats"><div class="ws-stat"><b>1</b>page</div><div class="ws-stat"><b>3</b>displays</div><div class="ws-stat"><b>3</b>states</div><div class="ws-stat"><b>1</b>bound</div></div>
+                  <div class="ws-foot"><span class="pill a">1 state missing</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">5d ago</span></div>
+                </div>
+              </button>
+
+              <div class="ws-empty"><svg class="i sm"><use href="#i-plus"/></svg>New workspace from a blank page</div>
+            </div>
+
+            <div class="browse-title" style="margin-top:14px"><b>Your workspaces</b><span>2 · 1 IMPORTED</span></div>
+            <div class="ws-grid">
+              <button class="ws-card" data-goto="studio">
+                <div class="ws-art"><div class="mini-page ice"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">Northwind</div><div class="mp-title">Launch brief</div><div class="mp-sub">A four-page narrative for the Northwind launch.</div><div class="mp-cta">Read →</div></div><div class="mp-foot"><div class="mp-block"></div><div class="mp-block"></div><div class="mp-block"></div></div></div></div>
+                <div>
+                  <div class="ws-title"><b>Northwind launch brief</b><span class="pill i">workspace</span><span class="pill a">imported</span></div>
+                  <div class="ws-desc">Imported from HTML. Four pages, three displays each, unbound. Ready to fork into a scenario page.</div>
+                  <div class="ws-stats"><div class="ws-stat"><b>4</b>pages</div><div class="ws-stat"><b>12</b>displays</div><div class="ws-stat"><b>8</b>states</div><div class="ws-stat"><b>0</b>bound</div></div>
+                  <div class="ws-foot"><span class="pill a">3 states missing</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">2h ago</span></div>
+                </div>
+              </button>
+
+              <button class="ws-card" data-goto="studio">
+                <div class="ws-art"><div class="mini-page dark"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">APERTURE · WEEK 46</div><div class="mp-title">The signal is holding.</div><div class="mp-sub">Analytics workspace. Three pages, three displays, one decision pending.</div><div class="mp-cta">Open →</div></div><div class="mp-foot"><div class="mp-block"></div><div class="mp-block"></div><div class="mp-block"></div></div></div></div>
+                <div>
+                  <div class="ws-title"><b>Aperture</b><span class="pill i">workspace</span></div>
+                  <div class="ws-desc">Analytics workspace. Overview, signals and reports, each with desktop, tablet and phone displays.</div>
+                  <div class="ws-stats"><div class="ws-stat"><b>3</b>pages</div><div class="ws-stat"><b>9</b>displays</div><div class="ws-stat"><b>6</b>states</div><div class="ws-stat"><b>1</b>bound</div></div>
+                  <div class="ws-foot"><span class="pill g">complete</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">1d ago</span></div>
+                </div>
+              </button>
+            </div>
+
+            <div class="ws-note">
+              <svg class="i sm" style="color:var(--signal)"><use href="#i-flow"/></svg>
+              <span><b>Workspace → Page → Display → State.</b> A template is a curated workspace snapshot. The onboarding flow is four pages, each with three display widths and named states.</span>
+              <span class="hier-mini"><span>Workspace</span>›<span>Page</span>›<span>Display</span>›<span>State</span></span>
+            </div>
+          </section>
+
+                    <section class="pagebody is-full" data-panel="studio">
+            <div class="studio-panel">
+              <div class="studio-toolbar">
+                <div class="studio-title"><svg class="i sm" style="color:var(--signal)"><use href="#i-flow"/></svg>Harbor<span class="tag">template</span></div>
+                <div class="studio-sep"></div>
+                <div class="studio-select">Page <b>Profile</b><svg class="i sm"><use href="#i-chevron"/></svg></div>
+                <div class="studio-select">State <b style="color:var(--signal2)">Validation error</b><svg class="i sm"><use href="#i-chevron"/></svg></div>
+                <div class="studio-sep"></div>
+                <div style="display:flex;gap:3px"><span class="icon-mini on"><svg class="i sm"><use href="#i-monitor"/></svg></span><span class="icon-mini"><svg class="i sm"><use href="#i-tablet"/></svg></span><span class="icon-mini"><svg class="i sm"><use href="#i-phone"/></svg></span></div>
+                <div class="studio-actions">
+                  <button class="icon-mini"><svg class="i sm"><use href="#i-history"/></svg></button>
+                  <button class="icon-mini"><svg class="i sm"><use href="#i-sync"/></svg></button>
+                  <button class="mini-btn" data-goto="flow"><svg class="i sm"><use href="#i-flow"/></svg>Flow</button>
+                  <button class="mini-btn"><svg class="i sm"><use href="#i-share"/></svg>Share</button>
+                  <button class="mini-btn primary"><svg class="i sm"><use href="#i-play"/></svg>Present</button>
+                </div>
+              </div>
+              <div class="flow-strip">
+                <span style="font:7px var(--mono);color:var(--muted2);margin-right:2px">PAGES</span>
+                <button class="fchip">01 Welcome <span class="n">4/4</span></button><span class="farrow">›</span>
+                <button class="fchip on">02 Profile <span class="n">2/3</span></button><span class="farrow">›</span>
+                <button class="fchip">03 Preferences <span class="n">3/3</span></button><span class="farrow">›</span>
+                <button class="fchip">04 Done <span class="n">1/2</span></button>
+                <button class="fchip" style="margin-left:auto;border-style:dashed;color:var(--muted2)">+ Page</button>
+              </div>
+              <div class="studio-grid">
+                <aside class="studio-left">
+                  <div class="pane-head"><span>Pages</span><span>4</span></div>
+                  <button class="page-item"><span class="pnum">01</span>Welcome<span class="pmeta">3d · 4s</span></button>
+                  <button class="page-item on"><span class="pnum">02</span>Profile<span class="pmeta">3d · 3s</span></button>
+                  <button class="page-item"><span class="pnum">03</span>Preferences<span class="pmeta">3d · 3s</span></button>
+                  <button class="page-item"><span class="pnum">04</span>Done<span class="pmeta">3d · 2s</span></button>
+                  <button class="page-item" style="color:var(--muted2)"><span class="pnum">+</span>Add page</button>
+                  <div class="pane-head" style="margin-top:4px"><span>Layers · Profile</span><span>12</span></div>
+                  <div class="layer-row"><svg class="i sm"><use href="#i-layout"/></svg>Page<span class="ltype">PAGE</span></div>
+                  <div class="layer-row"><span class="indent"></span><svg class="i sm"><use href="#i-grid"/></svg>Header<span class="ltype">STACK</span></div>
+                  <div class="layer-row"><span class="indent"></span><svg class="i sm"><use href="#i-file"/></svg>Progress<span class="ltype">RCL</span></div>
+                  <div class="layer-row on"><span class="indent"></span><svg class="i sm"><use href="#i-file"/></svg>Email field<span class="ltype">RCL</span></div>
+                  <div class="layer-row"><span class="indent"></span><svg class="i sm"><use href="#i-file"/></svg>Name field<span class="ltype">RCL</span></div>
+                  <div class="layer-row"><span class="indent"></span><svg class="i sm"><use href="#i-file"/></svg>Role select<span class="ltype">RCL</span></div>
+                  <div class="layer-row"><span class="indent"></span><svg class="i sm"><use href="#i-key"/></svg>Continue<span class="ltype">RCL</span></div>
+                  <div class="layer-row"><span class="indent"></span><svg class="i sm"><use href="#i-key"/></svg>Skip for now<span class="ltype">TEXT</span></div>
+                </aside>
+
+                <div class="studio-canvas">
+                  <div class="canvas-head"><b>Profile</b><span>FormPage · 3 displays · 3 states · phone is selected</span></div>
+                  <div class="display-row">
+                    <div class="display">
+                      <div class="display-head"><svg class="i sm"><use href="#i-monitor"/></svg><b>Desktop</b><span class="size">1180 × 780</span></div>
+                      <div class="display-screen">
+                        <div class="mini-form desktop">
+                          <div class="mf-nav"><span class="mf-mark"></span><div class="mf-navl"><i></i><i></i><i></i></div></div>
+                          <div class="mf-step">Step 2 of 4</div>
+                          <div class="mf-title">Tell us about you.</div>
+                          <div class="mf-sub">A little context helps us shape the workspace.</div>
+                          <div class="mf-body">
+                            <div class="mf-side"><b>Onboarding</b><span>Welcome</span><span>Profile</span><span>Preferences</span><span>Done</span></div>
+                            <div style="display:grid;gap:4px"><div class="mf-field">Full name</div><div class="mf-field">Email address</div><div class="mf-field">Role</div><div class="mf-cta">Continue →</div></div>
+                          </div>
+                          <div class="mf-prog"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+                        </div>
+                      </div>
+                      <div class="state-row"><span class="schip">Default</span><span class="schip">Loading</span><span class="schip miss">Empty</span></div>
+                    </div>
+
+                    <div class="display">
+                      <div class="display-head"><svg class="i sm"><use href="#i-tablet"/></svg><b>Tablet</b><span class="size">834 × 900</span></div>
+                      <div class="display-screen tablet">
+                        <div class="mini-form">
+                          <div class="mf-nav"><span class="mf-mark"></span><div class="mf-navl"><i></i><i></i><i></i></div></div>
+                          <div class="mf-step">Step 2 of 4</div>
+                          <div class="mf-title">Tell us about you.</div>
+                          <div class="mf-sub">A little context helps us shape the workspace.</div>
+                          <div class="mf-field">Full name · Ada Lovelace</div>
+                          <div class="mf-field">Email address · ada@example.com</div>
+                          <div class="mf-field">Role · Product</div>
+                          <div class="mf-cta">Continue →</div>
+                          <div class="mf-prog"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+                        </div>
+                      </div>
+                      <div class="state-row"><span class="schip">Default</span><span class="schip on">Filled</span><span class="schip">Error</span></div>
+                    </div>
+
+                    <div class="display on">
+                      <div class="display-head"><svg class="i sm"><use href="#i-phone"/></svg><b>Phone</b><span class="size">390 × 844</span></div>
+                      <div class="display-screen phone">
+                        <div class="mini-form phone">
+                          <div class="mf-nav"><span class="mf-mark"></span><div class="mf-navl"><i></i><i></i><i></i></div></div>
+                          <div class="mf-step">Step 2 of 4</div>
+                          <div class="mf-title">Tell us about you.</div>
+                          <div class="mf-sub">A little context helps us shape the workspace.</div>
+                          <div class="mf-field">Full name · Ada Lovelace</div>
+                          <div class="mf-field err">Email · not-an-email</div>
+                          <div class="mf-field">Role · Product</div>
+                          <div class="mf-cta">Continue →</div>
+                          <div class="mf-prog"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+                        </div>
+                      </div>
+                      <div class="state-row"><span class="schip">Default</span><span class="schip">Filled</span><span class="schip on">Validation error</span><span class="schip miss">Loading</span></div>
+                    </div>
+                  </div>
+
+                  <div class="canvas-head" style="margin-top:12px"><b>States · Phone</b><span>3 designed · 1 missing</span></div>
+                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+                    <div style="border:1px solid var(--line);border-radius:6px;background:#121018;padding:6px"><div style="font-size:8px;font-weight:600">Default</div><div style="font:6.5px var(--mono);color:var(--green);margin-top:2px">designed · captured</div></div>
+                    <div style="border:1px solid var(--line);border-radius:6px;background:#121018;padding:6px"><div style="font-size:8px;font-weight:600">Filled</div><div style="font:6.5px var(--mono);color:var(--green);margin-top:2px">designed · captured</div></div>
+                    <div style="border:1px solid var(--signal-line);border-radius:6px;background:var(--signal-soft);padding:6px"><div style="font-size:8px;font-weight:600;color:var(--signal2)">Validation error</div><div style="font:6.5px var(--mono);color:var(--signal2);margin-top:2px">selected · 1 missing</div></div>
+                    <div style="border:1px dashed var(--line2);border-radius:6px;padding:6px"><div style="font-size:8px;color:var(--muted)">Loading</div><div style="font:6.5px var(--mono);color:var(--red);margin-top:2px">not designed</div></div>
+                  </div>
+                </div>
+
+                <aside class="studio-right">
+                  <div class="sel-path"><b>Harbor</b> / Profile / Phone / <span>Validation error</span> / Email field</div>
+                  <div class="insblock">
+                    <div class="ih"><span>State</span><span>3/4</span></div>
+                    <div class="insev"><span class="dot g"></span>Default <span class="val" style="margin-left:auto">captured</span></div>
+                    <div class="insev"><span class="dot g"></span>Filled <span class="val" style="margin-left:auto">captured</span></div>
+                    <div class="insev"><span class="dot a"></span>Validation error <span class="val" style="margin-left:auto">selected</span></div>
+                    <div class="insev"><span class="dot r"></span>Loading <span class="val" style="margin-left:auto">missing</span></div>
+                    <button class="addstate"><svg class="i sm"><use href="#i-plus"/></svg>Add state</button>
+                  </div>
+                  <div class="insblock">
+                    <div class="ih"><span>Props</span><span>STATE OVERRIDE</span></div>
+                    <div class="insrow"><span>label</span><b class="val">Email</b></div>
+                    <div class="insrow"><span>value</span><b class="val">not-an-email</b></div>
+                    <div class="insrow"><span>error</span><b class="val" style="color:var(--red)">Enter a valid email</b></div>
+                    <div class="insrow"><span>required</span><b class="val">true</b></div>
+                  </div>
+                  <div class="insblock">
+                    <div class="ih"><span>Evidence</span><span>2 / 3</span></div>
+                    <div class="insrow"><span>Default</span><b class="val" style="color:var(--green)">390 × 844</b></div>
+                    <div class="insrow"><span>Filled</span><b class="val" style="color:var(--green)">390 × 844</b></div>
+                    <div class="evidence-miss">Validation error has no capture. Capture this state before presenting.</div>
+                    <button class="mini-btn" style="width:100%;margin-top:5px"><svg class="i sm"><use href="#i-eye"/></svg>Capture state</button>
+                  </div>
+                  <div class="insblock">
+                    <div class="ih"><span>Page type</span><span>INTENT</span></div>
+                    <div class="insrow"><span>realizes</span><b class="val">FormPage</b></div>
+                    <div class="insrow"><span>regions</span><b class="val">form, help</b></div>
+                    <div class="insrow"><span>required states</span><b class="val">4</b></div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </section>
+
+          <section class="pagebody" data-panel="flow">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div>
+                <div class="pagekicker">Design · Harbor · Flow</div>
+                <div class="pageh1">The flow is the workspace.</div>
+                <p class="pagelede">Four pages in order. Each page keeps its own desktop, tablet and phone displays; each display keeps its states.</p>
+              </div>
+              <div style="display:flex;gap:5px"><button class="mini-btn" data-goto="studio"><svg class="i sm"><use href="#i-layers"/></svg>Canvas</button><button class="mini-btn primary"><svg class="i sm"><use href="#i-play"/></svg>Present flow</button></div>
+            </div>
+
+            <div class="flow-wrap" style="margin-top:12px">
+              <div class="flow-canvas">
+                <div class="flow-track">
+                <div class="flow-card">
+                  <div class="thumb"><div class="mini-page"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">Welcome</div><div class="mp-title">A calmer start.</div><div class="mp-cta">Begin →</div></div></div></div>
+                  <div class="fbody"><div class="ftitle">01 Welcome <span class="pill g">4/4</span></div><div class="ftype">OnboardingPage</div><div class="fstats"><span>3 displays</span><span>4 states</span></div><div class="fdev"><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+                </div>
+                <div class="flow-arrow">›</div>
+                <div class="flow-card on">
+                  <div class="thumb"><div class="mini-page"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">Step 2 of 4</div><div class="mp-title">Tell us about you.</div><div class="mp-cta">Continue →</div></div></div></div>
+                  <div class="fbody"><div class="ftitle">02 Profile <span class="pill a">2/3</span></div><div class="ftype">FormPage</div><div class="fstats"><span>3 displays</span><span>3 states</span></div><div class="fdev"><i class="on"></i><i class="on"></i><i></i></div></div>
+                </div>
+                <div class="flow-arrow">›</div>
+                <div class="flow-card">
+                  <div class="thumb"><div class="mini-page ice"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">Step 3 of 4</div><div class="mp-title">Make it yours.</div><div class="mp-cta">Continue →</div></div></div></div>
+                  <div class="fbody"><div class="ftitle">03 Preferences <span class="pill g">3/3</span></div><div class="ftype">SettingsPage</div><div class="fstats"><span>3 displays</span><span>3 states</span></div><div class="fdev"><i class="on"></i><i class="on"></i><i class="on"></i></div></div>
+                </div>
+                <div class="flow-arrow">›</div>
+                <div class="flow-card">
+                  <div class="thumb"><div class="mini-page dark"><div class="mp-bar"><span class="mp-mark"></span><div class="mp-lines"><i></i><i></i></div></div><div class="mp-hero"><div class="mp-eyebrow">Done</div><div class="mp-title">You're ready.</div><div class="mp-cta">Open workspace →</div></div></div></div>
+                  <div class="fbody"><div class="ftitle">04 Done <span class="pill a">1/2</span></div><div class="ftype">StatePage</div><div class="fstats"><span>3 displays</span><span>2 states</span></div><div class="fdev"><i class="on"></i><i></i><i></i></div></div>
+                </div>
+                </div>
+                <div class="flow-transitions">
+                  <div class="ftrow"><b>Welcome → Profile</b><span>Continue · Skip</span><span class="ftarrow">form step</span></div>
+                  <div class="ftrow"><b>Profile → Preferences</b><span>Continue · Back</span><span class="ftarrow">form step</span></div>
+                  <div class="ftrow"><b>Preferences → Done</b><span>Finish</span><span class="ftarrow">completion</span></div>
+                </div>
+              </div>
+              <aside class="flow-side">
+                <h4>Flow settings</h4>
+                <p>A flow is a workspace with ordered pages. The same page can appear in one flow today; reuse across flows is a later step.</p>
+                <div class="side-stat"><span>Entry</span><b>Welcome</b></div>
+                <div class="side-stat"><span>Exit</span><b>Done</b></div>
+                <div class="side-stat"><span>Pages</span><b>4</b></div>
+                <div class="side-stat"><span>Displays</span><b>12</b></div>
+                <div class="side-stat"><span>States designed</span><b>9 / 12</b></div>
+                <div class="side-stat"><span>States captured</span><b>7 / 12</b></div>
+                <div class="side-stat"><span>Bound scenario</span><b>onboarding</b></div>
+                <button class="mini-btn" style="width:100%;margin-top:8px"><svg class="i sm"><use href="#i-plus"/></svg>Add page</button>
+                <button class="mini-btn" style="width:100%;margin-top:4px"><svg class="i sm"><use href="#i-share"/></svg>Fork workspace</button>
+                <div style="margin-top:8px;font:7px var(--mono);color:var(--muted2);line-height:1.6">MISSING STATES<br>Profile · Loading<br>Done · Empty<br>Done · Error</div>
+              </aside>
+            </div>
+
+            <div class="ws-note" style="margin-top:10px">
+              <svg class="i sm" style="color:var(--signal)"><use href="#i-flow"/></svg>
+              <span><b>Onboarding is a workspace, not a page with three viewport frames.</b> Welcome, Profile, Preferences and Done are pages. Each has desktop, tablet and phone displays. The missing states are visible, not hidden.</span>
+              <span class="hier-mini"><span>4 pages</span>›<span>12 displays</span>›<span>12 states</span></span>
+            </div>
+            <div class="stats-grid" style="margin-top:12px">
+              <div class="bigpanel">
+                <div class="bh"><b>State coverage by page</b><span>DESIGNED / REQUIRED</span></div>
+                <div class="bar-row"><span>Welcome</span><div class="bar-track"><div class="bar-fill g" style="width:100%"></div></div><span class="bn">4/4</span></div>
+                <div class="bar-row"><span>Profile</span><div class="bar-track"><div class="bar-fill a" style="width:66%"></div></div><span class="bn">2/3</span></div>
+                <div class="bar-row"><span>Preferences</span><div class="bar-track"><div class="bar-fill g" style="width:100%"></div></div><span class="bn">3/3</span></div>
+                <div class="bar-row"><span>Done</span><div class="bar-track"><div class="bar-fill r" style="width:50%"></div></div><span class="bn">1/2</span></div>
+                <p style="font-size:8px;color:var(--muted);line-height:1.5;margin-top:7px">Missing states are visible at the page level, not buried in a frame. Search returns them as state results.</p>
+              </div>
+              <div class="bigpanel">
+                <div class="bh"><b>Captures</b><span>EVIDENCE</span></div>
+                <div class="bar-row"><span>Designed</span><div class="bar-track"><div class="bar-fill i" style="width:75%"></div></div><span class="bn">9/12</span></div>
+                <div class="bar-row"><span>Captured</span><div class="bar-track"><div class="bar-fill g" style="width:58%"></div></div><span class="bn">7/12</span></div>
+                <div class="bar-row"><span>Missing</span><div class="bar-track"><div class="bar-fill a" style="width:25%"></div></div><span class="bn">3/12</span></div>
+                <p style="font-size:8px;color:var(--muted);line-height:1.5;margin-top:7px">The flow is not presentable until every state has a capture. The missing states are listed on the right, not hidden behind a green badge.</p>
+              </div>
+            </div>
+          </section>
+
+                    <section class="pagebody" data-panel="review">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div>
+                <div class="pagekicker">Review · 251 open findings</div>
+                <div class="pageh1">What needs a person?</div>
+                <p class="pagelede">A queue with actions, not a measurement. Blockers first, then decisions, then evidence debt.</p>
+              </div>
+              <div style="display:flex;gap:5px"><button class="mini-btn"><svg class="i sm"><use href="#i-filter"/></svg>Filter</button><button class="mini-btn primary">Start triage</button></div>
+            </div>
+            <div class="kpis">
+              <div class="kpi"><div class="n" style="color:var(--red)">186</div><div class="l">Blocking a release</div></div>
+              <div class="kpi"><div class="n" style="color:var(--amber)">42</div><div class="l">Needs a decision</div></div>
+              <div class="kpi"><div class="n" style="color:var(--ice)">23</div><div class="l">Evidence debt</div></div>
+              <div class="kpi"><div class="n">6</div><div class="l">Unmeasured assets</div></div>
+            </div>
+            <div class="review-cols">
+              <div class="review-col">
+                <div class="ch"><span class="dot r"></span>Blocking · 186</div>
+                <div class="finding-card on"><b>Button 2.2.14 has no component-test evidence</b><small>controls.button · v2.2.14</small><div class="frow"><span class="pill r">blocks 14</span><span class="pill">release</span></div></div>
+                <div class="finding-card"><b>CommandCenterShell type omits metrics[].id</b><small>patterns.command-center-shell · v1.0.5</small><div class="frow"><span class="pill r">blocks 6</span><span class="pill">contract</span></div></div>
+                <div class="finding-card"><b>AppNotificationSettings carries library utility classes</b><small>legacy.app-notification-settings · v1.0.6</small><div class="frow"><span class="pill a">blocks 2</span><span class="pill">style</span></div></div>
+              </div>
+              <div class="review-col">
+                <div class="ch"><span class="dot a"></span>Needs a decision · 42</div>
+                <div class="finding-card"><b>Should Marlow be a template or a workspace?</b><small>design.marlow · curated</small><div class="frow"><span class="pill a">fork</span><span class="pill">provenance</span></div></div>
+                <div class="finding-card"><b>Harbor: Profile has no loading state</b><small>workspace.harbor / profile</small><div class="frow"><span class="pill a">state</span><span class="pill">missing</span></div></div>
+                <div class="finding-card"><b>Northwind launch brief is unbound</b><small>workspace.northwind</small><div class="frow"><span class="pill i">binding</span></div></div>
+              </div>
+              <div class="review-col">
+                <div class="ch"><span class="dot i"></span>Evidence debt · 23</div>
+                <div class="finding-card"><b>7 captures are older than their release</b><small>catalog · last 7 days</small><div class="frow"><span class="pill i">stale</span><span class="pill">7 assets</span></div></div>
+                <div class="finding-card"><b>Phone states are missing for 3 workspaces</b><small>workspaces · 390 px</small><div class="frow"><span class="pill i">state</span><span class="pill">phone</span></div></div>
+                <div class="finding-card"><b>No capture for Profile · Validation error</b><small>Harbor / Profile / Phone</small><div class="frow"><span class="pill a">new</span><span class="pill">state</span></div></div>
+              </div>
+            </div>
+            <div class="detail">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="pill r">BLOCKING</span><span class="pill">controls.button</span><span class="pill">v2.2.14</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">blocks 14 downstream</span></div>
+              <h4 style="margin-top:6px">Button 2.2.14 has no component-test evidence</h4>
+              <p>The release is indexed, but the test rollup is empty. The last green evidence is for 2.2.13. A person must decide whether to re-run the suite or pin the release back. Nothing is marked verified until then.</p>
+              <div class="actions"><button class="mini-btn primary">Open asset</button><button class="mini-btn">Re-run tests</button><button class="mini-btn">Assign</button><button class="mini-btn">Copy evidence</button></div>
+            </div>
+          </section>
+
+          <section class="pagebody" data-panel="stats">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <div>
+                <div class="pagekicker">Stats · Library health</div>
+                <div class="pageh1">Is the library healthy?</div>
+                <p class="pagelede">Quality, activity and services in one measured surface. Coverage, Activity and Capabilities now live here as views.</p>
+              </div>
+              <div style="display:flex;gap:5px;align-items:center"><span class="pill g">Measured 4m ago</span><button class="mini-btn"><svg class="i sm"><use href="#i-sync"/></svg>Refresh</button></div>
+            </div>
+            <div class="stats-tabs" data-statstabs>
+              <button class="stats-tab on" data-statsview="overview">Overview</button>
+              <button class="stats-tab" data-statsview="quality">Quality <span class="src">from Coverage</span></button>
+              <button class="stats-tab" data-statsview="activity">Activity <span class="src">from Activity</span></button>
+              <button class="stats-tab" data-statsview="services">Services <span class="src">from Capabilities</span></button>
+            </div>
+
+            <div class="stats-view on" data-statspanel="overview">
+              <div class="kpis five">
+                <div class="kpi"><div class="n">275</div><div class="l">Indexed assets</div></div>
+                <div class="kpi"><div class="n" style="color:var(--red)">0%</div><div class="l">Production ready</div></div>
+                <div class="kpi"><div class="n" style="color:var(--amber)">251</div><div class="l">Open findings</div></div>
+                <div class="kpi"><div class="n" style="color:var(--ice)">68%</div><div class="l">Evidence fresh</div></div>
+                <div class="kpi"><div class="n">42</div><div class="l">Adoptions</div></div>
+              </div>
+              <div class="stats-grid">
+                <div class="bigpanel">
+                  <div class="bh"><b>Maturity</b><span>DOMAIN × RUNG</span></div>
+                  <div class="ring-wrap"><div class="ring"><b>0%</b></div><div class="ring-copy"><b>Production coverage</b><span>0 of 478 assets meet their declared target rung. 251 findings are blocking.</span></div></div>
+                  <div class="bar-row"><span>Missing</span><div class="bar-track"><div class="bar-fill r" style="width:12%"></div></div><span class="bn">28</span></div>
+                  <div class="bar-row"><span>Scaffolded</span><div class="bar-track"><div class="bar-fill a" style="width:18%"></div></div><span class="bn">42</span></div>
+                  <div class="bar-row"><span>Implemented</span><div class="bar-track"><div class="bar-fill i" style="width:32%"></div></div><span class="bn">96</span></div>
+                  <div class="bar-row"><span>Verified</span><div class="bar-track"><div class="bar-fill g" style="width:38%"></div></div><span class="bn">109</span></div>
+                  <div class="bar-row"><span>Production</span><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span class="bn">0</span></div>
+                </div>
+                <div class="bigpanel">
+                  <div class="bh"><b>Top blockers</b><span>BY BLAST RADIUS</span></div>
+                  <div class="next-row"><span class="rank">01</span><div><b>Button</b><small>controls.button · no test evidence</small></div><span class="meta">14 down</span></div>
+                  <div class="next-row"><span class="rank">02</span><div><b>CommandCenterShell</b><small>patterns · type contract</small></div><span class="meta">6 down</span></div>
+                  <div class="next-row"><span class="rank">03</span><div><b>AppNotificationSettings</b><small>legacy · utility classes</small></div><span class="meta">2 down</span></div>
+                  <div class="next-row"><span class="rank">04</span><div><b>DataTable</b><small>data-display · stale capture</small></div><span class="meta">2 down</span></div>
+                  <button class="mini-btn" style="width:100%;margin-top:7px" data-goto="review">Open Review queue</button>
+                </div>
+              </div>
+              <div class="stats-grid">
+                <div class="bigpanel">
+                  <div class="bh"><b>Recent activity</b><span>FROM ACTIVITY</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-box"/></svg></span><div><b>Selection Store published</b><small>services.selection-store · v2.0.2 · 47m ago</small></div><span class="time">47m</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-flow"/></svg></span><div><b>Harbor workspace updated</b><small>Profile · Phone · Validation error · 2h ago</small></div><span class="time">2h</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-file"/></svg></span><div><b>Northwind launch brief imported</b><small>4 pages · 12 displays · 2h ago</small></div><span class="time">2h</span></div>
+                  <button class="mini-btn" style="width:100%;margin-top:7px" data-statsjump="activity">Open activity</button>
+                </div>
+                <div class="bigpanel">
+                  <div class="bh"><b>Services</b><span>FROM CAPABILITIES</span></div>
+                  <div class="service-grid">
+                    <div class="service"><div class="sh"><span class="dot g"></span>Agent Manager</div><p>Extract and adopt</p><div class="cmd">available</div></div>
+                    <div class="service"><div class="sh"><span class="dot g"></span>Experience Manager</div><p>Page contracts</p><div class="cmd">available</div></div>
+                    <div class="service"><div class="sh"><span class="dot g"></span>UI Health</div><p>Inventory and captures</p><div class="cmd">available</div></div>
+                    <div class="service"><div class="sh"><span class="dot a"></span>BAS</div><p>Capture engine</p><div class="cmd">degraded</div></div>
+                  </div>
+                  <button class="mini-btn" style="width:100%;margin-top:7px" data-statsjump="services">Open services</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-view" data-statspanel="quality">
+              <div class="stats-grid">
+                <div class="bigpanel">
+                  <div class="bh"><b>Maturity by domain</b><span>19 DOMAINS · 5 RUNGS</span></div>
+                  <table class="matrix">
+                    <thead><tr><th>domain</th><th>Missing</th><th>Scaffold</th><th>Implement</th><th>Verified</th><th>Prod</th></tr></thead>
+                    <tbody>
+                      <tr><td>data-display</td><td class="c1">6</td><td class="c2">8</td><td class="c3">18</td><td class="c4">15</td><td class="c5">0</td></tr>
+                      <tr><td>forms</td><td class="c1">4</td><td class="c2">6</td><td class="c3">14</td><td class="c4">11</td><td class="c5">0</td></tr>
+                      <tr><td>primitives</td><td class="c1">3</td><td class="c2">5</td><td class="c3">16</td><td class="c4">14</td><td class="c5">0</td></tr>
+                      <tr><td>patterns</td><td class="c1">7</td><td class="c2">9</td><td class="c3">10</td><td class="c4">6</td><td class="c5">0</td></tr>
+                      <tr><td>templates</td><td class="c1">8</td><td class="c2">4</td><td class="c3">5</td><td class="c4">2</td><td class="c5">0</td></tr>
+                      <tr><td>foundations</td><td class="c1">0</td><td class="c2">1</td><td class="c3">4</td><td class="c4">10</td><td class="c5">0</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="bigpanel">
+                  <div class="bh"><b>Ranked next work</b><span>BY BLAST RADIUS</span></div>
+                  <div class="next-row"><span class="rank">01</span><div><b>Button</b><small>nearest gate: component-tests</small></div><span class="meta">14 down</span></div>
+                  <div class="next-row"><span class="rank">02</span><div><b>CommandCenterShell</b><small>nearest gate: contract</small></div><span class="meta">6 down</span></div>
+                  <div class="next-row"><span class="rank">03</span><div><b>AppNotificationSettings</b><small>nearest gate: style</small></div><span class="meta">2 down</span></div>
+                  <div class="next-row"><span class="rank">04</span><div><b>DataTable</b><small>nearest gate: capture-freshness</small></div><span class="meta">2 down</span></div>
+                  <div class="next-row"><span class="rank">05</span><div><b>Harbor</b><small>nearest gate: state-coverage</small></div><span class="meta">3 missing</span></div>
+                </div>
+              </div>
+              <div class="stats-grid">
+                <div class="bigpanel">
+                  <div class="bh"><b>Definition of ready</b><span>4 GATES</span></div>
+                  <div class="next-row"><span class="rank">01</span><div><b>Source and manifest agree</b><small>identity · version · dependency pins</small></div><span class="meta">pass</span></div>
+                  <div class="next-row"><span class="rank">02</span><div><b>Every declared state has a story and a capture</b><small>state coverage · phone + desktop</small></div><span class="meta">2 gaps</span></div>
+                  <div class="next-row"><span class="rank">03</span><div><b>Usage-contract checks pass at phone width</b><small>390 px · focus · touch floor</small></div><span class="meta">pass</span></div>
+                  <div class="next-row"><span class="rank">04</span><div><b>Evidence is fresher than the release</b><small>capture timestamp vs publish timestamp</small></div><span class="meta">7 stale</span></div>
+                </div>
+                <div class="bigpanel">
+                  <div class="bh"><b>Evidence</b><span>LIVE</span></div>
+                  <div class="bar-row"><span>Passing</span><div class="bar-track"><div class="bar-fill g" style="width:68%"></div></div><span class="bn">68%</span></div>
+                  <div class="bar-row"><span>Failing</span><div class="bar-track"><div class="bar-fill r" style="width:22%"></div></div><span class="bn">22%</span></div>
+                  <div class="bar-row"><span>Unmeasured</span><div class="bar-track"><div class="bar-fill a" style="width:10%"></div></div><span class="bn">10%</span></div>
+                  <p style="font-size:8.5px;color:var(--muted);line-height:1.55;margin-top:8px">A report that says unavailable is better than a report that implies zero. This view never renders a missing producer as a pass.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-view" data-statspanel="activity">
+              <div class="stats-grid">
+                <div class="bigpanel">
+                  <div class="bh"><b>Change trail</b><span>INDEX-DERIVED · 200 SHOWN</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-box"/></svg></span><div><b>Selection Store published</b><small>services.selection-store · v2.0.2 · catalog process</small></div><span class="time">47m</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-flow"/></svg></span><div><b>Harbor workspace updated</b><small>Profile · Phone · Validation error added</small></div><span class="time">2h</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-file"/></svg></span><div><b>Northwind launch brief imported</b><small>4 pages · 12 displays · HTML source</small></div><span class="time">2h</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-check"/></svg></span><div><b>CommandPalette verified</b><small>overlays.command-palette · v2.0.6</small></div><span class="time">3d</span></div>
+                  <div class="trail-event"><span class="ico"><svg class="i sm"><use href="#i-alert"/></svg></span><div><b>Button test evidence expired</b><small>controls.button · v2.2.14</small></div><span class="time">3d</span></div>
+                </div>
+                <div class="bigpanel">
+                  <div class="bh"><b>Actors</b><span>THIS VIEW</span></div>
+                  <div class="bar-row"><span>catalog</span><div class="bar-track"><div class="bar-fill i" style="width:82%"></div></div><span class="bn">41</span></div>
+                  <div class="bar-row"><span>operator</span><div class="bar-track"><div class="bar-fill" style="width:12%"></div></div><span class="bn">6</span></div>
+                  <div class="bar-row"><span>agent</span><div class="bar-track"><div class="bar-fill g" style="width:6%"></div></div><span class="bn">3</span></div>
+                  <p style="font-size:8px;color:var(--muted);line-height:1.55;margin-top:8px">Actor is the catalog process today. Human attribution arrives with a durable event projection; this view says so instead of implying it.</p>
+                </div>
+              </div>
+              <div class="ws-note"><svg class="i sm" style="color:var(--amber)"><use href="#i-history"/></svg><span><b>Durability boundary.</b> Activity is an index-derived projection, not a durable event store. The filter, actor and retention claims stay honest until the event owner exists.</span></div>
+            </div>
+
+            <div class="stats-view" data-statspanel="services">
+              <div class="service-grid">
+                <div class="service"><div class="sh"><span class="dot g"></span>Agent Manager <span class="pill g" style="margin-left:auto">available</span></div><p>Assisted extraction and adoption. Owns the agent run, approval and handoff path.</p><div class="cmd">$ vrooli scenario start agent-manager</div></div>
+                <div class="service"><div class="sh"><span class="dot g"></span>Experience Manager <span class="pill g" style="margin-left:auto">available</span></div><p>Parses experience contracts and reconciles page claims, states and regions.</p><div class="cmd">$ vrooli scenario start experience-manager</div></div>
+                <div class="service"><div class="sh"><span class="dot g"></span>UI Health <span class="pill g" style="margin-left:auto">available</span></div><p>Shared inventory and provenance. Resolves route and capture targets for callers.</p><div class="cmd">$ vrooli scenario start ui-health</div></div>
+                <div class="service"><div class="sh"><span class="dot a"></span>Browser Automation Studio <span class="pill a" style="margin-left:auto">degraded</span></div><p>Executes stories and captures the evidence bundle: pixels, outline, console, styles.</p><div class="cmd">$ vrooli scenario start browser-automation-studio</div></div>
+                <div class="service"><div class="sh"><span class="dot g"></span>Code Facts <span class="pill g" style="margin-left:auto">available</span></div><p>Parsed import graph for catalog reconciliation and dependency direction.</p><div class="cmd">$ vrooli scenario start code-facts</div></div>
+                <div class="service"><div class="sh"><span class="dot g"></span>Git Control Tower <span class="pill g" style="margin-left:auto">available</span></div><p>Immutable regression evidence and change provenance for releases.</p><div class="cmd">$ vrooli scenario start git-control-tower</div></div>
+              </div>
+              <div class="ws-note"><svg class="i sm" style="color:var(--ice)"><use href="#i-bolt"/></svg><span><b>A missing service is a visible finding.</b> Recovery commands remain one click away. Nothing is assumed available, and a degraded capture engine never turns a page green.</span></div>
+            </div>
+          </section>
+
+
+
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+    <section class="section" id="phones">
+    <div class="section-head">
+      <div class="section-no">05 / PHONE</div>
+      <div>
+        <h2>The same five, at 390 px.</h2>
+        <p class="lede">
+          Start, Workspaces and the studio. The hierarchy stays legible on a phone: the page is a
+          chip, the display is a phone frame, the state is a chip. The bottom navigation mirrors the
+          desktop rail, so nothing important disappears.
+        </p>
+      </div>
+    </div>
+    <div class="phones">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>5G · 100</span></div>
+          <div class="pbody">
+            <div class="pagekicker" style="margin-top:6px">The shared UI layer</div>
+            <div class="ptitle">Find the <em>surface.</em></div>
+            <div class="pomni omni" style="box-shadow:none"><svg class="i sm" style="color:var(--muted2)"><use href="#i-search"/></svg><span class="ph">Search workspaces, pages, assets…</span></div>
+            <div class="modes" style="margin-top:8px"><span class="mode on">All</span><span class="mode">Workspaces</span><span class="mode">Pages</span><span class="mode">Actions</span></div>
+            <div class="pgroup">Browse by intent</div>
+            <div class="pgrid">
+              <div class="pcat"><b>Landing pages</b><div class="count">4 page types</div><div class="ex">Landing, Pricing, Docs</div></div>
+              <div class="pcat"><b>Onboarding</b><div class="count">1 workspace</div><div class="ex">Harbor · 4 pages</div></div>
+              <div class="pcat"><b>Workspaces</b><div class="count">5 designs</div><div class="ex">Analytics, Ops</div></div>
+              <div class="pcat"><b>Components</b><div class="count">275 assets</div><div class="ex">Button, Card, Table</div></div>
+              <div class="pcat"><b>Templates</b><div class="count">8 curated</div><div class="ex">Marlow, Harbor</div></div>
+              <div class="pcat"><b>Actions</b><div class="count">12 commands</div><div class="ex">New, Reindex</div></div>
+            </div>
+            <div class="pgroup">Continue</div>
+            <div class="pwork"><div class="pwt"><svg class="i sm" style="color:var(--signal)"><use href="#i-flow"/></svg>Harbor</div><div class="pws"><span><b>4</b> pages</span><span><b>12</b> displays</span><span><b>12</b> states</span></div></div>
+          </div>
+          <div class="pnav"><div class="on"><svg class="i sm"><use href="#i-search"/></svg>Start</div><div><svg class="i sm"><use href="#i-box"/></svg>Library</div><div><svg class="i sm"><use href="#i-flow"/></svg>Design</div><div><svg class="i sm"><use href="#i-check"/></svg>Review</div><div><svg class="i sm"><use href="#i-chart"/></svg>Stats</div></div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>5G · 100</span></div>
+          <div class="pbody">
+            <div class="pagekicker" style="margin-top:6px">Design · Workspaces</div>
+            <div class="ptitle" style="font-size:24px">Workspaces</div>
+            <div class="pomni omni" style="box-shadow:none;height:34px"><svg class="i sm" style="color:var(--muted2)"><use href="#i-search"/></svg><span class="ph">Search workspaces…</span></div>
+            <div class="modes" style="margin-top:7px"><span class="mode on">All</span><span class="mode">Templates</span><span class="mode">Mine</span></div>
+            <div class="pgroup">Curated</div>
+            <div class="pwork" style="border-color:var(--signal-line);background:linear-gradient(120deg,var(--signal-soft),rgba(255,179,92,.02))"><div class="pwt">Harbor <span class="pill sig" style="font-size:6px">template</span></div><div class="pws"><span><b>4</b> pages</span><span><b>12</b> displays</span><span><b>12</b> states</span></div><div class="pws" style="margin-top:4px"><span style="color:var(--green)">complete</span><span style="color:var(--amber)">2 states missing</span></div></div>
+            <div class="pwork"><div class="pwt">Marlow <span class="pill sig" style="font-size:6px">template</span></div><div class="pws"><span><b>1</b> page</span><span><b>3</b> displays</span><span><b>4</b> states</span></div></div>
+            <div class="pgroup">Yours</div>
+            <div class="pwork"><div class="pwt">Northwind launch brief</div><div class="pws"><span><b>4</b> pages</span><span><b>12</b> displays</span><span><b>8</b> states</span></div><div class="pws" style="margin-top:4px"><span style="color:var(--amber)">3 states missing</span><span>imported</span></div></div>
+            <div class="pwork"><div class="pwt">Aperture</div><div class="pws"><span><b>3</b> pages</span><span><b>9</b> displays</span><span><b>6</b> states</span></div></div>
+            <div class="pgroup">Actions</div>
+            <div class="prow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-plus"/></svg></div><div><b>New workspace</b><small>Blank or from a template</small></div></div>
+          </div>
+          <div class="fab"><svg class="i sm"><use href="#i-plus"/></svg></div>
+          <div class="pnav"><div><svg class="i sm"><use href="#i-search"/></svg>Start</div><div><svg class="i sm"><use href="#i-box"/></svg>Library</div><div class="on"><svg class="i sm"><use href="#i-flow"/></svg>Design</div><div><svg class="i sm"><use href="#i-check"/></svg>Review</div><div><svg class="i sm"><use href="#i-chart"/></svg>Stats</div></div>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>5G · 100</span></div>
+          <div class="pbody" style="padding-top:6px">
+            <div style="display:flex;align-items:center;gap:5px"><svg class="i sm" style="color:var(--signal)"><use href="#i-flow"/></svg><b style="font-family:var(--serif);font-size:16px">Harbor</b><span class="pill sig" style="font-size:6px">template</span><span style="margin-left:auto;font:7px var(--mono);color:var(--muted2)">Profile</span></div>
+            <div class="flow-strip" style="margin:6px -14px 0;padding:5px 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+              <span class="fchip" style="font-size:7px">Welcome</span><span class="farrow">›</span><span class="fchip on" style="font-size:7px">Profile</span><span class="farrow">›</span><span class="fchip" style="font-size:7px">Preferences</span><span class="farrow">›</span><span class="fchip" style="font-size:7px">Done</span>
+            </div>
+            <div class="pstudio" style="margin-top:8px">
+              <div class="pst"><svg class="i sm"><use href="#i-phone"/></svg><b>Phone</b><span class="tag">390 × 844</span><span class="pill a" style="margin-left:auto;font-size:6px">Validation error</span></div>
+              <div class="pdisplay">
+                <div class="pdhead"><b>Step 2 of 4</b><span>Profile</span></div>
+                <div class="pdbody">
+                  <div class="t">Tell us about you.</div>
+                  <div style="font-size:5px;color:#6d5c51;margin:2px 0 3px">A little context helps us shape the workspace.</div>
+                  <div class="f">Full name · Ada Lovelace</div>
+                  <div class="f err">Email · not-an-email</div>
+                  <div class="f">Role · Product</div>
+                  <div style="display:inline-block;margin-top:4px;padding:3px 5px;border-radius:2px;background:#241c17;color:#f5f0e7;font:5px var(--mono)">Continue →</div>
+                </div>
+              </div>
+              <div class="pstate"><span>Default</span><span>Filled</span><span class="on">Validation error</span><span class="miss">Loading</span></div>
+            </div>
+            <div class="pgroup">States · Phone</div>
+            <div class="prow"><div class="resicon" style="color:var(--green)"><svg class="i sm"><use href="#i-check"/></svg></div><div><b>Default</b><small>designed · captured 390×844</small></div></div>
+            <div class="prow"><div class="resicon" style="color:var(--green)"><svg class="i sm"><use href="#i-check"/></svg></div><div><b>Filled</b><small>designed · captured 390×844</small></div></div>
+            <div class="prow"><div class="resicon" style="color:var(--signal)"><svg class="i sm"><use href="#i-alert"/></svg></div><div><b>Validation error</b><small>selected · no capture</small></div></div>
+            <div class="prow"><div class="resicon" style="color:var(--red)"><svg class="i sm"><use href="#i-plus"/></svg></div><div><b>Loading</b><small>not designed</small></div></div>
+            <div style="display:flex;gap:4px;margin-top:7px"><button class="mini-btn primary" style="flex:1">Capture state</button><button class="mini-btn" style="flex:1">Add state</button></div>
+          </div>
+          <div class="pnav"><div><svg class="i sm"><use href="#i-search"/></svg>Start</div><div><svg class="i sm"><use href="#i-box"/></svg>Library</div><div class="on"><svg class="i sm"><use href="#i-flow"/></svg>Design</div><div><svg class="i sm"><use href="#i-check"/></svg>Review</div><div><svg class="i sm"><use href="#i-chart"/></svg>Stats</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:20px">
+      <p><b>What the phone proves.</b> The workspace hierarchy is still legible in one column:
+      workspace name, page chips, one display, state chips. The primary action is in the thumb zone;
+      the state list is a bottom sheet in the real build. Stats keeps the five-tab model, so Coverage,
+      Activity and Capabilities do not vanish on mobile.</p>
+    </div>
+  </section>
+
+  <section class="section" id="search">
+    <div class="section-head">
+      <div class="section-no">06 / SEARCH</div>
+      <div>
+        <h2>What the new model does to search.</h2>
+        <p class="lede">
+          The omnibox from the search options stays. The result kinds change: a workspace, page,
+          display and state are now first-class results, not hidden inside a “design”.
+        </p>
+      </div>
+    </div>
+
+    <table class="rectable">
+      <thead><tr><th>Query</th><th>What comes first</th><th>Then</th><th>Then</th></tr></thead>
+      <tbody>
+        <tr><td>“onboarding flow”</td><td><b>Harbor</b> workspace · 4 pages · 12 displays · 12 states</td><td>Pages: Welcome, Profile, Preferences, Done · each with state coverage</td><td>OnboardingPage page type · OnboardingFlow pattern · assets · commands</td></tr>
+        <tr><td>“landing page”</td><td><b>LandingPage</b> page type</td><td>Workspaces/templates: Marlow, Northwind, Aperture</td><td>Assets used · commands</td></tr>
+        <tr><td>“validation error”</td><td><b>Harbor / Profile / Phone / Validation error</b> state</td><td>The page and workspace containing it</td><td>Assets in the state · capture action</td></tr>
+        <tr><td>“button”</td><td><b>Button</b> asset · 2.2.14</td><td>Workspaces/pages where it appears</td><td>Commands: adopt, open, compare</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="border-left-color:var(--ice);background:linear-gradient(90deg,var(--ice-soft),transparent 70%)">
+      <p><b>States are addressable.</b> A state result can answer “where is validation error designed?” and
+      deep-link to <span class="mono">Harbor / Profile / Phone / Validation error</span>. That is only
+      possible if the data model names the display and state, instead of treating a frame as an
+      anonymous viewport.</p>
+    </div>
+  </section>
+
+  <section class="section" id="migration">
+    <div class="section-head">
+      <div class="section-no">07 / BUILD</div>
+      <div>
+        <h2>How to get there without a rewrite.</h2>
+        <p class="lede">
+          The current studio already stores pages, displays and themes; it is one level short and one
+          level wide. Add the workspace wrapper and states, then migrate the template shelf into it.
+        </p>
+      </div>
+    </div>
+
+    <div class="schema">
+      <div class="schemabox"><b>Workspace</b> { id, name, provenance: authored|curated|imported, tags[], pages[], <span class="c">// the template unit</span> }</div>
+      <div class="schemabox"><b>Page</b> { id, name, route?, realizes: pageTypeId?, displays[], order? } <span class="c">// DesignDocument today</span></div>
+      <div class="schemabox"><b>Display</b> { id, device: desktop|tablet|phone, width, height, states[] } <span class="c">// DesignFrame today</span></div>
+      <div class="schemabox"><b>State</b> { id, name, args, scenario?, status: designed|missing, captureId? } <span class="c">// new</span></div>
+    </div>
+
+    <div class="plan" style="margin-top:14px">
+      <div class="planstep"><div class="pn">1</div><div><b>Workspace wrapper + page rename.</b><p>Promote each existing design to a page inside a one-page workspace. Rename the UI concept without changing the stored composition. Existing routes keep working.</p></div><div class="when">week 1–2</div></div>
+      <div class="planstep"><div class="pn">2</div><div><b>Multiple pages + flow order.</b><p>Add pages[] to the workspace, page reordering, and the flow view. An onboarding workspace can hold Welcome → Profile → Preferences → Done.</p></div><div class="when">week 2–4</div></div>
+      <div class="planstep"><div class="pn">3</div><div><b>States per display.</b><p>Add named states with args and capture status. Search indexes them. The studio state switcher and the evidence panel are the same object.</p></div><div class="when">week 3–5</div></div>
+      <div class="planstep"><div class="pn">4</div><div><b>Template = curated workspace.</b><p>Migrate <span class="mono">studio_templates</span> into workspaces with provenance=curated. Fork on use. Delete the separate CRUD and the duplicate search path.</p></div><div class="when">week 4–6</div></div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div class="card"><div class="card-pad"><h4>What stays</h4><p class="tiny muted">The page composition, frames, theme, revision, conflict handling, assets, story/test/capture evidence and the studio interactions. This is an extension, not a second studio.</p></div></div>
+      <div class="card"><div class="card-pad"><h4>What changes</h4><p class="tiny muted">The object users open is a workspace, not a page. The template shelf is a view of workspaces. States become addressable and searchable. Design routes gain a workspace/page path; legacy routes redirect.</p></div></div>
+    </div>
+  </section>
+
+  <details class="provenance">
+    <summary>Where these pictures and numbers come from</summary>
+    <div class="card-pad">
+      <dl>
+        <dt>Rendered</dt><dd>All workbench screens and phones are static HTML/CSS rebuilt in the Nocturne tokens and type stack. They are not the running app, not wired to the API, and not composited captures.</dd>
+        <dt>Captured</dt><dd>The prior search options page carries the real 1440×900 captures of Home, Components?q=landing page and ⌘K?q=landing. This page reuses the same design language but does not add new app captures.</dd>
+        <dt>Counts</dt><dd>19 catalog page types, 478 catalog assets, 275 published manifests, 2 designs with 3 frames each, 8 code-defined templates, 14 experience pages. Workspace/page/display/state counts inside the mockups are illustrative where the model does not exist yet.</dd>
+        <dt>Sources</dt><dd><span class="mono">ui/src/workbench/pages/HomePage.tsx</span>, <span class="mono">CoveragePage.tsx</span>, <span class="mono">ActivityPage.tsx</span>, <span class="mono">CapabilitiesPage.tsx</span>, <span class="mono">DesignStudioPage.tsx</span>, <span class="mono">WorkbenchShell.tsx</span>, <span class="mono">api/internal/designs/types.go</span>, <span class="mono">api/internal/templates/types.go</span>.</dd>
+        <dt>Limits</dt><dd>No product code or test suite changed. The prototype does not prove performance, accessibility, API behavior or data migration. The recommendation is a design judgement, not an operator decision. The workbench currently serves Nocturne dark; this page and the prototypes are dark-only.</dd>
+      </dl>
+    </div>
+  </details>
+
+  <div class="footer">
+    <b>Method.</b> Experience-engineering decision page: today’s modules are accounted for, the proposal is
+    shown in the product’s own visual language, the model is named, and the migration is explicit.
+    Search is the front door; the workspace hierarchy is the building behind it.
+  </div>
+</div>
+<script>
+  (function () {
+    var pages = {
+      start: { crumb: "Start", nav: "start" },
+      library: { crumb: "Library", nav: "library" },
+      design: { crumb: "Design", nav: "design" },
+      studio: { crumb: "Design / Harbor", nav: "design" },
+      flow: { crumb: "Design / Harbor / Flow", nav: "design" },
+      review: { crumb: "Review", nav: "review" },
+      stats: { crumb: "Stats / Library health", nav: "stats" }
+    };
+    var frame = document.getElementById("wb");
+    var crumb = document.getElementById("crumb");
+
+    function go(name) {
+      if (!pages[name]) {
+        showToast(name === "new"
+          ? "New is a global action, not a sixth destination. The Create route stays."
+          : "Settings stays a secondary destination; it is not part of this page set.");
+        return;
+      }
+      document.querySelectorAll(".pagebody").forEach(function (panel) {
+        panel.classList.toggle("on", panel.getAttribute("data-panel") === name);
+      });
+      document.querySelectorAll(".proto-tab").forEach(function (tab) {
+        tab.classList.toggle("on", tab.getAttribute("data-goto") === name);
+      });
+      document.querySelectorAll(".apprail .anav").forEach(function (item) {
+        item.classList.toggle("on", item.getAttribute("data-goto") === pages[name].nav);
+      });
+      if (crumb) crumb.textContent = pages[name].crumb;
+      var body = frame && frame.querySelector('.pagebody[data-panel="' + name + '"]');
+      if (body) body.scrollTop = 0;
+    }
+
+    document.querySelectorAll("[data-goto]").forEach(function (el) {
+      el.addEventListener("click", function () { go(el.getAttribute("data-goto")); });
+    });
+
+    // Start query-state switch
+    document.querySelectorAll('[data-subswitch="start"] [data-subview]').forEach(function (button) {
+      button.addEventListener("click", function () {
+        var target = button.getAttribute("data-subview");
+        document.querySelectorAll('[data-subswitch="start"] [data-subview]').forEach(function (other) {
+          other.setAttribute("aria-pressed", other === button ? "true" : "false");
+        });
+        document.querySelectorAll("[data-subpanel]").forEach(function (panel) {
+          panel.classList.toggle("on", panel.getAttribute("data-subpanel") === target);
+        });
+        var q = document.querySelector("[data-start-q]");
+        if (q) {
+          q.textContent = target === "start-landing"
+            ? "landing page"
+            : target === "start-onboarding"
+              ? "onboarding flow"
+              : "Search workspaces, pages, assets, commands…";
+        }
+      });
+    });
+
+    // Stats tabs
+    document.querySelectorAll("[data-statstabs] [data-statsview]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var target = button.getAttribute("data-statsview");
+        document.querySelectorAll("[data-statstabs] [data-statsview]").forEach(function (other) {
+          other.classList.toggle("on", other === button);
+        });
+        document.querySelectorAll("[data-statspanel]").forEach(function (panel) {
+          panel.classList.toggle("on", panel.getAttribute("data-statspanel") === target);
+        });
+      });
+    });
+    document.querySelectorAll("[data-statsjump]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var target = button.getAttribute("data-statsjump");
+        var tab = document.querySelector('[data-statstabs] [data-statsview="' + target + '"]');
+        if (tab) tab.click();
+      });
+    });
+
+    // Finding selection
+    document.querySelectorAll(".finding-card").forEach(function (card) {
+      card.addEventListener("click", function () {
+        var column = card.closest(".review-col");
+        if (!column) return;
+        column.querySelectorAll(".finding-card").forEach(function (other) {
+          other.classList.toggle("on", other === card);
+        });
+      });
+    });
+
+    var toast = null;
+    function showToast(message) {
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.style.cssText = "position:absolute;left:50%;bottom:18px;transform:translateX(-50%);max-width:420px;padding:8px 12px;border:1px solid var(--signal-line);border-radius:8px;background:#1a1410;color:var(--ink2);font:9px/1.5 var(--sans);box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:5;text-align:center";
+        frame.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.style.display = "block";
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function () { toast.style.display = "none"; }, 3200);
+    }
+  })();
+</script>
+
+</body>
+</html>

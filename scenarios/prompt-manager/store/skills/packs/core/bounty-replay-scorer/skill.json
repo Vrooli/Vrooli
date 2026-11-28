@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-11-13T00:00:00Z",
+  "description": "Independently score one blind bounty replay from frozen Test Genie receipt facts without access to source or answer material.",
+  "entry": "SKILL.md",
+  "id": "bounty-replay-scorer",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "contract"
+  ],
+  "name": "bounty-replay-scorer",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "agent-manager workflow"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "agent-manager",
+      "test-genie"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "agent-manager",
+    "test-genie",
+    "bounty-replay",
+    "prompt-contract"
+  ],
+  "updatedAt": "2026-11-13T00:00:00Z"
+}

@@ -1,0 +1,6 @@
+fastapi==0.115.12
+numpy==2.2.6
+onnxruntime==1.22.0
+pydantic==2.11.5
+quickjs==1.19.4
+uvicorn==0.34.3

@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestBuildPromptAndContext_Validation(t *testing.T) {
@@ -87,6 +87,61 @@ func TestBuildPromptAndContext_EffortDrivesContextSelection(t *testing.T) {
 	if !hasAttachmentKey(traceOut.Attachments, "focus-harness") || !hasAttachmentKey(traceOut.Attachments, "focus-subject") {
 		t.Fatal("expected both focus attachments when focus.harness and focus.subject are true")
 	}
+
+	harness := attachmentByKey(traceOut.Attachments, "focus-harness")
+	subject := attachmentByKey(traceOut.Attachments, "focus-subject")
+	for key, att := range map[string]*domainpb.ContextAttachment{
+		"focus-harness": harness,
+		"focus-subject": subject,
+	} {
+		if att == nil {
+			t.Fatalf("missing attachment %q", key)
+		}
+		if strings.Contains(att.Content, "~/Vrooli/scenarios/") {
+			t.Fatalf("%s should not mention legacy ~/Vrooli scenario paths: %q", key, att.Content)
+		}
+	}
+}
+
+func TestBuildAttachments_PreservesConfiguredOrder(t *testing.T) {
+	input := validInvestigateInput(domain.EffortTrace)
+	include := []string{
+		"task-metadata",
+		"error-info",
+		"safety-rules",
+		"diagnostic-checklist",
+		"output-format",
+		"vps-connection",
+		"deployment-manifest",
+		"architecture-guide",
+	}
+
+	attachments := buildAttachments(input, include)
+	want := []string{
+		"task-metadata",
+		"error-info",
+		"safety-rules",
+		"diagnostic-checklist",
+		"output-format",
+		"vps-connection",
+		"deployment-manifest",
+		"architecture-guide",
+		"focus-harness",
+		"focus-subject",
+		"user-note",
+	}
+	got := make([]string, 0, len(attachments))
+	for _, attachment := range attachments {
+		got = append(got, attachment.Key)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("attachment keys = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attachment keys = %v, want %v", got, want)
+		}
+	}
 }
 
 func validInvestigateInput(effort domain.InvestigationEffort) shared.TaskInput {
@@ -106,7 +161,6 @@ func validInvestigateInput(effort domain.InvestigationEffort) shared.TaskInput {
 				Host:    "138.197.95.182",
 				Port:    22,
 				User:    "root",
-				KeyPath: "~/.ssh/id_ed25519",
 				Workdir: "/root/Vrooli",
 			},
 		},
@@ -127,10 +181,14 @@ func validInvestigateInput(effort domain.InvestigationEffort) shared.TaskInput {
 }
 
 func hasAttachmentKey(atts []*domainpb.ContextAttachment, key string) bool {
+	return attachmentByKey(atts, key) != nil
+}
+
+func attachmentByKey(atts []*domainpb.ContextAttachment, key string) *domainpb.ContextAttachment {
 	for _, a := range atts {
 		if a != nil && a.Key == key {
-			return true
+			return a
 		}
 	}
-	return false
+	return nil
 }

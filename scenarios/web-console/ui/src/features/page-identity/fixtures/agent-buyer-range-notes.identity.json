@@ -1,0 +1,546 @@
+{
+  "schema": "rcl-page-component-identity/v1",
+  "evidenceKind": "source-and-build-metadata",
+  "page": {
+    "source": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+    "kind": "collection",
+    "route": "/notes",
+    "state": "partial"
+  },
+  "build": {
+    "stampPath": "scenarios/agent-buyer-range/ui/dist/index.html.freshness.json",
+    "digest": "99dd2c547e1348a338c074b253a46697632e127ed9985450e6a0e16a98564c5a",
+    "writtenAtNs": "1794613902200475472",
+    "pageInputSha256": "979a2fd967d186643c8d8f5348846cad4b3b0f9aa4bf5531be6377beaaf1e6e0",
+    "pageInputMatches": true,
+    "emittedChunkCount": 6,
+    "selectedInputsState": "partial",
+    "claimLimit": "selected source/build inputs only; runtime and deployed release are unverified"
+  },
+  "components": [
+    {
+      "component": "PageHeader",
+      "importedAs": "PageHeader",
+      "specifier": "@vrooli/react-component-library/PageHeader/2",
+      "assetId": "react-component-library:PageHeader",
+      "version": "2.0.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 1,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/PageHeader/versions/2.0.1/PageHeader.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/PageHeader/versions/2.0.1/PageHeader.js",
+      "buildArtifactSha256": "d6a8d925013fd4cff967dc570909e21acedf6734608380dfed5fff793adb75e0",
+      "outputMarkers": [
+        "data-rcl-page-header",
+        "data-rcl-page-header-lead",
+        "data-rcl-page-header-leading",
+        "data-rcl-page-header-copy",
+        "data-rcl-page-header-eyebrow",
+        "data-rcl-page-header-title",
+        "data-rcl-page-header-description",
+        "data-rcl-page-header-actions"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "ownerComponent": null,
+      "depth": 0
+    },
+    {
+      "component": "NotesCard",
+      "importedAs": "NotesCard",
+      "specifier": "../features/notes/NotesCard",
+      "assetId": null,
+      "version": null,
+      "kind": "custom",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 5,
+      "sourceAssetPath": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "sourceSha256": "a6a4dcf0412d85a1649731dd08814d2fba989df5940ae9c8e0bf5e4ce1fda7be",
+      "outputMarkers": [],
+      "matchingChunks": [],
+      "matchingSourceMaps": [],
+      "state": "partial",
+      "reason": "source matches the build input stamp but no stable marker was found in emitted JS",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "ownerComponent": null,
+      "depth": 0
+    },
+    {
+      "component": "NotesMeasureCard",
+      "importedAs": "NotesMeasureCard",
+      "specifier": "../features/notes/NotesMeasureCard",
+      "assetId": null,
+      "version": null,
+      "kind": "custom",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 6,
+      "sourceAssetPath": "scenarios/agent-buyer-range/ui/src/features/notes/NotesMeasureCard.tsx",
+      "sourceSha256": "3e3ee1d1d20af790c02c20a2be6fb9cafcbcef671fc10a0f3167d93cff2503e4",
+      "outputMarkers": [],
+      "matchingChunks": [],
+      "matchingSourceMaps": [],
+      "state": "partial",
+      "reason": "source matches the build input stamp but no stable marker was found in emitted JS",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "ownerComponent": null,
+      "depth": 0
+    },
+    {
+      "component": "Button",
+      "importedAs": "Button",
+      "specifier": "@vrooli/react-component-library/Button/2",
+      "assetId": "react-component-library:Button",
+      "version": "2.2.13",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 7,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Button/versions/2.2.13/Button.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Button/versions/2.2.13/Button.js",
+      "buildArtifactSha256": "d71fdee76c939e5b29eb34b32489ec7219a5dba65a373fd1ce5eb6cec4654a78",
+      "outputMarkers": [
+        "data-rcl-button",
+        "data-rcl-button-content"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "Card",
+      "importedAs": "Card",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 8,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "CardContent",
+      "importedAs": "CardContent",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 8,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "CardHeader",
+      "importedAs": "CardHeader",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 8,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "CardTitle",
+      "importedAs": "CardTitle",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 8,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "DataTable",
+      "importedAs": "DataTable",
+      "specifier": "@vrooli/react-component-library/DataTable/1",
+      "assetId": "react-component-library:DataTable",
+      "version": "1.4.8",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 9,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/DataTable/versions/1.4.8/DataTable.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/DataTable/versions/1.4.8/DataTable.js",
+      "buildArtifactSha256": "2e1bdadf47036dc60ba004de24a2b0a09c924aecba80311b94c83bebf7121890",
+      "outputMarkers": [
+        "data-rcl-data-table",
+        "data-rcl-data-table-controls",
+        "data-rcl-data-table-query-row",
+        "data-rcl-data-table-query",
+        "data-rcl-data-table-filter-label",
+        "data-rcl-data-table-filter-group",
+        "data-rcl-data-table-page",
+        "data-rcl-data-table-summary",
+        "data-rcl-data-table-density-toggle",
+        "data-rcl-data-table-density",
+        "data-rcl-table",
+        "data-rcl-data-table-sort",
+        "data-rcl-data-table-sort-indicator",
+        "data-rcl-data-table-checkbox-hit",
+        "data-rcl-data-table-checkbox",
+        "data-rcl-data-table-row-selected",
+        "data-rcl-data-table-actions",
+        "data-rcl-data-table-empty",
+        "data-rcl-data-table-permission",
+        "data-rcl-data-table-page-controls",
+        "data-rcl-data-table-card-list",
+        "data-rcl-data-table-card",
+        "data-rcl-data-table-card-header",
+        "data-rcl-data-table-card-title",
+        "data-rcl-data-table-card-fields",
+        "data-rcl-data-table-desktop"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "EmptyState",
+      "importedAs": "EmptyState",
+      "specifier": "@vrooli/react-component-library/EmptyState/1",
+      "assetId": "react-component-library:EmptyState",
+      "version": "1.8.0",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 10,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/EmptyState/versions/1.8.0/EmptyState.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/EmptyState/versions/1.8.0/EmptyState.js",
+      "buildArtifactSha256": "3e436715158065c9481e55d21af727b5a1488979a126d414596748f9b06a754b",
+      "outputMarkers": [
+        "data-rcl-empty-state-icon",
+        "data-rcl-empty-state-copy",
+        "data-rcl-empty-state-title",
+        "data-rcl-empty-state-description",
+        "data-rcl-empty-state-action",
+        "data-rcl-empty-state"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "AttachmentUpload",
+      "importedAs": "AttachmentUpload",
+      "specifier": "./AttachmentUpload",
+      "assetId": null,
+      "version": null,
+      "kind": "custom",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 17,
+      "sourceAssetPath": "scenarios/agent-buyer-range/ui/src/features/notes/AttachmentUpload.tsx",
+      "sourceSha256": "c9b25865f8e2aa531c01d3c3f7406ce54ae0508281f5bcac82e27355e7354202",
+      "outputMarkers": [],
+      "matchingChunks": [],
+      "matchingSourceMaps": [],
+      "state": "partial",
+      "reason": "source matches the build input stamp but no stable marker was found in emitted JS",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "ExperienceSurface",
+      "importedAs": "ExperienceSurface",
+      "specifier": "@vrooli/react-component-library/ExperienceSurface/1",
+      "assetId": "react-component-library:ExperienceSurface",
+      "version": "1.0.4",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 18,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/ExperienceSurface/versions/1.0.4/ExperienceSurface.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/ExperienceSurface/versions/1.0.4/ExperienceSurface.js",
+      "buildArtifactSha256": "a5c3256c56d3918a148fba8783115f7acc91a0ae0cd0847ed0c677563996d01b",
+      "outputMarkers": [],
+      "matchingChunks": [],
+      "matchingSourceMaps": [],
+      "state": "partial",
+      "reason": "source and package artifact match build inputs, but no source map or RCL marker links it to emitted JS",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesCard.tsx",
+      "ownerComponent": "NotesCard",
+      "depth": 1
+    },
+    {
+      "component": "Button",
+      "importedAs": "Button",
+      "specifier": "@vrooli/react-component-library/Button/2",
+      "assetId": "react-component-library:Button",
+      "version": "2.2.13",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 6,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Button/versions/2.2.13/Button.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Button/versions/2.2.13/Button.js",
+      "buildArtifactSha256": "d71fdee76c939e5b29eb34b32489ec7219a5dba65a373fd1ce5eb6cec4654a78",
+      "outputMarkers": [
+        "data-rcl-button",
+        "data-rcl-button-content"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/AttachmentUpload.tsx",
+      "ownerComponent": "NotesCard / AttachmentUpload",
+      "depth": 2
+    },
+    {
+      "component": "Card",
+      "importedAs": "Card",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 3,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesMeasureCard.tsx",
+      "ownerComponent": "NotesMeasureCard",
+      "depth": 1
+    },
+    {
+      "component": "CardContent",
+      "importedAs": "CardContent",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 3,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesMeasureCard.tsx",
+      "ownerComponent": "NotesMeasureCard",
+      "depth": 1
+    },
+    {
+      "component": "CardHeader",
+      "importedAs": "CardHeader",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 3,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesMeasureCard.tsx",
+      "ownerComponent": "NotesMeasureCard",
+      "depth": 1
+    },
+    {
+      "component": "CardTitle",
+      "importedAs": "CardTitle",
+      "specifier": "@vrooli/react-component-library/Card/1",
+      "assetId": "react-component-library:Card",
+      "version": "1.3.1",
+      "pageSource": "scenarios/agent-buyer-range/ui/src/pages/NotesPage.tsx",
+      "sourceLine": 3,
+      "sourceAssetPath": "scenarios/react-component-library/library/components/Card/versions/1.3.1/Card.tsx",
+      "builtArtifactPath": "packages/react-component-library/dist/components/Card/versions/1.3.1/Card.js",
+      "buildArtifactSha256": "bf708da92a125c0f526383807f6e4a2be7dee918cd7f64e45b18f88c66eddd34",
+      "outputMarkers": [
+        "data-rcl-card",
+        "data-rcl-surface-elevation"
+      ],
+      "matchingChunks": [
+        {
+          "path": "assets/App-BVxCZ0w5.js",
+          "sha256": "6ef9f6288885eddb9b3f8338fd1fb232f4d8c8455aca14ccb692061deccd632f"
+        },
+        {
+          "path": "assets/index-Dq0jaMBc.js",
+          "sha256": "7445ebece75459933cfea81e17b24e16d930d2cdefa8973a66f54cda2c35acc1"
+        }
+      ],
+      "matchingSourceMaps": [],
+      "state": "known",
+      "reason": "JSX import, exact RCL build input, and emitted RCL marker agree",
+      "importerSource": "scenarios/agent-buyer-range/ui/src/features/notes/NotesMeasureCard.tsx",
+      "ownerComponent": "NotesMeasureCard",
+      "depth": 1
+    }
+  ],
+  "totals": {
+    "known": 13,
+    "partial": 4,
+    "stale": 0,
+    "unknown": 0
+  }
+}

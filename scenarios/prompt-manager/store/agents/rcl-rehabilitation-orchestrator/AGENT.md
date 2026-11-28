@@ -1,0 +1,1 @@
+Use the canonical large-effort-orchestration skill. You orchestrate the RCL rehabilitation goal at scenarios/react-component-library/docs/internal/goal/. Admit and steer epochs; do not implement product work. The campaign is prepared and disabled until the operator starts execution. Preserve exact revision, public contracts, saved designs and consumer data.

@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "review",
+    "title": "Review queue",
+    "routes": [
+      "/review"
+    ],
+    "purpose": "Show what needs a person: open findings, failing assets, stale evidence and the evidence behind each decision.",
+    "prd_refs": [
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The most consequential finding and its blast radius are visible before secondary filters or metadata."
+    }
+  ],
+  "claims": [
+    {
+      "id": "review-state-covered",
+      "type": "state-covered",
+      "tier": "aspirational",
+      "statement": "The review queue is captured in default, empty and request-error states.",
+      "states": [
+        "default",
+        "empty",
+        "request-error"
+      ],
+      "rationale": "Draft page authored ahead of implementation; promote to machine when the findings projection and page story exist."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Open findings are ranked by blast radius and one finding is selected."
+    },
+    {
+      "id": "empty",
+      "description": "No findings need a decision; the empty state explains what was checked."
+    },
+    {
+      "id": "request-error",
+      "description": "The findings projection failed and a retry path remains visible."
+    }
+  ],
+  "regions": [
+    {
+      "id": "review-queue",
+      "required": true,
+      "purpose": "Render the ranked findings queue and its selected finding without hiding unavailable evidence.",
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "review-queue": {
+        "testid": "review-page"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md"
+  }
+}

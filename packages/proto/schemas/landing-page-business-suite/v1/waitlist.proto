@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// WaitlistEntry is the durable record created by a public waitlist signup.
+message WaitlistEntry {
+  int64 id = 1;
+  string email = 2;
+  string source = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message CreateWaitlistEntryRequest {
+  string email = 1;
+  optional string source = 2;
+}
+
+message CreateWaitlistEntryResponse {
+  bool success = 1;
+  string message = 2;
+  WaitlistEntry entry = 3;
+}
+
+message ListWaitlistEntriesRequest {}
+message ListWaitlistEntriesResponse {
+  repeated WaitlistEntry entries = 1;
+}
+
+message DeleteWaitlistEntryRequest {
+  int64 id = 1;
+}
+
+message DeleteWaitlistEntryResponse {
+  bool deleted = 1;
+}
+
+// ExportWaitlistEntriesResponse keeps the existing CSV download behavior
+// proto-typed while allowing browser clients to create a local download.
+message ExportWaitlistEntriesRequest {}
+message ExportWaitlistEntriesResponse {
+  string csv = 1;
+  string filename = 2;
+}
+
+service WaitlistService {
+  rpc CreateWaitlistEntry(CreateWaitlistEntryRequest) returns (CreateWaitlistEntryResponse);
+  rpc ListWaitlistEntries(ListWaitlistEntriesRequest) returns (ListWaitlistEntriesResponse);
+  rpc DeleteWaitlistEntry(DeleteWaitlistEntryRequest) returns (DeleteWaitlistEntryResponse);
+  rpc ExportWaitlistEntries(ExportWaitlistEntriesRequest) returns (ExportWaitlistEntriesResponse);
+}

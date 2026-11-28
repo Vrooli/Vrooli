@@ -1,0 +1,9 @@
+{
+  "name": "com.vrooli.secrets-manager",
+  "description": "Vrooli Secrets Manager native messaging host",
+  "path": "{{HOST_PATH}}",
+  "type": "stdio",
+  "allowed_extensions": [
+    "{{EXTENSION_ID}}"
+  ]
+}

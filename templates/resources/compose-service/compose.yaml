@@ -1,0 +1,10 @@
+services:
+  app:
+    image: replace/me:latest
+    container_name: {{RESOURCE_NAME}}-app
+    ports:
+      - "0:0"
+    environment: {}
+  sidecar:
+    image: replace/me-sidecar:latest
+    container_name: {{RESOURCE_NAME}}-sidecar

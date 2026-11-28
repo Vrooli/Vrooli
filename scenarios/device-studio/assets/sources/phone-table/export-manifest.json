@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-phone-table-scene-export-v1",
+  "blender_version": [5, 2, 2],
+  "axis_export": {
+    "source": "Blender scene coordinates: +X right, +Y depth, +Z up",
+    "target": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+    "canonical_from_blender_vector": [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
+    "applied_by": "Blender glTF exporter export_yup=true exactly once; exported candidate declares identity source_to_canonical"
+  },
+  "output": {
+    "glb_name": "phone-table-scene.glb",
+    "inventory_name": "scene-inventory.json",
+    "max_bytes": 33554432
+  },
+  "provenance_assets": {
+    "phone_model": {
+      "staged_name": "phone.glb",
+      "size_bytes": 2583052,
+      "sha256": "46e7c79c1b54725e5f5e9ff876a3bd55f8c3eeba45e1d01e1a230ff5e7fd5b36",
+      "max_bytes": 8388608,
+      "source_evidence": "approved phone-study manifest: assets.phone_model",
+      "purpose": "bind the candidate to the approved phone-scene study source; not imported into the scene GLB"
+    },
+    "screen_raster": {
+      "staged_name": "phone-screen.png",
+      "size_bytes": 611442,
+      "sha256": "c4d846f0b79b839a6c7e5ef1aba0ca97cda24f96a14741eeb5410bb14ed19eb8",
+      "max_bytes": 2097152,
+      "source_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E2/presentations/phone-v3-auto-1206x2622.png",
+      "purpose": "bind to the approved study source; not embedded in the scene GLB"
+    },
+    "table_color": {
+      "staged_name": "table-color.jpg",
+      "size_bytes": 16152869,
+      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
+      "max_bytes": 20971520,
+      "source_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/materials/Travertine001_4K-JPG_Color.jpg",
+      "purpose": "separate CC0 Travertine001 base-color artifact binding"
+    },
+    "table_normal": {
+      "staged_name": "table-normal.jpg",
+      "size_bytes": 5152752,
+      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
+      "max_bytes": 8388608,
+      "source_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/materials/Travertine001_4K-JPG_NormalGL.jpg",
+      "purpose": "separate CC0 Travertine001 OpenGL normal artifact binding"
+    },
+    "table_roughness": {
+      "staged_name": "table-roughness.jpg",
+      "size_bytes": 5302649,
+      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
+      "max_bytes": 8388608,
+      "source_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/materials/Travertine001_4K-JPG_Roughness.jpg",
+      "purpose": "separate CC0 Travertine001 roughness artifact binding"
+    },
+    "table_height": {
+      "staged_name": "table-height.jpg",
+      "size_bytes": 355941,
+      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
+      "max_bytes": 1048576,
+      "source_evidence": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/materials/Travertine001_4K-JPG_Displacement.jpg",
+      "purpose": "separate CC0 Travertine001 height artifact binding; interpreted as bump, not geometric displacement"
+    }
+  },
+  "geometry": {
+    "table_top_dimensions_meters": [0.95, 0.78, 0.034],
+    "table_top_center_meters_blender": [0, 0, 0.733],
+    "table_legs": {
+      "dimensions_meters": [0.045, 0.045, 0.72],
+      "named_centers_meters_blender": {"TableLeg-NW": [-0.39, 0.30, 0.36], "TableLeg-NE": [0.39, 0.30, 0.36], "TableLeg-SW": [-0.39, -0.30, 0.36], "TableLeg-SE": [0.39, -0.30, 0.36]},
+      "bevel_meters": 0.005
+    },
+    "table_top_bevel_meters": 0.003,
+    "cup_center_meters_blender": [0.105, 0.09],
+    "cup_base_height_meters_blender": 0.75,
+    "cup_profile_rings_radius_height_meters": [[0.004, 0.014], [0.030, 0.014], [0.030, 0.078], [0.034, 0.081], [0.036, 0.078], [0.035, 0.005], [0.031, 0], [0.004, 0]],
+    "cup_ring_segments": 64,
+    "cup_rim_bevel_meters": 0.0008,
+    "cup_rim_bevel_segments": 2,
+    "cup_handle": {"major_radius_meters": 0.022, "minor_radius_meters": 0.004, "major_segments": 48, "minor_segments": 12, "offset_meters": [0.040, 0, 0.045]},
+    "tea_surface": {"radius_meters": 0.029, "depth_meters": 0.001, "vertices": 64, "center_height_from_base_meters": 0.061}
+  },
+  "materials": {
+    "travertine_grade": {
+      "recipe": "HUE_SATURATION_THEN_LINEAR_MIX_V1",
+      "saturation": 0.88,
+      "value": 0.98,
+      "mix_factor": 0.55,
+      "mix_linear_rgb": [0.65, 0.60, 0.50],
+      "physical_repeat_meters": [1.2, 1.2],
+      "normal_strength": 0.45,
+      "height_as_bump_strength": 0.08,
+      "height_bump_distance_meters": 0.00012
+    },
+    "table_sides": {"base_color_linear_rgb": [0.69, 0.63, 0.54], "roughness": 0.715, "adaptation": "Midpoint of the accepted study's procedural mineral ramp endpoints [0.59,0.53,0.44] and [0.79,0.73,0.64], and midpoint of its MapRange roughness [0.61,0.82]. Bounded GLB material representation replaces procedural noise/bump with a neutral factor; not byte-identical study shading."},
+    "table_legs": {"base_color_linear_rgb": [0.38, 0.29, 0.20], "roughness": 0.72, "source": "accepted phone study timber leg material"},
+    "travertine_material_factor_linear_rgb": [0.65, 0.60, 0.50],
+    "travertine_roughness_factor": 0.78,
+    "ceramic": {"base_color_linear_rgb": [0.78, 0.73, 0.65], "roughness": 0.24},
+    "tea": {"base_color_linear_rgb": [0.055, 0.032, 0.018], "roughness": 0.2}
+  },
+  "scope": "Only the approved study tabletop slab, legs, cup vessel, handle and tea surface. No phone, screen image, room, camera, lights, linen, or arbitrary Blender project is exported. The study's room wall, window and frame surfaces affect indirect light but are intentionally absent; this geometry package alone does not reproduce the complete study image.",
+  "provenance": {
+    "source_study_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/phone/phone-scene-study.json",
+    "source_study_script": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/phone/phone_scene_study.py",
+    "material_acquisition_record": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/materials/Travertine001-acquisition.json",
+    "material_license": "CC0-1.0",
+    "geometry_rights": "Vrooli-authored procedural scene geometry, adapted from the approved phone-scene study; no manufacturer CAD or product-design claim.",
+    "external_material_bindings": "Travertine maps are distinct texture_image artifacts. This GLB contains no external URIs and does not embed those maps."
+  }
+}

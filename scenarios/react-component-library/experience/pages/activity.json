@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "activity",
+    "title": "Activity trail",
+    "routes": [
+      "/activity"
+    ],
+    "purpose": "Show what changed, who changed it and which asset, version and evidence the change belongs to.",
+    "prd_refs": [
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The latest consequential change and its actor are legible before the full trail."
+    }
+  ],
+  "claims": [
+    {
+      "id": "activity-state-covered",
+      "type": "state-covered",
+      "tier": "aspirational",
+      "statement": "The activity trail is captured in default, empty and request-error states.",
+      "states": [
+        "default",
+        "empty",
+        "request-error"
+      ],
+      "rationale": "Draft page authored ahead of implementation; promote to machine when the activity projection and page story exist."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Events are grouped by day with asset, version, actor and time."
+    },
+    {
+      "id": "empty",
+      "description": "No events are recorded for the selected scope."
+    },
+    {
+      "id": "request-error",
+      "description": "The activity projection failed and a retry path remains visible."
+    }
+  ],
+  "regions": [
+    {
+      "id": "activity-trail",
+      "required": true,
+      "purpose": "Render the grouped change trail and its week summary.",
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "activity-trail": {
+        "testid": "activity-page"
+      }
+    }
+  },
+  "x-redesign": {
+    "direction": "D · Nocturne",
+    "status": "planned",
+    "plan": "docs/concepts/WORKBENCH-REDESIGN.md"
+  }
+}

@@ -1,3 +1,4 @@
+import { generateActivationScript } from '../../src/recording/capture/init-script-generator';
 /**
  * Service Worker Interception Tests
  *
@@ -15,7 +16,8 @@
  * 3. Verify telemetry can detect event loss
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -23,7 +25,6 @@ import {
 } from '../../src/recording';
 import { waitForScriptReady } from '../../src/recording';
 import type { RawBrowserEvent } from '../../src/recording';
-
 // Increase timeout for browser operations
 jest.setTimeout(60000);
 
@@ -165,19 +166,16 @@ class ServiceWorkerTestServer {
     return `http://localhost:${this.port}${path}`;
   }
 }
-
 describe('Service Worker Interception Detection (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: ServiceWorkerTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new ServiceWorkerTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -188,7 +186,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     let capturedEvents: RawBrowserEvent[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -206,6 +204,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     it('should capture click events on page without service worker', async () => {
       await page.goto(server.getUrl('/page-without-sw'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Get telemetry before click
       const telemetryBefore = await page.evaluate(() => {
@@ -244,6 +243,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     it('should capture input events on page without service worker', async () => {
       await page.goto(server.getUrl('/page-without-sw'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Type in the input (page.fill may not trigger input events in rebrowser-playwright)
       await page.focus('#test-input');
@@ -267,7 +267,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     let capturedEvents: RawBrowserEvent[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -303,6 +303,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
       await page.waitForTimeout(1000);
 
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Get telemetry before click
       const telemetryBefore = await page.evaluate(() => {
@@ -380,6 +381,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       await page.waitForTimeout(1000);
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Perform multiple clicks
       await page.click('#test-btn');

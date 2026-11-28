@@ -2,12 +2,14 @@ package investigation
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestBuildPromptAndContext_DefaultsAndNote(t *testing.T) {
@@ -60,6 +62,32 @@ func TestBuildPromptAndContext_ValidationErrors(t *testing.T) {
 	}
 }
 
+func TestBuildPromptAndContext_UsesSharedOutputFormatForBothModes(t *testing.T) {
+	for _, autoFix := range []bool{false, true} {
+		t.Run(map[bool]string{false: "report-only", true: "auto-fix"}[autoFix], func(t *testing.T) {
+			_, atts, err := buildPromptAndContext(validDeploymentForContext(), autoFix, "", []string{"output-format"})
+			if err != nil {
+				t.Fatalf("buildPromptAndContext: %v", err)
+			}
+
+			var got *domainpb.ContextAttachment
+			for _, att := range atts {
+				if att != nil && att.Key == "output-format" {
+					got = att
+					break
+				}
+			}
+			want := shared.BuildOutputFormatAttachment(autoFix)
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("output-format attachment differs from shared owner:\ngot:  %+v\nwant: %+v", got, want)
+			}
+			if strings.Contains(got.Content, "If you applied fixes, list what you did.") != autoFix {
+				t.Fatalf("auto-fix guidance presence does not match mode: %q", got.Content)
+			}
+		})
+	}
+}
+
 func TestExtractErrorSummary(t *testing.T) {
 	msg := "first line\nsecond line"
 	if got := extractErrorSummary(&domain.Deployment{ErrorMessage: &msg}); got != "first line" {
@@ -69,6 +97,19 @@ func TestExtractErrorSummary(t *testing.T) {
 	msg = strings.Repeat("x", 120)
 	if got := extractErrorSummary(&domain.Deployment{ErrorMessage: &msg}); !strings.HasSuffix(got, "...") {
 		t.Fatalf("expected truncated summary, got %q", got)
+	}
+}
+
+func TestBuildDiagnosticChecklistAttachment_UsesContractNeutralScenarioGuidance(t *testing.T) {
+	att := buildDiagnosticChecklistAttachment()
+	if att == nil {
+		t.Fatal("expected attachment")
+	}
+	if strings.Contains(att.Content, "<workdir>/scenarios/<scenario>/.vrooli/service.json") {
+		t.Fatalf("diagnostic checklist should not hard-code scenario path layout: %q", att.Content)
+	}
+	if !strings.Contains(att.Content, "contract-defined scenario root") {
+		t.Fatalf("diagnostic checklist should reference contract-defined scenario root: %q", att.Content)
 	}
 }
 
@@ -84,7 +125,6 @@ func validDeploymentForContext() *domain.Deployment {
 				Host:    "138.197.95.182",
 				Port:    22,
 				User:    "root",
-				KeyPath: "~/.ssh/id_ed25519",
 				Workdir: "/root/Vrooli",
 			},
 		},

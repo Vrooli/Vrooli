@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-paced-2026-11-24T053554315Z",
+  "observedAt": {
+    "startedAt": "2026-11-24T05:35:54.315Z",
+    "finishedAt": "2026-11-24T05:35:58.470Z"
+  },
+  "qualification": "diagnostic_only",
+  "cohort": {
+    "consumer": "audio-tools Dictation Studio",
+    "profile": "synthetic browser fake microphone",
+    "browser": "Chrome/150.0.7871.128",
+    "host": "linux-x64",
+    "capture": "Chrome file-backed fake microphone, paced by browser media device",
+    "injectedInterruption": "Chrome offline for 1500 ms after first visible partial",
+    "route": "http://127.0.0.1:23345/dictation-studio",
+    "providerId": null,
+    "fixture": "dictation-reference.wav",
+    "fixturePath": "bas/fixtures/dictation-reference.wav",
+    "fixtureSha256": "0c789111bdca878622c2db7f8097f7597dd42ee3eb6a1aefee416ef2504bef7d"
+  },
+  "buildIdentity": {
+    "api": "sha256:bbcf09aebeb342101ec983303f71f31a8504278ed0200d6bb3e1d2d3e6ee1558"
+  },
+  "attemptCount": 1,
+  "completedFinalCount": 0,
+  "failedOrIncompleteCount": 1,
+  "latencyMs": {
+    "signalToFirstVisiblePartial": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "signalToPartialDiagnostic": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "clickToFirstVisiblePartial": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "postOnsetAudioAvailableAtFirstPartial": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "excessAfterAvailableAudio": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "clickToCaptureReady": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "stopToFinalTail": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "visibleUpdateGap": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    }
+  },
+  "accounting": {
+    "attemptsWithCapturedSamplesEqualCommittedSamples": 0,
+    "attemptsWithAllSentSequenceProcessed": 0,
+    "attemptsWithDoneSent": 0,
+    "attemptsWithAtLeastTwoVisibleRevisions": 0,
+    "attemptsWithCompleteVisibleUpdateGaps": 0,
+    "attemptsWithFirstVisiblePartial": 0,
+    "attemptsWithVisibleFinal": 0,
+    "maxVisibleRevisionCount": 0,
+    "allPageErrors": []
+  },
+  "limitations": [
+    "Synthetic media browser run; not a physical microphone/device qualification.",
+    "Repeated WAV fixture supports timing and cursor accounting only; no independent speech-quality score was calculated.",
+    "One cohort does not establish performance on other hosts, profiles, cold starts, or routes.",
+    "Chrome offline emulation may not interrupt an established WebSocket; the injected run passes only when reconnect/replay status is observed. This is not a physical network or browser/device recovery qualification."
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "startedAt": "2026-11-24T05:35:54.317Z",
+      "finishedAt": "2026-11-24T05:35:58.470Z",
+      "sessionId": "7cf81f33-546e-405c-9add-47bc7c18a333",
+      "state": "completed",
+      "terminalReason": "final",
+      "providerId": "sherpa-stt",
+      "providerTier": "local",
+      "modelId": "sherpa-onnx/streaming-zipformer-en-2023-06-26",
+      "signalToFirstVisiblePartialMs": 805.3625001907349,
+      "signalToPartialDiagnosticMs": 804.7624998092651,
+      "firstPartialAvailableAudioMs": 802.4375,
+      "firstPartialExcessLatencyMs": 2.3249998092651367,
+      "startToCaptureReadyMs": 122.80000019073486,
+      "stopToFinalTailMs": 99.59999942779541,
+      "capturedSequence": 77,
+      "sentSequence": 77,
+      "processedSequence": 77,
+      "capturedSamples": 62123,
+      "committedSamples": 62123,
+      "visibleRevisionCount": 11,
+      "visibleUpdateGapsMs": [
+        341.80000019073486,
+        294,
+        320.5,
+        344.9000005722046,
+        299,
+        340.8999996185303,
+        301.3999996185303,
+        316.6000003814697,
+        340.80000019073486,
+        252.39999961853027
+      ],
+      "visibleGapsComplete": true,
+      "injectedOfflineDurationMs": 1500,
+      "injectedInterruptionObserved": false,
+      "visiblePartialObserved": true,
+      "visibleFinalObserved": true,
+      "doneSent": true,
+      "statusCodes": [
+        "capture_starting",
+        "session_accepted",
+        "stream_connected",
+        "session_ready",
+        "processed_acknowledgement"
+      ],
+      "errorCodes": [],
+      "clickToFirstVisiblePartialMs": 995.8999996185303,
+      "startedAtMs": 367.70000076293945,
+      "passed": false,
+      "failure": "Chrome offline emulation did not produce a provider reconnect or replay transition"
+    }
+  ]
+}

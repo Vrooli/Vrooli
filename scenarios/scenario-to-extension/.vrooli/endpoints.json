@@ -79,6 +79,27 @@
       }
     },
     {
+      "id": "cancel-build",
+      "path": "/api/v1/extension/cancel/{build_id}",
+      "method": "POST",
+      "summary": "Cancel extension build",
+      "description": "Requests deterministic cancellation of a running build and records its terminal canceled state.",
+      "category": "extension",
+      "params": {
+        "build_id": {
+          "type": "string",
+          "description": "Identifier returned by the generate endpoint"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build_id": "string",
+          "status": "string (canceled)"
+        }
+      }
+    },
+    {
       "id": "download-extension",
       "path": "/api/v1/extension/download/{build_id}",
       "method": "GET",
@@ -101,7 +122,7 @@
       "path": "/api/v1/extension/test",
       "method": "POST",
       "summary": "Test extension",
-      "description": "Runs automated tests against a packaged extension using Browserless, returning pass/fail data.",
+      "description": "Runs an external headless browser producer against a packaged extension. The response is marked unavailable when no runner is configured, so an absent browser cannot produce a false pass.",
       "category": "extension",
       "request": {
         "type": "object",
@@ -113,6 +134,16 @@
           "test_sites": "string[]",
           "screenshot": "boolean",
           "headless": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "status": "string (passed | failed | unavailable)",
+          "reason": "string (present for unavailable or failed execution)",
+          "test_results": "object[]",
+          "summary": "object"
         }
       }
     },

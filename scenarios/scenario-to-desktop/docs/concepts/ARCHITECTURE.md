@@ -31,7 +31,7 @@ This document provides a visual guide to the scenario-to-desktop system architec
 ## Directory Structure
 
 ```
-scenario-to-desktop/
+scenario root
 ├── api/                          # Go API server (port 15000-19999)
 │   ├── generation/               # Desktop wrapper generation logic
 │   ├── build/                    # Build orchestration
@@ -79,10 +79,10 @@ scenario-to-desktop/
 │   │
 │   └── build-tools/              # Template generator system
 │
-├── runtime/                      # Bundled runtime for offline apps (production-ready)
+├── runtime/                      # Bundled runtime for eligible offline apps
 │
 └── docs/                         # Documentation
-    ├── OVERVIEW.md               # Current vs roadmap
+    ├── OVERVIEW.md               # Scope, modes, and current support
     ├── QUICKSTART.md             # Getting started
     ├── concepts/                 # Architecture, glossary
     ├── reference/                # API, pipeline docs
@@ -300,7 +300,7 @@ const WINDOW_WIDTH = 1200;
 
 ## Deployment Modes
 
-### Mode 1: Bundled App (Recommended Default)
+### Mode 1: Bundled private runtime
 
 ```
 ┌───────────────────────────────────────────┐
@@ -313,17 +313,18 @@ const WINDOW_WIDTH = 1200;
 ```
 
 **How It Works:**
-1. Complete offline package (UI + API + runtime supervisor)
-2. No server required—everything runs locally
-3. Automatic service health monitoring and restart
-4. Uses deployment-manager orchestration
+1. The target plan selects the UI, API, runtime supervisor, and eligible resource artifacts.
+2. The desktop supervisor starts only verified private services.
+3. Services run locally when every required capability has a local route.
+4. Health, readiness, migrations, ports, secrets, logs, and shutdown are runtime-owned.
 
 **Use When:**
-- Users need offline operation (most scenarios)
-- Full independence from central server
-- Best end-user experience with no server dependencies
+- The dependency plan is eligible for the target OS and architecture.
+- Users need offline operation and all required capabilities are local.
+- The application must own its private runtime rather than use a shared server.
 
-**Status:** Production-ready, **strongly recommended default**
+**Status:** Implemented for eligible plans. Offline and promotion claims require
+target-specific dependency and native journey evidence.
 
 ### Mode 2: Thin Client (Alternative)
 
@@ -345,7 +346,8 @@ const WINDOW_WIDTH = 1200;
 - Real-time data sharing between users
 - You already have server infrastructure
 
-**Status:** Production-ready, for shared-server scenarios
+**Status:** Supported deployment mode for shared-server scenarios. The server
+route and real scenario interaction must be validated for each release.
 
 ---
 
@@ -584,6 +586,22 @@ Desktop apps write telemetry to track deployment health:
 | `app_ready` | Fully initialized |
 | `startup_error` | Errors during startup |
 | `app_shutdown` | Clean exit |
+
+---
+
+## UI automation contract
+
+The management UI exposes a canonical semantic-selector registry at
+`ui/src/consts/selectors.ts`. Its generated
+`ui/src/consts/selectors.manifest.json` is the contract consumed by Browser
+Automation Studio playbooks: a playbook uses `@selector/group.name`, and BAS
+resolves that reference to the matching `data-testid` selector. The manifest is
+regenerated before UI build, type-check, and test commands, so a renamed UI
+control cannot leave automation using an unreviewed stale selector.
+
+This keeps evidence workflows portable across local Linux desktop launches and
+future bridge-backed remote hosts: the workflow describes product intent rather
+than CSS structure or a machine-specific endpoint.
 
 ---
 

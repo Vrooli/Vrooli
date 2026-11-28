@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "research/topics/compute-and-deployment/MISSION.md",
+  "workstreams": [
+    {
+      "id": "CD6",
+      "workstream_ref": "compute-and-deployment#CD6",
+      "owner_scenario": "deployment-manager"
+    }
+  ],
+  "stage_routes": {
+    "acquire": "CD6",
+    "deploy": "CD6",
+    "verify": "CD6",
+    "teardown": "CD6",
+    "lease-renewal": "CD6"
+  }
+}

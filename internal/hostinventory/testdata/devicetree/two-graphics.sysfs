@@ -1,0 +1,103 @@
+# Recorded from host `swarminator` on 2026-08-20, where `lspci` reports two
+# VGA compatible controllers (01:00.0 NVIDIA AD103, 79:00.0 AMD Raphael) and
+# /sys/class/drm exposes card1, card2, their connectors, and two render nodes.
+#
+# The tree is stored as a manifest rather than as real directories because a
+# PCI address contains a colon, which Windows cannot represent in a filename;
+# checking such paths into the repository would break a Windows clone.
+#
+# Lines beginning with ">>> dir" or ">>> file" start an entry; everything up
+# to the next entry is the file's content.
+
+>>> file devices/pci0000:00/0000:00:01.1/uevent
+DRIVER=pcieport
+PCI_CLASS=60400
+PCI_ID=1022:14DA
+PCI_SLOT_NAME=0000:00:01.1
+
+>>> file devices/pci0000:00/0000:00:01.1/class
+0x060400
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/uevent
+DRIVER=nvidia
+PCI_CLASS=30000
+PCI_ID=10DE:2705
+PCI_SUBSYS_ID=1043:8957
+PCI_SLOT_NAME=0000:01:00.0
+MODALIAS=pci:v000010DEd00002705sv00001043sd00008957bc03sc00i00
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/class
+0x030000
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/vendor
+0x10de
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/device
+0x2705
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.0/boot_vga
+1
+
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/card2
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/card2/card2-DP-3
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/card2/card2-DP-4
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/card2/card2-HDMI-A-2
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/controlD66
+>>> dir devices/pci0000:00/0000:00:01.1/0000:01:00.0/drm/renderD129
+
+# The audio function of the same card: a second PCI function at the same slot,
+# which is not a graphics device and must not be enumerated as one.
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.1/uevent
+DRIVER=snd_hda_intel
+PCI_CLASS=40300
+PCI_ID=10DE:22BB
+PCI_SLOT_NAME=0000:01:00.1
+
+>>> file devices/pci0000:00/0000:00:01.1/0000:01:00.1/class
+0x040300
+
+>>> file devices/pci0000:00/0000:00:08.1/uevent
+DRIVER=pcieport
+PCI_CLASS=60400
+PCI_ID=1022:14DA
+PCI_SLOT_NAME=0000:00:08.1
+
+>>> file devices/pci0000:00/0000:00:08.1/class
+0x060400
+
+>>> file devices/pci0000:00/0000:00:08.1/0000:79:00.0/uevent
+DRIVER=amdgpu
+PCI_CLASS=30000
+PCI_ID=1002:164E
+PCI_SUBSYS_ID=1043:8877
+PCI_SLOT_NAME=0000:79:00.0
+MODALIAS=pci:v00001002d0000164Esv00001043sd00008877bc03sc00i00
+
+>>> file devices/pci0000:00/0000:00:08.1/0000:79:00.0/class
+0x030000
+
+>>> file devices/pci0000:00/0000:00:08.1/0000:79:00.0/vendor
+0x1002
+
+>>> file devices/pci0000:00/0000:00:08.1/0000:79:00.0/device
+0x164e
+
+>>> file devices/pci0000:00/0000:00:08.1/0000:79:00.0/boot_vga
+0
+
+>>> dir devices/pci0000:00/0000:00:08.1/0000:79:00.0/drm/card1
+>>> dir devices/pci0000:00/0000:00:08.1/0000:79:00.0/drm/card1/card1-DP-1
+>>> dir devices/pci0000:00/0000:00:08.1/0000:79:00.0/drm/card1/card1-HDMI-A-1
+>>> dir devices/pci0000:00/0000:00:08.1/0000:79:00.0/drm/card1/card1-Writeback-1
+>>> dir devices/pci0000:00/0000:00:08.1/0000:79:00.0/drm/controlD65
+>>> dir devices/pci0000:00/0000:00:08.1/0000:79:00.0/drm/renderD128
+
+# Unrelated buses that enumeration must walk past without emitting anything.
+>>> file devices/pci0000:00/0000:00:14.3/uevent
+DRIVER=i2c_designware
+PCI_CLASS=C0500
+PCI_ID=1022:790B
+PCI_SLOT_NAME=0000:00:14.3
+
+>>> dir devices/platform/serial8250
+>>> dir devices/system/cpu/cpu0

@@ -1,0 +1,679 @@
+{
+  "kind": "generated-photographic-fixed-plate-with-authentic-video-screen",
+  "generated_plate": {
+    "path": "plate.png",
+    "sha256": "1d1d7327f430c6949b194170a3fce2dd0225ebab9007cd4959072a97188f7ff2",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "tool": "built-in image_gen",
+    "prompt": "prompt.txt",
+    "model": "not reported by tool",
+    "seed": "not reported by tool",
+    "cost": "not reported by tool"
+  },
+  "source": {
+    "path": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/inputs/desktop.mp4",
+    "sha256": "cea6ad0392e45d31e17c85fec1b51c3bd7c3e239aa3616f9f4b6847e809dc084",
+    "scope": "retained real frontend recording of fictional UI fixtures; not proof of backend or native app"
+  },
+  "screen": {
+    "quad_px": [
+      [
+        540.0,
+        54.0
+      ],
+      [
+        1407.0,
+        53.0
+      ],
+      [
+        1377.0,
+        620.0
+      ],
+      [
+        491.0,
+        560.0
+      ]
+    ],
+    "quad_calibration": "manual inspection of active display boundary; chosen screen metric is not independent geometry proof",
+    "chosen_fitting_canvas_aspect": "16:10",
+    "physical_aspect": "unknown; not recovered from the generated image",
+    "fitting": "contain 1440x800 into1440x900 with50pixel top/bottom bars; no source crop",
+    "homography": [
+      [
+        0.49989683236020643,
+        -0.06815792815575342,
+        540.0
+      ],
+      [
+        -0.004559930559840595,
+        0.5472760470431448,
+        54.0
+      ],
+      [
+        -7.292459485243444e-05,
+        -2.7806359661951447e-05,
+        1.0
+      ]
+    ]
+  },
+  "output": {
+    "path": "photographic-scene.mp4",
+    "sha256": "46c256aa675244731a6d70b24239096713f2ffab0964aa3a73f7b8cb0ab57efb",
+    "resolution": [
+      1280,
+      720
+    ],
+    "color_tags": "SDR Rec709 limited range; full-rangeRGB converted with709matrix",
+    "fps": 24,
+    "frames": 144,
+    "duration_seconds": 6,
+    "full_decode_passed": true
+  },
+  "timing": [
+    {
+      "output_frame": 1,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 2,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 3,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 4,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 5,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 6,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 7,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 8,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 9,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 10,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 11,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 12,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 13,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 14,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 15,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 16,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 17,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 18,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 19,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 20,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 21,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 22,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 23,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 24,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 25,
+      "source_frame": 1
+    },
+    {
+      "output_frame": 26,
+      "source_frame": 2
+    },
+    {
+      "output_frame": 27,
+      "source_frame": 3
+    },
+    {
+      "output_frame": 28,
+      "source_frame": 4
+    },
+    {
+      "output_frame": 29,
+      "source_frame": 5
+    },
+    {
+      "output_frame": 30,
+      "source_frame": 6
+    },
+    {
+      "output_frame": 31,
+      "source_frame": 7
+    },
+    {
+      "output_frame": 32,
+      "source_frame": 8
+    },
+    {
+      "output_frame": 33,
+      "source_frame": 9
+    },
+    {
+      "output_frame": 34,
+      "source_frame": 10
+    },
+    {
+      "output_frame": 35,
+      "source_frame": 11
+    },
+    {
+      "output_frame": 36,
+      "source_frame": 12
+    },
+    {
+      "output_frame": 37,
+      "source_frame": 13
+    },
+    {
+      "output_frame": 38,
+      "source_frame": 14
+    },
+    {
+      "output_frame": 39,
+      "source_frame": 15
+    },
+    {
+      "output_frame": 40,
+      "source_frame": 16
+    },
+    {
+      "output_frame": 41,
+      "source_frame": 17
+    },
+    {
+      "output_frame": 42,
+      "source_frame": 18
+    },
+    {
+      "output_frame": 43,
+      "source_frame": 19
+    },
+    {
+      "output_frame": 44,
+      "source_frame": 20
+    },
+    {
+      "output_frame": 45,
+      "source_frame": 21
+    },
+    {
+      "output_frame": 46,
+      "source_frame": 22
+    },
+    {
+      "output_frame": 47,
+      "source_frame": 23
+    },
+    {
+      "output_frame": 48,
+      "source_frame": 24
+    },
+    {
+      "output_frame": 49,
+      "source_frame": 25
+    },
+    {
+      "output_frame": 50,
+      "source_frame": 26
+    },
+    {
+      "output_frame": 51,
+      "source_frame": 27
+    },
+    {
+      "output_frame": 52,
+      "source_frame": 28
+    },
+    {
+      "output_frame": 53,
+      "source_frame": 29
+    },
+    {
+      "output_frame": 54,
+      "source_frame": 30
+    },
+    {
+      "output_frame": 55,
+      "source_frame": 31
+    },
+    {
+      "output_frame": 56,
+      "source_frame": 32
+    },
+    {
+      "output_frame": 57,
+      "source_frame": 33
+    },
+    {
+      "output_frame": 58,
+      "source_frame": 34
+    },
+    {
+      "output_frame": 59,
+      "source_frame": 35
+    },
+    {
+      "output_frame": 60,
+      "source_frame": 36
+    },
+    {
+      "output_frame": 61,
+      "source_frame": 37
+    },
+    {
+      "output_frame": 62,
+      "source_frame": 38
+    },
+    {
+      "output_frame": 63,
+      "source_frame": 39
+    },
+    {
+      "output_frame": 64,
+      "source_frame": 40
+    },
+    {
+      "output_frame": 65,
+      "source_frame": 41
+    },
+    {
+      "output_frame": 66,
+      "source_frame": 42
+    },
+    {
+      "output_frame": 67,
+      "source_frame": 43
+    },
+    {
+      "output_frame": 68,
+      "source_frame": 44
+    },
+    {
+      "output_frame": 69,
+      "source_frame": 45
+    },
+    {
+      "output_frame": 70,
+      "source_frame": 46
+    },
+    {
+      "output_frame": 71,
+      "source_frame": 47
+    },
+    {
+      "output_frame": 72,
+      "source_frame": 48
+    },
+    {
+      "output_frame": 73,
+      "source_frame": 49
+    },
+    {
+      "output_frame": 74,
+      "source_frame": 50
+    },
+    {
+      "output_frame": 75,
+      "source_frame": 51
+    },
+    {
+      "output_frame": 76,
+      "source_frame": 52
+    },
+    {
+      "output_frame": 77,
+      "source_frame": 53
+    },
+    {
+      "output_frame": 78,
+      "source_frame": 54
+    },
+    {
+      "output_frame": 79,
+      "source_frame": 55
+    },
+    {
+      "output_frame": 80,
+      "source_frame": 56
+    },
+    {
+      "output_frame": 81,
+      "source_frame": 57
+    },
+    {
+      "output_frame": 82,
+      "source_frame": 58
+    },
+    {
+      "output_frame": 83,
+      "source_frame": 59
+    },
+    {
+      "output_frame": 84,
+      "source_frame": 60
+    },
+    {
+      "output_frame": 85,
+      "source_frame": 61
+    },
+    {
+      "output_frame": 86,
+      "source_frame": 62
+    },
+    {
+      "output_frame": 87,
+      "source_frame": 63
+    },
+    {
+      "output_frame": 88,
+      "source_frame": 64
+    },
+    {
+      "output_frame": 89,
+      "source_frame": 65
+    },
+    {
+      "output_frame": 90,
+      "source_frame": 66
+    },
+    {
+      "output_frame": 91,
+      "source_frame": 67
+    },
+    {
+      "output_frame": 92,
+      "source_frame": 68
+    },
+    {
+      "output_frame": 93,
+      "source_frame": 69
+    },
+    {
+      "output_frame": 94,
+      "source_frame": 70
+    },
+    {
+      "output_frame": 95,
+      "source_frame": 71
+    },
+    {
+      "output_frame": 96,
+      "source_frame": 72
+    },
+    {
+      "output_frame": 97,
+      "source_frame": 73
+    },
+    {
+      "output_frame": 98,
+      "source_frame": 74
+    },
+    {
+      "output_frame": 99,
+      "source_frame": 75
+    },
+    {
+      "output_frame": 100,
+      "source_frame": 76
+    },
+    {
+      "output_frame": 101,
+      "source_frame": 77
+    },
+    {
+      "output_frame": 102,
+      "source_frame": 78
+    },
+    {
+      "output_frame": 103,
+      "source_frame": 79
+    },
+    {
+      "output_frame": 104,
+      "source_frame": 80
+    },
+    {
+      "output_frame": 105,
+      "source_frame": 81
+    },
+    {
+      "output_frame": 106,
+      "source_frame": 82
+    },
+    {
+      "output_frame": 107,
+      "source_frame": 83
+    },
+    {
+      "output_frame": 108,
+      "source_frame": 84
+    },
+    {
+      "output_frame": 109,
+      "source_frame": 85
+    },
+    {
+      "output_frame": 110,
+      "source_frame": 86
+    },
+    {
+      "output_frame": 111,
+      "source_frame": 87
+    },
+    {
+      "output_frame": 112,
+      "source_frame": 88
+    },
+    {
+      "output_frame": 113,
+      "source_frame": 89
+    },
+    {
+      "output_frame": 114,
+      "source_frame": 90
+    },
+    {
+      "output_frame": 115,
+      "source_frame": 91
+    },
+    {
+      "output_frame": 116,
+      "source_frame": 92
+    },
+    {
+      "output_frame": 117,
+      "source_frame": 93
+    },
+    {
+      "output_frame": 118,
+      "source_frame": 94
+    },
+    {
+      "output_frame": 119,
+      "source_frame": 95
+    },
+    {
+      "output_frame": 120,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 121,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 122,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 123,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 124,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 125,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 126,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 127,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 128,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 129,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 130,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 131,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 132,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 133,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 134,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 135,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 136,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 137,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 138,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 139,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 140,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 141,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 142,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 143,
+      "source_frame": 96
+    },
+    {
+      "output_frame": 144,
+      "source_frame": 96
+    }
+  ],
+  "execution": {
+    "composite_encode_seconds": 34.26683387905359,
+    "opencv": "5.0.0",
+    "numpy": "2.3.2",
+    "outside_screen_checks": [
+      {
+        "output_frame": 1,
+        "outside_screen_mae": 0.0
+      },
+      {
+        "output_frame": 73,
+        "outside_screen_mae": 0.0
+      },
+      {
+        "output_frame": 120,
+        "outside_screen_mae": 0.0
+      }
+    ]
+  },
+  "limits": [
+    "Generated stationary photograph; no scene mesh, camera parallax, articulation, relighting or object motion.",
+    "Four screen corners and fitting aspect are manually calibrated; scene geometry cannot be recovered from the plate.",
+    "No photometric reflection response to changing screen content; source is composited for readable fidelity.",
+    "Tiny generated-plate aspect adjustment1672:941 to16:9; this is not a camera move.",
+    "Image generation is nondeterministic; exact retained plate and deterministic replacement are reusable."
+  ]
+}

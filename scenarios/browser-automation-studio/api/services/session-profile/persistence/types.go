@@ -24,14 +24,18 @@ type SessionProfile struct {
 	OpenTabs        []TabState       `json:"open_tabs,omitempty"`        // Tabs to restore on session resume
 }
 
-// BrowserProfile contains anti-detection and fingerprint settings for browser automation.
+// BrowserProfile contains optional browser identity and behavior settings.
+// Effects depend on the selected backend and do not guarantee that a site will
+// accept or classify the session as human-operated.
 type BrowserProfile struct {
-	Preset        string                 `json:"preset,omitempty"`         // stealth, balanced, fast, none
-	Fingerprint   *FingerprintSettings   `json:"fingerprint,omitempty"`    // Browser identity settings
-	Behavior      *BehaviorSettings      `json:"behavior,omitempty"`       // Human-like behavior settings
-	AntiDetection *AntiDetectionSettings `json:"anti_detection,omitempty"` // Bot detection bypass settings
-	Proxy         *ProxySettings         `json:"proxy,omitempty"`          // Proxy configuration
-	ExtraHeaders  map[string]string      `json:"extra_headers,omitempty"`  // Custom HTTP headers sent with every request
+	Preset           string                 `json:"preset,omitempty"`            // legacy preset names: stealth, balanced, fast, none
+	Fingerprint      *FingerprintSettings   `json:"fingerprint,omitempty"`       // Browser identity settings
+	Behavior         *BehaviorSettings      `json:"behavior,omitempty"`          // Configurable interaction timing and movement settings
+	AntiDetection    *AntiDetectionSettings `json:"anti_detection,omitempty"`    // Legacy API name for optional signal adjustments; no bypass guarantee
+	Proxy            *ProxySettings         `json:"proxy,omitempty"`             // Proxy configuration
+	ExtraHeaders     map[string]string      `json:"extra_headers,omitempty"`     // Custom HTTP headers sent with every request
+	MotionPreference string                 `json:"motion_preference,omitempty"` // no-preference, reduce
+	InteractionState string                 `json:"interaction_state,omitempty"` // rest, hover, focus-visible, pressed, disabled
 }
 
 // FingerprintSettings controls browser identity and device characteristics.
@@ -63,7 +67,7 @@ type FingerprintSettings struct {
 	ColorScheme string `json:"color_scheme,omitempty"` // light, dark, no-preference
 }
 
-// BehaviorSettings controls human-like interaction patterns.
+// BehaviorSettings controls configurable interaction timing and movement patterns.
 type BehaviorSettings struct {
 	// Typing behavior - inter-keystroke delays
 	TypingDelayMin int `json:"typing_delay_min,omitempty"` // Min ms between keystrokes
@@ -99,26 +103,28 @@ type BehaviorSettings struct {
 	MicroPauseFrequency float64 `json:"micro_pause_frequency,omitempty"` // 0.0-1.0
 }
 
-// AntiDetectionSettings controls bot detection bypass techniques.
+// AntiDetectionSettings is a legacy field group for requested browser-signal
+// adjustments. Support and effect vary by backend; these settings do not
+// establish a detection pass or bypass guarantee.
 type AntiDetectionSettings struct {
 	// Browser launch args
 	DisableAutomationControlled bool `json:"disable_automation_controlled,omitempty"` // --disable-blink-features=AutomationControlled
-	DisableWebRTC               bool `json:"disable_webrtc,omitempty"`                // Prevent IP leak via WebRTC
+	DisableWebRTC               bool `json:"disable_webrtc,omitempty"`                // Request WebRTC disablement; network behavior needs separate validation
 
 	// Navigator property patches
-	PatchNavigatorWebdriver bool `json:"patch_navigator_webdriver,omitempty"` // Remove navigator.webdriver
-	PatchNavigatorPlugins   bool `json:"patch_navigator_plugins,omitempty"`   // Spoof plugins array
-	PatchNavigatorLanguages bool `json:"patch_navigator_languages,omitempty"` // Ensure consistent languages
-	PatchWebGL              bool `json:"patch_webgl,omitempty"`               // Spoof WebGL renderer/vendor
-	PatchCanvas             bool `json:"patch_canvas,omitempty"`              // Add noise to canvas fingerprint
-	PatchAudioContext       bool `json:"patch_audio_context,omitempty"`       // Add noise to AudioContext to prevent audio fingerprinting
-	HeadlessDetectionBypass bool `json:"headless_detection_bypass,omitempty"` // Bypass headless detection
+	PatchNavigatorWebdriver bool `json:"patch_navigator_webdriver,omitempty"` // Request a navigator.webdriver adjustment
+	PatchNavigatorPlugins   bool `json:"patch_navigator_plugins,omitempty"`   // Request a plugins-array adjustment
+	PatchNavigatorLanguages bool `json:"patch_navigator_languages,omitempty"` // Request a languages adjustment
+	PatchWebGL              bool `json:"patch_webgl,omitempty"`               // Request a WebGL renderer/vendor adjustment
+	PatchCanvas             bool `json:"patch_canvas,omitempty"`              // Request a canvas-output adjustment
+	PatchAudioContext       bool `json:"patch_audio_context,omitempty"`       // Request an AudioContext-output adjustment
+	HeadlessDetectionBypass bool `json:"headless_detection_bypass,omitempty"` // Legacy flag name; no detection-bypass guarantee
 
 	// Additional fingerprinting protection
-	PatchFonts            bool `json:"patch_fonts,omitempty"`             // Spoof font enumeration to return common fonts only
-	PatchScreenProperties bool `json:"patch_screen_properties,omitempty"` // Spoof screen dimensions to match viewport
-	PatchBatteryAPI       bool `json:"patch_battery_api,omitempty"`       // Return consistent battery status
-	PatchConnectionAPI    bool `json:"patch_connection_api,omitempty"`    // Spoof network connection type
+	PatchFonts            bool `json:"patch_fonts,omitempty"`             // Request a font-enumeration adjustment
+	PatchScreenProperties bool `json:"patch_screen_properties,omitempty"` // Request screen dimensions matching the viewport
+	PatchBatteryAPI       bool `json:"patch_battery_api,omitempty"`       // Request a battery-status adjustment
+	PatchConnectionAPI    bool `json:"patch_connection_api,omitempty"`    // Request a connection-type adjustment
 
 	// Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
 	AdBlockingMode string `json:"ad_blocking_mode,omitempty"`
@@ -161,12 +167,22 @@ func DefaultHistorySettings() *HistorySettings {
 // MaxRestoredTabs limits how many tabs can be restored to prevent resource exhaustion.
 const MaxRestoredTabs = 20
 
+// LimitRestoredTabs applies the single persistence-owned cap used when saving
+// and restoring browser tabs. It preserves order and all supplied values.
+func LimitRestoredTabs(tabs []TabState) []TabState {
+	if len(tabs) > MaxRestoredTabs {
+		return tabs[:MaxRestoredTabs]
+	}
+	return tabs
+}
+
 // TabState captures a single tab's state for restoration when resuming a session.
 type TabState struct {
-	URL      string `json:"url"`                 // URL to navigate to
-	Title    string `json:"title,omitempty"`     // Tab title (for display before load)
-	IsActive bool   `json:"is_active,omitempty"` // Whether this was the active tab
-	Order    int    `json:"order"`               // Creation order for consistent tab ordering
+	URL         string `json:"url"`                    // URL to navigate to
+	Title       string `json:"title,omitempty"`        // Tab title (for display before load)
+	IsActive    bool   `json:"is_active,omitempty"`    // Whether this was the active tab
+	Order       int    `json:"order"`                  // Creation order for consistent tab ordering
+	OpenerOrder *int   `json:"opener_order,omitempty"` // Saved order of the tab that opened this popup
 }
 
 // SessionEndState bundles all data to persist when a session ends.

@@ -17,12 +17,9 @@ type DiffDeps struct {
 
 // GetDiff retrieves and parses a git diff
 func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	// Normalize the view mode - default to diff if not specified
@@ -212,7 +209,7 @@ func getCommitDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir 
 	parsed.Mode = mode
 	parsed.Timestamp = time.Now().UTC()
 
-	if mode == ViewModeFullDiff && req.Path != "" {
+	if mode.needsFullContent() && req.Path != "" {
 		content, err := deps.Git.ShowFileAtCommit(ctx, repoDir, req.Commit, cleanPath)
 		if err != nil {
 			return nil, err
@@ -329,7 +326,7 @@ func getTrackedDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir
 	parsed.Mode = mode
 	parsed.Timestamp = time.Now().UTC()
 
-	if mode == ViewModeFullDiff && req.Path != "" {
+	if mode.needsFullContent() && req.Path != "" {
 		absPath := filepath.Join(repoDir, pathForGit)
 		content, _, err := readFileForDisplay(absPath, pathForGit)
 		if err != nil {

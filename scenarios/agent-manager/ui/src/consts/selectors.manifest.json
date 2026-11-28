@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "quickRun.open": {
+      "testId": "quick-run-open",
+      "selector": "[data-testid=\"quick-run-open\"]"
+    },
+    "quickRun.description": {
+      "testId": "quick-run-description",
+      "selector": "[data-testid=\"quick-run-description\"]"
+    },
+    "quickRun.title": {
+      "testId": "quick-run-title",
+      "selector": "[data-testid=\"quick-run-title\"]"
+    },
+    "quickRun.projectRoot": {
+      "testId": "quick-run-project-root",
+      "selector": "[data-testid=\"quick-run-project-root\"]"
+    },
+    "quickRun.role": {
+      "testId": "quick-run-role",
+      "selector": "[data-testid=\"quick-run-role\"]"
+    },
+    "quickRun.maxTurns": {
+      "testId": "quick-run-max-turns",
+      "selector": "[data-testid=\"quick-run-max-turns\"]"
+    },
+    "quickRun.timeoutMinutes": {
+      "testId": "quick-run-timeout-minutes",
+      "selector": "[data-testid=\"quick-run-timeout-minutes\"]"
+    },
+    "quickRun.runMode": {
+      "testId": "quick-run-mode",
+      "selector": "[data-testid=\"quick-run-mode\"]"
+    },
+    "quickRun.network": {
+      "testId": "quick-run-network",
+      "selector": "[data-testid=\"quick-run-network\"]"
+    },
+    "quickRun.next": {
+      "testId": "quick-run-next",
+      "selector": "[data-testid=\"quick-run-next\"]"
+    },
+    "quickRun.start": {
+      "testId": "quick-run-start",
+      "selector": "[data-testid=\"quick-run-start\"]"
+    },
+    "run.detail": {
+      "testId": "run-detail",
+      "selector": "[data-testid=\"run-detail\"]"
+    },
+    "run.assistantMessage": {
+      "testId": "run-assistant-message",
+      "selector": "[data-testid=\"run-assistant-message\"]"
+    }
+  },
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.ts": "3fd02b04a7a3e135350750ed08eaab3473ea5417d6b1ee799cf5fa58729e68fc"
+  }
+}

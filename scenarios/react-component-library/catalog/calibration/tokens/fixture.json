@@ -1,0 +1,1 @@
+{"gate":"tokens","assetId":"calibration-tokens","kind":"component","runner":"static","requiredFailureCode":"catalog.tokens_literal","catalogAsset":"asset.json","source":"broken.tsx","description":"Uses a raw spacing utility instead of the token ramp."}

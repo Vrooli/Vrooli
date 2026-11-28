@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "module": "presentation",
+  "permissions": [
+    "window.presentation",
+    "global-shortcut",
+    "desktop.context"
+  ],
+  "platforms": [
+    "linux",
+    "mac",
+    "win"
+  ],
+  "activation_shortcut": "CommandOrControl+Shift+Space",
+  "helper_providers": [
+    {
+      "owner": "device-control",
+      "capability": "desktop.session"
+    }
+  ]
+}

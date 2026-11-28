@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Desk — a decision room for Chimesail</title>
+<link rel="stylesheet" href="night.css">
+<style>
+  body { background: var(--void); }
+  .wrap { width: min(1180px, 100%); margin: 0 auto; padding: 0 40px; }
+
+  .cover {
+    position: relative; min-height: 100dvh; display: flex; flex-direction: column;
+    background:
+      radial-gradient(1100px 700px at 76% -20%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 62%),
+      radial-gradient(700px 500px at 10% 110%, color-mix(in srgb, #6a7bd8 8%, transparent), transparent 60%),
+      var(--void);
+    overflow: hidden;
+  }
+  .cover .starfield { position: absolute; inset: 0; opacity: .85; pointer-events: none; mask-image: radial-gradient(120% 90% at 60% 10%, #000 30%, transparent 82%); }
+  .cover .wrap { position: relative; display: flex; flex-direction: column; flex: 1; padding-top: 30px; padding-bottom: 40px; }
+  .cover-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+  .cover-meta { font: 560 10px/1.6 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); text-align: right; }
+  .cover-meta b { color: var(--muted); font-weight: 600; }
+  .cover-main { margin-top: clamp(72px, 15vh, 180px); }
+  .cover h1 { margin-top: 20px; max-width: 15ch; font-size: clamp(3.6rem, 8.4vw, 7.6rem); font-weight: 640; letter-spacing: -.05em; line-height: .92; }
+  .cover h1 em { font-style: normal; color: var(--cyan); }
+  .cover-lede { margin-top: 26px; max-width: 54ch; font-size: clamp(1rem, 1.35vw, 1.18rem); line-height: 1.55; color: var(--muted); }
+  .cover-foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-top: 26px; border-top: 1px solid var(--line); }
+  .cover-foot p { max-width: 50ch; font-size: 12px; line-height: 1.65; color: var(--muted); }
+  .cover-foot p b { color: var(--moon-2); font-weight: 600; }
+  .cover-foot .sig { display: flex; align-items: center; gap: 10px; color: var(--faint); font: 560 10px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+  .cover-foot .sig .moon-mark { width: 18px; height: 18px; color: var(--moon-2); }
+
+  .section { padding: 92px 0; border-bottom: 1px solid var(--line); }
+  .section:last-of-type { border-bottom: 0; }
+  .head { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 34px; align-items: start; }
+  .head .n { padding-top: 6px; font: 600 10px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--cyan); }
+  .head h2 { font-size: clamp(1.9rem, 3vw, 3rem); font-weight: 630; letter-spacing: -.04em; line-height: 1.04; max-width: 20ch; }
+  .head p { margin-top: 14px; max-width: 68ch; font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .body { margin-top: 38px; }
+
+  /* screens */
+  .shots { display: grid; gap: 22px; }
+  .shot { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); padding: 10px; }
+  .shot img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); }
+  .shot-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 4px 2px; font: 560 9.5px/1.5 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .shot-cap b { color: var(--moon-2); font-weight: 600; }
+  .phones { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .phones .shot { display: flex; flex-direction: column; align-items: center; }
+  .phones img { width: min(354px, 100%); }
+
+  /* data table */
+  .facts { width: 100%; border-collapse: collapse; }
+  .facts th { text-align: left; padding: 0 14px 10px 0; border-bottom: 1px solid var(--line-strong); font: 600 9.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .facts td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; line-height: 1.45; }
+  .facts td:first-child { width: 24%; font-weight: 570; color: var(--moon-2); }
+  .facts td:nth-child(2) { width: 34%; color: var(--muted); }
+  .facts td:last-child { color: var(--faint); }
+  .st { display: inline-flex; align-items: center; gap: 5px; font: 600 9px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .st::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .st.live { color: var(--green); }
+  .st.part { color: var(--amber); }
+  .st.new { color: var(--cyan); }
+
+  /* proposals */
+  .props { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .prop { padding: 22px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); }
+  .prop .k { display: flex; align-items: center; gap: 8px; }
+  .prop .k i { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
+  .prop .k span { font: 600 9.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+  .prop h3 { margin-top: 12px; font-size: 16px; font-weight: 600; letter-spacing: -.018em; line-height: 1.3; }
+  .prop p { margin-top: 7px; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+  .prop .flow { margin-top: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font: 560 9.5px/1 var(--mono); letter-spacing: .04em; color: var(--faint); }
+  .prop .flow span { padding: 4px 7px; border: 1px solid var(--line); border-radius: 6px; }
+  .prop .flow em { font-style: normal; color: var(--cyan); }
+
+  .note { margin-top: 26px; padding: 16px 18px; border-radius: var(--r-md); background: var(--panel-2); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.6; color: var(--muted); max-width: 84ch; }
+  .note b { color: var(--moon-2); font-weight: 570; }
+
+  .footer { padding: 34px 0 46px; display: flex; align-items: center; justify-content: space-between; gap: 20px; font: 560 9.5px/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+
+  @media (max-width: 900px) {
+    .wrap { padding-left: 20px; padding-right: 20px; }
+    .section { padding: 60px 0; }
+    .head { grid-template-columns: 1fr; gap: 12px; }
+    .props { grid-template-columns: 1fr; }
+    .phones { grid-template-columns: 1fr; }
+    .cover-main { margin-top: 70px; }
+    .cover h1 { font-size: clamp(3rem, 14vw, 5rem); }
+    .cover-foot { flex-direction: column; align-items: flex-start; }
+    .facts td:nth-child(2) { display: none; }
+    .facts th:nth-child(2) { display: none; }
+    .footer { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="moon" viewBox="0 0 24 24">
+    <defs><mask id="crescent"><rect width="24" height="24" fill="#000"/><circle cx="11.3" cy="12" r="9.4" fill="#fff"/><circle cx="17" cy="11" r="7.5" fill="#000"/></mask></defs>
+    <rect width="24" height="24" fill="currentColor" mask="url(#crescent)"/>
+    <circle cx="18.3" cy="17.6" r="1.75" fill="var(--cyan)"/>
+  </symbol>
+</svg>
+
+<header class="cover">
+  <div class="starfield" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="cover-top">
+      <a class="brand" href="#" aria-label="Chimesail">
+        <svg class="moon-mark" style="color:var(--moon)"><use href="#moon"/></svg>
+        <span><span class="brand-name">Chimesail</span><span class="brand-sub">Night desk</span></span>
+      </a>
+      <div class="cover-meta"><b>Design proposal</b><br>24 November 2026 · desktop + phone</div>
+    </div>
+
+    <div class="cover-main">
+      <p class="kicker">Notification Hub · the operator's side</p>
+      <h1>A night watch for <em>decisions</em>.</h1>
+      <p class="cover-lede">Six decisions need you. Two close today. Twenty can wait. The desk should say that in one look, then get out of the way — on a desk and in a hand, with the same calm.</p>
+    </div>
+
+    <div class="cover-foot">
+      <p><b>One system, two compositions.</b> Desktop puts the queue, the evidence and the answer in one field. Phone puts one decision in your thumb. Neither is a reflow of the other.</p>
+      <span class="sig"><svg class="moon-mark"><use href="#moon"/></svg>Chimesail · Night Signal</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="wrap">
+      <div class="head">
+        <div class="n">01 / The screens</div>
+        <div>
+          <h2>Dense where it helps. Empty where it counts.</h2>
+          <p>The same vocabulary everywhere: a count, a short list, one recommendation, one answer. Colour names one thing only — attention. Everything else is moonlight and hairline.</p>
+        </div>
+      </div>
+      <div class="body shots">
+        <div class="shot">
+          <img src="shots/desktop-dark.png" alt="Night Desk on a 1440 pixel desktop, dark theme">
+          <div class="shot-cap"><span><b>Desktop</b> · the desk</span><span>1440 × 940 · dark</span></div>
+        </div>
+        <div class="phones">
+          <div class="shot">
+            <img src="shots/mobile-dark.png" alt="Night Desk on a 390 pixel phone, dark theme">
+            <div class="shot-cap"><span><b>Phone</b> · the night</span><span>390 × 844</span></div>
+          </div>
+          <div class="shot">
+            <img src="shots/mobile-detail-dark.png" alt="A decision on a 390 pixel phone, dark theme">
+            <div class="shot-cap"><span><b>Phone</b> · one decision</span><span>390 × 844</span></div>
+          </div>
+        </div>
+        <div class="shot">
+          <img src="shots/focus-dark.png" alt="Focus review with three questions in one pass, dark theme">
+          <div class="shot-cap"><span><b>Desktop</b> · focus review, one ask with three questions</span><span>1440 × 940</span></div>
+        </div>
+        <div class="shot">
+          <img src="shots/desktop-light.png" alt="Night Desk on desktop, light theme">
+          <div class="shot-cap"><span><b>Desktop</b> · daylight</span><span>1440 × 940 · light</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="head">
+        <div class="n">02 / Data</div>
+        <div>
+          <h2>Every element, and the field behind it.</h2>
+          <p>Nothing here is decoration with invented numbers. This is what the Hub holds today, what it can derive, and what is worth adding.</p>
+        </div>
+      </div>
+      <div class="body">
+        <table class="facts">
+          <thead><tr><th>On screen</th><th>Behind it</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>“6 decisions”</td><td><code>ListAsks.total_awaiting</code>, decisions only</td><td><span class="st live">live</span></td></tr>
+            <tr><td>“Closing today · 19:06”</td><td><code>deadline</code>, <code>closing_soon</code></td><td><span class="st live">live</span></td></tr>
+            <tr><td>Today / this week / can wait</td><td>Deadline bands over the attention order</td><td><span class="st live">derived</span></td></tr>
+            <tr><td>“By source” counts</td><td><code>facets.senders</code></td><td><span class="st live">live</span></td></tr>
+            <tr><td>“2 checks, one cause”</td><td><code>decision_family</code>; today the lexical subject check</td><td><span class="st part">partial</span></td></tr>
+            <tr><td>Title and one-line situation</td><td><code>title</code>, <code>big_picture</code></td><td><span class="st live">live</span></td></tr>
+            <tr><td>Recommendation and reason</td><td><code>recommended</code>, <code>recommendation_reason</code></td><td><span class="st live">live</span></td></tr>
+            <tr><td>Option effects</td><td><code>options[].label</code></td><td><span class="st live">live</span></td></tr>
+            <tr><td>“If you do nothing”</td><td><code>if_no_answer</code>, <code>default_answer</code></td><td><span class="st live">live</span></td></tr>
+            <tr><td>“One ask, three questions”</td><td><code>questions[]</code> with per-question recommendation</td><td><span class="st live">live</span></td></tr>
+            <tr><td>Readiness checks</td><td>The Hub's packet findings, exposed as a list</td><td><span class="st new">to add</span></td></tr>
+            <tr><td>Related, “similar wording 0.42”</td><td>Lexical now; embeddings from search-hub</td><td><span class="st new">to add</span></td></tr>
+            <tr><td>“After you answer”</td><td>Answer receipt today; owner run and close</td><td><span class="st new">to add</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note"><b>Deliberately absent:</b> per-decision time estimates and an “unblocks 5 runs” badge. Neither exists, and inventing them is how a desk starts lying. The three “to add” rows are specified in <code>PROPOSALS.md</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="head">
+        <div class="n">03 / The gaps</div>
+        <div>
+          <h2>What the desk needs that the Hub does not yet say.</h2>
+          <p>All four build on what is already there: the subject keys, the packet findings, the answer receipts, and the questions an ask can already carry.</p>
+        </div>
+      </div>
+      <div class="body props">
+        <article class="prop">
+          <div class="k"><i></i><span>Relatedness</span></div>
+          <h3>Suggest kin. Never merge without a claim.</h3>
+          <p>The Hub already compares questions lexically. Add embeddings from search-hub as a second opinion, then show “same cause”, “similar wording”, and “answered before”. A producer's family key always outranks a suggestion.</p>
+          <div class="flow"><span>ask</span><em>→</em><span>subject</span><span>+</span><span>embedding</span><em>→</em><span>related, labelled</span></div>
+        </article>
+
+        <article class="prop">
+          <div class="k"><i></i><span>Readiness</span></div>
+          <h3>One quality model, scored before it costs you.</h3>
+          <p>The Hub already refuses a page that restates the cover, and the steward already lints pages. Merge the two code lists into one taxonomy, project it per ask, and give each producer a score. A decision that cannot be answered cold does not consume your bandwidth.</p>
+          <div class="flow"><span>packet check</span><em>→</em><span>findings</span><em>→</em><span>producer score</span></div>
+        </article>
+
+        <article class="prop">
+          <div class="k"><i></i><span>Aftermath</span></div>
+          <h3>Close the handshake, or say it stalled.</h3>
+          <p>An answer is recorded today, then the desk goes quiet. Project what the answer started: the owner run, its bound, its result, or a stall. That is the same signal the steward calls “answer-waiting”, shown where the answer was given.</p>
+          <div class="flow"><span>answer</span><em>→</em><span>owner run</span><em>→</em><span>closed / stalled</span></div>
+        </article>
+
+        <article class="prop">
+          <div class="k"><i></i><span>Impact</span></div>
+          <h3>Say what waits on the choice.</h3>
+          <p>“Why now” needs teeth. Three optional facts on the ask — what unblocks, what it costs to wait, whether it is reversible — turn a true sentence into a reason to answer today rather than Thursday.</p>
+          <div class="flow"><span>unblocks</span><span>cost of delay</span><span>reversible</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="head">
+        <div class="n">04 / The rules</div>
+        <div>
+          <h2>Six rules that keep it a desk.</h2>
+          <p>These are behavioural, not visual. They are what make the queue smaller instead of prettier.</p>
+        </div>
+      </div>
+      <div class="body props">
+        <article class="prop"><div class="k"><i></i><span>01</span></div><h3>Count decisions, not updates.</h3><p>A status is read, not answered. It never shares the badge, the count, or the queue.</p></article>
+        <article class="prop"><div class="k"><i></i><span>02</span></div><h3>One decision per cause.</h3><p>Two checks with one cause are one card. Three grants for one product are one pass. The operator answers the cause, not the symptom.</p></article>
+        <article class="prop"><div class="k"><i></i><span>03</span></div><h3>Every row answers cold.</h3><p>Title, source, age, recommendation, effect, and the cost of waiting — enough to answer without opening anything.</p></article>
+        <article class="prop"><div class="k"><i></i><span>04</span></div><h3>One accent, one meaning.</h3><p>Cyan is attention and action. Nothing else competes with the decision.</p></article>
+        <article class="prop"><div class="k"><i></i><span>05</span></div><h3>Show the close.</h3><p>Answer, owner run, result. If it stalls, the desk says so instead of going quiet.</p></article>
+        <article class="prop"><div class="k"><i></i><span>06</span></div><h3>Never invent a number.</h3><p>No faux minutes, no faux impact. If a field is missing, the desk asks for it or leaves it out.</p></article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>Night Desk · a proposal for Notification Hub</span>
+  <span>Proposed, not shipped · 24 November 2026</span>
+</footer>
+</body>
+</html>

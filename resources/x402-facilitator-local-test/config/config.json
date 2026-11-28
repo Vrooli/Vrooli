@@ -1,0 +1,25 @@
+{
+  "port": 14021,
+  "host": "127.0.0.1",
+  "chains": {
+    "eip155:8453": {
+      "eip1559": true,
+      "flashblocks": false,
+      "signers": [
+        "$FACILITATOR_PRIVATE_KEY"
+      ],
+      "rpc": [
+        {
+          "http": "http://127.0.0.1:18545",
+          "rate_limit": 25
+        }
+      ]
+    }
+  },
+  "schemes": [
+    {
+      "id": "v2-eip155-exact",
+      "chains": "eip155:*"
+    }
+  ]
+}

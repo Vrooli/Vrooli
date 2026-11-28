@@ -5,31 +5,40 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "pnpm selector:manifest && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.1.0",
+    "@bufbuild/protobuf": "2.10.1",
+    "@connectrpc/connect": "2.1.1",
     "@tanstack/react-query": "^5.59.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "class-variance-authority": "^0.7.0",
+    "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
+    "axe-core": "^4.12.1",
     "clsx": "^2.1.1",
-    "express": "^4.18.2",
+    "express": "^4.22.3",
+    "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
-    "mermaid": "^11.4.0",
+    "mermaid": "^11.17.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^15.1.1",
+    "react-router-dom": "^6.30.6",
     "tailwind-merge": "^2.3.0",
     "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
-    "jsdom": "^25.0.1",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
     "@types/react": "^18.3.5",
@@ -42,11 +51,12 @@
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.11",
-    "postcss": "^8.4.44",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.5.32",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
-    "vite": "^5.4.6",
-    "vitest": "^2.1.4"
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
   },
-  "packageManager": "pnpm@9.12.1"
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

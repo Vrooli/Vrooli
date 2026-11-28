@@ -1,0 +1,13 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Card",
+      "ListItem",
+      "NavigationItem"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:AutoAnimateLayout",
+  "version": "1.0.5"
+}

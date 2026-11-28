@@ -1,8 +1,8 @@
 package app
 
 import (
-	"scenario-dependency-analyzer/internal/store"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // currentStore returns the store from the active runtime, or nil if unavailable.

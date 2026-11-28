@@ -1,21 +1,33 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/envx"
 )
 
-func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountService {
+func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *commerce.Service {
 	t.Helper()
 
 	planStore := getTestPlanStore()
 	if planStore == nil {
-		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+		// Tests without pricing fixtures must not depend on another test having
+		// initialized the process-global catalog. An explicit empty catalog
+		// preserves the production service contract while keeping this helper
+		// independently runnable.
+		planStore = NewPlanStoreWithOptions(commerce.PlanStoreOptions{
+			BundleKey:  "business_suite",
+			DisplayEnv: "test",
+		})
 	}
 
 	return NewAccountService(db, NewPlanServiceWithPlanStore(planStore))
@@ -23,7 +35,6 @@ func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountServic
 
 func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "credits_env")
 	productID := upsertTestBundleProduct(
@@ -65,19 +76,12 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 	email := "credits-test@example.com"
-	if _, err := db.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (customer_email) DO UPDATE
-		SET balance_credits = EXCLUDED.balance_credits,
-		    bonus_credits = EXCLUDED.bonus_credits,
-		    updated_at = NOW()
-	`, email, 1_000_000, 200_000); err != nil {
-		t.Fatalf("failed to seed credit wallet: %v", err)
+	if err := commerce.NewCreditWalletService(db).AddCreditsForBusinessAccountContext(context.Background(), "acct:metadata", email, 1_000_000, "test_grant", "fixture", "metadata-grant", map[string]interface{}{"livemode": false}); err != nil {
+		t.Fatalf("seed attributed account grant: %v", err)
 	}
 
 	// [REQ:SUB-CREDITS] Credits response surfaces bundle multipliers and labels
-	credits, err := accountService.GetCredits(email)
+	credits, err := accountService.GetCreditsForBusinessAccountContext(context.Background(), email, "acct:metadata")
 	if err != nil {
 		t.Fatalf("GetCredits failed: %v", err)
 	}
@@ -95,18 +99,17 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 
 func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "missing_pricing_env")
-	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+	emptyStore := NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath:  "",
 		BundleKey:  bundleKey,
 		DisplayEnv: "production",
 	})
-	planService := &PlanService{planStore: emptyStore, defaultBundle: bundleKey, displayEnv: "production"}
+	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: bundleKey, DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
-	credits, err := accountService.GetCredits("no-wallet@example.com")
+	credits, err := accountService.GetCreditsForBusinessAccountContext(context.Background(), "no-wallet@example.com", "acct:no-wallet")
 	if err != nil {
 		t.Fatalf("GetCredits failed without pricing: %v", err)
 	}
@@ -133,7 +136,6 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 
 func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "entitlements_env")
 	productID := upsertTestBundleProduct(
@@ -185,7 +187,8 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	// Seed credit wallet so entitlements can return some credit info
+	// Seed the retired email wallet cache. A subscription-only lookup without a
+	// selected business account must not expose this un-attributed balance.
 	if _, err := db.Exec(`
 		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
 		VALUES ($1, $2, $3, $4)
@@ -197,7 +200,7 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 	// [REQ:SUB-ENTITLEMENTS] Entitlements payload surfaces feature flags and credits
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -214,8 +217,8 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 	if entitlements.Credits == nil {
 		t.Fatal("expected credits populated")
 	}
-	if entitlements.Credits.BalanceCredits != 2_000_000 {
-		t.Fatalf("expected credit balance to match wallet seed, got %d", entitlements.Credits.BalanceCredits)
+	if entitlements.Credits.BalanceCredits != 0 {
+		t.Fatalf("subscription-only entitlements leaked un-attributed email-wallet credits: got %d, want 0", entitlements.Credits.BalanceCredits)
 	}
 	expectedFeatures := []string{"Download gating", "Credits top-up"}
 	if !reflect.DeepEqual(entitlements.Features, expectedFeatures) {
@@ -226,13 +229,64 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 	}
 }
 
+func TestAccountServiceEntitlementsStayBoundToBusinessAccount(t *testing.T) {
+	db := setupTestDB(t)
+	email := "shared-person@example.com"
+	accountA := "business-account-a"
+	accountB := "business-account-b"
+
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, business_account_id, status, plan_tier, created_at, updated_at)
+		VALUES ($1, $2, $3, 'active', 'pro', NOW(), NOW())
+	`, "sub-account-a", email, accountA); err != nil {
+		t.Fatalf("failed to seed account subscription: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
+		VALUES ($1, 9000000, 900000, NOW())
+	`, email); err != nil {
+		t.Fatalf("failed to seed legacy person wallet: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO business_account_credit_wallets (business_account_id, customer_email, balance_credits, bonus_credits, updated_at)
+		VALUES ($1, $2, 1200000, 120000, NOW())
+	`, accountA, email); err != nil {
+		t.Fatalf("failed to seed account wallet: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO credit_funding_lots (business_account_id, source_kind, provider, provider_ref, livemode, settlement_state, granted, remaining, status, created_at)
+		VALUES ($1, 'credit_topup', 'fixture', 'account-a-attributed-grant', TRUE, 'settled', 1200000, 1200000, 'open', NOW())
+	`, accountA); err != nil {
+		t.Fatalf("failed to seed attributed account funding: %v", err)
+	}
+
+	accountService := newAccountServiceWithTestPlanStore(t, db)
+	accountAEntitlements, err := accountService.GetEntitlementsForBusinessAccountContext(context.Background(), email, accountA)
+	if err != nil {
+		t.Fatalf("account A entitlements failed: %v", err)
+	}
+	if accountAEntitlements.Status != "active" || accountAEntitlements.Credits.BalanceCredits != 1200000 {
+		t.Fatalf("account A inherited the wrong commercial state: %+v", accountAEntitlements)
+	}
+
+	accountBEntitlements, err := accountService.GetEntitlementsForBusinessAccountContext(context.Background(), email, accountB)
+	if err != nil {
+		t.Fatalf("account B entitlements failed: %v", err)
+	}
+	if accountBEntitlements.Status != "inactive" {
+		t.Fatalf("account B inherited account A subscription: %+v", accountBEntitlements)
+	}
+	if accountBEntitlements.Credits.BalanceCredits != 0 {
+		t.Fatalf("account B inherited person/account credits: %+v", accountBEntitlements.Credits)
+	}
+}
+
 func TestAccountServiceEntitlements_NoSubscriptionDefaults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 
-	entitlements, err := accountService.GetEntitlements("nosub@example.com")
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), "nosub@example.com")
 	if err != nil {
 		t.Fatalf("GetEntitlements for missing user failed: %v", err)
 	}
@@ -259,8 +313,8 @@ func configureAccountBundleEnv(t *testing.T, env string) string {
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	bundleKey := fmt.Sprintf("bundle_%s", replacer.Replace(strings.ToLower(t.Name())))
-	prevKey := os.Getenv("BUNDLE_KEY")
-	prevEnv := os.Getenv("BUNDLE_ENVIRONMENT")
+	prevKey := envx.Get("BUNDLE_KEY")
+	prevEnv := envx.Get("BUNDLE_ENVIRONMENT")
 
 	if err := os.Setenv("BUNDLE_KEY", bundleKey); err != nil {
 		t.Fatalf("failed to set BUNDLE_KEY: %v", err)
@@ -279,7 +333,6 @@ func configureAccountBundleEnv(t *testing.T, env string) string {
 
 func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	suffix := replacer.Replace(strings.ToLower(t.Name()))
@@ -335,7 +388,7 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -351,35 +404,12 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	}
 }
 
-func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	bundleKey := configureAccountBundleEnv(t, "empty_user_env")
-	accountService := newAccountServiceWithTestPlanStore(t, db)
-
-	credits, err := accountService.GetCredits("   ")
-	if err != nil {
-		t.Fatalf("GetCredits for empty user failed: %v", err)
-	}
-
-	if credits.DisplayCreditsLabel != "credits" {
-		t.Fatalf("expected default display label credits, got %s", credits.DisplayCreditsLabel)
-	}
-	if credits.DisplayCreditsMultiplier != 1.0 {
-		t.Fatalf("expected default multiplier 1.0, got %f", credits.DisplayCreditsMultiplier)
-	}
-	if credits.Balance.BundleKey != bundleKey {
-		t.Fatalf("expected bundle key to match configured env %s, got %s", bundleKey, credits.Balance.BundleKey)
-	}
-	if credits.Balance.CustomerEmail != "" {
-		t.Fatalf("expected empty customer email passthrough, got %s", credits.Balance.CustomerEmail)
-	}
-	if credits.Balance.BalanceCredits != 0 {
-		t.Fatalf("expected zero balance for empty user, got %d", credits.Balance.BalanceCredits)
-	}
-	if ts := credits.Balance.GetUpdatedAt(); ts == nil || ts.AsTime().IsZero() {
-		t.Fatal("expected updated_at timestamp populated for empty user credits response")
+func TestAccountServiceCreditsRequireActorAndAccount(t *testing.T) {
+	service := newAccountServiceWithTestPlanStore(t, nil)
+	for _, input := range [][2]string{{"   ", "acct"}, {"member@example.test", ""}} {
+		if _, err := service.GetCreditsForBusinessAccountContext(context.Background(), input[0], input[1]); !errors.Is(err, commerce.ErrBusinessAccountRequired) {
+			t.Fatalf("missing actor/account error=%v", err)
+		}
 	}
 }
 
@@ -389,7 +419,6 @@ func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
 
 func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "past_due_env")
 	productID := upsertTestBundleProduct(
@@ -442,7 +471,7 @@ func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -458,7 +487,6 @@ func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 
 func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "trialing_env")
 	productID := upsertTestBundleProduct(
@@ -513,7 +541,7 @@ func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -532,7 +560,6 @@ func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 
 func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "canceled_env")
 
@@ -550,7 +577,7 @@ func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -571,7 +598,6 @@ func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 
 func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "billing_cycle_env")
 	productID := upsertTestBundleProduct(
@@ -625,7 +651,7 @@ func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -637,7 +663,6 @@ func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 
 func TestGetEntitlements_NoBillingCycleStart_DefaultsToZero(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "no_billing_env")
 
@@ -655,7 +680,7 @@ func TestGetEntitlements_NoBillingCycleStart_DefaultsToZero(t *testing.T) {
 	}
 
 	accountService := NewAccountService(db, NewPlanService(db))
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}

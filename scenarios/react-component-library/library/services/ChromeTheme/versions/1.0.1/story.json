@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "ChromeTheme",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='services.chrome-theme']" }]
+    }
+  ]
+}

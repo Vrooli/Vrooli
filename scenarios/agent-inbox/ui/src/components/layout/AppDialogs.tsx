@@ -75,17 +75,19 @@ export function AppDialogs({
       </ErrorBoundary>
 
       {/* Template Editor from Settings */}
-      {!!modals.settingsEditingTemplate && (
+      {modals.settingsEditingTemplate && (
         <ErrorBoundary name="TemplateEditor">
           <TemplateEditorModal
-            open={!!modals.settingsEditingTemplate}
+            open
             onClose={() => {
               modals.setSettingsEditingTemplate(null);
               modals.setSettingsAllTemplates([]);
             }}
-            onSave={modals.handleSaveTemplateFromSettings}
-            template={modals.settingsEditingTemplate || undefined}
-            templateSource={modals.settingsEditingTemplate?.source}
+            onSave={(templateData, options) => {
+              void modals.handleSaveTemplateFromSettings(templateData, options);
+            }}
+            template={modals.settingsEditingTemplate}
+            templateSource={modals.settingsEditingTemplate.source}
             allTemplates={modals.settingsAllTemplates}
             onSelectTemplate={(template: TemplateWithSource) => {
               modals.setSettingsEditingTemplate(template);

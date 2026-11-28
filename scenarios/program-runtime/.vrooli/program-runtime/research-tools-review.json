@@ -1,0 +1,51 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.research-tools-review",
+  "version": "1",
+  "helpers": {"program": "2"},
+  "purpose": "Read one explicitly authorized Markdown capability inventory, then combine bounded fleet health and per-scenario Agent Manager friction signals without treating missing evidence as clean.",
+  "inputs": {
+    "workspace_root": {"type": "string", "required": true, "description": "Absolute caller-authorized root containing the selected inventory file."},
+    "inventory_relative_path": {"type": "string", "required": true, "description": "Relative Markdown path below workspace_root; entries use a Monitoring scenario field with one or more scenario slugs."},
+    "window_days": {"type": "integer", "default": 7, "description": "Agent Manager friction window, 1 through 90 days."}
+  },
+  "assumptions": [
+    "The caller is authorized to read workspace_root and its selected inventory file.",
+    "The inventory follows the documented Markdown convention: level-two capability headings and `- **Monitoring scenario:** `slug`` or plural form.",
+    "program-runtime.supervision-sweep and agent-manager.friction-digest remain optional sensors; their failures are returned as unknown or partial evidence."
+  ],
+  "invariants": [
+    "Read-only; no health remediation, issue filing, agent dispatch, or other mutation.",
+    "The inventory path is resolved below workspace_root; symlinks escaping that root are refused.",
+    "At most 16 unique scenario slugs are monitored and at most 8 scenario-specific friction digests are collected; omitted rows are counted and status is partial.",
+    "A missing inventory, malformed inventory, unavailable child program, or missing child signal never means no tools, no friction, or healthy.",
+    "Scenario health, friction, coverage, and inventory parsing are separate signals; the program does not infer cause or work impact.",
+    "Output is bounded to 8 fingerprints per scenario and one fleet-health summary."
+  ],
+  "bindings": [
+    {"id": "vrooli/scenario/list", "effect": "read"},
+    {"id": "agent-manager/usage/friction", "effect": "read"},
+    {"id": "agent-manager/watch/policy-outcomes", "effect": "read"}
+  ],
+  "verbs": ["lib"],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {
+      "inventory": "relative path, parse status, capability count and bounded errors",
+      "scenario_slugs": "unique parsed monitoring slugs, up to 16",
+      "health": "preserved supervision-sweep status, summary, errors and evidence, or unknown",
+      "friction": "per-scenario digest status, coverage, counts, top fingerprints and errors, or unknown",
+      "omitted_scenarios": "number of parsed scenarios beyond the monitoring bound"
+    },
+    "errors": {"classes": ["invalid_input", "inventory_unavailable", "inventory_invalid", "path_outside_root", "child_unavailable", "invalid_response", "kernel_runtime"]},
+    "evidence": "selected inventory path and nested program/artifact identifiers"
+  },
+  "budget": {"wall_ms": 120000, "async": true, "async_reason": "The bounded set of per-scenario Agent Manager friction reads may exceed the synchronous submission limit.", "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 32, "output_bytes": 65536},
+  "fixtures": [
+    {"id": "relative-root", "inputs": {"workspace_root": "relative", "inventory_relative_path": "TOOLS.md"}, "expect": {"status": ["failed"]}, "requires": []},
+    {"id": "missing-inventory", "inputs": {"workspace_root": "/tmp", "inventory_relative_path": "missing/TOOLS.md"}, "expect": {"status": ["unavailable"]}, "requires": []}
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

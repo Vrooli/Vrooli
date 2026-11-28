@@ -35,35 +35,8 @@ func TestHandleMergeBundleSecrets(t *testing.T) {
 	defer sm.Close()
 	t.Setenv("SECRETS_MANAGER_URL", sm.URL)
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "demo", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 47710, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports: &ManifestPorts{
-			DefaultRange: PortRange{Min: 47000, Max: 47999},
-			Reserved:     []int{},
-		},
-		Services: []ServiceEntry{
-			{
-				ID:       "api",
-				Type:     "api-binary",
-				Binaries: map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:   HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{
-					Type:     "port_open",
-					PortName: "http",
-					Timeout:  1000,
-				},
-				Ports: &ServicePorts{
-					Requested: []RequestedPort{
-						{Name: "http", Range: PortRange{Min: 48000, Max: 48010}},
-					},
-				},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
+	manifest.IPC.Port = 47710
 
 	payload := map[string]interface{}{
 		"scenario": "picker-wheel",
@@ -112,24 +85,7 @@ func TestHandleMergeBundleSecretsInvalidJSON(t *testing.T) {
 func TestHandleMergeBundleSecretsMissingScenario(t *testing.T) {
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "demo", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
 
 	payload := map[string]interface{}{
 		"scenario": "",
@@ -155,24 +111,7 @@ func TestHandleMergeBundleSecretsSecretsManagerUnavailable(t *testing.T) {
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "demo", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
 
 	payload := map[string]interface{}{
 		"scenario": "test-app",
@@ -201,24 +140,7 @@ func TestHandleMergeBundleSecretsDefaultTier(t *testing.T) {
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "demo", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
 
 	// Request without tier - should default to tier-2-desktop
 	payload := map[string]interface{}{
@@ -267,24 +189,7 @@ func TestHandleMergeBundleSecretsMultipleSecrets(t *testing.T) {
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "demo", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
 
 	payload := map[string]interface{}{
 		"scenario": "test-app",
@@ -338,25 +243,14 @@ func TestHandleMergeBundleSecretsPreservesManifestFields(t *testing.T) {
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "My App", Version: "2.5.0", Description: "Test application"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48888, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "custom-telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 50000, Max: 50999}, Reserved: []int{50500}},
-		Services: []ServiceEntry{
-			{
-				ID:          "api",
-				Type:        "api-binary",
-				Description: "Main API service",
-				Binaries:    map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:      HealthCheck{Type: "http", Path: "/health", PortName: "http", Interval: 5000, Timeout: 3000, Retries: 5},
-				Readiness:   ReadinessCheck{Type: "health_success", PortName: "http", Timeout: 10000},
-				Ports:       &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
+	manifest.App = ManifestApp{Name: "My App", Version: "2.5.0", Description: "Test application"}
+	manifest.IPC.Port = 48888
+	manifest.Telemetry.File = "custom-telemetry.jsonl"
+	manifest.Ports = &ManifestPorts{DefaultRange: PortRange{Min: 50000, Max: 50999}, Reserved: []int{50500}}
+	manifest.Services[0].Description = "Main API service"
+	manifest.Services[0].Health = HealthCheck{Type: "http", Path: "/health", PortName: "http", Interval: 5000, Timeout: 3000, Retries: 5}
+	manifest.Services[0].Readiness = ReadinessCheck{Type: "health_success", PortName: "http", Timeout: 10000}
 
 	payload := map[string]interface{}{
 		"scenario": "test-app",
@@ -410,24 +304,7 @@ func TestHandleMergeBundleSecretsEmptySecrets(t *testing.T) {
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
-	manifest := Manifest{
-		SchemaVersion: "v0.1",
-		Target:        "desktop",
-		App:           ManifestApp{Name: "demo", Version: "1.0.0"},
-		IPC:           ManifestIPC{Mode: "loopback-http", Host: "127.0.0.1", Port: 48000, AuthTokenPath: "runtime/auth-token"},
-		Telemetry:     ManifestTelemetry{File: "telemetry.jsonl"},
-		Ports:         &ManifestPorts{DefaultRange: PortRange{Min: 47000, Max: 47999}, Reserved: []int{}},
-		Services: []ServiceEntry{
-			{
-				ID:        "api",
-				Type:      "api-binary",
-				Binaries:  map[string]ServiceBinary{"linux-x64": {Path: "bin/api"}},
-				Health:    HealthCheck{Type: "tcp", PortName: "http", Interval: 1000, Timeout: 1000, Retries: 1},
-				Readiness: ReadinessCheck{Type: "port_open", PortName: "http", Timeout: 1000},
-				Ports:     &ServicePorts{Requested: []RequestedPort{{Name: "http", Range: PortRange{Min: 48000, Max: 48010}}}},
-			},
-		},
-	}
+	manifest := validBundleTestManifest()
 
 	payload := map[string]interface{}{
 		"scenario": "no-secrets-app",

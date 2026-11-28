@@ -46,32 +46,32 @@ const DEFAULT_CONFIG: WindowStateConfig = {
     minHeight: 300,
 };
 
+function createWindowState(overrides: Partial<WindowState> = {}): WindowState {
+    return {
+        x: 100,
+        y: 100,
+        width: 800,
+        height: 600,
+        isMaximized: false,
+        isFullScreen: false,
+        ...overrides,
+    };
+}
+
 // ===== calculateVisibleArea Tests =====
 
 describe("calculateVisibleArea", () => {
     test("returns full area when window is entirely within display", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const area = calculateVisibleArea(state, PRIMARY_DISPLAY);
         expect(area).toBe(800 * 600);
     });
 
     test("returns partial area when window overlaps display edge", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 1600, // 320 pixels past right edge of primary
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         // Only 320 pixels visible on primary (1920 - 1600)
         const area = calculateVisibleArea(state, PRIMARY_DISPLAY);
@@ -79,29 +79,29 @@ describe("calculateVisibleArea", () => {
     });
 
     test("returns 0 when window is entirely outside display", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 2000, // Past primary display
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const area = calculateVisibleArea(state, PRIMARY_DISPLAY);
         expect(area).toBe(0);
     });
 
     test("returns 0 when state has no position", () => {
-        const state: WindowState = {
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState({
+            x: undefined,
+            y: undefined,
+        });
 
         const area = calculateVisibleArea(state, PRIMARY_DISPLAY);
         expect(area).toBe(0);
+    });
+
+    test.each([
+        { missing: "x", state: { x: undefined, y: 100 } },
+        { missing: "y", state: { x: 100, y: undefined } },
+    ])("returns 0 when only $missing is missing", ({ state }) => {
+        expect(calculateVisibleArea(createWindowState(state), PRIMARY_DISPLAY)).toBe(0);
     });
 
     test("handles negative display coordinates (left of primary)", () => {
@@ -113,14 +113,9 @@ describe("calculateVisibleArea", () => {
             height: 1080,
         };
 
-        const state: WindowState = {
+        const state = createWindowState({
             x: -1000,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const area = calculateVisibleArea(state, leftDisplay);
         expect(area).toBe(800 * 600);
@@ -131,42 +126,26 @@ describe("calculateVisibleArea", () => {
 
 describe("checkWindowVisibility", () => {
     test("returns visible when window is on a display", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const result = checkWindowVisibility(state, DISPLAYS);
         expect(result.isVisible).toBe(true);
     });
 
     test("returns visible when window spans multiple displays", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 1600, // Spans primary and secondary
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = checkWindowVisibility(state, DISPLAYS);
         expect(result.isVisible).toBe(true);
     });
 
     test("returns not visible when window is off all displays", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 5000,
             y: 5000,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = checkWindowVisibility(state, DISPLAYS);
         expect(result.isVisible).toBe(false);
@@ -174,27 +153,28 @@ describe("checkWindowVisibility", () => {
     });
 
     test("returns not visible when state has no position", () => {
-        const state: WindowState = {
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState({
+            x: undefined,
+            y: undefined,
+        });
 
         const result = checkWindowVisibility(state, DISPLAYS);
         expect(result.isVisible).toBe(false);
         expect(result.reason).toBe("No position defined");
     });
 
+    test.each([
+        { missing: "x", state: { x: undefined, y: 100 } },
+        { missing: "y", state: { x: 100, y: undefined } },
+    ])("returns not visible when only $missing is missing", ({ state }) => {
+        const result = checkWindowVisibility(createWindowState(state), DISPLAYS);
+
+        expect(result.isVisible).toBe(false);
+        expect(result.reason).toBe("No position defined");
+    });
+
     test("returns not visible when no displays available", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const result = checkWindowVisibility(state, []);
         expect(result.isVisible).toBe(false);
@@ -206,14 +186,10 @@ describe("checkWindowVisibility", () => {
 
 describe("centerOnDisplay", () => {
     test("centers window on display", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 0,
             y: 0,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const centered = centerOnDisplay(state, PRIMARY_DISPLAY);
 
@@ -223,14 +199,10 @@ describe("centerOnDisplay", () => {
     });
 
     test("centers on secondary display", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 0,
             y: 0,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const centered = centerOnDisplay(state, SECONDARY_DISPLAY);
 
@@ -240,14 +212,9 @@ describe("centerOnDisplay", () => {
     });
 
     test("preserves other state properties", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
+        const state = createWindowState({
             isMaximized: true,
-            isFullScreen: false,
-        };
+        });
 
         const centered = centerOnDisplay(state, PRIMARY_DISPLAY);
 
@@ -262,14 +229,7 @@ describe("centerOnDisplay", () => {
 
 describe("applyMinimumSize", () => {
     test("returns same state when above minimum", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const result = applyMinimumSize(state, DEFAULT_CONFIG);
 
@@ -277,14 +237,9 @@ describe("applyMinimumSize", () => {
     });
 
     test("enforces minimum width", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
+        const state = createWindowState({
             width: 200, // Below minimum
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = applyMinimumSize(state, DEFAULT_CONFIG);
 
@@ -293,14 +248,9 @@ describe("applyMinimumSize", () => {
     });
 
     test("enforces minimum height", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
+        const state = createWindowState({
             height: 100, // Below minimum
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = applyMinimumSize(state, DEFAULT_CONFIG);
 
@@ -309,14 +259,10 @@ describe("applyMinimumSize", () => {
     });
 
     test("enforces both minimums", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
+        const state = createWindowState({
             width: 100,
             height: 100,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = applyMinimumSize(state, DEFAULT_CONFIG);
 
@@ -329,14 +275,7 @@ describe("applyMinimumSize", () => {
 
 describe("clampToDisplay", () => {
     test("returns same position when window fits", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const clamped = clampToDisplay(state, PRIMARY_DISPLAY);
 
@@ -345,14 +284,9 @@ describe("clampToDisplay", () => {
     });
 
     test("clamps window that extends past right edge", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 1500, // Would extend to 2300
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const clamped = clampToDisplay(state, PRIMARY_DISPLAY);
 
@@ -361,14 +295,9 @@ describe("clampToDisplay", () => {
     });
 
     test("clamps window that extends past bottom edge", () => {
-        const state: WindowState = {
-            x: 100,
+        const state = createWindowState({
             y: 800, // Would extend to 1400
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const clamped = clampToDisplay(state, PRIMARY_DISPLAY);
 
@@ -377,14 +306,12 @@ describe("clampToDisplay", () => {
     });
 
     test("reduces size for window larger than display", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 0,
             y: 0,
             width: 2500,
             height: 1500,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const clamped = clampToDisplay(state, PRIMARY_DISPLAY);
 
@@ -393,14 +320,7 @@ describe("clampToDisplay", () => {
     });
 
     test("sets displayId on result", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const clamped = clampToDisplay(state, SECONDARY_DISPLAY);
 
@@ -412,14 +332,7 @@ describe("clampToDisplay", () => {
 
 describe("findWindowDisplay", () => {
     test("finds primary display for window on primary", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const display = findWindowDisplay(state, DISPLAYS, PRIMARY_DISPLAY);
 
@@ -427,14 +340,9 @@ describe("findWindowDisplay", () => {
     });
 
     test("finds secondary display for window on secondary", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 2000,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const display = findWindowDisplay(state, DISPLAYS, PRIMARY_DISPLAY);
 
@@ -443,14 +351,9 @@ describe("findWindowDisplay", () => {
 
     test("uses center point to determine display", () => {
         // Window spans both displays, but center is on secondary
-        const state: WindowState = {
+        const state = createWindowState({
             x: 1800, // Starts on primary
-            y: 100,
-            width: 800, // Ends at 2600, well into secondary
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         // Center is at 1800 + 400 = 2200, which is on secondary
         const display = findWindowDisplay(state, DISPLAYS, PRIMARY_DISPLAY);
@@ -459,12 +362,10 @@ describe("findWindowDisplay", () => {
     });
 
     test("returns primary for window with no position", () => {
-        const state: WindowState = {
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState({
+            x: undefined,
+            y: undefined,
+        });
 
         const display = findWindowDisplay(state, DISPLAYS, PRIMARY_DISPLAY);
 
@@ -472,14 +373,10 @@ describe("findWindowDisplay", () => {
     });
 
     test("returns primary for window off all displays", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 5000,
             y: 5000,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const display = findWindowDisplay(state, DISPLAYS, PRIMARY_DISPLAY);
 
@@ -491,14 +388,7 @@ describe("findWindowDisplay", () => {
 
 describe("validateWindowState", () => {
     test("returns valid state when window is visible", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState();
 
         const result = validateWindowState(state, DISPLAYS, PRIMARY_DISPLAY, DEFAULT_CONFIG);
 
@@ -508,12 +398,10 @@ describe("validateWindowState", () => {
     });
 
     test("centers on primary when no position saved", () => {
-        const state: WindowState = {
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        const state = createWindowState({
+            x: undefined,
+            y: undefined,
+        });
 
         const result = validateWindowState(state, DISPLAYS, PRIMARY_DISPLAY, DEFAULT_CONFIG);
 
@@ -523,15 +411,23 @@ describe("validateWindowState", () => {
         expect(result.adjustmentReason).toContain("no saved position");
     });
 
+    test.each([
+        { missing: "x", state: { x: undefined, y: 100 } },
+        { missing: "y", state: { x: 100, y: undefined } },
+    ])("centers on primary when only $missing is missing", ({ state }) => {
+        const result = validateWindowState(createWindowState(state), DISPLAYS, PRIMARY_DISPLAY, DEFAULT_CONFIG);
+
+        expect(result.isValid).toBe(true);
+        expect(result.state.x).toBe(560);
+        expect(result.state.y).toBe(240);
+        expect(result.adjustmentReason).toContain("no saved position");
+    });
+
     test("repositions window when off all displays", () => {
-        const state: WindowState = {
+        const state = createWindowState({
             x: 5000,
             y: 5000,
-            width: 800,
-            height: 600,
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = validateWindowState(state, DISPLAYS, PRIMARY_DISPLAY, DEFAULT_CONFIG);
 
@@ -542,14 +438,10 @@ describe("validateWindowState", () => {
     });
 
     test("applies minimum size constraints", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
+        const state = createWindowState({
             width: 200, // Below minimum
             height: 200, // Below minimum
-            isMaximized: false,
-            isFullScreen: false,
-        };
+        });
 
         const result = validateWindowState(state, DISPLAYS, PRIMARY_DISPLAY, DEFAULT_CONFIG);
 
@@ -560,14 +452,9 @@ describe("validateWindowState", () => {
     });
 
     test("preserves maximized/fullscreen state", () => {
-        const state: WindowState = {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
+        const state = createWindowState({
             isMaximized: true,
-            isFullScreen: false,
-        };
+        });
 
         const result = validateWindowState(state, DISPLAYS, PRIMARY_DISPLAY, DEFAULT_CONFIG);
 

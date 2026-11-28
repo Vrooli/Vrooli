@@ -1,0 +1,60 @@
+{
+  "captured_at_utc": "2026-11-22T09:12:43.005377+00:00",
+  "command": "Sequential commands from scenarios/react-component-library: python3 tools/ask_latency_gate.py > artifacts/ask-latency/2026-11-22-run-1.json ; python3 tools/ask_latency_gate.py > artifacts/ask-latency/2026-11-22-run-2.json. Each command was run separately; the second started after the first exited.",
+  "gate_command_per_run": "python3 tools/ask_latency_gate.py",
+  "target_ms": 8000,
+  "api_base_url": "http://localhost:17193",
+  "api_build_identity": "sha256:08da302b325cfbe878d93127032020628c5577049e25630709e4d334d5d3d982",
+  "api_start_operation_id": "startop-c1452202fc041b3ae8e36a7ce9580ec5",
+  "api_status": "healthy",
+  "api_version": "1.0.0",
+  "api_uptime_seconds_after_runs": 707.594239157,
+  "runs": [
+    {
+      "run_id": "rcl-ask-20261122-run-1",
+      "artifact": "artifacts/ask-latency/2026-11-22-run-1.json",
+      "samples": 20,
+      "successful": 19,
+      "failed": 1,
+      "p50_ms": 3284.5670925453305,
+      "p95_ms": 5921.835534647109,
+      "max_ms": 6876.791960559785,
+      "p95_target_ms": 8000.0,
+      "passed": false,
+      "citation_contract": "all answer citations resolve to unique supplied result ids",
+      "citation_valid_responses": 19,
+      "errors": [
+        {
+          "index": 19,
+          "query": "music player",
+          "error": "HTTP Error 503: Service Unavailable",
+          "elapsed_ms": 2005.6636575609446
+        }
+      ]
+    },
+    {
+      "run_id": "rcl-ask-20261122-run-2",
+      "artifact": "artifacts/ask-latency/2026-11-22-run-2.json",
+      "samples": 20,
+      "successful": 19,
+      "failed": 1,
+      "p50_ms": 2488.3648194372654,
+      "p95_ms": 7032.187354378408,
+      "max_ms": 10685.491480864584,
+      "p95_target_ms": 8000.0,
+      "passed": false,
+      "citation_contract": "all answer citations resolve to unique supplied result ids",
+      "citation_valid_responses": 19,
+      "errors": [
+        {
+          "index": 19,
+          "query": "music player",
+          "error": "HTTP Error 503: Service Unavailable",
+          "elapsed_ms": 1830.7373579591513
+        }
+      ]
+    }
+  ],
+  "interpretation": "Both runs failed the gate because each had one HTTP 503 response for query \"music player\". For each of the other 19 responses, the gate validated a nonempty answer and unique citations resolving to supplied result IDs. p95 among valid responses met the 8000 ms target, but failures make each gate fail.",
+  "logs": "vrooli scenario logs react-component-library --runtime --tail 500 showed Search endpoint status=503 at 2026/11/22 04:10:32 and 04:11:52; AI Gateway runtime log at 04:10:32 showed an InferenceService/Run call (1.372750368s), without a detailed provider error in retained output."
+}

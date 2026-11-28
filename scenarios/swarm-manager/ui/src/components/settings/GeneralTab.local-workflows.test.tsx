@@ -1,0 +1,20 @@
+import { useState } from "react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GeneralTab } from "./GeneralTab";
+import { DEFAULT_SETTINGS } from "../../services/settings-service";
+import type { Settings } from "../../types";
+import { selectors } from "../../consts/selectors";
+import { defaultApiClient } from "../../lib/api-client";
+function mount(initial:Partial<Settings>={}){const patches=vi.fn(),themes=vi.fn();function Owner(){const [form,setForm]=useState<Settings>({...DEFAULT_SETTINGS,...initial,deleteConfirmation:{...DEFAULT_SETTINGS.deleteConfirmation,...initial.deleteConfirmation}});return <><output data-testid="owner-general-value">{JSON.stringify(form)}</output><GeneralTab form={form} patch={updates=>{patches(updates);setForm(current=>({...current,...updates}));}} onThemeChange={theme=>{themes(theme);setForm(current=>({...current,theme}));}}/></>;}render(<Owner/>);return {patches,themes};}
+function inputs(){return screen.getAllByRole("spinbutton");}
+beforeEach(()=>{for(const method of ["get","post","put","patch","delete"] as const)vi.spyOn(defaultApiClient,method).mockRejectedValue(new Error("Forbidden general transport"));vi.stubGlobal("fetch",vi.fn().mockRejectedValue(new Error("Forbidden general fetch")));});
+afterEach(()=>{cleanup();try{for(const method of ["get","post","put","patch","delete"] as const)expect(defaultApiClient[method]).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled();}finally{vi.restoreAllMocks();vi.unstubAllGlobals();}});
+describe("general preferences are staged through exact existing owner callbacks",()=>{
+ it.each(["dark","light","system"] as const)("chooses %s through the theme owner without saving settings",theme=>{const owner=mount({theme:"light"});fireEvent.click(screen.getByTestId(theme==="dark"?selectors.settings.themeDark:theme==="light"?selectors.settings.themeLight:selectors.settings.themeSystem));expect(owner.themes.mock.calls).toEqual([[theme]]);expect(owner.patches).not.toHaveBeenCalled();expect(JSON.parse(screen.getByTestId("owner-general-value").textContent!)).toMatchObject({theme});});
+ it("resets only theme to the canonical dark default",()=>{const owner=mount({theme:"light",searchDebounceMs:800});fireEvent.click(within(screen.getByTestId(selectors.settings.themeSettings)).getByRole("button",{name:"Reset"}));expect(owner.patches.mock.calls).toEqual([[{theme:"dark"}]]);expect(owner.themes).not.toHaveBeenCalled();expect(JSON.parse(screen.getByTestId("owner-general-value").textContent!)).toMatchObject({theme:"dark",searchDebounceMs:800});});
+ it.each([{value:"",expected:100},{value:"50",expected:100},{value:"9999",expected:2000}])("keeps search debounce $value within the existing UI bounds",({value,expected})=>{const owner=mount();fireEvent.change(inputs()[0]!,{target:{value}});expect(owner.patches.mock.calls).toEqual([[{searchDebounceMs:expected}]]);expect(inputs()[0]).toHaveValue(expected);});
+ it.each([{value:"",expected:1000},{value:"0",expected:1000},{value:"40",expected:30000}])("keeps toast duration $value in canonical milliseconds",({value,expected})=>{const owner=mount();fireEvent.change(inputs()[1]!,{target:{value}});expect(owner.patches.mock.calls).toEqual([[{toastDurationMs:expected}]]);expect(inputs()[1]).toHaveValue(expected/1000);});
+ it("resets UI timing as one partial patch without changing chosen theme",()=>{const owner=mount({theme:"light",searchDebounceMs:900,toastDurationMs:12000});fireEvent.click(within(screen.getByTestId(selectors.settings.uiPreferences)).getByRole("button",{name:"Reset"}));expect(owner.patches.mock.calls).toEqual([[{searchDebounceMs:300,toastDurationMs:5000}]]);expect(owner.themes).not.toHaveBeenCalled();expect(JSON.parse(screen.getByTestId("owner-general-value").textContent!)).toMatchObject({theme:"light",searchDebounceMs:300,toastDurationMs:5000});});
+});

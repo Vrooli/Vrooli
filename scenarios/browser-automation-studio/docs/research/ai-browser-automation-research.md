@@ -344,7 +344,7 @@ playwright-driver                    Browser-Use Cloud
 | Screenshot capture | `api/handlers/ai/screenshots.go` | Yes |
 | DOM extraction | `api/handlers/ai/dom.go` | Yes |
 | Element annotation | `api/handlers/ai/element_extraction.go` | Yes |
-| OpenRouter client | `api/services/ai/client.go` | Yes |
+| AI Gateway client | `api/handlers/ai/gateway_client.go` | Yes; production inference routing and metering |
 | Ollama integration | `api/handlers/ai/ollama_suggestions.go` | Text-only |
 | WebSocket streaming | `api/websocket/` | Yes |
 | Timeline recording | `api/automation/telemetry/` | Yes |

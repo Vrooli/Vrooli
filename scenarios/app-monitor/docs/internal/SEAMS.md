@@ -1,6 +1,9 @@
 # SEAMS
 
 ## Stable Seams
+- Scenario API port resolution:
+  - `api/services/AppService.scenarioPort`
+  - Defaults to `discovery.ResolveScenarioPort`; tests can provide an allocated port without invoking the lifecycle CLI or requiring the target scenario to run.
 - Preview navigation + bridge boundary:
   - `ui/src/hooks/usePreviewNavigationSession.ts`
   - `ui/src/components/views/usePreviewNavigation.ts`

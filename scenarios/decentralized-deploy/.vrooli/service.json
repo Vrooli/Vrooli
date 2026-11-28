@@ -1,0 +1,195 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "branding": {
+    "brand": "decentralized-deploy",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "decentralized-deploy",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "decentralized-deploy"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "environment": {},
+  "generation": {
+    "content_sha": "4dad1881e16043b1d8276a8e95efc7ce43d7bd4657e330717cea2d456b4537a6",
+    "design": {
+      "adapter": "react-vite-tailwind",
+      "id": "vrooli-default",
+      "version": "0.2.0"
+    },
+    "generated_at": "2026-11-25T05:34:36Z",
+    "manifest_sha": "4c15873c8d2054e9ba3b799aece6fd1f4a863682cd2e71b1186c6348eddd0dcd",
+    "template": {
+      "id": "react-vite",
+      "version": "8.0.0"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "kubo",
+      "required": true,
+      "reason": "The Kubo adapter needs the pinned managed IPFS CLI for local offline storage devnets.",
+      "when": ["setup", "develop"],
+      "environments": ["development"]
+    }
+  ],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "decentralized-deploy",
+    "displayName": "Decentralized Deploy",
+    "description": "Deploy scenario services to decentralized storage and names",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "class": "external-integration",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/decentralized-deploy"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/decentralized-deploy/SKILL.md"
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable deployment state and generated dependency analysis reports are stored under the canonical data root.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Storage Manager measured 33168 bytes on 2026-11-25; one MiB leaves headroom for the small scenario deployment record surface."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": false,
+        "rationale": "Storage Manager writes bounded retention enforcement receipts beneath the scenario state root.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Receipts are small control records; one MiB provides a clear cap while retaining audit state."
+        }
+      }
+    },
+    "rationale": "The scenario owns its durable deployment records and the dependency analyzer report beneath its canonical data directory. No external provider data is owned here."
+  },
+  "version": "1.0.0"
+}

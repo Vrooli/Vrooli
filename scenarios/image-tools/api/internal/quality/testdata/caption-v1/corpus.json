@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "dataset_id": "image-tools-caption-v1",
+  "purpose": "Frozen local caption and visual-question-answering reference set for IT7 model comparisons.",
+  "safety": "Scenario-authored synthetic graphics only; no client uploads, private media, or real-person likenesses.",
+  "images": [
+    {
+      "id": "geometric-red-oval",
+      "input": "geometric-red-oval.png",
+      "sha256": "720b666d391a6573464be049a3918f4f58d8285050b5791793bee2cba8c10174",
+      "difficulty": "easy",
+      "caption": "A red oval sits above a horizontal gray bar on a pale gray background.",
+      "question": "What shape and color is above the gray bar?",
+      "answer": "A red oval."
+    },
+    {
+      "id": "synthetic-product",
+      "input": "../../../../../ui/src/assets/samples/sample-product.png",
+      "sha256": "02a808e2cf507d32d129f5dd9aa44330cada0d9c390fff33f7bcfcafe85dded5",
+      "difficulty": "medium",
+      "caption": "A dark bottle with a yellow cap and trim sits against a blue-to-orange gradient with translucent geometric shapes.",
+      "question": "What colors are the bottle trim and background?",
+      "answer": "The trim is yellow; the background shifts from blue to orange."
+    },
+    {
+      "id": "synthetic-cafe-receipt",
+      "input": "../../../../../ui/src/assets/samples/sample-receipt.png",
+      "sha256": "3e6cf301a2117339c9069f5d1ba5263bbb41d1d67a974eec273317d7a3e30c0c",
+      "difficulty": "hard",
+      "caption": "A LUME CAFE receipt lists espresso for 3.50, croissant for 4.25, orange juice for 3.00, and a total of 10.75.",
+      "question": "What is the total printed on the receipt?",
+      "answer": "10.75."
+    },
+    {
+      "id": "blurred-city-skyline",
+      "input": "../../../../../ui/src/assets/samples/sample-blurry.png",
+      "sha256": "d3d7d8dfe14fa0b7fbbf74cb7879fb0ba0543c55ecd1482fd09b5a9911a4f82a",
+      "difficulty": "hard",
+      "caption": "A blurred night skyline shows dark building silhouettes, a bright yellow moon, and the words CITY HEIGHTS.",
+      "question": "What words appear near the bottom of the image?",
+      "answer": "CITY HEIGHTS."
+    },
+    {
+      "id": "synthetic-avatar",
+      "input": "../../../../../ui/src/assets/samples/sample-portrait.png",
+      "sha256": "6935b81a2312a2ecac8437357f3143c3ee551657880ecbc57e3027720f1eb026",
+      "difficulty": "medium",
+      "caption": "A simple flat illustration shows a smiling person with brown hair, a tan face, and a blue-gray shirt on a pale background.",
+      "question": "What color is the person's shirt?",
+      "answer": "Blue-gray."
+    }
+  ]
+}

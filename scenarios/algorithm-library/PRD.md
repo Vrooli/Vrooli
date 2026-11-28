@@ -17,7 +17,7 @@ A validated, multi-language algorithm and data structure reference library that 
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Multi-language storage | Store algorithm implementations in Python, JavaScript, Go, Java, C++
-- [ ] OT-P0-002 | Algorithm execution | Execute and validate algorithms using Judge0 resource
+- [ ] OT-P0-002 | Algorithm execution | Execute and validate algorithms using the local multi-language executor
 - [ ] OT-P0-003 | Search capability | Provide search by algorithm name, category, and complexity
 - [ ] OT-P0-004 | API endpoints | API endpoints for algorithm retrieval and validation
 - [ ] OT-P0-005 | CLI tool | CLI for testing custom implementations against library
@@ -41,25 +41,24 @@ A validated, multi-language algorithm and data structure reference library that 
 - **UI Stack**: React visualization dashboard with interactive algorithm animations
 - **API Stack**: Go API server for high-performance algorithm retrieval and validation
 - **Data Storage**: PostgreSQL for algorithms, implementations, test cases, and results; optional Redis for caching
-- **Execution Integration**: Judge0 resource for secure sandboxed code execution; local executor fallback for Python/JS/Go/Java/C++
-- **Integration Strategy**: Shared n8n workflow (algorithm-executor.json) for standardized Judge0 execution; resource CLI for database maintenance; direct WebSocket API for real-time execution monitoring
+- **Execution Integration**: Local executor for Python/JS/Go/Java/C++ validation
+- **Integration Strategy**: Direct API execution with resource CLI for database maintenance and WebSocket API for real-time execution monitoring
 - **Non-goals**: Algorithm training/generation (reference library only), proprietary algorithms, production code hosting
 
 ## 🤝 Dependencies & Launch Plan
 
 **Required resources**:
 - PostgreSQL - Store algorithms, metadata, test cases, and results
-- Judge0 - Execute and validate algorithm implementations
 
 **Optional resources**:
 - Redis - Cache frequently accessed algorithms (fallback: direct PostgreSQL queries)
 - Ollama - Generate algorithm explanations (fallback: pre-written static explanations)
 
 **Launch risks**:
-- Judge0 unavailable (mitigation: containerized execution fallback)
+- Local executor unavailable (mitigation: explicit runtime preflight and clear validation errors)
 - Algorithm has bug (mitigation: peer review + extensive test cases)
 - Performance regression (mitigation: continuous benchmarking)
-- Code injection (mitigation: sandboxed Judge0 execution prevents system access)
+- Code injection (mitigation: validation is limited to trusted local development inputs; untrusted-code execution requires a future validated sandbox capability)
 
 **Launch sequence**: Local deployment → Pre-seed 50+ algorithms → Docker Compose → Kubernetes StatefulSet → Cloud deployment (AWS RDS + Lambda)
 
@@ -77,7 +76,6 @@ A validated, multi-language algorithm and data structure reference library that 
 ```yaml
 required:
   - postgres: Algorithms, metadata, test cases storage
-  - judge0: Secure code execution via API
 optional:
   - redis: Caching layer for performance
   - ollama: AI-generated explanations

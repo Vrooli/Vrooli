@@ -1,0 +1,16 @@
+# Keep default secret detection active. The sole allowlisted line is a public
+# OpenPGP fingerprint used to select the signing key; private key material and
+# passphrases are supplied outside the repository.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public OpenPGP fingerprint, not a credential"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^signing\.json$''',
+]
+regexes = [
+  '''^\s*"gpg_key_id":\s*"[A-Fa-f0-9]{40}",?\s*$''',
+]

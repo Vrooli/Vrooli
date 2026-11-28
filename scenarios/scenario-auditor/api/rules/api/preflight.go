@@ -277,7 +277,8 @@ func CheckPreflight(content []byte, filePath string, scenario string) *Violation
 
 	// This rule is for long-running services (APIs), not CLIs
 	normalized := filepath.ToSlash(filePath)
-	if strings.HasPrefix(normalized, "cli/") || strings.Contains(normalized, "/cli/") {
+	if strings.HasPrefix(normalized, "cli/") || strings.Contains(normalized, "/cli/") ||
+		strings.HasPrefix(normalized, "tools/") || strings.Contains(normalized, "/tools/") {
 		return nil
 	}
 
@@ -286,14 +287,13 @@ func CheckPreflight(content []byte, filePath string, scenario string) *Violation
 
 // preflightCheckInfo tracks the preflight implementation
 type preflightCheckInfo struct {
-	found            bool
-	position         int    // statement index in main()
-	isMustRun        bool   // true for MustRun, false for Run
-	hasIfWrapper     bool   // Run must be in if statement
-	hasReturn        bool   // if block must have return
-	scenarioName     string // extracted ScenarioName value
-	lineNumber       int
-	missingComponent string
+	found        bool
+	position     int    // statement index in main()
+	isMustRun    bool   // true for MustRun, false for Run
+	hasIfWrapper bool   // Run must be in if statement
+	hasReturn    bool   // if block must have return
+	scenarioName string // extracted ScenarioName value
+	lineNumber   int
 }
 
 func checkPreflightAST(content []byte, filePath string, scenario string) *Violation {

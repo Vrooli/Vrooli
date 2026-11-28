@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "browser-automation-studio.consumer-declaration/v1",
+  "profiles": [
+    {
+      "key": "operator-account",
+      "workflowRef": "bas/cases/manual-operator/complete-warming-action.json",
+      "allowedVariables": ["ACTION_ID"],
+      "preferences": {
+        "executionMode": "operator-gated"
+      }
+    }
+  ]
+}

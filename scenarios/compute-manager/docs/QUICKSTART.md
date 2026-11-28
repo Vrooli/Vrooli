@@ -1,0 +1,150 @@
+# Quickstart — Compute Manager
+
+Get this scenario running locally in under five minutes. The lifecycle
+handles ports, environment variables, and dependencies — you should
+not need to set anything by hand.
+
+> **Status: this guide starts the scaffold, not the product.** Compute
+> Manager was generated from the `react-vite` template on 2026-09-03 and
+> the template's worked example domain has since been removed, so what
+> starts is a lifecycle-managed API, UI and CLI with a health check and
+> no scenario behaviour behind them. There is no provider adapter, no
+> instance record, no reconciler, no expiry sweeper and no enrollment
+> path. Every step below works today. Nothing below proves that this
+> scenario can acquire, track or retire a single machine, because it
+> cannot yet. For the intended command surface see
+> [`reference/cli-commands.md`](reference/cli-commands.md), and for what
+> is actually implemented read Part 1 of that document.
+
+If the scenario is already running, go directly to the operation you need.
+
+## Prerequisites
+
+- **Vrooli CLI** installed and on `PATH`
+- **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
+- **Node 20+ and pnpm 9+** for the UI bundle
+
+If the Vrooli CLI is missing, run `make setup` from the Vrooli repository root.
+
+## 1 — Setup
+
+From this scenario's directory:
+
+```bash
+make setup
+```
+
+The setup plan is declared in [`.vrooli/service.json`](../.vrooli/service.json). See
+[The Declared Scenario](../../../docs/architecture/the-declared-scenario.md) for
+the shared lifecycle contract.
+
+Use setup for a fresh scaffold or when the lifecycle or dependency gateway
+reports that setup is needed.
+
+## 2 — Start
+
+```bash
+make start
+```
+
+See [`.vrooli/service.json`](../.vrooli/service.json) for component and port
+declarations, and [The Declared Scenario](../../../docs/architecture/the-declared-scenario.md) for
+how the lifecycle uses them.
+
+## 3 — Open
+
+```bash
+make open
+```
+
+Or check the URL directly:
+
+```bash
+vrooli scenario port compute-manager UI_PORT
+```
+
+You should see the template shell: the navigation, a placeholder home
+surface, and a health card rendering live `/health` data from the API.
+The placeholder is marked `PLACEHOLDER:home-surface` in
+`ui/src/pages/DashboardPage.tsx` and is replaced by the real inventory
+surface described in
+[`concepts/EXPERIENCE.md`](concepts/EXPERIENCE.md). The template's worked
+example feature pane was removed with the example domain, so the health
+card is the only live data on the page.
+
+## 4 — Talk to the API
+
+Through the scenario CLI (preferred — uses the resolved port and token
+automatically):
+
+```bash
+compute-manager status
+compute-manager instance list --json
+```
+
+`status` and the `instance` group are the dispatchable
+surface right now. Provider, reconcile, expiry, meter, intent and enroll
+groups are not exposed as separate CLI groups; their current operator
+surfaces are the instance inventory and the web UI.
+Part 2 of [`reference/cli-commands.md`](reference/cli-commands.md) and
+become real only when they are declared in `cli/manifest.json` and bound
+to a handler.
+
+Or directly via HTTP:
+
+```bash
+API_PORT=$(vrooli scenario port compute-manager API_PORT)
+curl -s "http://localhost:${API_PORT}/health"
+# Proto-typed calls hit /vrooli.compute_manager.v1.<domain>.<Service>/<Method>
+```
+
+## 5 — Run the tests
+
+Run the full suite for scaffold validation or when your change warrants it.
+For a focused change, select the relevant phases with
+`vrooli scenario test <name> --phases <relevant-phases>`.
+
+```bash
+make test
+```
+
+This runs the scenario test lifecycle. The current phase list and
+coverage expectations live in `.vrooli/testing.json`,
+`.github/workflows/test.yml`, and [`internal/TESTING.md`](internal/TESTING.md).
+
+## Common follow-up commands
+
+| Command | What it does |
+|---|---|
+| `make logs` | Tail API + UI logs (or `vrooli scenario logs`) |
+| `make status` | Show running surfaces and their ports |
+| `make stop` | Shut everything down cleanly |
+| `make restart` | `stop` then `start` (preferred over manually restarting individual surfaces) |
+
+For scenario-specific commands beyond the lifecycle, use the scenario
+CLI (`compute-manager --help`) — see
+[`reference/cli-commands.md`](reference/cli-commands.md).
+
+## Troubleshooting
+
+If anything misbehaves on first boot, check
+[`guides/troubleshooting.md`](guides/troubleshooting.md). The most
+common first-time issues are:
+
+- A previous scenario instance still holding ports — `make restart`
+- Stale build artifacts after editing source — `make setup` rebuilds
+- Missing `vrooli` CLI — run workspace-root `make setup`
+
+## Next steps
+
+- Read [`START-HERE.md`](START-HERE.md) before implementing product
+  behavior. It owns the first-session workflow after generation.
+- Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
+  mental model: three surfaces, proto bridge, layered API, where to
+  add code.
+- Read [`internal/TESTING.md`](internal/TESTING.md) before writing
+  your first non-trivial test.
+- Update `PRD.md` with your operational targets, then add requirement
+  modules under `requirements/`.
+- Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
+  whenever you land work, so future agents can replay the lifecycle.

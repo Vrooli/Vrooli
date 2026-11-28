@@ -2,12 +2,12 @@
 package performance
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/internal/httpresponse"
 )
 
 // Endpoints handles HTTP endpoints for debug performance data.
@@ -53,15 +53,11 @@ func (e *Endpoints) GetPerformance(w http.ResponseWriter, r *http.Request) {
 	// Get collector for session
 	collector := e.registry.Get(sessionID)
 	if collector == nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(DebugPerformanceResponse{
+		e.respondJSON(w, http.StatusOK, DebugPerformanceResponse{
 			Enabled:   cfg.Performance.Enabled,
 			SessionID: sessionID,
 			Message:   "No performance data for session (session not found or no frames recorded)",
-		}); err != nil && e.log != nil {
-			e.log.WithError(err).Warn("Failed to encode performance response")
-		}
+		})
 		return
 	}
 
@@ -76,11 +72,7 @@ func (e *Endpoints) GetPerformance(w http.ResponseWriter, r *http.Request) {
 		RecentFrames: recentFrames,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(response); err != nil && e.log != nil {
-		e.log.WithError(err).Warn("Failed to encode performance response")
-	}
+	e.respondJSON(w, http.StatusOK, response)
 }
 
 // GetAllPerformance handles GET /debug/performance
@@ -104,11 +96,15 @@ func (e *Endpoints) GetAllPerformance(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(response); err != nil && e.log != nil {
-		e.log.WithError(err).Warn("Failed to encode performance response")
-	}
+	e.respondJSON(w, http.StatusOK, response)
+}
+
+func (e *Endpoints) respondJSON(w http.ResponseWriter, status int, value any) {
+	httpresponse.WriteJSON(w, status, value, func(err error) {
+		if e.log != nil {
+			e.log.WithError(err).Warn("Failed to encode performance response")
+		}
+	})
 }
 
 // RegisterRoutes registers the debug performance routes on a chi router.

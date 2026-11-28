@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.quality;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/quality;quality_v1";
+
+// QualityService describes the reusable evaluator. Image bytes use the
+// multipart /api/v1/quality/evaluate edge; manifests and reports are typed here.
+service QualityService {
+  rpc ListQualityProfiles(ListQualityProfilesRequest) returns (ListQualityProfilesResponse);
+}
+
+message ListQualityProfilesRequest {}
+message SubmitEvaluationResponse {
+  string job_id = 1;
+}
+message ListQualityProfilesResponse {
+  string evaluator_version = 1;
+  repeated QualityProfile profiles = 2;
+  repeated string operations = 3;
+}
+message QualityProfile {
+  string id = 1;
+  string description = 2;
+  repeated string metrics = 3;
+  string rubric = 4;
+}
+
+// Paths are relative to the manifest on the CLI and multipart field names at
+// the API. They are never interpreted as server filesystem paths.
+message EvaluationCase {
+  string id = 1;
+  string input = 2;
+  string reference = 3;
+  string output = 4;
+  string reference_text = 5;
+  string output_text = 6;
+  string instruction = 7;
+  string cohort = 8;
+  // Optional identity assertions make a committed corpus refuse changed input.
+  string input_sha256 = 9;
+  string reference_sha256 = 10;
+  string output_sha256 = 11;
+  // Reference alpha is taken from the alpha channel. Use a grayscale image
+  // with profile mask for a mask stored in RGB/luminance instead.
+  map<string, string> labels = 12;
+}
+
+message MetricBudget {
+  string metric = 1;
+  // case (default) or mean. Unknown/missing metrics never pass a budget.
+  string scope = 2;
+  optional double minimum = 3;
+  optional double maximum = 4;
+  // Candidate minus baseline in the metric's direction of improvement.
+  // A positive tolerance permits that much loss; 0 permits none.
+  optional double max_regression = 5;
+  // A promotion must prove a strictly positive gain on at least one declared
+  // metric while satisfying every non-regression and absolute budget.
+  optional double min_improvement = 6;
+}
+
+message EvaluationManifest {
+  uint32 schema_version = 1;
+  string name = 2;
+  string operation = 3;
+  string profile = 4;
+  string dataset_id = 5;
+  string candidate_model = 6;
+  string candidate_revision = 7;
+  repeated EvaluationCase cases = 8;
+  repeated MetricBudget budgets = 9;
+  // required (default) or disabled. Disabled reports cannot qualify a model
+  // promotion; they are useful for deterministic regression suites.
+  string judge = 10;
+  string rubric = 11;
+  // Expected local judge identity; a changed role resolution fails closed.
+  string judge_model = 12;
+}
+
+message JudgeResult {
+  string provider = 1;
+  string model = 2;
+  double fidelity = 3;
+  double instruction = 4;
+  double artifacts = 5;
+  string rationale = 6;
+  int64 duration_ms = 7;
+  string rubric_sha256 = 8;
+  bool validated = 9;
+  string route_event_id = 10;
+  string capacity_claim_id = 11;
+  string capacity_ownership = 12;
+}
+
+message CaseScore {
+  string id = 1;
+  string cohort = 2;
+  string input_sha256 = 3;
+  string reference_sha256 = 4;
+  string output_sha256 = 5;
+  map<string, double> metrics = 6;
+  JudgeResult judge = 7;
+  repeated string errors = 8;
+  repeated string warnings = 9;
+  int64 duration_ms = 10;
+  string case_sha256 = 11;
+}
+
+message GateViolation {
+  string case_id = 1;
+  string metric = 2;
+  string reason = 3;
+  optional double observed = 4;
+  optional double limit = 5;
+}
+
+message EvaluationReport {
+  uint32 schema_version = 1;
+  string evaluator_version = 2;
+  string job_id = 3;
+  string result_ref = 4;
+  string name = 5;
+  string operation = 6;
+  string profile = 7;
+  string dataset_id = 8;
+  string candidate_model = 9;
+  string candidate_revision = 10;
+  // Set identity excludes candidate outputs/model and includes case IDs,
+  // references, inputs, instructions and evaluator/judge configuration.
+  string suite_sha256 = 11;
+  string policy_sha256 = 12;
+  string report_sha256 = 13;
+  string baseline_sha256 = 14;
+  repeated CaseScore cases = 15;
+  map<string, double> means = 16;
+  repeated GateViolation violations = 17;
+  bool passed = 18;
+  bool complete = 19;
+  bool promotion_eligible = 20;
+  string judge_model = 21;
+  string started_at = 22;
+  int64 duration_ms = 23;
+  repeated string limits = 24;
+  repeated MetricBudget budgets = 25;
+}

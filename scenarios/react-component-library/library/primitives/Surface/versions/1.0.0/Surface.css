@@ -1,0 +1,5 @@
+[data-rcl-surface] { background: var(--color-surface); border: var(--surface-border); border-radius: var(--panel-radius); }
+[data-rcl-surface][data-elevation="flat"] { box-shadow: var(--elev-flat); }
+[data-rcl-surface][data-elevation="raised"] { box-shadow: var(--elev-raised); }
+[data-rcl-surface][data-elevation="floating"] { box-shadow: var(--elev-floating); }
+[data-rcl-surface][data-elevation="overlay"] { box-shadow: var(--elev-overlay); }

@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/repo"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
-func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
+func TestPrinterKeepsFailureReportConcise(t *testing.T) {
 	tmp := t.TempDir()
 
 	unitLog := filepath.Join(tmp, "unit.log")
@@ -44,14 +45,14 @@ func TestPrinterIncludesGuidesAndInsights(t *testing.T) {
 	pr.Print(resp)
 
 	out := buf.String()
-	for _, token := range []string{
-		"QUICK FIX GUIDE:",
-		"PHASE-SPECIFIC DEBUG GUIDES:",
-		"UI bundle",
-		"artifact roots:",
-	} {
+	for _, token := range []string{"ERROR DIGEST:", "UI bundle", "artifact roots:"} {
 		if !strings.Contains(out, token) {
 			t.Fatalf("expected output to contain %q\n----\n%s\n----", token, out)
+		}
+	}
+	for _, token := range []string{"QUICK FIX GUIDE:", "PHASE-SPECIFIC DEBUG GUIDES:", "DOCUMENTATION:"} {
+		if strings.Contains(out, token) {
+			t.Fatalf("failure report should not reintroduce redundant section %q\n----\n%s\n----", token, out)
 		}
 	}
 }
@@ -107,12 +108,34 @@ func TestPrintResultsCondensedReplay(t *testing.T) {
 func TestPrintPrePlanShowsDocs(t *testing.T) {
 	var buf bytes.Buffer
 	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
-	pr.PrintPreExecution([]string{"lint"})
+	pr.PrintPreExecution([]string{"quality"})
 
 	out := buf.String()
-	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/lint/README.md")
+	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/quality/README.md")
 	if !strings.Contains(out, "docs: "+expectedDoc) {
-		t.Fatalf("expected lint doc link in plan, got:\n%s", out)
+		t.Fatalf("expected quality doc link in plan, got:\n%s", out)
+	}
+}
+
+func TestPrinterUsesRequestedPresetFallbackAndPreservesResponsePreset(t *testing.T) {
+	tests := []struct {
+		name         string
+		response     string
+		requested    string
+		wantInOutput string
+	}{
+		{name: "blank response uses requested preset", response: " \t", requested: "safe-default", wantInOutput: "Preset: safe-default"},
+		{name: "response preset remains unchanged", response: "  quick  ", requested: "safe-default", wantInOutput: "Preset:   quick  "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			pr := New(&buf, "demo", tt.requested, nil, nil, false, nil, nil)
+			pr.Print(execTypes.Response{PresetUsed: tt.response})
+			if !strings.Contains(buf.String(), tt.wantInOutput) {
+				t.Fatalf("Printer output = %q, want it to contain %q", buf.String(), tt.wantInOutput)
+			}
+		})
 	}
 }
 
@@ -147,5 +170,14 @@ func TestPassedPhaseWarningsAreSurfaced(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "warnings: resource telemetry unavailable") {
 		t.Fatalf("expected warning details to be surfaced for passed phase:\n%s", out)
+	}
+}
+
+func TestPrinterSurfacesNotEvaluatedPhaseCount(t *testing.T) {
+	var buf bytes.Buffer
+	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
+	pr.Print(execTypes.Response{Success: false, Verdict: "NOT_EVALUATED", PhaseSummary: execTypes.PhaseSummary{Total: 1, NotEvaluated: 1}})
+	if !strings.Contains(buf.String(), "1 not evaluated") {
+		t.Fatalf("human report must make missing evaluation visible: %s", buf.String())
 	}
 }

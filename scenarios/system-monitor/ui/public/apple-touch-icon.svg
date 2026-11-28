@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-labelledby="title">
+  <title>Vrooli System Monitor</title>
+  <rect width="180" height="180" rx="42" fill="#0b0e0f"/>
+  <path d="M22 99h29l14-36 22 75 20-54 12 22h39" fill="none" stroke="#5fd3a6" stroke-linecap="round" stroke-linejoin="round" stroke-width="14"/>
+  <circle cx="142" cy="110" r="11" fill="#e0a542"/>
+</svg>

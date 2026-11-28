@@ -1,33 +1,14 @@
+import { playwrightProvider } from '../../../src/playwright';
 import { handleHealth } from '../../../src/routes/health';
 import { SessionManager } from '../../../src/session/manager';
-import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createMockBrowser } from '../../helpers';
 
-// Mock playwright - must be inline to avoid hoisting issues
-jest.mock('playwright', () => ({
-  chromium: {
-    launch: jest.fn().mockResolvedValue({
-      newContext: jest.fn().mockResolvedValue({
-        newPage: jest.fn().mockResolvedValue({
-          on: jest.fn(),
-          goto: jest.fn().mockResolvedValue(null),
-          close: jest.fn().mockResolvedValue(undefined),
-          evaluate: jest.fn().mockResolvedValue(undefined),
-          viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-        }),
-        clearCookies: jest.fn().mockResolvedValue(undefined),
-        clearPermissions: jest.fn().mockResolvedValue(undefined),
-        close: jest.fn().mockResolvedValue(undefined),
-        tracing: {
-          start: jest.fn().mockResolvedValue(undefined),
-          stop: jest.fn().mockResolvedValue(undefined),
-        },
-      }),
-      close: jest.fn().mockResolvedValue(undefined),
-      isConnected: jest.fn().mockReturnValue(true),
-      version: jest.fn().mockReturnValue('mock-version'),
-    }),
-  },
-}));
+// Exercise the actual configured provider through the existing fixture seam.
+let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
+beforeEach(() => {
+  launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(createMockBrowser());
+});
+afterEach(() => launchSpy.mockRestore());
 
 describe('Health Route', () => {
   let sessionManager: SessionManager;
@@ -60,6 +41,44 @@ describe('Health Route', () => {
     // Status is 'degraded' when browser hasn't been verified yet
     expect(['ok', 'degraded']).toContain(json.status);
     expect(json.sessions).toBe(0);
+    expect(json.browser.runtime_identity_status).toBe('unavailable');
+    expect(json.browser.version).toBeUndefined();
+  });
+
+  it('reports the actual browser version only after a connected launch', async () => {
+    await sessionManager.verifyBrowserLaunch();
+    const { sessionId } = await sessionManager.startSession({
+      execution_id: 'exec-health-identity',
+      workflow_id: 'workflow-health-identity',
+      base_url: 'about:blank',
+      viewport: { width: 1280, height: 720 },
+      reuse_mode: 'fresh',
+      required_capabilities: {},
+    });
+    expect(sessionId).toBeTruthy();
+
+    const mockRes = createMockHttpResponse();
+    handleHealth(createMockHttpRequest({ method: 'GET', url: '/health' }), mockRes, sessionManager);
+    const json = mockRes.getJSON();
+    expect(json.browser.runtime_identity_status).toBe('reported');
+    expect(json.browser.family).toBe('chromium');
+    expect(json.browser.version).toBe('mock-browser-version');
+    expect(json.driver_version).toBeDefined();
+  });
+
+  it('marks live identity unavailable after the browser disconnects', async () => {
+    const disconnected = createMockBrowser();
+    launchSpy.mockResolvedValue(disconnected);
+    await sessionManager.verifyBrowserLaunch();
+    disconnected.isConnected.mockReturnValue(false);
+
+    const mockRes = createMockHttpResponse();
+    handleHealth(createMockHttpRequest({ method: 'GET', url: '/health' }), mockRes, sessionManager);
+    const json = mockRes.getJSON();
+    expect(json.browser.healthy).toBe(true);
+    expect(json.browser.runtime_identity_status).toBe('unavailable');
+    expect(json.browser.version).toBeUndefined();
+    expect(json.checks.browser.message).toContain('live runtime identity unavailable');
   });
 
   it('should count sessions', async () => {
@@ -80,5 +99,19 @@ describe('Health Route', () => {
 
     const json = mockRes.getJSON();
     expect(json.sessions).toBe(1);
+  });
+
+  it('does not refresh idle activity while health is polled', async () => {
+    const { sessionId } = await sessionManager.startSession({
+      execution_id: 'exec-idle', workflow_id: 'workflow-idle', base_url: 'https://example.com',
+      viewport: { width: 1280, height: 720 }, reuse_mode: 'fresh', required_capabilities: {},
+    });
+    const session = sessionManager.peekSession(sessionId);
+    session.lastUsedAt = new Date(Date.now() - 10 * 60 * 1000);
+    for (let index = 0; index < 3; index++) {
+      handleHealth(createMockHttpRequest({ method: 'GET', url: '/health' }), createMockHttpResponse(), sessionManager);
+    }
+    await sessionManager.cleanupIdleSessions();
+    expect(() => sessionManager.peekSession(sessionId)).toThrow();
   });
 });

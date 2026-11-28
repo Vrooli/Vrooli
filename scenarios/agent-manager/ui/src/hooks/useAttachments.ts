@@ -12,6 +12,7 @@
  */
 import { useState, useCallback } from "react";
 import { getApiBaseUrl } from "../lib/utils";
+import { fetchWithDeadline } from "../lib/api";
 
 export interface UploadResponse {
   id: string;
@@ -77,7 +78,7 @@ async function defaultUploadAttachment(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${base}/attachments/upload`, {
+  const res = await fetchWithDeadline(`${base}/attachments/upload`, {
     method: "POST",
     body: formData,
   });

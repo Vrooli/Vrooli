@@ -1,0 +1,223 @@
+package jobs
+
+import (
+	"log"
+	"net/http"
+	"time"
+
+	internaljobs "image-tools/internal/jobs"
+	"image-tools/internal/module"
+	"image-tools/internal/verdicts"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+
+	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
+)
+
+// waitDeadlineClearer removes the per-request server write deadline for the two
+// long-lived procedures. api-core installs a 30 s WriteTimeout (a sensible bound
+// for every ordinary request), but WaitJob and WatchJob are defined to block for
+// as long as the job runs, so a queued job over 30 s would kill the response
+// with "unavailable: unexpected EOF". Clearing the deadline for exactly these two
+// paths keeps the bound everywhere else.
+type waitDeadlineClearer struct{ next http.Handler }
+
+func (h waitDeadlineClearer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case jobsconnect.JobsServiceWaitJobProcedure, jobsconnect.JobsServiceWatchJobProcedure:
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+	}
+	h.next.ServeHTTP(w, r)
+}
+
+// Module returns the jobs domain's contribution: the generated Connect-RPC
+// JobsService handler over the server-owned durable job Manager. The Manager is
+// constructed and Started in main.go (it needs the server-lifetime context so a
+// client disconnect never destroys in-flight work); this module only exposes its
+// lifecycle verbs.
+func Module(mgr JobManager, ratings *verdicts.Ratings, logger *log.Logger) module.Module {
+	connectPath, connectHandler := jobsconnect.NewJobsServiceHandler(NewConnectHandler(Deps{
+		Manager: mgr,
+		Ratings: ratings,
+		Logger:  logger,
+	}))
+	return module.Module{
+		Name: "jobs",
+		Mount: func(r *mux.Router) {
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: waitDeadlineClearer{next: connectHandler}})
+			r.Handle("/api/v1/jobs/telemetry/heavy", newHeavyJobSnapshotHandler(mgr)).Methods(http.MethodGet)
+		},
+		Endpoints: Endpoints,
+	}
+}
+
+// Schema re-exports internaljobs.Schema so the modules registry collects
+// endpoint descriptors and schema from one symbol per handler package.
+func Schema() string { return internaljobs.Schema() }
+
+// Endpoints describes the jobs module's public surface. Connect-RPC method paths
+// reference the generated *Procedure constants, so renaming an RPC in jobs.proto
+// breaks this file at compile time; the global parity test asserts one endpoint
+// per rpc.
+var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:            "jobs_heavy_telemetry",
+		Path:          "/api/v1/jobs/telemetry/heavy",
+		Method:        http.MethodGet,
+		Summary:       "Read active heavyweight job ownership telemetry",
+		Description:   "Returns a bounded, report-only snapshot of image-tools heavyweight jobs and active server-side WaitJob/WatchJob consumers for system-monitor attribution.",
+		Category:      "jobs",
+		Response:      &module.Schema{Type: "object", Properties: map[string]string{"observed_at": "RFC3339 timestamp", "complete": "boolean", "jobs": "array<HeavyJobObservation>"}},
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Owner-internal telemetry endpoint for system-monitor. It observes durable job wait edges; it cannot cancel jobs or alter admission."},
+	},
+	{
+		ID:          "jobs_get",
+		Path:        jobsconnect.JobsServiceGetJobProcedure,
+		Method:      "POST",
+		Summary:     "Get a job by id",
+		Description: "Returns the current durable-job record for one job id.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"job": "Job"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No job with that id exists"},
+		},
+		Examples: []module.Example{
+			{Name: "Get a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/GetJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
+		},
+	},
+	{
+		ID:          "jobs_wait",
+		Path:        jobsconnect.JobsServiceWaitJobProcedure,
+		Method:      "POST",
+		Summary:     "Wait for a job (block-once)",
+		Description: "Blocks server-side until the job reaches a terminal state, then returns it. A client disconnect does not affect the job. This is the canonical wait verb — never poll GetJob in a loop.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"job": "Job (terminal)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No job with that id exists"},
+		},
+		Examples: []module.Example{
+			{Name: "Wait for a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WaitJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
+		},
+	},
+	{
+		ID:          "jobs_list",
+		Path:        jobsconnect.JobsServiceListJobsProcedure,
+		Method:      "POST",
+		Summary:     "List recent jobs",
+		Description: "Returns recent durable jobs, newest first.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"limit": "int32 (0 = server default)"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"jobs": "array<Job>"},
+		},
+		Examples: []module.Example{
+			{Name: "List jobs", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/ListJobs -H 'Content-Type: application/json' -d '{\"limit\":20}'"},
+		},
+	},
+	{
+		ID:          "jobs_cancel",
+		Path:        jobsconnect.JobsServiceCancelJobProcedure,
+		Method:      "POST",
+		Summary:     "Cancel a job",
+		Description: "Aborts a job: a running job's context is canceled; a queued job is marked canceled immediately. Returns the post-cancel record.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"job": "Job"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No job with that id exists"},
+		},
+		Examples: []module.Example{
+			{Name: "Cancel a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/CancelJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
+		},
+	},
+	{
+		ID:          "jobs_watch",
+		Path:        jobsconnect.JobsServiceWatchJobProcedure,
+		Method:      "POST",
+		Summary:     "Watch a job's progress (server stream)",
+		Description: "Server-streams progress events for a job until it reaches a terminal state. The latest known event is replayed first. Backs SSE-style live progress in the UI.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string"},
+		},
+		Response: &module.Schema{
+			Type:       "stream",
+			Properties: map[string]string{"event": "ProgressEvent (stream)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No job with that id exists"},
+		},
+		Examples: []module.Example{
+			{Name: "Watch a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WatchJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
+		},
+	},
+	{
+		ID:          "jobs_rate",
+		Path:        jobsconnect.JobsServiceRateJobProcedure,
+		Method:      "POST",
+		Summary:     "Rate a job's output",
+		Description: "Records the operator's 1-5 rating and optional note for a succeeded job, replacing an earlier rating. Ratings feed the evidence-derived model verdicts.",
+		Category:    "jobs",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"job_id": "string", "score": "int32 (1-5)", "note": "string (optional, max 1000 chars)", "actor": "string (optional; who is rating)"},
+		},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"rating": "JobRating"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Score outside 1-5 or note too long"},
+			{Status: 404, Code: "not_found", Description: "The job has no recorded result"},
+			{Status: 412, Code: "failed_precondition", Description: "Only a succeeded job has an output to rate"},
+		},
+		Examples: []module.Example{
+			{Name: "Rate a result 4 of 5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/RateJob -H 'Content-Type: application/json' -d '{\"job_id\":\"<job-id>\",\"score\":4,\"note\":\"kept the face\"}'"},
+		},
+	},
+	{
+		ID:          "jobs_rating_clear",
+		Path:        jobsconnect.JobsServiceClearJobRatingProcedure,
+		Method:      "POST",
+		Summary:     "Clear a job's rating",
+		Description: "Removes the operator's rating for a job.",
+		Category:    "jobs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string"}},
+		Response:    &module.Schema{Type: "object"},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "The job has no rating"}},
+	},
+	{
+		ID:          "jobs_ratings_list",
+		Path:        jobsconnect.JobsServiceListJobRatingsProcedure,
+		Method:      "POST",
+		Summary:     "List job ratings",
+		Description: "Returns the operator's ratings newest first, optionally narrowed to a model and/or operation. This is the evidence behind a verdict's operator-rating line.",
+		Category:    "jobs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"model_id": "string (optional)", "operation": "string (optional)", "limit": "int32 (default 50)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"ratings": "array<JobRating>"}},
+	},
+}

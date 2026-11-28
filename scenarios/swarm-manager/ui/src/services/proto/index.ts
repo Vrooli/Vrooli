@@ -25,9 +25,17 @@ export {
   deleteScenarioResponseSchema,
   specSyncArchiveResponseSchema,
   scenarioFilesResponseSchema,
+  previewScenarioRemediationResponseSchema,
+  applyScenarioRemediationResponseSchema,
+  previewScenarioMaturityCampaignResponseSchema,
+  applyScenarioMaturityCampaignResponseSchema,
   DeleteScenarioRequestSchema,
   PreserveFilesRequestSchema,
   SpecSyncArchiveRequestSchema,
+  PreviewScenarioRemediationRequestSchema,
+  ApplyScenarioRemediationRequestSchema,
+  PreviewScenarioMaturityCampaignRequestSchema,
+  ApplyScenarioMaturityCampaignRequestSchema,
   mapProtoScenario,
   mapProtoScenarioFile,
   mapDeleteScenarioResponse,
@@ -45,6 +53,7 @@ export {
 export {
   settingsResponseSchema,
   mapProtoSettings,
+  mapProtoPolicyProjection,
 } from "./settings-contracts";
 
 export {
@@ -60,3 +69,34 @@ export {
 export {
   graphResponseSchema,
 } from "./graph-contracts";
+
+export {
+  planBoardResponseSchema,
+} from "./plan-contracts";
+
+export {
+  listAgentSessionsResponseSchema,
+  getAgentSessionResponseSchema,
+  getAgentSessionStartupBriefResponseSchema,
+  previewAgentSessionPromptResponseSchema,
+  createAgentSessionResponseSchema,
+	changeAgentSessionKindResponseSchema,
+  startAgentSessionResponseSchema,
+  continueAgentSessionResponseSchema,
+  listAgentSessionEventsResponseSchema,
+  refreshAgentSessionResponseSchema,
+  cancelAgentSessionResponseSchema,
+  deleteAgentSessionResponseSchema,
+  applyAgentSessionProposalResponseSchema,
+  listAgentSessionArtifactsResponseSchema,
+  getArtifactsByEntityResponseSchema,
+  uploadAgentSessionAttachmentsResponseSchema,
+  mapProtoAgentSession,
+  mapProtoAgentSessionMessage,
+  mapProtoAgentSessionContextItem,
+  mapProtoAgentSessionAttachment,
+  mapProtoAgentSessionProposal,
+  mapProtoAgentSessionArtifact,
+  mapProtoAgentSessionAttribution,
+  mapProtoAgentSessionRunEvent,
+} from "./agent-session-contracts";

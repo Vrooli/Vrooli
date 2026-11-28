@@ -1,0 +1,115 @@
+{
+  "bundling": "host-required",
+  "cli": {
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "command": "resource-cogvideo",
+    "distribution": {
+      "artifact_name": "resource-cogvideo_${os}_${arch}",
+      "kind": "prebuilt_artifact"
+    },
+    "enabled": true,
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "invoke": {
+      "command": "resource-cogvideo",
+      "kind": "installed_command"
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "description": "Local video generation resource",
+  "display_name": "cogvideo",
+  "driver": "managed-service",
+  "ports": [
+    {
+      "name": "http",
+      "container": 8188,
+      "host": 8188
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "interval_seconds": 5,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "managed_service": {
+    "artifact": {
+      "path": "server/cogvideo",
+      "verification": "host-tool",
+      "version": "0.1.0"
+    },
+    "provider_policy": {
+      "allowed_modes": [
+        "managed-private"
+      ],
+      "external_management": "forbidden",
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      }
+    }
+  },
+  "name": "cogvideo",
+  "privilege": "user",
+  "requirements": {
+    "class": "developer-tooling",
+    "confidence": "low",
+    "source": "estimated",
+    "weight": 1
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "CogVideo runs only through the control-plane Docker lifecycle with a GPU backend; no desktop bundle or installer exists."
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "CogVideo runs only through the control-plane Docker lifecycle with a GPU backend; no desktop bundle or installer exists."
+          ]
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined.",
+          "limitations": [
+            "CogVideo runs only through the control-plane Docker lifecycle with a GPU backend; no desktop bundle or installer exists."
+          ]
+        }
+      }
+    }
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "build-verified",
+    "windows": "build-verified"
+  }
+}

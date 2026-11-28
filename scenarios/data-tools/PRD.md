@@ -658,7 +658,7 @@ structure:
     - PRD.md
     - api/main.go
     - cli/data-tools
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
     - scenario-test.yaml
     
 resources:

@@ -20,7 +20,7 @@
 ## Runtime Behavior
 
 1. The automation compiler forwards gesture params (type, selector, direction, distance, duration, steps, hold, scale, coordinates) as-is; validation/clamping runs in the workflow validator.
-2. `api/browserless/cdp/gestures.go:14-118` resolves the anchor point (selector center or viewport center/coordinates) and dispatches the requested gesture via `Input.dispatchTouchEvent`, automatically constructing swipe paths or pinch arcs.
+2. The Playwright driver resolves the anchor point (selector center or viewport center/coordinates) and dispatches the requested gesture via `Input.dispatchTouchEvent`, automatically constructing swipe paths or pinch arcs.
 3. Execution artifacts capture the resolved anchor, generated coordinates, and gesture metadata, making failed gestures easy to diagnose from telemetry alone.
 
 ## Example
@@ -40,7 +40,7 @@
 
 ## Tips
 
-- Provide a selector whenever possible so Browserless can keep gestures aligned with responsive layouts.
+- Provide a selector whenever possible so the Playwright driver can keep gestures aligned with responsive layouts.
 - Explicit start/end coordinates are useful for canvas apps; omit them for standard scroll views so BAS auto-computes safe swipe paths.
 - Pair with `Rotate` and `Scroll` nodes to cover realistic mobile navigation flows.
 - Use `Wait` after long gestures if the app triggers animations (e.g., map zoom) so downstream assertions stay deterministic.

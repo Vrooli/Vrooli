@@ -1,0 +1,29 @@
+/* rcl:tokens:begin */
+  --border-hairline: 1px;
+  --color-danger: #dc2626;
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+  --color-primary-foreground: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --dur-moderate: 280ms;
+  --dur-quick: 180ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --elev-overlay: 0 2px 4px rgba(9, 18, 22, .06), 0 4px 12px rgba(9, 18, 22, .10);
+  --elev-raised: 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10);
+  --font-size-sm: 14px;
+  --radius-control: 0.375rem;
+  --radius-panel: 0.5rem;
+  --radius-pill: 9999px;
+  --space-2xs: 8px;
+  --space-3xs: 4px;
+  --space-lg: 32px;
+  --space-md: 24px;
+  --space-sm: 16px;
+  --space-xl: 40px;
+  --space-xs: 12px;
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+/* rcl:tokens:end */

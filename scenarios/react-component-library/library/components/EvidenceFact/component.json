@@ -1,0 +1,24 @@
+{
+  "category": "uncategorized",
+  "deprecatedVersions": [],
+  "description": "Accessible definition-list value with optional evidence disclosure",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "Evidence Fact",
+  "draft": "",
+  "entry": "EvidenceFact.tsx",
+  "kind": "control",
+  "latest": "0.1.0",
+  "libraryId": "react-component-library:EvidenceFact",
+  "slot": "ui-pattern",
+  "supplemental": true,
+  "tags": [
+    "evidence",
+    "data-display"
+  ]
+}

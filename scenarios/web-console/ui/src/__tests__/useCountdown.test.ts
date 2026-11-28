@@ -20,6 +20,13 @@ describe("useCountdown", () => {
     expect(result.current).toBeNull();
   });
 
+  it("returns null for idle mode, which has no deadline from creation", () => {
+    const { result } = renderHook(() =>
+      useCountdown(new Date().toISOString(), "idle", "6h"),
+    );
+    expect(result.current).toBeNull();
+  });
+
   it("returns null when duration is undefined", () => {
     const { result } = renderHook(() =>
       useCountdown(new Date().toISOString(), "preset", undefined),

@@ -1,14 +1,38 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2026-01-30T11:19:51-05:00",
+  "description": "Judge a skill on two questions: is its contract true and executable, and is it cheap and well-conditioned. Divergence probe, efficiency and conditioning defects, severity-classified findings and a Prose Retirement Map.",
+  "entry": "SKILL.md",
+  "icon": "check-circle",
   "id": "skill-validation",
-  "name": "Skill Validation",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "meta"
   ],
+  "name": "Skill Validation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager action",
+      "prompt-manager discover",
+      "prompt-manager skill",
+      "prompt-manager skill read",
+      "prompt-manager skill-set validate"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 50,
+  "schemaVersion": 1,
   "status": "active",
-  "entry": "SKILL.md",
-  "revision": 44,
-  "createdAt": "2026-01-30T11:19:51-05:00",
-  "updatedAt": "2026-02-04T13:13:54Z"
+  "tags": [
+    "skill",
+    "quality",
+    "validation",
+    "improvement"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

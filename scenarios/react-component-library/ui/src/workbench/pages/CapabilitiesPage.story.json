@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Capability readiness",
+  "route": "/capabilities",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "route": "/capabilities",
+      "apiState": [
+        {
+          "path": "/api/v1/capabilities/describe",
+          "method": "GET",
+          "status": 200,
+          "body": {
+            "definitions": [
+              {
+                "id": "agent-manager",
+                "name": "Agent Manager",
+                "description": "Assisted extraction and adoption workflows.",
+                "dependencyKind": "scenario",
+                "dependencySlug": "agent-manager",
+                "operatorCommand": "vrooli scenario start agent-manager",
+                "required": false
+              }
+            ],
+            "states": [
+              {
+                "id": "agent-manager",
+                "name": "Agent Manager",
+                "description": "Assisted extraction and adoption workflows.",
+                "dependencyKind": "scenario",
+                "dependencySlug": "agent-manager",
+                "status": "available",
+                "message": "scenario is healthy",
+                "operatorCommand": "vrooli scenario start agent-manager",
+                "checkedAt": "2026-11-18T12:00:00Z",
+                "required": false
+              }
+            ]
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "What the library can rely on"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"capabilities-page\"]"
+        }
+      ]
+    }
+  ]
+}

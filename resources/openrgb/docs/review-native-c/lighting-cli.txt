@@ -1,0 +1,6 @@
+ok  	lighting-control/cli	0.026s
+ok  	lighting-control/cli/domains	0.006s
+ok  	lighting-control/cli/domains/control	0.015s
+ok  	lighting-control/cli/domains/policy	0.012s
+ok  	lighting-control/cli/domains/setup	0.013s
+ok  	lighting-control/cli/internal/testutil	0.028s

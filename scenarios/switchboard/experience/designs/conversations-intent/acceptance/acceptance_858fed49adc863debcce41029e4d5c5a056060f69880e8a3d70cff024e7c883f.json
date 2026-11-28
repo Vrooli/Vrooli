@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "acceptance_858fed49adc863debcce41029e4d5c5a056060f69880e8a3d70cff024e7c883f",
+  "hash": "b5329b1b4372e0b58c82d8bf15c9e648d6681ce5db1e68bc7eabc34c71fb739f",
+  "state": "needs_evidence",
+  "intent": {
+    "designId": "conversations-intent",
+    "candidateHash": "e69b32109af57dba6a736e0550fe39880f9d24d43375ec50424f1b5d299fa782",
+    "expectedRenderHash": "496a30b14407c6bdb8101eab53d7ddd97d312f0b1f16bfda4d2a7bf058b70675",
+    "actor": "codex-design-goal",
+    "kit": "vrooli-default",
+    "theme": "light",
+    "direction": "ltr",
+    "previewState": "triage",
+    "missingLabel": "Missing region",
+    "failedLabel": "Failed region",
+    "critiqueIds": []
+  },
+  "baseHash": "30b694d4d0f72650dd6b0f6186fdda5ac3d02b421c72510b6c4eaa85ececd3fe",
+  "facts": {
+    "policyVersion": "design-acceptance/1",
+    "candidateHash": "e69b32109af57dba6a736e0550fe39880f9d24d43375ec50424f1b5d299fa782",
+    "renderHash": "496a30b14407c6bdb8101eab53d7ddd97d312f0b1f16bfda4d2a7bf058b70675",
+    "inputHashes": {
+      "appearance": "5fbe5d13bfa934e237939689c81a1afa2b1939124e7a10f4f8357a413733b179",
+      "bindings": "081bfa124491023479e65e7a40d95862889dbe349b44ed60b4b9b75bdf834804",
+      "bundle": "cbab277d402af7eac2cc88d889c54d25f2dcf31401d74026cdb50e59c14db040",
+      "bundle_identity": "a8d04f6c6c0895a2b663466878152e043f335fb69e60768ba13154b74fa949b2",
+      "composition": "4443d32df22f093f6d53650fd4c978c5e662289483878168457ef47b52e41ab4",
+      "css": "b18aba69716003804f0f011c7b56505ecbff36793381681c4819544113a20e31",
+      "dependencies": "e7f846d7472891beda115ce13a221d01ca2e9b31add1ea5829b17a58104098ba",
+      "fixtures": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "harness": "58eb13952fd836ac3c2c96e66d9fce18040eb9e3a5cbee1955d7f99c5da80561",
+      "import_map": "d9eb6ef68c7dc8503073c82fd682e7764ad89a743499772aac775c415f5ff50c",
+      "javascript": "4205a1d7281a2bf9c04729ab7ee3bfb06bed824371f3f8f09e0820eb0594da5c"
+    },
+    "requirements": [
+      {
+        "code": "page_freshness",
+        "status": "passed",
+        "detail": "The candidate still derives from the current authored page.",
+        "evidenceIds": [
+          "30b694d4d0f72650dd6b0f6186fdda5ac3d02b421c72510b6c4eaa85ececd3fe"
+        ]
+      },
+      {
+        "code": "render_freshness",
+        "status": "passed",
+        "detail": "Current rendering inputs match the reviewed render.",
+        "evidenceIds": [
+          "496a30b14407c6bdb8101eab53d7ddd97d312f0b1f16bfda4d2a7bf058b70675"
+        ]
+      },
+      {
+        "code": "render_completeness",
+        "status": "passed",
+        "detail": "No required region is unresolved in the current generated render.",
+        "evidenceIds": [
+          "496a30b14407c6bdb8101eab53d7ddd97d312f0b1f16bfda4d2a7bf058b70675"
+        ]
+      },
+      {
+        "code": "visual_review",
+        "status": "blocked",
+        "detail": "Record an evidence-linked visual review of this exact candidate and render."
+      },
+      {
+        "code": "behavior_evidence",
+        "status": "unavailable",
+        "detail": "Acceptance still requires current producer-owned deterministic behavior and journey evidence."
+      },
+      {
+        "code": "rubric_calibration",
+        "status": "unavailable",
+        "detail": "The visual rubric has no versioned human-reviewed calibration corpus yet."
+      },
+      {
+        "code": "independent_review",
+        "status": "unavailable",
+        "detail": "Final demonstration acceptance requires an attributable independent review."
+      }
+    ]
+  },
+  "createdAt": "2026-09-05T21:23:23.64603067Z",
+  "completedAt": "2026-09-05T21:23:24.878456767Z"
+}

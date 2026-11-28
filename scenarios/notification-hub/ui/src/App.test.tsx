@@ -1,0 +1,41 @@
+/**
+ * App tests — smoke only.
+ *
+ * `App` is a tiny composition of `<Providers>` + `<AppRouter>`. Per-route
+ * behaviour lives in `app/routes.test.tsx`, shell wiring in
+ * `layout/AppShell.test.tsx`, theme persistence in
+ * `theme/ThemeProvider.test.tsx`. This file uses `TestAppRouter` directly
+ * because `<App>` mounts `createBrowserRouter`, which doesn't play with the
+ * memory-router wrapper inside `renderWithProviders`.
+ */
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
+
+import { renderWithProviders } from "./test-utils";
+import App from "./App";
+import { Providers } from "./app/providers";
+import { TestAppRouter } from "./app/routes";
+import { selectors } from "./consts/selectors";
+
+describe("App composition", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the shell title (smoke: providers + routes wire up)", () => {
+    renderWithProviders(
+      <Providers>
+        <TestAppRouter initialEntries={["/"]} />
+      </Providers>,
+      { withoutRouter: true },
+    );
+    // Both responsive brand locations can be mounted; visibility belongs to the shell.
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
+  });
+
+  it("mounts the production composition with the browser router", () => {
+    window.history.pushState({}, "", "/updates");
+    renderWithProviders(<App />, { withoutRouter: true });
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
+  });
+});

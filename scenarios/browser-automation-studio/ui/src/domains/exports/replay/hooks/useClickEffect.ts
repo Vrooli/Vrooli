@@ -45,7 +45,7 @@ export function useClickEffect({
       }
       return;
     }
-    const indicatesClick = Boolean(
+    const indicatesClick = currentFrame?.cursorProvenance !== 'missing' && Boolean(
       (currentClickPosition &&
         typeof currentClickPosition.x === 'number' &&
         typeof currentClickPosition.y === 'number') ||
@@ -82,7 +82,8 @@ export function useClickEffect({
 
   const isClickEffectActive = Boolean(
     cursorClickAnimation !== 'none' &&
-      isCursorEnabled &&
+    isCursorEnabled &&
+      currentFrame?.cursorProvenance !== 'missing' &&
       activeClickEffect &&
       currentFrameId &&
       activeClickEffect.frameId === currentFrameId,

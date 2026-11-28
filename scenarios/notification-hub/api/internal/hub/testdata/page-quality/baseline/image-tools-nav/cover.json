@@ -1,0 +1,21 @@
+{
+ "question": "Which Image Tools phone navigation should I implement: four tabs, menu only, or keep all eight tabs?",
+ "big_picture": "Image Tools’ eight phone tabs cut every name down to a few letters; desktop is unaffected. This is a taste call about how the app is organized, so you decide. Four tabs keeps the editing places readable and one tap away, menu only gives the image more room but makes every place two taps away, and keep leaves today’s cut-off tabs in place. If you do not answer, the current layout stays as it is.",
+ "recommend": "four",
+ "reason": "The places used while editing stay one tap away with readable names, and nothing is lost.",
+ "options": [
+  {
+   "key": "four",
+   "label": "Use four readable tabs and put the other four places in the menu"
+  },
+  {
+   "key": "menu",
+   "label": "Remove the bottom bar and put all eight places in the menu"
+  },
+  {
+   "key": "keep",
+   "label": "Keep all eight tabs with their cut-off names"
+  }
+ ],
+ "technical_details": "Source: Hub ask d37f6abb (15 Nov 2026); sender: Research Desk. On an answer, the experience agent changes the phone layout and sends a capture. Evidence captures are attached: today-light.webp, today-dark.webp, four-tabs-light.webp, four-tabs-dark.webp, four-tabs-menu-open-light.webp, menu-only-light.webp, menu-only-dark.webp, today-tabbar-320.webp, four-tabs-tabbar-320.webp. Worker brief: work/IMAGE-TOOLS-NAV/BRIEF.md."
+}

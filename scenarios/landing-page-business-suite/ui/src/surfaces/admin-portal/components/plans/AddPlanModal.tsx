@@ -22,6 +22,7 @@ import {
 import { Switch } from '../../../../shared/ui/switch';
 import { Callout } from '../Callout';
 import { createBundlePrice, verifyStripePrice, type CreateBundlePricePayload } from '../../../../shared/api/billing';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 interface AddPlanModalProps {
   bundleKey: string;
@@ -45,6 +46,13 @@ interface FormState {
   ctaLabel: string;
   highlight: boolean;
   featuresText: string;
+  appEntitlements: AppEntitlementDraft[];
+}
+
+interface AppEntitlementDraft {
+  appKey: string;
+  featuresText: string;
+  limitsText: string;
 }
 
 interface VerifiedStripePrice {
@@ -72,7 +80,35 @@ const DEFAULT_FORM: FormState = {
   ctaLabel: '',
   highlight: false,
   featuresText: '',
+  appEntitlements: [],
 };
+
+function buildAppEntitlements(drafts: AppEntitlementDraft[]): NonNullable<CreateBundlePricePayload['app_entitlements']> {
+  const result: NonNullable<CreateBundlePricePayload['app_entitlements']> = {};
+  for (const [index, draft] of drafts.entries()) {
+    const appKey = draft.appKey.trim();
+    const features = draft.featuresText.split('\n').map((value) => value.trim()).filter(Boolean);
+    const limits: Record<string, number> = {};
+    for (const line of draft.limitsText.split('\n').map((value) => value.trim()).filter(Boolean)) {
+      const separator = line.indexOf('=');
+      const key = separator < 0 ? '' : line.slice(0, separator).trim();
+      const raw = separator < 0 ? '' : line.slice(separator + 1).trim();
+      const limit = Number(raw);
+      if (!key || !/^\d+$/.test(raw) || !Number.isSafeInteger(limit)) {
+        throw new Error(`App entitlement ${index + 1}: limits must use name=non-negative-integer lines.`);
+      }
+      if (Object.prototype.hasOwnProperty.call(limits, key)) throw new Error(`App entitlement ${index + 1}: duplicate limit "${key}".`);
+      limits[key] = limit;
+    }
+    if (!appKey && !features.length && !Object.keys(limits).length) continue;
+    if (!appKey) throw new Error(`App entitlement ${index + 1}: app key is required.`);
+    if (!/^[a-z0-9][a-z0-9._-]*$/.test(appKey)) throw new Error(`App entitlement ${index + 1}: use a lowercase app key (letters, numbers, dots, underscores, hyphens).`);
+    if (Object.prototype.hasOwnProperty.call(result, appKey)) throw new Error(`App entitlement app key "${appKey}" is declared more than once.`);
+    if (!features.length && !Object.keys(limits).length) throw new Error(`App entitlement ${index + 1}: add a feature or limit.`);
+    result[appKey] = { ...(features.length ? { features } : {}), ...(Object.keys(limits).length ? { limits } : {}) };
+  }
+  return result;
+}
 
 const normalizeStripeInterval = (interval?: string | null): string | null => {
   const raw = interval?.trim().toLowerCase();
@@ -223,6 +259,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
         .split('\n')
         .map((f) => f.trim())
         .filter((f) => f.length > 0);
+      const appEntitlements = buildAppEntitlements(form.appEntitlements);
 
       const payload: CreateBundlePricePayload = {
         stripe_price_id: stripePriceId,
@@ -234,6 +271,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
         display_enabled: form.displayEnabled,
         highlight: form.highlight,
         features: features.length > 0 ? features : undefined,
+        app_entitlements: Object.keys(appEntitlements).length ? appEntitlements : undefined,
       };
 
       payload.amount_cents = amountCents;
@@ -277,7 +315,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
   }, [onClose]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && handleClose()}>
+    <Dialog open={isOpen} onOpenChange={(open: boolean) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -300,14 +338,15 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 id="stripe-price-id"
                 placeholder="price_..."
                 value={form.stripePriceId}
-                onChange={(e) => handleChange('stripePriceId', e.target.value)}
+                onChange={(e) => { handleChange('stripePriceId', e.target.value); }}
                 className="flex-1 font-mono text-sm"
               />
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleVerify}
+                onClick={() => { void handleVerify(); }}
                 disabled={verifying || !form.stripePriceId.trim()}
+                aria-label="Verify Stripe price"
               >
                 {verifying ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -333,7 +372,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               id="plan-name"
               placeholder="Pro Monthly"
               value={form.planName}
-              onChange={(e) => handleChange('planName', e.target.value)}
+              onChange={(e) => { handleChange('planName', e.target.value); }}
             />
           </div>
 
@@ -341,7 +380,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Plan Tier *</Label>
-              <Select value={form.planTier} onValueChange={(v) => handleChange('planTier', v)}>
+              <Select value={form.planTier} onValueChange={(v) => { handleChange('planTier', v); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -356,7 +395,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             </div>
             <div className="space-y-2">
               <Label>Billing Interval *</Label>
-              <Select value={form.billingInterval} onValueChange={(v) => handleChange('billingInterval', v)}>
+              <Select value={form.billingInterval} onValueChange={(v) => { handleChange('billingInterval', v); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -378,12 +417,12 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 type="number"
                 placeholder="7900"
                 value={form.amountCents}
-                onChange={(e) => handleChange('amountCents', e.target.value)}
+                onChange={(e) => { handleChange('amountCents', e.target.value); }}
               />
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Select value={form.currency} onValueChange={(v) => handleChange('currency', v)}>
+              <Select value={form.currency} onValueChange={(v) => { handleChange('currency', v); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -404,7 +443,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               type="number"
               placeholder="10"
               value={form.displayWeight}
-              onChange={(e) => handleChange('displayWeight', e.target.value)}
+              onChange={(e) => { handleChange('displayWeight', e.target.value); }}
             />
           </div>
 
@@ -416,7 +455,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               type="number"
               placeholder="1000000"
               value={form.monthlyIncludedCredits}
-              onChange={(e) => handleChange('monthlyIncludedCredits', e.target.value)}
+              onChange={(e) => { handleChange('monthlyIncludedCredits', e.target.value); }}
             />
           </div>
 
@@ -428,7 +467,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             </div>
             <Switch
               checked={form.displayEnabled}
-              onCheckedChange={(checked: boolean) => handleChange('displayEnabled', checked)}
+              onCheckedChange={(checked: boolean) => { handleChange('displayEnabled', checked); }}
             />
           </div>
 
@@ -439,7 +478,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             </div>
             <Switch
               checked={form.highlight}
-              onCheckedChange={(checked: boolean) => handleChange('highlight', checked)}
+              onCheckedChange={(checked: boolean) => { handleChange('highlight', checked); }}
             />
           </div>
 
@@ -450,7 +489,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               id="subtitle"
               placeholder="For growing teams"
               value={form.subtitle}
-              onChange={(e) => handleChange('subtitle', e.target.value)}
+              onChange={(e) => { handleChange('subtitle', e.target.value); }}
             />
           </div>
 
@@ -461,7 +500,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 id="badge"
                 placeholder="Popular"
                 value={form.badge}
-                onChange={(e) => handleChange('badge', e.target.value)}
+                onChange={(e) => { handleChange('badge', e.target.value); }}
               />
             </div>
             <div className="space-y-2">
@@ -470,7 +509,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
                 id="cta-label"
                 placeholder="Get Started"
                 value={form.ctaLabel}
-                onChange={(e) => handleChange('ctaLabel', e.target.value)}
+                onChange={(e) => { handleChange('ctaLabel', e.target.value); }}
               />
             </div>
           </div>
@@ -482,29 +521,38 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               id="features"
               placeholder="Unlimited projects&#10;Priority support&#10;Advanced analytics"
               value={form.featuresText}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleChange('featuresText', e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { handleChange('featuresText', e.target.value); }}
               rows={4}
             />
           </div>
+
+          <section className="space-y-3 border-t border-slate-700 pt-4" aria-label="App entitlements">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-medium">App entitlements</h3>
+                <p className="text-xs text-slate-400">Declare app-specific features and limits included with this plan.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => handleChange('appEntitlements', [...form.appEntitlements, { appKey: '', featuresText: '', limitsText: '' }])}>Add app</Button>
+            </div>
+            {form.appEntitlements.map((entry, index) => (
+              <fieldset key={index} className="space-y-2 rounded border border-slate-700 p-3">
+                <legend className="px-1 text-xs text-slate-400">App {index + 1}</legend>
+                <div className="flex gap-2">
+                  <Input aria-label={`App ${index + 1} key`} placeholder="audio-tools" value={entry.appKey} onChange={(event) => handleChange('appEntitlements', form.appEntitlements.map((item, itemIndex) => itemIndex === index ? { ...item, appKey: event.target.value } : item))} />
+                  <Button type="button" variant="outline" aria-label={`Remove app ${index + 1}`} onClick={() => handleChange('appEntitlements', form.appEntitlements.filter((_, itemIndex) => itemIndex !== index))}>Remove</Button>
+                </div>
+                <Textarea aria-label={`App ${index + 1} features`} placeholder={'audio:transcribe\naudio:summarize'} rows={2} value={entry.featuresText} onChange={(event) => handleChange('appEntitlements', form.appEntitlements.map((item, itemIndex) => itemIndex === index ? { ...item, featuresText: event.target.value } : item))} />
+                <Textarea aria-label={`App ${index + 1} limits`} placeholder={'ai_credits=1000\nminutes=60'} rows={2} value={entry.limitsText} onChange={(event) => handleChange('appEntitlements', form.appEntitlements.map((item, itemIndex) => itemIndex === index ? { ...item, limitsText: event.target.value } : item))} />
+              </fieldset>
+            ))}
+          </section>
         </div>
 
         <DialogFooter className="border-t border-slate-700 pt-4">
-          <Button variant="outline" onClick={handleClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Plan
-              </>
-            )}
-          </Button>
+          <OverlayActionBar actions={[
+            { id: 'create-plan', label: saving ? 'Creating...' : 'Create Plan', onSelect: () => { void handleSave(); }, disabled: saving, primary: true },
+            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

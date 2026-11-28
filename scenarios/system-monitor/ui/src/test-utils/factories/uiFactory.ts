@@ -16,7 +16,6 @@ export const createDashboardState = (overrides: Partial<DashboardState> = {}): D
   expandedPanels: new Set(),
   terminalVisible: false,
   unreadErrorCount: 0,
-  alerts: [],
   ...overrides,
 })
 
@@ -25,6 +24,7 @@ export const createMetricHistory = (overrides: Partial<MetricHistory> = {}): Met
   sampleIntervalSeconds: 5,
   cpu: [],
   memory: [],
+  swap: [],
   network: [],
   ...overrides,
 })

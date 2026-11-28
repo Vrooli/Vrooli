@@ -25,7 +25,6 @@ import (
 // for a new user from checkout through subscription activation.
 func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -57,6 +56,18 @@ func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			attribution_session_id VARCHAR(255),
+			variant_slug VARCHAR(100),
+			landing_path VARCHAR(512),
+			device_class VARCHAR(16),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
+			business_account_id VARCHAR(255),
+			completed_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -175,7 +186,6 @@ func TestFlow_NewUser_IntroPricing_FullCycle(t *testing.T) {
 // already used intro don't get the coupon again.
 func TestFlow_ReturningUser_NoCoupon(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -215,7 +225,6 @@ func TestFlow_ReturningUser_NoCoupon(t *testing.T) {
 // TestFlow_CreditPurchase_BalanceUpdated verifies the complete credit purchase flow.
 func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -247,6 +256,18 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			attribution_session_id VARCHAR(255),
+			variant_slug VARCHAR(100),
+			landing_path VARCHAR(512),
+			device_class VARCHAR(16),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
+			business_account_id VARCHAR(255),
+			completed_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -263,6 +284,16 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			attribution_session_id VARCHAR(255),
+			variant_slug VARCHAR(100),
+			landing_path VARCHAR(512),
+			device_class VARCHAR(16),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
@@ -276,23 +307,26 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 
 	// Pre-create checkout session
 	_, err = db.Exec(`
-		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, "cs_credits_flow", "credits@example.com", "price_credits_pack", "open", sessionTypeCreditsTopup, 1000)
+		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents, business_account_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, "cs_credits_flow", "credits@example.com", "price_credits_pack", "open", sessionTypeCreditsTopup, 1000, "acct-credit-flow")
 	require.NoError(t, err)
+	seedBusinessAccountCreditEmail(t, db, "acct-credit-flow", "credits@example.com")
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig().WithKeys("pk_test", "sk_test", "whsec_test"), nil)
 
 	// Simulate checkout.session.completed webhook
 	event := map[string]interface{}{
-		"id":   "evt_credits_flow_123",
-		"type": "checkout.session.completed",
+		"id":       "evt_credits_flow_123",
+		"type":     "checkout.session.completed",
+		"livemode": false,
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
 				"id":             "cs_credits_flow",
 				"customer_email": "credits@example.com",
 				"customer":       "cus_credits_flow",
 				"amount_total":   1000,
+				"payment_status": "paid",
 			},
 		},
 	}
@@ -308,16 +342,18 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 	err = service.HandleWebhook(payload, signatureHeader)
 	require.NoError(t, err)
 
-	// Verify credit balance was updated
+	// Verify the current account-scoped funding lot was created.
 	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, "credits@example.com").Scan(&balance)
+	err = db.QueryRow(`SELECT COALESCE(SUM(granted),0) FROM credit_funding_lots WHERE business_account_id=$1 AND provider_ref=$2 AND livemode=FALSE AND settlement_state='settled'`, "acct-credit-flow", "evt_credits_flow_123").Scan(&balance)
 	require.NoError(t, err)
-	// creditsPerUSD=100, amountCents=1000, so credits = 100 * 1000 / 100 = 1000
 	assert.Equal(t, int64(1000), balance)
+	var legacyCount int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email=$1`, "credits@example.com").Scan(&legacyCount))
+	assert.Zero(t, legacyCount)
 
 	// Verify transaction was recorded
 	var txnCount int
-	err = db.QueryRow(`SELECT COUNT(*) FROM credit_transactions WHERE customer_email = $1`, "credits@example.com").Scan(&txnCount)
+	err = db.QueryRow(`SELECT COUNT(*) FROM business_account_credit_transactions WHERE business_account_id=$1 AND customer_email=$2 AND external_event_id=$3`, "acct-credit-flow", "credits@example.com", "evt_credits_flow_123").Scan(&txnCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, txnCount)
 
@@ -332,7 +368,6 @@ func TestFlow_CreditPurchase_BalanceUpdated(t *testing.T) {
 // TestFlow_SubscriptionCancel_StatusUpdated verifies subscription cancellation flow.
 func TestFlow_SubscriptionCancel_StatusUpdated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -365,7 +400,7 @@ func TestFlow_SubscriptionCancel_StatusUpdated(t *testing.T) {
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && r.URL.Path == "/v1/subscriptions/sub_cancel_flow" {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprint(w, `{"id":"sub_cancel_flow","status":"canceled"}`)
+			fmt.Fprint(w, `{"id":"sub_cancel_flow","status":"active","cancel_at_period_end":true}`)
 			return
 		}
 		http.NotFound(w, r)
@@ -384,14 +419,13 @@ func TestFlow_SubscriptionCancel_StatusUpdated(t *testing.T) {
 	var canceledAt sql.NullTime
 	err = db.QueryRow(`SELECT status, canceled_at FROM subscriptions WHERE subscription_id = $1`, "sub_cancel_flow").Scan(&status, &canceledAt)
 	require.NoError(t, err)
-	assert.Equal(t, "canceled", status)
-	assert.True(t, canceledAt.Valid, "canceled_at should be set")
+	assert.Equal(t, "active", status, "access should remain active through the paid period")
+	assert.False(t, canceledAt.Valid, "canceled_at should remain unset until terminal cancellation")
 }
 
 // TestFlow_EmailChange_AllTablesMigrated verifies complete email migration flow.
 func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -439,6 +473,12 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE TABLE intro_coupon_usage (
@@ -456,6 +496,7 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 	oldEmail := "oldemail@example.com"
 	newEmail := "newemail@example.com"
 	customerID := "cus_email_change"
+	seedBusinessAccountCreditEmail(t, db, "acct-flow-email", oldEmail)
 
 	// Insert data in all tables with old email
 	_, err = db.Exec(`INSERT INTO users (email, stripe_customer_id, has_used_intro) VALUES ($1, $2, TRUE)`, oldEmail, customerID)
@@ -503,22 +544,18 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newEmail, email)
 
-	// Credit wallets
-	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, newEmail).Scan(&balance)
-	require.NoError(t, err)
-	assert.Equal(t, int64(5000), balance)
+	assertBusinessAccountCreditEmail(t, db, "acct-flow-email", newEmail)
 
 	// Verify old email no longer exists
 	var count int
 	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1`, oldEmail).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count)
+	assert.Equal(t, 1, count, "legacy wallet identity is intentionally not migrated")
 
 	// Credit transactions
 	err = db.QueryRow(`SELECT customer_email FROM credit_transactions WHERE amount_credits = 5000`).Scan(&email)
 	require.NoError(t, err)
-	assert.Equal(t, newEmail, email)
+	assert.Equal(t, oldEmail, email, "legacy transactions are not the current account ledger")
 
 	// Intro coupon usage
 	err = db.QueryRow(`SELECT email FROM intro_coupon_usage WHERE stripe_customer_id = $1`, customerID).Scan(&email)
@@ -530,7 +567,6 @@ func TestFlow_EmailChange_AllTablesMigrated(t *testing.T) {
 // case variations is prevented.
 func TestFlow_CouponAbuse_CaseVariation_Blocked(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -582,7 +618,6 @@ func TestFlow_CouponAbuse_CaseVariation_Blocked(t *testing.T) {
 // attempts by the same user.
 func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -602,6 +637,17 @@ func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			attribution_session_id VARCHAR(255),
+			variant_slug VARCHAR(100),
+			landing_path VARCHAR(512),
+			device_class VARCHAR(16),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
+			completed_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -667,7 +713,6 @@ func TestFlow_MultipleCheckouts_SameUser(t *testing.T) {
 // idempotently.
 func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -699,6 +744,14 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 			amount_cents INTEGER,
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
+			business_account_id VARCHAR(255),
+			completed_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
@@ -715,6 +768,12 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 			transaction_type VARCHAR(50) NOT NULL,
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
+			visitor_id VARCHAR(255),
+			utm_source VARCHAR(128),
+			utm_medium VARCHAR(128),
+			utm_campaign VARCHAR(128),
+			referrer_kind VARCHAR(16),
+			country_code CHAR(2),
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
@@ -727,23 +786,26 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 
 	// Pre-create checkout session
 	_, err = db.Exec(`
-		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, "cs_retry_test", "retry@example.com", "price_retry_test", "open", sessionTypeCreditsTopup, 1000)
+		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents, business_account_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, "cs_retry_test", "retry@example.com", "price_retry_test", "open", sessionTypeCreditsTopup, 1000, "acct-retry-test")
 	require.NoError(t, err)
+	seedBusinessAccountCreditEmail(t, db, "acct-retry-test", "retry@example.com")
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig().WithKeys("pk_test", "sk_test", "whsec_test"), nil)
 
 	// Same event processed multiple times (simulating retries)
 	event := map[string]interface{}{
-		"id":   "evt_retry_test_123",
-		"type": "checkout.session.completed",
+		"id":       "evt_retry_test_123",
+		"type":     "checkout.session.completed",
+		"livemode": false,
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
 				"id":             "cs_retry_test",
 				"customer_email": "retry@example.com",
 				"customer":       "cus_retry",
 				"amount_total":   1000,
+				"payment_status": "paid",
 			},
 		},
 	}
@@ -762,15 +824,15 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Verify credits were only added once
+	// Verify account-attributed credits were only added once
 	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, "retry@example.com").Scan(&balance)
+	err = db.QueryRow(`SELECT COALESCE(SUM(granted),0) FROM credit_funding_lots WHERE business_account_id=$1 AND provider_ref=$2 AND livemode=FALSE AND settlement_state='settled'`, "acct-retry-test", "evt_retry_test_123").Scan(&balance)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), balance, "credits should only be added once despite retries")
 
 	// Verify only one transaction exists
 	var txnCount int
-	err = db.QueryRow(`SELECT COUNT(*) FROM credit_transactions WHERE stripe_event_id = $1`, "evt_retry_test_123").Scan(&txnCount)
+	err = db.QueryRow(`SELECT COUNT(*) FROM business_account_credit_transactions WHERE business_account_id=$1 AND source='stripe' AND external_event_id=$2`, "acct-retry-test", "evt_retry_test_123").Scan(&txnCount)
 	require.NoError(t, err)
 	assert.Equal(t, 1, txnCount)
 }
@@ -779,7 +841,6 @@ func TestFlow_WebhookRetry_Idempotent(t *testing.T) {
 // refresh subscription status correctly.
 func TestFlow_InvoicePaid_RefreshesSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table

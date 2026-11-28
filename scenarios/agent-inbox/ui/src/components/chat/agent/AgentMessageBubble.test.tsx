@@ -1,5 +1,6 @@
+import { renderWithProviders } from "@/test-utils/renderWithProviders";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { AgentMessageBubble } from "./AgentMessageBubble";
 import type { AgentEvent } from "../../../lib/api";
 
@@ -29,12 +30,12 @@ function makeEvent(overrides: Partial<AgentEvent> = {}): AgentEvent {
 
 describe("AgentMessageBubble", () => {
   it("shows copy action in bubble mode", () => {
-    render(<AgentMessageBubble event={makeEvent()} viewMode="bubble" />);
+    renderWithProviders(<AgentMessageBubble event={makeEvent()} viewMode="bubble" />);
     expect(screen.getByTestId("agent-message-copy-evt-msg-1")).toBeInTheDocument();
   });
 
   it("shows copy action in compact mode", () => {
-    render(<AgentMessageBubble event={makeEvent()} viewMode="compact" />);
+    renderWithProviders(<AgentMessageBubble event={makeEvent()} viewMode="compact" />);
     expect(screen.getByTestId("agent-message-copy-evt-msg-1")).toBeInTheDocument();
   });
 });

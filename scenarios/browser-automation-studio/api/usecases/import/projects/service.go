@@ -11,8 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/database"
-	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
+	"github.com/vrooli/browser-automation-studio/internal/projectid"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -261,22 +260,6 @@ func (s *Service) InspectFolder(ctx context.Context, folderPath string) (*Inspec
 		})
 	}
 
-	// Check 4b: V1 workflow detection (legacy format that will be converted)
-	tempProject := &database.ProjectIndex{FolderPath: absPath}
-	v1Count, v1Err := workflowservice.CountV1Workflows(tempProject, 4)
-	if v1Err == nil && v1Count > 0 {
-		response.V1WorkflowCount = v1Count
-		response.Validation.AddCheck(shared.ValidationCheck{
-			ID:          "v1_workflows",
-			Status:      shared.ValidationStatusWarn,
-			Label:       "Legacy workflows detected",
-			Description: fmt.Sprintf("Found %d workflow(s) using legacy V1 format. These will be automatically converted to V2 format during import.", v1Count),
-			Context: map[string]any{
-				"v1_count": v1Count,
-			},
-		})
-	}
-
 	// Check 5: Already indexed
 	existing, err := s.projecter.GetProjectByFolderPath(ctx, absPath)
 	if err == nil && existing != nil {
@@ -444,7 +427,7 @@ func (s *Service) Import(ctx context.Context, req *ImportProjectRequest) (*share
 
 	// Try to use ID from metadata if available
 	if meta != nil && strings.TrimSpace(meta.Id) != "" {
-		if parsed, parseErr := uuid.Parse(strings.TrimSpace(meta.Id)); parseErr == nil {
+		if parsed, parseErr := projectid.Parse(meta.Id); parseErr == nil {
 			// Check if this ID is already in use
 			byID, _ := s.projecter.GetProjectByID(ctx, parsed)
 			if byID == nil {

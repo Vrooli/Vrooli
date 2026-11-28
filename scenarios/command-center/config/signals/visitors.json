@@ -1,0 +1,35 @@
+{
+  "id": "visitors",
+  "label": "Visitors · 30 days",
+  "description": "Unique visitors recorded in LPBS metrics events.",
+  "unit": "count",
+  "format": "compact",
+  "shape": "series",
+  "source": {
+    "team": "marketing-crew",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary?window_days=30",
+    "select": "visitors",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "visitors",
+    "contractVersion": "analytics-summary.v1",
+    "selector": "visitors",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 2840,
+    "series": [
+      1900,
+      2100,
+      2350,
+      2500,
+      2620,
+      2840
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

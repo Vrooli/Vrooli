@@ -1,0 +1,115 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-11-24T00:35:00-05:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-015",
+      "title": "Responsible-Use Deployment Gate",
+      "status": "complete",
+      "prd_ref": "OT-P1-015",
+      "category": "feature",
+      "description": "Harm protection is a set of CONFIGURABLE controls, not a capability allowlist. No image capability is blocked at the code layer: identity/appearance edits (face transfer, clothing/hair/makeup changes) are ordinary operations. A public/monetized deployment defaults to content scan on, provenance/attribution marking on (>= real-person edits), a published Acceptable-Use Policy, consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Each control is independently overridable (IMAGE_TOOLS_REQUIRE_CONSENT, IMAGE_TOOLS_NSFW_SCAN, IMAGE_TOOLS_REQUIRE_PROVENANCE, IMAGE_TOOLS_RATE_LIMIT_PER_MIN); local defaults are permissive. The only non-configurable refusal is sexual content involving minors, and it is enforced rather than asserted: the bundled reviewer runs on every tier (profile-driven classifiers, face and age stages, optional face-independent second opinion), a public tier with no reviewer refuses image output, a technical reviewer failure is classified safety_unavailable (503) and fails closed, and refused bytes are never published: they are deleted immediately, or moved to a private TTL-bounded quarantine for admin review (local 168h, public 0h by default). The reviewer is selected by a validated declarative profile (api/internal/safety/profiles.json; IMAGE_TOOLS_SAFETY_PROFILE/_NAME/_MODE/_ON_REFUSAL) and IMAGE_TOOLS_MINOR_SAFETY_CMD can replace it. Built in api/internal/safety (tier preset + per-control overrides + op-weight table + consent log + rate limiter + review profile/reviewer seam) and enforced on the AI submit edge (handlers/ai); discovery via SafetyService.GetPolicy uses the same resolved policy and reports reviewer health. Naturalize is low-weight; identity/body/clothing/appearance edits are high-weight. A false-positive loop lets an operator label a refusal/flag as legitimate, confirmed or uncertain; the label snapshots the reviewer evidence (scores, thresholds, face measurements, profile/version) into a JSON Lines corpus that scripts/safety-corpus-replay.py can replay at candidate thresholds. Feedback never restores a refused output, unblurs a sensitive result, or changes a stored verdict. The quarantine is reachable only through GET /api/v1/safety/quarantine/{id} after the local operator (ungated) or a public deployment with IMAGE_TOOLS_SAFETY_QUARANTINE_TOKEN reviews it; the ordinary /api/v1/blobs/ route refuses the namespace, and a janitor purges expired entries.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/safety/safety_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Policy/tier/op-weight/consent-log/rate-limiter logic: local unrestricted; public blocks high-weight ops without consent, forces NSFW scan, records affirmed consent."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/ai/gate_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Submit-edge enforcement: public tier returns 403 for an identity-altering op without consent_affirmed; never blocks none-weight ops or the local tier."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/safety/connect_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "SafetyService.GetPolicy reports the resolved policy + op-weight table for local and public tiers."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/safety/minor_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Minor-safety reviewer contract (JSON stdin/stdout, no shell), profile validation, structured action/reason codes, malformed output, bounded input; required-without-detector is unavailable; a refusal refuses; a technical reviewer error is unavailable/fails closed; local tier never consults the input reviewer."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ai/generation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Output review runs regardless of the request flag; a HardRefusal fails the job and deletes the produced artifacts; a review error also deletes them (fail closed)."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/ai/gate_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Public submit edge returns 503 unavailable when the required reviewer is absent or fails technically, and 403 on a genuine minor+sexual refusal."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/safety/profile_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Declarative profile loading/validation/override, strict thresholds, model-id derivation, second-opinion confidence floor, and reviewer health."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/safety/feedback_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A feedback case snapshots the per-variation classifier scores, face measurements, profile and reviewer version; a ref outside the reviewed batch, a clean verdict, a bad label and an oversized note are rejected; upsert, stats, filtering and JSONL export are covered."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/safety/feedback_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "RecordSafetyFeedback labels a refused job and rejects a clean job (412) or an unspecified label (400); list filtering, stats, corpus export and clear run over the Connect handler with a fake job source and SQLite."
+        },
+        {
+          "type": "test",
+          "ref": "scripts/test_safety_corpus_replay.py",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The exported corpus replays the sexual/age decision at the recorded and candidate thresholds; a refused case is compared on the refusal decision, a flagged case on the sexual decision, uncertain/non-replayable cases stay out of the matrix, and unassessable cases are flagged second-opinion-dependent."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/quarantine/quarantine_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A refused output is stored under quarantine/, listed, opened only while pending, and purged with its blob at expiry; zero retention disables quarantine; a missing job id is rejected; IsKey rejects lookalike keys."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/safety/quarantine_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Local quarantine review is ungated; a public deployment requires the admin token (412 without configuration, 403 without the header); the image route serves no-store bytes, supports download, and returns 410 after expiry."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/ops/rest_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The ordinary /api/v1/blobs/ route returns 404 for a quarantine key, so a refused output is never reachable as a published result."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/ai/review_batch_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The engine copies a refused variation into quarantine with its finding and bytes before deleting the original; a quarantine write failure still deletes the original and records safety_quarantine_error."
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@
  * - /session/start: Create new browser session
  * - /session/:id/run: Execute instruction (instruction handlers are volatile)
  * - /session/:id/reset: Reset session state
+ * - /session/:id/release: Release an execution's lease while retaining the browser resource
  * - /session/:id/close: Terminate session
  * - /session/:id/storage-state: Export session storage
  * - /session/:id/record/*: Record mode endpoints
@@ -34,9 +35,18 @@ export * from './health';
 export * from './artifacts';
 export * from './session-start';
 export * from './session-run';
+export * from './session-accessibility-tree';
+export * from './session-app-monitor-metrics';
+export * from './session-app-monitor-capture';
 export * from './session-reset';
+export * from './session-release';
+export * from './session-audio';
 export * from './session-close';
 export * from './session-storage';
 export * from './session-service-workers';
+export * from './session-extensions';
+export * from './session-lease';
 export * from './record-mode/index';
 export * from './session-ai-navigate';
+export * from './public-page-capture';
+export * from './fault-control';

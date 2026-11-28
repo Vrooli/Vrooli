@@ -1,10 +1,14 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"app-monitor-api/repository"
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +18,10 @@ func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	return r
+}
+
+func newAppHandlerForTest() *AppHandler {
+	return NewAppHandler(services.NewAppService(nil))
 }
 
 func TestNewAppHandler(t *testing.T) {
@@ -31,9 +39,10 @@ func TestNewAppHandler(t *testing.T) {
 }
 
 func TestGetAppsSummary(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
+	handler.getAppsSummary = func(context.Context) ([]repository.App, error) {
+		return []repository.App{{ID: "demo", Name: "Demo", Status: "running"}}, nil
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		router := setupTestRouter()
@@ -43,17 +52,30 @@ func TestGetAppsSummary(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should return 200 or 500 depending on environment
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 200 or 500, got %d. Body: %s", w.Code, w.Body.String())
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected successful summary, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "demo") {
+			t.Fatalf("success response omitted app payload: %s", w.Body.String())
+		}
+	})
+	t.Run("DependencyFailure", func(t *testing.T) {
+		handler.getAppsSummary = func(context.Context) ([]repository.App, error) { return nil, errors.New("dependency unavailable") }
+		w := httptest.NewRecorder()
+		router := setupTestRouter()
+		router.GET("/apps/summary", handler.GetAppsSummary)
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/apps/summary", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500 for dependency failure, got %d", w.Code)
 		}
 	})
 }
 
 func TestGetApps(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
+	handler.getApps = func(context.Context) ([]repository.App, error) {
+		return []repository.App{{ID: "demo", Name: "Demo", Status: "running"}}, nil
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		router := setupTestRouter()
@@ -63,19 +85,30 @@ func TestGetApps(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should return 200 or 500 depending on environment
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 200 or 500, got %d. Body: %s", w.Code, w.Body.String())
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected successful app list, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "demo") {
+			t.Fatalf("success response omitted app payload: %s", w.Body.String())
+		}
+	})
+	t.Run("DependencyFailure", func(t *testing.T) {
+		handler.getApps = func(context.Context) ([]repository.App, error) { return nil, errors.New("dependency unavailable") }
+		w := httptest.NewRecorder()
+		router := setupTestRouter()
+		router.GET("/apps", handler.GetApps)
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/apps", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500 for dependency failure, got %d", w.Code)
 		}
 	})
 }
 
 func TestGetApp(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
 
 	t.Run("NonExistentApp", func(t *testing.T) {
+		handler.getApp = func(context.Context, string) (*repository.App, error) { return nil, services.ErrAppNotFound }
 		router := setupTestRouter()
 		router.GET("/apps/:id", handler.GetApp)
 
@@ -107,10 +140,39 @@ func TestGetApp(t *testing.T) {
 	})
 }
 
+func TestDiagnosticHandlersPreserveAppServiceErrorResponses(t *testing.T) {
+	handler := newAppHandlerForTest()
+	tests := []struct {
+		name    string
+		handler gin.HandlerFunc
+		query   string
+	}{
+		{name: "scenario status", handler: handler.GetAppScenarioStatus},
+		{name: "health", handler: handler.CheckAppHealth},
+		{name: "documents", handler: handler.GetAppDocuments},
+		{name: "document search", handler: handler.SearchAppDocuments, query: "?q=app"},
+		{name: "interop compliance", handler: handler.CheckAppInteropCompliance},
+		{name: "completeness", handler: handler.GetAppCompleteness},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupTestRouter()
+			router.GET("/apps/:id", tt.handler)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/apps/%20"+tt.query, nil))
+
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusBadRequest, response.Body.String())
+			}
+			if !strings.Contains(response.Body.String(), `"success":false`) || !strings.Contains(response.Body.String(), `"error":"app identifier is required"`) {
+				t.Fatalf("response = %s, want the original app identifier error", response.Body.String())
+			}
+		})
+	}
+}
+
 func TestStartApp(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
 
 	t.Run("NonExistentApp", func(t *testing.T) {
 		router := setupTestRouter()
@@ -142,9 +204,8 @@ func TestStartApp(t *testing.T) {
 }
 
 func TestStopApp(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
+	handler.stopApp = func(context.Context, string) error { return services.ErrAppNotFound }
 
 	t.Run("NonExistentApp", func(t *testing.T) {
 		router := setupTestRouter()
@@ -154,18 +215,14 @@ func TestStopApp(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should succeed or fail depending on whether the app exists
-		// The service may return success even for nonexistent apps
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 200 or 500, got %d", w.Code)
+		if w.Code == http.StatusOK {
+			t.Errorf("nonexistent app must not report a successful stop: %s", w.Body.String())
 		}
 	})
 }
 
 func TestRestartApp(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
 
 	t.Run("NonExistentApp", func(t *testing.T) {
 		router := setupTestRouter()
@@ -183,9 +240,7 @@ func TestRestartApp(t *testing.T) {
 }
 
 func TestRecordAppView(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
 
 	t.Run("ValidRequest", func(t *testing.T) {
 		router := setupTestRouter()
@@ -216,30 +271,118 @@ func TestRecordAppView(t *testing.T) {
 	})
 }
 
-func TestReportAppIssue(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+func TestReportAppFix(t *testing.T) {
+	handler := newAppHandlerForTest()
 
 	t.Run("MissingBody", func(t *testing.T) {
 		router := setupTestRouter()
-		router.POST("/apps/:id/report", handler.ReportAppIssue)
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
 
-		req := httptest.NewRequest("POST", "/apps/test-app/report", nil)
+		req := httptest.NewRequest("POST", "/apps/test-app/fixes/report", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// Should handle missing body gracefully
-		if w.Code != http.StatusBadRequest && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected 400 or 500 for missing body, got %d", w.Code)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("missing JSON body must be rejected with 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("ValidationError", func(t *testing.T) {
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"  "}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("validation failure status = %d, want %d: %s", response.Code, http.StatusBadRequest, response.Body.String())
+		}
+		if !strings.Contains(response.Body.String(), services.ErrIssueReportMessageRequired.Error()) {
+			t.Fatalf("validation response = %s, want message validation error", response.Body.String())
+		}
+	})
+
+	t.Run("InvalidScenarioScope", func(t *testing.T) {
+		handler.reportAppIssue = func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			return nil, services.ErrIssueReportScenarioInvalid
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid scope status = %d, want %d: %s", response.Code, http.StatusBadRequest, response.Body.String())
+		}
+	})
+
+	t.Run("SwarmManagerUnavailable", func(t *testing.T) {
+		handler.reportAppIssue = func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			return nil, services.ErrSwarmManagerUnavailable
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusServiceUnavailable {
+			t.Fatalf("upstream failure status = %d, want %d: %s", response.Code, http.StatusServiceUnavailable, response.Body.String())
+		}
+	})
+
+	t.Run("UnexpectedFailure", func(t *testing.T) {
+		handler.reportAppIssue = func(context.Context, *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			return nil, errors.New("unexpected report failure")
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusInternalServerError {
+			t.Fatalf("unexpected failure status = %d, want %d: %s", response.Code, http.StatusInternalServerError, response.Body.String())
+		}
+	})
+
+	t.Run("SuccessContract", func(t *testing.T) {
+		handler.reportAppIssue = func(_ context.Context, request *services.IssueReportRequest) (*services.IssueReportResult, error) {
+			if request.AppID != "test-app" || request.Message != "investigate issue" {
+				t.Fatalf("service request = %#v, want path app ID and submitted message", request)
+			}
+			return &services.IssueReportResult{Message: "created", Kind: "fix", Name: "fix-123", URL: "http://swarm/fix-123"}, nil
+		}
+		router := setupTestRouter()
+		router.POST("/apps/:id/fixes/report", handler.ReportAppFix)
+
+		request := httptest.NewRequest(http.MethodPost, "/apps/test-app/fixes/report", strings.NewReader(`{"message":"investigate issue"}`))
+		request.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+
+		if response.Code != http.StatusOK {
+			t.Fatalf("success status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+		}
+		for _, field := range []string{`"message":"created"`, `"kind":"fix"`, `"name":"fix-123"`, `"url":"http://swarm/fix-123"`} {
+			if !strings.Contains(response.Body.String(), field) {
+				t.Errorf("success response %s omitted %s", response.Body.String(), field)
+			}
 		}
 	})
 }
 
 func TestCheckAppIframeBridge(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
 
 	t.Run("NonExistentApp", func(t *testing.T) {
 		router := setupTestRouter()
@@ -257,9 +400,7 @@ func TestCheckAppIframeBridge(t *testing.T) {
 }
 
 func TestCheckAppLocalhostUsage(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+	handler := newAppHandlerForTest()
 
 	router := setupTestRouter()
 	router.GET("/apps/:id/diagnostics/localhost", handler.CheckAppLocalhostUsage)
@@ -273,96 +414,160 @@ func TestCheckAppLocalhostUsage(t *testing.T) {
 	}
 }
 
-func TestGetAppLogs(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+func TestAppLogRoutesPreserveAppIdentityAndLogType(t *testing.T) {
+	cases := []struct {
+		name        string
+		route       string
+		path        string
+		wantApp     string
+		wantType    string
+		handler     func(*AppHandler) gin.HandlerFunc
+		bodyMarkers []string
+	}{
+		{
+			name:     "primary app ID route returns both streams",
+			route:    "/apps/:id/logs",
+			path:     "/apps/primary-app/logs",
+			wantApp:  "primary-app",
+			wantType: "both",
+			handler:  func(h *AppHandler) gin.HandlerFunc { return h.GetAppLogs },
+			bodyMarkers: []string{
+				`"logs":["lifecycle-ready","","--- Background: Worker ---","background-ready"]`,
+				`"key":"background:worker:run"`,
+			},
+		},
+		{
+			name:     "legacy app name route honors requested stream",
+			route:    "/logs/:appName",
+			path:     "/logs/legacy-app?type=background",
+			wantApp:  "legacy-app",
+			wantType: "background",
+			handler:  func(h *AppHandler) gin.HandlerFunc { return h.GetAppLogs },
+			bodyMarkers: []string{
+				`"logs":["--- Background: Worker ---","background-ready"]`,
+				`"key":"background:worker:run"`,
+			},
+		},
+		{
+			name:        "lifecycle route",
+			route:       "/apps/:id/logs/lifecycle",
+			path:        "/apps/lifecycle-app/logs/lifecycle",
+			wantApp:     "lifecycle-app",
+			wantType:    "lifecycle",
+			handler:     func(h *AppHandler) gin.HandlerFunc { return h.GetAppLifecycleLogs },
+			bodyMarkers: []string{"lifecycle-ready"},
+		},
+		{
+			name:     "background route",
+			route:    "/apps/:id/logs/background",
+			path:     "/apps/background-app/logs/background",
+			wantApp:  "background-app",
+			wantType: "background",
+			handler:  func(h *AppHandler) gin.HandlerFunc { return h.GetAppBackgroundLogs },
+			bodyMarkers: []string{
+				`"message":"background-ready"`,
+				`"source":"background"`,
+				`"step":"worker"`,
+			},
+		},
+	}
 
-	t.Run("ValidRequest", func(t *testing.T) {
-		router := setupTestRouter()
-		router.GET("/apps/:id/logs", handler.GetAppLogs)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			appService := services.NewAppService(nil)
+			handler := NewAppHandler(appService)
+			var gotApp, gotType string
+			handler.getAppLogs = func(_ context.Context, appID, logType string) (*services.AppLogsResult, error) {
+				gotApp, gotType = appID, logType
+				result := &services.AppLogsResult{
+					Lifecycle: []string{"lifecycle-ready"},
+					Background: []services.BackgroundLog{{
+						Step: "worker", Phase: "run", Label: "Worker", Lines: []string{"background-ready"},
+					}},
+				}
+				switch logType {
+				case "lifecycle":
+					result.Background = nil
+				case "background":
+					result.Lifecycle = nil
+				}
+				return result, nil
+			}
 
-		req := httptest.NewRequest("GET", "/apps/test-app/logs", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+			router := setupTestRouter()
+			router.GET(tc.route, tc.handler(handler))
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, tc.path, nil))
 
-		// Should return some response
-		if w.Code == 0 {
-			t.Error("Expected response to be set")
-		}
-	})
-
-	t.Run("WithQueryParams", func(t *testing.T) {
-		router := setupTestRouter()
-		router.GET("/apps/:id/logs", handler.GetAppLogs)
-
-		req := httptest.NewRequest("GET", "/apps/test-app/logs?lines=100", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		// Should handle query params
-		if w.Code == 0 {
-			t.Error("Expected response to be set")
-		}
-	})
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusOK, response.Body.String())
+			}
+			if gotApp != tc.wantApp {
+				t.Errorf("service app ID = %q, want %q", gotApp, tc.wantApp)
+			}
+			if gotType != tc.wantType {
+				t.Errorf("service log type = %q, want %q", gotType, tc.wantType)
+			}
+			for _, marker := range tc.bodyMarkers {
+				if !strings.Contains(response.Body.String(), marker) {
+					t.Errorf("response %s omitted %q", response.Body.String(), marker)
+				}
+			}
+		})
+	}
 }
 
-func TestGetAppLifecycleLogs(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
+func TestGetAppMetricsPreservesAppIDHoursAndServiceFailure(t *testing.T) {
+	cases := []struct {
+		name       string
+		path       string
+		wantApp    string
+		wantHours  int
+		wantStatus int
+		wantBody   string
+		serviceErr error
+	}{
+		{
+			name: "default window", path: "/apps/default-app/metrics", wantApp: "default-app", wantHours: 24,
+			wantStatus: http.StatusOK, wantBody: `"app_id":"default-app"`,
+		},
+		{
+			name: "requested window", path: "/apps/window-app/metrics?hours=6", wantApp: "window-app", wantHours: 6,
+			wantStatus: http.StatusOK, wantBody: `"cpu_usage":12.5`,
+		},
+		{
+			name: "service failure", path: "/apps/failing-app/metrics", wantApp: "failing-app", wantHours: 24,
+			wantStatus: http.StatusInternalServerError, wantBody: "Failed to fetch metrics", serviceErr: errors.New("repository unavailable"),
+		},
+	}
 
-	t.Run("ValidRequest", func(t *testing.T) {
-		router := setupTestRouter()
-		router.GET("/apps/:id/logs/lifecycle", handler.GetAppLifecycleLogs)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := newAppHandlerForTest()
+			var gotApp string
+			var gotHours int
+			handler.getStatusHistory = func(_ context.Context, appID string, hours int) ([]repository.AppStatus, error) {
+				gotApp, gotHours = appID, hours
+				if tc.serviceErr != nil {
+					return nil, tc.serviceErr
+				}
+				return []repository.AppStatus{{ID: "status-1", AppID: tc.wantApp, Status: "running", CPUUsage: 12.5}}, nil
+			}
 
-		req := httptest.NewRequest("GET", "/apps/test-app/logs/lifecycle", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+			router := setupTestRouter()
+			router.GET("/apps/:id/metrics", handler.GetAppMetrics)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, tc.path, nil))
 
-		// Should return some response
-		if w.Code == 0 {
-			t.Error("Expected response to be set")
-		}
-	})
-}
-
-func TestGetAppBackgroundLogs(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
-
-	t.Run("ValidRequest", func(t *testing.T) {
-		router := setupTestRouter()
-		router.GET("/apps/:id/logs/background", handler.GetAppBackgroundLogs)
-
-		req := httptest.NewRequest("GET", "/apps/test-app/logs/background", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		// Should return some response
-		if w.Code == 0 {
-			t.Error("Expected response to be set")
-		}
-	})
-}
-
-func TestGetAppMetrics(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	appService := services.NewAppService(nil)
-	handler := NewAppHandler(appService)
-
-	t.Run("ValidRequest", func(t *testing.T) {
-		router := setupTestRouter()
-		router.GET("/apps/:id/metrics", handler.GetAppMetrics)
-
-		req := httptest.NewRequest("GET", "/apps/test-app/metrics", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		// Should return some response
-		if w.Code == 0 {
-			t.Error("Expected response to be set")
-		}
-	})
+			if response.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", response.Code, tc.wantStatus, response.Body.String())
+			}
+			if gotApp != tc.wantApp || gotHours != tc.wantHours {
+				t.Errorf("service request = (%q, %d hours), want (%q, %d hours)", gotApp, gotHours, tc.wantApp, tc.wantHours)
+			}
+			if !strings.Contains(response.Body.String(), tc.wantBody) {
+				t.Errorf("response %s omitted %q", response.Body.String(), tc.wantBody)
+			}
+		})
+	}
 }

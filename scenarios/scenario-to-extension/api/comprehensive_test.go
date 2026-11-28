@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -95,18 +96,7 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 			t.Fatalf("Failed to test extension: %v", err)
 		}
 
-		var result ExtensionTestResult
-		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-			t.Fatalf("Failed to parse test result: %v", err)
-		}
-
-		if len(result.TestResults) != 2 {
-			t.Errorf("Expected 2 test results, got %d", len(result.TestResults))
-		}
-
-		if result.Summary.TotalTests != 2 {
-			t.Errorf("Expected summary total_tests=2, got %d", result.Summary.TotalTests)
-		}
+		assertErrorResponse(t, w, http.StatusGone)
 	})
 
 	t.Run("TemplateTypes", func(t *testing.T) {
@@ -213,7 +203,6 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 					Path:   "/api/v1/extension/generate",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Errorf("Request %d failed: %v", index, err)
 					done <- false
@@ -365,111 +354,20 @@ func TestExtensionTestingFeatures(t *testing.T) {
 	loggerCleanup := setupTestLogger()
 	defer loggerCleanup()
 
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	configCleanup := setupTestConfig(env)
-	defer configCleanup()
-
-	t.Run("DefaultTestSites", func(t *testing.T) {
-		// Test that default test sites are used when none provided
-		req := ExtensionTestRequest{
-			ExtensionPath: "/tmp/test-extension",
-			Screenshot:    true,
-			Headless:      true,
+	t.Setenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER", "/must-not-be-invoked")
+	for _, raw := range []string{
+		`{"extension_path":"/tmp/extension","test_sites":["https://example.com"]}`,
+		`{"extension_path":"/tmp/extension","headless":true,"screenshot":true}`,
+	} {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/extension/test", strings.NewReader(raw))
+		testExtensionHandler(recorder, request)
+		if recorder.Code != http.StatusGone {
+			t.Fatalf("filesystem path reached legacy runner: status=%d body=%s", recorder.Code, recorder.Body.String())
 		}
-
-		w, err := executeRequest(testExtensionHandler, HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/extension/test",
-			Body:   req,
-		})
-		if err != nil {
-			t.Fatalf("Failed to test extension: %v", err)
-		}
-
-		var result ExtensionTestResult
-		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-			t.Fatalf("Failed to parse result: %v", err)
-		}
-
-		if len(result.TestResults) == 0 {
-			t.Error("Expected at least one test result with default sites")
-		}
-
-		if result.TestResults[0].Site != "https://example.com" {
-			t.Errorf("Expected default site https://example.com, got %s", result.TestResults[0].Site)
-		}
-	})
-
-	t.Run("EmptyTestSites", func(t *testing.T) {
-		// Test that empty test sites array gets default
-		req := ExtensionTestRequest{
-			ExtensionPath: "/tmp/test-extension",
-			TestSites:     []string{},
-			Screenshot:    true,
-		}
-
-		w, err := executeRequest(testExtensionHandler, HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/extension/test",
-			Body:   req,
-		})
-		if err != nil {
-			t.Fatalf("Failed to test extension: %v", err)
-		}
-
-		var result ExtensionTestResult
-		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-			t.Fatalf("Failed to parse result: %v", err)
-		}
-
-		if len(result.TestResults) == 0 {
-			t.Error("Expected at least one test result with default sites")
-		}
-	})
-
-	t.Run("TestSummaryCalculation", func(t *testing.T) {
-		// Test that summary statistics are calculated correctly
-		req := TestData.GenerateTestRequest("/tmp/test", []string{
-			"https://site1.com",
-			"https://site2.com",
-			"https://site3.com",
-		})
-
-		w, err := executeRequest(testExtensionHandler, HTTPTestRequest{
-			Method: "POST",
-			Path:   "/api/v1/extension/test",
-			Body:   req,
-		})
-		if err != nil {
-			t.Fatalf("Failed to test extension: %v", err)
-		}
-
-		var result ExtensionTestResult
-		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-			t.Fatalf("Failed to parse result: %v", err)
-		}
-
-		if result.Summary.TotalTests != 3 {
-			t.Errorf("Expected total_tests=3, got %d", result.Summary.TotalTests)
-		}
-
-		if result.Summary.Passed != 3 {
-			t.Errorf("Expected passed=3, got %d", result.Summary.Passed)
-		}
-
-		if result.Summary.Failed != 0 {
-			t.Errorf("Expected failed=0, got %d", result.Summary.Failed)
-		}
-
-		if result.Summary.SuccessRate != 100 {
-			t.Errorf("Expected success_rate=100, got %f", result.Summary.SuccessRate)
-		}
-	})
+	}
 }
 
-// TestConfigurationManagement tests configuration loading and environment variables
 func TestConfigurationManagement(t *testing.T) {
 	t.Run("EnvironmentVariableOverrides", func(t *testing.T) {
 		// Clear API_PORT to avoid interference from lifecycle system
@@ -481,7 +379,6 @@ func TestConfigurationManagement(t *testing.T) {
 		os.Setenv("API_ENDPOINT", "http://custom.endpoint")
 		os.Setenv("TEMPLATES_PATH", "/custom/templates")
 		os.Setenv("OUTPUT_PATH", "/custom/output")
-		os.Setenv("BROWSERLESS_URL", "http://custom.browserless")
 		os.Setenv("DEBUG", "true")
 
 		defer func() {
@@ -489,7 +386,6 @@ func TestConfigurationManagement(t *testing.T) {
 			os.Unsetenv("API_ENDPOINT")
 			os.Unsetenv("TEMPLATES_PATH")
 			os.Unsetenv("OUTPUT_PATH")
-			os.Unsetenv("BROWSERLESS_URL")
 			os.Unsetenv("DEBUG")
 			if oldAPIPort != "" {
 				os.Setenv("API_PORT", oldAPIPort)
@@ -512,10 +408,6 @@ func TestConfigurationManagement(t *testing.T) {
 
 		if cfg.OutputPath != "/custom/output" {
 			t.Errorf("Expected custom output path, got %s", cfg.OutputPath)
-		}
-
-		if cfg.BrowserlessURL != "http://custom.browserless" {
-			t.Errorf("Expected custom browserless URL, got %s", cfg.BrowserlessURL)
 		}
 
 		if !cfg.Debug {

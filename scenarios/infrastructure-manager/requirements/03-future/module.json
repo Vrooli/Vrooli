@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "description": "Requirements derived from the P2 operational targets, both deferred pending owner-side or operator decisions.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Consume each capability owner's persisted availability aggregate once owners expose it, replacing the interim read-time reachability proxy with owner-derived history.",
+      "id": "IFM-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Capability availability history",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Supervise a watchdog tier's liveness, enumerated-action counts and claim-suppression rate as an eleventh projection, so a watchdog repeatedly restarting the same element surfaces as a heal-loop finding on the slow loop. Deferred until that tier is authorized by the operator.",
+      "id": "IFM-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Watchdog supervision",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:IFM-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

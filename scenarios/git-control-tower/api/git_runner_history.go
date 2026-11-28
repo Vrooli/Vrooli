@@ -45,7 +45,8 @@ func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	args := readArgs(repoDir,
 		"log",
 		"--name-only",
-		"--pretty=format:%H%x00%an%x00%ad%x00%s",
+		"-z",
+		"--pretty=format:%x1e%H%x00%an%x00%ad%x00%B%x00",
 		"--date=iso",
 		"-n", fmt.Sprintf("%d", limit),
 	)
@@ -71,23 +72,19 @@ func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, comm
 		return nil, fmt.Errorf("commit hash is required")
 	}
 
-	// Use git diff with explicit parent reference instead of git show.
-	// git show produces "combined diffs" for merge commits which often show
-	// empty diffs for files that came cleanly from one parent.
-	// git diff <commit>^..<commit> explicitly shows changes from first parent.
-
-	// First, check if this commit has a parent
-	parentCheck := exec.CommandContext(ctx, r.gitPath(), readArgs(repoDir, "rev-parse", "--verify", "--quiet", commit+"^")...)
-	hasParent := parentCheck.Run() == nil
-
-	var args []string
-	if hasParent {
-		// Normal commit with parent - use git diff
-		args = readArgs(repoDir, "diff", "--no-color", commit+"^", commit)
-	} else {
-		// Root commit (no parent) - use git show
-		args = readArgs(repoDir, "show", "--no-color", "--format=", commit)
-	}
+	// diff-tree handles root commits and compares merge commits with their
+	// first parent. This keeps the history diff to one Git subprocess instead
+	// of probing for a parent before running the diff.
+	args := readArgs(repoDir,
+		"diff-tree",
+		"--root",
+		"--no-commit-id",
+		"-p",
+		"--diff-merges=first-parent",
+		"-r",
+		"--no-color",
+		commit,
+	)
 
 	if path != "" {
 		args = append(args, "--", path)

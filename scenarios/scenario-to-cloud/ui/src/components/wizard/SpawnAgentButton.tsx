@@ -17,7 +17,7 @@ import {
   Package,
   ChevronDown,
 } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Alert } from "../ui/alert";
 import { SelectableCard, CompactSelectableCard, type SelectableCardConfig } from "../ui/selectable-card";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";

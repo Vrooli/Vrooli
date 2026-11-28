@@ -14,13 +14,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	core "agent-inbox/internal/core"
+
+	coredb "github.com/vrooli/api-core/database"
 )
 
 // =============================================================================
@@ -65,21 +66,22 @@ func (t *sqliteNullTime) Scan(src interface{}) error {
 		t.Valid = false
 		return nil
 	}
-	t.Valid = true
+	var parsed time.Time
 	switch v := src.(type) {
 	case string:
-		parsed, err := parseTimestamp(v)
+		value, err := parseTimestamp(v)
 		if err != nil {
 			return err
 		}
-		t.Time = parsed
-		return nil
+		parsed = value
 	case time.Time:
-		t.Time = v
-		return nil
+		parsed = v
 	default:
 		return fmt.Errorf("cannot scan %T into sqliteNullTime", src)
 	}
+	t.Time = parsed
+	t.Valid = !parsed.IsZero()
+	return nil
 }
 
 // parseTimestamp parses common SQLite datetime text formats.
@@ -87,6 +89,8 @@ func parseTimestamp(s string) (time.Time, error) {
 	for _, layout := range []string{
 		"2006-01-02 15:04:05",
 		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05 -0700 MST",
+		"2006-01-02 15:04:05.999999999 -0700 MST",
 		time.RFC3339,
 		time.RFC3339Nano,
 		"2006-01-02T15:04:05",
@@ -117,21 +121,10 @@ func (r *Repository) DB() *sql.DB {
 
 // InitSchema initializes the database schema by executing schema.sql.
 func (r *Repository) InitSchema(ctx context.Context) error {
-	schemaPath := filepath.Join(filepath.Dir(currentFilePath()), "schema.sql")
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("read schema: %w", err)
-	}
-	if _, err := r.db.ExecContext(ctx, string(schemaBytes)); err != nil {
+	if err := coredb.EnsureSchemas(ctx, r.db, coredb.SchemaProviderFunc(core.Schema)); err != nil {
 		return fmt.Errorf("execute schema: %w", err)
 	}
 	return nil
-}
-
-// currentFilePath returns the path to this source file at runtime.
-func currentFilePath() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filename
 }
 
 // newID generates a new UUID string for use as a primary key.

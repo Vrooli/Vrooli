@@ -1,0 +1,6 @@
+[
+  {"id":"linux-amd64","goos":"linux","goarch":"amd64"},
+  {"id":"linux-arm64","goos":"linux","goarch":"arm64"},
+  {"id":"darwin-arm64-metal","goos":"darwin","goarch":"arm64","accelerator":"metal"},
+  {"id":"windows-amd64","goos":"windows","goarch":"amd64"}
+]

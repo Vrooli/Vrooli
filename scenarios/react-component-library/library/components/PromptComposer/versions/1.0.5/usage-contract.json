@@ -1,0 +1,13 @@
+{
+  "componentId": "react-component-library:PromptComposer",
+  "items": {
+    "labelField": "name",
+    "maximumCount": 6,
+    "maximumLabelCharacters": 40,
+    "primaryAction": "not-applicable",
+    "property": "attachments",
+    "stableIdField": "id",
+    "typicalCount": 2
+  },
+  "version": "1.0.5"
+}

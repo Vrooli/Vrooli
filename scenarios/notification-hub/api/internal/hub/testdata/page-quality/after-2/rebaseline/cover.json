@@ -1,0 +1,17 @@
+{
+ "question": "Will you run the rebaseline command today to activate the disk-capacity update?",
+ "big_picture": "The disk-capacity update is built and tested, but it changes how stored data is written in five control-plane areas. Only you can approve the install because the stored-data contract changes. If you run it and tell me, I finish the install checks; if you hold or do not answer, the current install stays and disk capacity remains inactive.",
+ "recommend": "run",
+ "reason": "The update is built and tested, and running it activates disk capacity.",
+ "options": [
+  {
+   "key": "run",
+   "label": "I will run it today, then tell you to finish the install checks"
+  },
+  {
+   "key": "hold",
+   "label": "Hold — keep the current install and leave disk capacity inactive"
+  }
+ ],
+ "technical_details": "The installer stopped because of changes to the persistent-state contract in disk capacity, resources, process records, managed services, and operator state. This is the second request in five days (11 Nov and 15 Nov 2026). A possible installer-guard change needs its own operator decision. If run: the operator runs the exact command shown on the page in a terminal on the Vrooli computer; after the operator reports completion, the install agent finishes installation checks. If hold or unanswered: current installed version remains, disk capacity is inactive, and work continues on source only."
+}

@@ -1,0 +1,195 @@
+name: Portability hardware validation
+
+on:
+  schedule:
+    # Keep the persistence claim live without competing with the main test
+    # workflow. The node is selected explicitly; Bridge never auto-selects a
+    # connected machine for a qualification run.
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portability-hardware-validation
+  cancel-in-progress: false
+
+jobs:
+  minimouse:
+    name: Validate minimouse persistence surface
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BRIDGE_API_BASE: ${{ secrets.VROOLI_BRIDGE_API_BASE }}
+      BRIDGE_NODE_ID: ${{ secrets.VROOLI_MINIMOUSE_NODE_ID }}
+      VROOLI_BRIDGE_API_TOKEN: ${{ secrets.VROOLI_BRIDGE_API_TOKEN }}
+      HARDWARE_CLAIMS: system-monitor-cpu,system-monitor-memory,system-monitor-disk,system-monitor-network,system-monitor-process,system-monitor-gpu,system-monitor-device-graph,system-monitor-storage-health
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Build governed Bridge CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          go build -o "$RUNNER_TEMP/vrooli-bridge" ./
+        working-directory: scenarios/vrooli-bridge/cli
+
+      - name: Run validation and persist pass/fail evidence
+        id: validate
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          transcript="$RUNNER_TEMP/minimouse-portability-validation.jsonl"
+          : > "$transcript"
+          bridge="$RUNNER_TEMP/vrooli-bridge"
+          evidence_path=".vrooli/evidence/native-platform/minimouse-darwin-amd64.json"
+          run_id="github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          artifact_uri="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          passed=true
+
+          fail() {
+            passed=false
+            printf '%s\n' "$1" | tee -a "$transcript" >&2
+          }
+
+          if [[ -z "${BRIDGE_API_BASE:-}" || -z "${BRIDGE_NODE_ID:-}" || -z "${VROOLI_BRIDGE_API_TOKEN:-}" ]]; then
+            fail "Bridge secrets are not configured; no hardware qualification claim may remain green."
+          fi
+
+          relay_data() {
+            local scenario="$1" command="$2" args="$3" response outcome
+            response="$("$bridge" --api-base "$BRIDGE_API_BASE" relay call \
+              --node-id "$BRIDGE_NODE_ID" --scenario "$scenario" --command "$command" \
+              --args "$args" --timeout 300 --json 2>>"$transcript")" || return 1
+            printf '%s\n' "$response" >> "$transcript"
+            outcome="$(jq -r '.outcome // empty' <<<"$response")"
+            if [[ "$outcome" != "RELAY_CALL_OUTCOME_COMPLETED" ]]; then
+              return 1
+            fi
+            jq -r '.data // empty' <<<"$response" | base64 --decode
+          }
+
+          if [[ "$passed" == true ]]; then
+            nodes="$($bridge --api-base "$BRIDGE_API_BASE" nodes list --json 2>>"$transcript")" || nodes=""
+            printf '%s\n' "$nodes" >> "$transcript"
+            if ! jq -e --arg id "$BRIDGE_NODE_ID" \
+              '.nodes[] | select(.id == $id) | (.online == true and .dispatchable == true and .heartbeat_fresh == true)' \
+              <<<"$nodes" >/dev/null; then
+              fail "minimouse is not online, dispatchable, and heartbeat-fresh."
+            fi
+          fi
+
+          if [[ "$passed" == true ]]; then
+            if ! relay_data system-monitor "scenario start" "--json" >/tmp/minimouse-start.json; then
+              fail "typed scenario start failed"
+            fi
+          fi
+
+          if [[ "$passed" == true ]]; then
+            if ! wait_json="$(relay_data system-monitor "scenario wait" "--timeout,300,--json")"; then
+              fail "typed scenario wait failed"
+            else
+              printf '%s\n' "$wait_json" >> "$transcript"
+              if ! jq -e '(.exit_code // 0) == 0 or (.status // "" | ascii_downcase) == "healthy"' <<<"$wait_json" >/dev/null; then
+                fail "scenario wait did not report a healthy terminal result"
+              fi
+            fi
+          fi
+
+          if [[ "$passed" == true ]]; then
+            if ! status_json="$(relay_data system-monitor "scenario status" "--json")"; then
+              fail "typed scenario status failed"
+            else
+              printf '%s\n' "$status_json" >> "$transcript"
+              if ! jq -e '
+                ([.scenario.status?, .runtime.status?, .status?, .health_status?]
+                  | map(select(type == "string") | ascii_downcase)
+                  | any(. == "running" or . == "healthy" or . == "degraded"))
+              ' <<<"$status_json" >/dev/null; then
+                fail "scenario status did not report a running or healthy service"
+              fi
+            fi
+          fi
+
+          if [[ "$passed" == true ]]; then
+            if ! device_graph_json="$(relay_data system-monitor "devices" "--json")"; then
+              fail "system-monitor device graph read failed"
+            else
+              printf '%s\n' "$device_graph_json" >> "$transcript"
+              # macOS has no unprivileged thermal reader and no EDAC-equivalent
+              # memory-error interface. The graph must expose those facts as
+              # explicit non-measured grades with operator-readable reasons;
+              # an omitted subsystem would make absence look like health.
+              if ! jq -e '
+                (.graph // .) as $graph |
+                ($graph.available == true) and
+                (["thermal", "memory-errors"] | all(
+                  . as $name |
+                  ([ $graph.subsystems[]? | select(.name == $name) | .rungs[]?
+                     | select((.grade // "" | ascii_downcase | test("not_applicable|unavailable|unmeasurable"))
+                             and ((.reason // "") | tostring | length > 0)) ] | length > 0)
+                ))
+              ' <<<"$device_graph_json" >/dev/null; then
+                fail "system-monitor device graph omitted an explained thermal or memory-errors degradation"
+              else
+                printf '%s\n' '{"system_monitor_status":"available, degraded","degraded_subsystems":["thermal","memory-errors"]}' >> "$transcript"
+              fi
+            fi
+          fi
+
+          # Stop is always attempted after a start attempt. The typed lifecycle
+          # boundary is part of the persistence claim, even when an earlier
+          # rung failed.
+          if [[ -n "${BRIDGE_API_BASE:-}" && -n "${BRIDGE_NODE_ID:-}" ]]; then
+            if ! relay_data system-monitor "scenario stop" "--json" >/tmp/minimouse-stop.json; then
+              fail "typed scenario stop failed"
+            fi
+          fi
+
+          mkdir -p "$(dirname "$evidence_path")"
+          go run ./tools/portability-evidence \
+            --output "$evidence_path" \
+            --kind hardware-persistence \
+            --os darwin --arch amd64 --commit "$GITHUB_SHA" \
+            --run-id "$run_id" --host minimouse --surface "Bridge scheduled system-monitor lifecycle" \
+            --artifact-uri "$artifact_uri" --capabilities "$HARDWARE_CLAIMS" \
+            --passed "$passed" >>"$transcript" 2>&1
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$evidence_path"
+          if git diff --cached --quiet; then
+            echo "evidence record is unchanged; no commit is required" >>"$transcript"
+          else
+            git commit -m "chore(portability): record minimouse validation $run_id" >>"$transcript" 2>&1
+            git push >>"$transcript" 2>&1
+          fi
+
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          if [[ "$passed" != true ]]; then
+            exit 1
+          fi
+
+      - name: Upload validation transcript
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: minimouse-portability-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/minimouse-portability-validation.jsonl
+          if-no-files-found: error

@@ -45,27 +45,13 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX CONCURRENTLY idx_large_table_column ON large_table(column);
 ```
 
-## Running Migrations
+## Usage Notes
 
-### Initialize Migration System
-```bash
-./manage.sh --action migrate-init --instance client-name
-```
+Treat these files as example schema migration artifacts.
 
-### Run All Migrations
-```bash
-./manage.sh --action migrate --instance client-name --migrations-dir ./examples/migrations
-```
-
-### Check Migration Status
-```bash
-./manage.sh --action migrate-status --instance client-name
-```
-
-### Rollback Specific Migration
-```bash
-./manage.sh --action migrate-rollback --instance client-name --migration 003
-```
+- Apply forward migrations in numeric order.
+- Pair rollback scripts with the matching forward migration when you need a reversible example.
+- Use the current PostgreSQL resource workflow from the resource README and docs rather than the old `manage.sh` commands.
 
 ## Example Files
 

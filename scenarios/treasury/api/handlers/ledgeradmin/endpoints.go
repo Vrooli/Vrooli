@@ -1,0 +1,12 @@
+package ledgeradmin
+
+import (
+	ledgerconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger/ledger_v1connect"
+	"treasury/internal/module"
+)
+
+var Endpoints = []module.EndpointDescriptor{
+	{ID: "treasury_ledger_emissions_list", Path: ledgerconnect.LedgerServiceListEmissionsProcedure, Method: "POST", Summary: "Read durable Money Ledger delivery state", Category: "ledger", Request: &module.Schema{Type: "ListEmissionsRequest"}, Response: &module.Schema{Type: "ListEmissionsResponse"}, Errors: []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Operator identity is required"}, {Status: 403, Code: "permission_denied", Description: "Caller is not in the operator realm"}, {Status: 400, Code: "invalid_argument", Description: "Unsupported status filter"}, {Status: 503, Code: "failed_precondition", Description: "Operator auth or readback is unavailable"}}},
+	{ID: "treasury_ledger_destination_get", Path: ledgerconnect.LedgerServiceGetLedgerDestinationProcedure, Method: "POST", Summary: "Read where settlements are delivered and how many are waiting", Category: "ledger", Request: &module.Schema{Type: "GetLedgerDestinationRequest"}, Response: &module.Schema{Type: "GetLedgerDestinationResponse"}, Errors: []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Operator identity is required"}, {Status: 403, Code: "permission_denied", Description: "Caller is not in the operator realm"}, {Status: 503, Code: "failed_precondition", Description: "Operator auth or readback is unavailable"}}},
+	{ID: "treasury_ledger_destination_set", Path: ledgerconnect.LedgerServiceSetLedgerDestinationProcedure, Method: "POST", Summary: "Choose the Money Ledger book and account settlements post to, after checking them against Money Ledger", Category: "ledger", Request: &module.Schema{Type: "SetLedgerDestinationRequest"}, Response: &module.Schema{Type: "SetLedgerDestinationResponse"}, Errors: []module.ErrorDesc{{Status: 401, Code: "unauthenticated", Description: "Operator identity is required"}, {Status: 403, Code: "permission_denied", Description: "Caller is not in the operator realm"}, {Status: 400, Code: "invalid_argument", Description: "Money Ledger shows the book or account unusable: missing, archived, not in that book, or not USD"}, {Status: 503, Code: "failed_precondition", Description: "Operator auth is unavailable, or the Money Ledger origin cannot be resolved so the choice cannot be checked"}}},
+}

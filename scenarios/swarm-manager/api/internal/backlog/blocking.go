@@ -6,18 +6,32 @@ package backlog
 import (
 	"fmt"
 	"strings"
+
+	"swarm-manager/internal/depgraph"
 )
+
+// backlogNode adapts BacklogItem to the depgraph.Node interface.
+type backlogNode struct{ item BacklogItem }
+
+func (n backlogNode) Key() string    { return string(n.item.Kind) + "/" + n.item.Name }
+func (n backlogNode) Deps() []string { return n.item.DependsOn }
+func (n backlogNode) Status() string { return string(n.item.Status) }
 
 // BlockingReason represents a single blocking reason with forceability.
 type BlockingReason struct {
-	Message   string
-	Forceable bool
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	Forceable bool   `json:"forceable"`
 }
 
 // blockingDepStatuses are statuses that indicate a dependency is not yet
 // planned/started — meaning the downstream item should not proceed yet.
 // Once a dependency has progressed past the planning phase (ready, queued,
 // in_progress, completed, failed, archived) it no longer blocks.
+//
+// Deliberately NARROWER than the planning phase: `ready` is planning too, but
+// a ready dependency has been shaped and committed to, so it no longer holds
+// its dependents back. Kept explicit for that reason.
 var blockingDepStatuses = map[BacklogStatus]bool{
 	StatusBacklog:     true,
 	StatusResearching: true,
@@ -39,6 +53,7 @@ func EvaluateDependencyBlocking(item BacklogItem, store Store) ([]BlockingReason
 		return nil, nil
 	}
 	return []BlockingReason{{
+		Code:      "unmet_dependencies",
 		Message:   fmt.Sprintf("unmet dependencies: %s", strings.Join(unmet, ", ")),
 		Forceable: true,
 	}}, nil
@@ -76,7 +91,7 @@ func DedupeReasons(reasons []BlockingReason) []BlockingReason {
 			continue
 		}
 		seen[trimmed] = struct{}{}
-		result = append(result, BlockingReason{Message: trimmed, Forceable: r.Forceable})
+		result = append(result, BlockingReason{Code: r.Code, Message: trimmed, Forceable: r.Forceable})
 	}
 	return result
 }
@@ -90,46 +105,29 @@ type ListBlockingInfo struct {
 
 // ComputeListBlockingInfo evaluates dependency blocking for all items in a
 // single pass. Returns a map keyed by "kind/name". Only items with
-// dependencies that are actually blocked are included.
+// dependencies that are actually blocked are included. Delegates to the
+// generic depgraph package so backlog and milestones share one implementation.
 func ComputeListBlockingInfo(items []BacklogItem) map[string]ListBlockingInfo {
-	// Build lookup map of all items by key.
-	itemsByKey := make(map[string]BacklogItem, len(items))
+	nodes := make([]depgraph.Node, 0, len(items))
 	for _, item := range items {
-		itemsByKey[string(item.Kind)+"/"+item.Name] = item
+		if IsArchived(item) {
+			continue
+		}
+		nodes = append(nodes, backlogNode{item: item})
 	}
+	blockingStatuses := make(map[string]bool, len(blockingDepStatuses))
+	for s := range blockingDepStatuses {
+		blockingStatuses[string(s)] = true
+	}
+	raw := depgraph.ComputeBlocking(nodes, blockingStatuses, true)
 
-	result := make(map[string]ListBlockingInfo)
-	for _, item := range items {
-		if len(item.DependsOn) == 0 {
-			continue
-		}
-		blocked, blockingKeys := isDependencyBlocked(item.DependsOn, itemsByKey)
-		if !blocked {
-			continue
-		}
-		result[string(item.Kind)+"/"+item.Name] = ListBlockingInfo{
-			Blocked:         true,
-			BlockingDepKeys: blockingKeys,
-			AllForceable:    true, // dependency blocks are always forceable
+	result := make(map[string]ListBlockingInfo, len(raw))
+	for k, info := range raw {
+		result[k] = ListBlockingInfo{
+			Blocked:         info.Blocked,
+			BlockingDepKeys: info.BlockingKeys,
+			AllForceable:    info.AllForceable,
 		}
 	}
 	return result
-}
-
-// isDependencyBlocked checks whether any of the given dependency refs point
-// to items in a blocking status. Returns the blocking state and the keys
-// of dependencies that are blocking. Missing/unfound items are non-blocking
-// (fail-open).
-func isDependencyBlocked(dependsOn []string, itemsByKey map[string]BacklogItem) (bool, []string) {
-	var blockingKeys []string
-	for _, ref := range dependsOn {
-		dep, found := itemsByKey[ref]
-		if !found {
-			continue // missing = presumed completed
-		}
-		if blockingDepStatuses[dep.Status] {
-			blockingKeys = append(blockingKeys, ref)
-		}
-	}
-	return len(blockingKeys) > 0, blockingKeys
 }

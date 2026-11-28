@@ -13,7 +13,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+
+	dataSchema "github.com/Vrooli/Vrooli/scenarios/data-tools/api/internal/data"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -44,9 +47,11 @@ type Response struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("API_PORT", "18000"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable"),
-		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
+		Port: getEnv("API_PORT", "18000"),
+		// database.Connect owns Postgres environment resolution; keep this
+		// field only for compatibility with existing test fixtures.
+		DatabaseURL: "",
+		N8NURL:      "",
 		APIToken:    getEnv("API_TOKEN", "data-tools-secret-token"),
 	}
 
@@ -59,7 +64,12 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Configure connection pool for high concurrency
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(dataSchema.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
+	}
+
+	// Configure connection pool for high concurrency	// Configure connection pool for high concurrency
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
@@ -148,22 +158,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip auth for health check and docs
-		if r.URL.Path == "/health" || r.URL.Path == "/docs" {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Check authorization header
-		token := r.Header.Get("Authorization")
-		if token == "" || token != "Bearer "+s.config.APIToken {
-			s.sendError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return apihttp.BearerTokenMiddleware(s.config.APIToken, func(w http.ResponseWriter, _ *http.Request) {
+		s.sendError(w, http.StatusUnauthorized, "unauthorized")
+	}, "/health", "/docs")(next)
 }
 
 // Handler functions
@@ -501,18 +498,14 @@ func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 func (s *Server) sendJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+	apihttp.WriteJSONResponse(w, status, Response{
 		Success: status < 400,
 		Data:    data,
 	})
 }
 
 func (s *Server) sendError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+	apihttp.WriteJSONResponse(w, status, Response{
 		Success: false,
 		Error:   message,
 	})

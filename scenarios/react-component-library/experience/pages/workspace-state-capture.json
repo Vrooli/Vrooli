@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "workspace-state-capture",
+    "title": "Workspace state capture",
+    "routes": ["/workspace-capture/:id"],
+    "purpose": "Render one saved workspace state in isolation so browser evidence records the composition rather than authoring controls."
+  },
+  "priorities": [
+    { "statement": "The selected saved composition is rendered at its stored display dimensions." }
+  ],
+  "states": [
+    { "id": "loading", "description": "Workspace revision and selected state are loading." },
+    { "id": "ready", "description": "The selected saved state is rendered without editor chrome." },
+    { "id": "stale", "description": "The requested revision or state no longer matches the workspace." },
+    { "id": "error", "description": "The selected composition cannot be rendered." }
+  ],
+  "regions": [
+    {
+      "id": "selected-composition",
+      "required": true,
+      "purpose": "Render the exact selected workspace state for screenshot and accessibility capture.",
+      "component": { "local": "workspace-capture-page" },
+      "lifecycle": { "kind": "async", "states": ["loading", "ready", "stale", "error"] }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "selected-composition": { "testid": "workspace-state-composition" }
+    }
+  }
+}

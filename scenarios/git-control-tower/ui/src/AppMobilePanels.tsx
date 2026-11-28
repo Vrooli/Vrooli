@@ -48,22 +48,15 @@ export function renderMobilePanel(
       return (
         <FileList
           files={deps.statusData?.files}
+          runIndex={deps.runIndex}
+          onRevealInTree={deps.onRevealInTree}
           fileStats={deps.statusData?.file_stats}
+          previewFileStats={deps.statusData?.file_stats_preview}
+          fileStatsState={deps.statusData?.file_stats_state}
+          onRetryFileStats={deps.onRetryFileStats}
           selectedFiles={deps.selectedFiles}
           selectedKeySet={deps.selectedKeySet}
           selectionKey={deps.selectionKey}
-          approvedChanges={
-            deps.approvedChangesData
-              ? {
-                  available: deps.approvedChangesData.available,
-                  committableFiles: deps.approvedChangesData.committableFiles,
-                  warning: deps.approvedChangesData.warning,
-                }
-              : undefined
-          }
-          approvedPaths={deps.approvedPendingSet}
-          onStageApproved={deps.onStageApproved}
-          isStagingApproved={deps.isStaging}
           onSelectFile={(path, staged, event) => {
             deps.onSelectFile(path, staged, event);
             deps.onSetMobileActivePanel("diff");
@@ -103,6 +96,7 @@ export function renderMobilePanel(
           onExitSelectionMode={deps.onExitSelectionMode}
           onMobileSelectFile={deps.onMobileSelectFile}
           fileHotspots={deps.statusData?.file_hotspots}
+          onOpenRun={deps.onOpenRun}
         />
       );
 
@@ -145,9 +139,6 @@ export function renderMobilePanel(
           stagedCount={deps.statusData?.summary.staged ?? 0}
           commitMessage={deps.commitMessage}
           onCommitMessageChange={deps.onCommitMessageChange}
-          canUseApprovedMessage={deps.canUseApprovedMessage}
-          onUseApprovedMessage={deps.onUseApprovedMessage}
-          isUsingApprovedMessage={deps.isUsingApprovedMessage}
           onCommit={deps.onCommit}
           isCommitting={deps.isCommitting}
           commitError={deps.commitError}
@@ -164,6 +155,7 @@ export function renderMobilePanel(
           pushTarget={deps.pushTargetRef}
           sourceBranch={deps.pushSourceBranch}
           isHistoryMode={isHistoryMode}
+          historyCommit={deps.viewingCommit}
         />
       );
 

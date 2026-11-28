@@ -1,0 +1,241 @@
+syntax = "proto3";
+
+package vrooli.business_health.v1.contract;
+
+import "common/v1/maturity.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/contract;contract_v1";
+
+// =============================================================================
+// BUSINESS CONTRACT SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain business-health
+// @stability beta
+//
+// ContractService is business-health's native, rich validation contract over a
+// scenario's business contract: PRD.md and requirements/. It validates template
+// conformance, registry structure, OT↔requirement linkage in both directions,
+// and evidence-backed traceability, and exposes the traceability matrix join
+// that backs the report CLI, the UI, and fleet rollups.
+//
+// The shared scenario-validation/v1 ScenarioValidationService is mounted beside
+// this service (dual-mount); it carries the common maturity assessment for
+// test-genie while this native response carries the rich contract detail for
+// business-health's own CLI and UI.
+//
+// Evidence discipline (single-writer): every evidence field in this contract is
+// READ from test-genie's sync artifacts (coverage/requirements-sync/latest.json)
+// or business-health's own manual-validations ledger; business-health never
+// writes run evidence.
+// =============================================================================
+
+service ContractService {
+  // ValidateScenario runs the full business-contract check set and returns the
+  // native report plus the shared maturity assessment.
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+  // GetMatrix returns the OT × requirement × validation × evidence traceability
+  // join for one scenario without running the full finding set.
+  rpc GetMatrix(GetMatrixRequest) returns (GetMatrixResponse);
+  // GetDrift reports evidence drift/staleness entries for one scenario
+  // (stale snapshot, expired manual attestations, unearned statuses,
+  // unproven claims).
+  rpc GetDrift(GetDriftRequest) returns (GetDriftResponse);
+  // LogManualValidation appends an attestation to the scenario's
+  // manual-validations ledger (the one evidence artifact business-health owns).
+  rpc LogManualValidation(LogManualValidationRequest) returns (LogManualValidationResponse);
+}
+
+message ValidateScenarioRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Reserved for parity with the shared contract; business-health validates
+  // artifacts statically and never executes the scenario.
+  bool include_execution = 3;
+}
+
+message ValidateScenarioResponse {
+  string scenario = 1;
+  // Provider verdict string ("PASSED"/"FAILED"/"DEGRADED"/"ERROR").
+  string status = 2;
+  string summary = 3;
+  string target_path = 4;
+  // Non-empty when validation ran degraded (e.g. no PRD so linkage was skipped).
+  string degraded_reason = 5;
+  // The rich native report.
+  BusinessContractReport report = 6;
+  // Shared maturity assessment (mirrors what the shared mount emits).
+  common.v1.MaturityAssessment assessment = 7;
+  repeated string next_steps = 8;
+}
+
+// BusinessContractReport is the native detail carried beside the shared
+// assessment: per-capability rollups, the traceability matrix, and drift
+// entries, from one join implementation.
+message BusinessContractReport {
+  // Per-capability maturity rollups (prd_contract, requirements_registry,
+  // intent_linkage, evidence_traceability).
+  repeated CapabilityRollup capabilities = 1;
+  // The traceability matrix rows for this scenario.
+  repeated MatrixRow matrix = 2;
+  // Evidence drift/staleness entries.
+  repeated DriftEntry drift = 3;
+  // Native findings (the shared assessment carries the maturity view of the
+  // same findings; codes are identical).
+  repeated ContractFinding findings = 4;
+  // Registry shape summary.
+  RegistrySummary registry = 5;
+}
+
+// CapabilityRollup summarizes one maturity capability for the scenario.
+message CapabilityRollup {
+  // Capability id from .vrooli/maturity.json (e.g. "prd_contract").
+  string capability_id = 1;
+  // Reached level id (e.g. "L2") and its human name.
+  string level_id = 2;
+  string level_name = 3;
+  int32 finding_count = 4;
+  int32 error_count = 5;
+  int32 warning_count = 6;
+}
+
+// MatrixRow is one OT × requirement pairing with its validation and evidence
+// state. Rows with an empty requirement_id represent orphaned operational
+// targets; rows with an empty ot_id represent requirements whose prd_ref does
+// not resolve.
+message MatrixRow {
+  // Operational target side (from PRD.md).
+  string ot_id = 1;
+  string ot_title = 2;
+  // Whether the PRD checkbox for this target is checked ([x]).
+  bool ot_checked = 3;
+  string ot_priority = 4;
+  // Requirement side (from requirements/).
+  string requirement_id = 5;
+  string requirement_title = 6;
+  string requirement_status = 7;
+  string criticality = 8;
+  // Validation entries declared on the requirement.
+  repeated ValidationCell validations = 9;
+  // Evidence rollup for the requirement (read-only composition).
+  EvidenceCell evidence = 10;
+  // True when this row is an unproven claim (checked OT without passing linked
+  // evidence, or a status not supported by evidence).
+  bool unproven = 11;
+  string unproven_reason = 12;
+}
+
+// ValidationCell is one declared validation entry on a requirement.
+message ValidationCell {
+  // "test" | "automation" | "manual" | "lighthouse".
+  string type = 1;
+  // "unit" | "integration" | "business" | "performance".
+  string phase = 2;
+  // Declared status: "not_implemented" | "planned" | "implemented" | "failing".
+  string status = 3;
+  // File path / glob ref (empty for manual validations).
+  string ref = 4;
+  // True when a code-typed ref resolves to a file on disk.
+  bool ref_exists = 5;
+}
+
+// EvidenceCell is the read-only evidence rollup for one requirement.
+message EvidenceCell {
+  // Live status from the latest sync snapshot ("passed"/"failed"/"missing"...).
+  string live_status = 1;
+  // Identifier of the suite run the snapshot came from, when known.
+  string last_run_id = 2;
+  google.protobuf.Timestamp last_synced_at = 3;
+  // True when the snapshot is older than the scenario's latest suite run.
+  bool stale = 4;
+  // Latest manual attestation, when any exists for this requirement.
+  ManualAttestation manual = 5;
+}
+
+// ManualAttestation is one entry from the manual-validations ledger.
+message ManualAttestation {
+  string requirement_id = 1;
+  // Who attested (agent id or operator identity string).
+  string attested_by = 2;
+  google.protobuf.Timestamp attested_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  bool expired = 5;
+  string notes = 6;
+}
+
+// DriftEntry is one evidence drift/staleness observation.
+message DriftEntry {
+  // "stale_snapshot" | "expired_manual" | "status_unearned" | "unproven_claim".
+  string kind = 1;
+  // Requirement or OT id the entry pertains to (may be empty for
+  // scenario-level drift like a missing snapshot).
+  string subject_id = 2;
+  string detail = 3;
+}
+
+// ContractFinding is business-health's native finding shape.
+message ContractFinding {
+  string code = 1;
+  string severity = 2;
+  string title = 3;
+  string message = 4;
+  string location = 5;
+  string remediation = 6;
+  // True when a business-health deterministic fixer can remediate this finding.
+  bool autofix_available = 7;
+  // Fix classification from maturity.json ("auto" | "manual").
+  string fix_class = 8;
+}
+
+// RegistrySummary is the requirements/ shape at a glance.
+message RegistrySummary {
+  int32 module_count = 1;
+  int32 requirement_count = 2;
+  int32 operational_target_count = 3;
+  // Counts by requirement status ("planned", "complete", ...).
+  map<string, int32> status_counts = 4;
+  // True when starter-template residue is present.
+  bool starter_template = 5;
+}
+
+message GetMatrixRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message GetMatrixResponse {
+  string scenario = 1;
+  repeated MatrixRow matrix = 2;
+  RegistrySummary registry = 3;
+  // Non-empty when evidence artifacts were missing/unreadable (matrix still
+  // renders declared state).
+  string degraded_reason = 4;
+}
+
+message GetDriftRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message GetDriftResponse {
+  string scenario = 1;
+  repeated DriftEntry drift = 2;
+}
+
+message LogManualValidationRequest {
+  string scenario = 1;
+  string requirement_id = 2;
+  // Identity of the attester (agent id or operator string). Required.
+  string attested_by = 3;
+  string notes = 4;
+}
+
+message LogManualValidationResponse {
+  ManualAttestation attestation = 1;
+  // Path of the ledger the attestation was appended to.
+  string ledger_path = 2;
+}

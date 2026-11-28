@@ -1,0 +1,201 @@
+/*
+ * Night Signal: the Hub's mapping from the product mark (deep space,
+ * moonlight, one cyan signal) onto the shared shell's canonical tokens.
+ * Values come from the approved Night Desk palette. The generated design kit
+ * and the shared RCL release remain untouched.
+ *
+ * Dark is the default field; `data-resolved-theme="light"` (or an explicit
+ * light choice, or a light system preference before React mounts) paints the
+ * daylight variant. ThemeProvider publishes data-resolved-theme for every
+ * choice, including system.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --color-background: #05080e;
+  --color-shell: #080d15;
+  --color-surface: #0c131d;
+  --color-surface-muted: #111a26;
+  --color-surface-raised: #111a26;
+  --color-field: #0c131d;
+  --color-foreground: #f3f7fc;
+  --color-muted-foreground: #8696ab;
+  --color-border: #1c2734;
+  --color-primary: #3ad8f2;
+  --color-primary-foreground: #03222a;
+  --color-accent: #3ad8f2;
+  --color-success: #78e3bb;
+  --color-danger: #f7a3a3;
+  --color-warning: #f0c987;
+  --color-info: #3ad8f2;
+  --color-focus: #3ad8f2;
+
+  /* The quiet edges and the one signal, for local surfaces. */
+  --color-hull: #080d15;
+  --color-line: #1c2734;
+  --color-line-strong: #2b3a4b;
+  --color-signal: #3ad8f2;
+  --color-signal-ink: #03222a;
+  --color-signal-wash: color-mix(in srgb, #3ad8f2 10%, transparent);
+
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
+  --scrollbar-thumb: #2a3a4d;
+  --scrollbar-thumb-hover: #3b4f65;
+}
+
+/* The shared design kit's dark block has higher specificity than the base
+   :root, so restate the Night Signal field at the same attribute specificity. */
+:root[data-resolved-theme="dark"],
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-background: #05080e;
+  --color-shell: #080d15;
+  --color-surface: #0c131d;
+  --color-surface-muted: #111a26;
+  --color-surface-raised: #111a26;
+  --color-field: #0c131d;
+  --color-foreground: #f3f7fc;
+  --color-muted-foreground: #8696ab;
+  --color-border: #1c2734;
+  --color-primary: #3ad8f2;
+  --color-primary-foreground: #03222a;
+  --color-accent: #3ad8f2;
+  --color-success: #78e3bb;
+  --color-danger: #f7a3a3;
+  --color-warning: #f0c987;
+  --color-info: #3ad8f2;
+  --color-focus: #3ad8f2;
+
+  --color-hull: #080d15;
+  --color-line: #1c2734;
+  --color-line-strong: #2b3a4b;
+  --color-signal: #3ad8f2;
+  --color-signal-ink: #03222a;
+  --color-signal-wash: color-mix(in srgb, #3ad8f2 10%, transparent);
+
+  --scrollbar-thumb: #2a3a4d;
+  --scrollbar-thumb-hover: #3b4f65;
+}
+
+:root[data-resolved-theme="light"],
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-background: #eef2f7;
+  --color-shell: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f7fb;
+  --color-surface-raised: #ffffff;
+  --color-field: #ffffff;
+  --color-foreground: #0a1828;
+  --color-muted-foreground: #54687e;
+  --color-border: #d7e0ea;
+  --color-primary: #0a6d81;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0a6d81;
+  --color-success: #146b52;
+  --color-danger: #a8322f;
+  --color-warning: #8a5a12;
+  --color-info: #0a6d81;
+  --color-focus: #0a6d81;
+
+  --color-hull: #ffffff;
+  --color-line: #d7e0ea;
+  --color-line-strong: #bccbdb;
+  --color-signal: #0a6d81;
+  --color-signal-ink: #ffffff;
+  --color-signal-wash: color-mix(in srgb, #0a6d81 9%, transparent);
+
+  --surface-app: var(--color-background);
+  --surface-elevated: var(--color-surface);
+  --surface-muted: var(--color-surface-muted);
+  --text-primary: var(--color-foreground);
+  --text-muted: var(--color-muted-foreground);
+  --border-subtle: var(--color-border);
+  --accent: var(--color-primary);
+  --accent-foreground: var(--color-primary-foreground);
+  --scrollbar-thumb: #a9b8c8;
+  --scrollbar-thumb-hover: #8496aa;
+}
+
+/* The shared design kit also carries a system-dark block. Restate the Night
+   Signal field with the same specificity so the cyan signal, rose, and mint
+   win when the reader's system is dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]):not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-background: #05080e;
+    --color-shell: #080d15;
+    --color-surface: #0c131d;
+    --color-surface-muted: #111a26;
+    --color-surface-raised: #111a26;
+    --color-field: #0c131d;
+    --color-foreground: #f3f7fc;
+    --color-muted-foreground: #8696ab;
+    --color-border: #1c2734;
+    --color-primary: #3ad8f2;
+    --color-primary-foreground: #03222a;
+    --color-accent: #3ad8f2;
+    --color-success: #78e3bb;
+    --color-danger: #f7a3a3;
+    --color-warning: #f0c987;
+    --color-info: #3ad8f2;
+    --color-focus: #3ad8f2;
+
+    --color-hull: #080d15;
+    --color-line: #1c2734;
+    --color-line-strong: #2b3a4b;
+    --color-signal: #3ad8f2;
+    --color-signal-ink: #03222a;
+    --color-signal-wash: color-mix(in srgb, #3ad8f2 10%, transparent);
+
+    --scrollbar-thumb: #2a3a4d;
+    --scrollbar-thumb-hover: #3b4f65;
+  }
+}
+
+/* Before React mounts, follow the reader's system preference. Any explicit
+   choice wins through data-resolved-theme / data-theme above. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-resolved-theme="dark"]):not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --color-background: #eef2f7;
+    --color-shell: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-muted: #f4f7fb;
+    --color-surface-raised: #ffffff;
+    --color-field: #ffffff;
+    --color-foreground: #0a1828;
+    --color-muted-foreground: #54687e;
+    --color-border: #d7e0ea;
+    --color-primary: #0a6d81;
+    --color-primary-foreground: #ffffff;
+    --color-accent: #0a6d81;
+    --color-success: #146b52;
+    --color-danger: #a8322f;
+    --color-warning: #8a5a12;
+    --color-info: #0a6d81;
+    --color-focus: #0a6d81;
+
+    --color-hull: #ffffff;
+    --color-line: #d7e0ea;
+    --color-line-strong: #bccbdb;
+    --color-signal: #0a6d81;
+    --color-signal-ink: #ffffff;
+    --color-signal-wash: color-mix(in srgb, #0a6d81 9%, transparent);
+
+    --scrollbar-thumb: #a9b8c8;
+    --scrollbar-thumb-hover: #8496aa;
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "jobs",
+    "title": "Jobs",
+    "routes": [
+      "/jobs"
+    ],
+    "purpose": "Monitor durable local and remote work, understand resource or budget limits and recover interrupted operations safely.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-014"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Find work requiring attention."
+    },
+    {
+      "statement": "Understand actual job state and scope."
+    },
+    {
+      "statement": "Stop or recover without duplicate external operations."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "queued",
+      "description": "Show worker/resource/funding queue reason and cancellable status."
+    },
+    {
+      "id": "running",
+      "description": "Show observed progress, worker and current bounds."
+    },
+    {
+      "id": "stopping",
+      "description": "Acknowledge stop request separately from confirmed termination."
+    },
+    {
+      "id": "interrupted",
+      "description": "Show reconciliation status, retained files and safe recovery options."
+    }
+  ],
+  "claims": [
+    {
+      "id": "jobs-intent-1",
+      "type": "custom",
+      "statement": "Job monitoring survives page reload and application restart without losing operation identity or creating duplicate paid work.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "jobs-intent-2",
+      "type": "custom",
+      "statement": "Stop requested is distinct from stopped, and partial outputs remain inspectable with accurate completion labels.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "planned-not-implemented",
+  "x-design": {
+    "layout": "Grouped active, attention-needed and completed jobs with filters for project/type/worker and durable state; compact mobile rows preserve stop and inspect actions.",
+    "controls": [
+      "Filter/search jobs and open detail",
+      "Inspect queue reason, output snapshot and actual progress evidence",
+      "Request stop of selected work with dependencies and charge implications",
+      "Reconcile interrupted work before retry; inspect cached and partial results"
+    ],
+    "details": [
+      "Queued, running, stopping, stopped, failed, interrupted and completed are different durable states.",
+      "Percent complete is shown only when supported; otherwise use observed step/frame progress and elapsed time.",
+      "No automatic costly resubmission on reload, restart or reconnect."
+    ]
+  },
+  "x-requirements": [
+    "DS-SAFETY-BUDGET"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded."
+}

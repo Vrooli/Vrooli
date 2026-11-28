@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import serviceDefinition from '../../../.vrooli/service.json';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 
@@ -30,33 +29,11 @@ const DEFAULT_CAPABILITY: AICapability = {
   reason: 'checking',
 };
 
-type ServiceHealthConfig = {
-  lifecycle?: {
-    health?: {
-      endpoints?: Record<string, unknown>;
-    };
-  };
-};
-
-const SERVICE_HEALTH_ENDPOINTS: Record<string, string> = (() => {
-  const raw = (serviceDefinition as ServiceHealthConfig)?.lifecycle?.health?.endpoints ?? {};
-  return Object.entries(raw).reduce<Record<string, string>>((acc, [key, value]) => {
-    if (typeof value === 'string' && value.trim().length > 0) {
-      acc[key] = value.trim();
-    }
-    return acc;
-  }, {});
-})();
-
-const getPreferredAiStatusPath = (): string | undefined => {
-  if (SERVICE_HEALTH_ENDPOINTS.ai) {
-    return SERVICE_HEALTH_ENDPOINTS.ai;
-  }
-  if (SERVICE_HEALTH_ENDPOINTS.api) {
-    return SERVICE_HEALTH_ENDPOINTS.api;
-  }
-  return '/health';
-};
+// The API health path (`lifecycle.health.endpoints.api` in .vrooli/service.json).
+// UI source must not import the scenario's .vrooli manifest: an engaged live
+// instance builds from a serving-tree copy that excludes .vrooli, so the bundle
+// would fail to resolve it.
+const AI_STATUS_PATH = '/health';
 
 const buildAbsoluteEndpointUrl = (apiUrl: string, endpointPath: string): string => {
   if (/^https?:\/\//i.test(endpointPath)) {
@@ -208,41 +185,38 @@ export const useAICapabilityStore = create<AICapabilityStore>((set, get) => ({
 
       // Check server-side health/AI capability endpoint as fallback
       try {
-        const statusPath = getPreferredAiStatusPath();
-        if (statusPath) {
-          const config = await getConfig();
-          const statusUrl = buildAbsoluteEndpointUrl(config.API_URL, statusPath);
-          const response = await fetch(statusUrl, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          });
+        const config = await getConfig();
+        const statusUrl = buildAbsoluteEndpointUrl(config.API_URL, AI_STATUS_PATH);
+        const response = await fetch(statusUrl, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-          if (response.ok) {
-            let payload: Record<string, unknown> = {};
-            try {
-              const raw: unknown = await response.json();
-              payload = isRecord(raw) ? raw : {};
-            } catch {
-              // Some health endpoints return plain text; ignore parse errors
-            }
-
-            const available = typeof payload.available === 'boolean' ? payload.available : true;
-            const credits = typeof payload.credits === 'number' ? payload.credits : undefined;
-            const apiKeyConfigured =
-              typeof payload.api_key_configured === 'boolean' ? payload.api_key_configured : available;
-
-            set({
-              capability: {
-                available,
-                reason: available ? (credits && credits > 0 ? 'has_credits' : 'has_api_key') : 'no_credits',
-                creditsRemaining: credits,
-                apiKeyConfigured,
-                lastChecked: new Date(),
-              },
-              isChecking: false,
-            });
-            return;
+        if (response.ok) {
+          let payload: Record<string, unknown> = {};
+          try {
+            const raw: unknown = await response.json();
+            payload = isRecord(raw) ? raw : {};
+          } catch {
+            // Some health endpoints return plain text; ignore parse errors
           }
+
+          const available = typeof payload.available === 'boolean' ? payload.available : true;
+          const credits = typeof payload.credits === 'number' ? payload.credits : undefined;
+          const apiKeyConfigured =
+            typeof payload.api_key_configured === 'boolean' ? payload.api_key_configured : available;
+
+          set({
+            capability: {
+              available,
+              reason: available ? (credits && credits > 0 ? 'has_credits' : 'has_api_key') : 'no_credits',
+              creditsRemaining: credits,
+              apiKeyConfigured,
+              lastChecked: new Date(),
+            },
+            isChecking: false,
+          });
+          return;
         }
       } catch {
         // Endpoint missing or offline; fall through to default capability

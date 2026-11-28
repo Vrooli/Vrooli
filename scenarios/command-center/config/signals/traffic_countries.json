@@ -1,0 +1,78 @@
+{
+  "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "label": {
+      "optional": true,
+      "type": "string"
+    },
+    "share": {
+      "type": "number"
+    },
+    "value": {
+      "type": "number"
+    }
+  },
+  "coverage": "IN-REACH",
+  "description": "Ranked country breakdown of measured landing-page visitors.",
+  "empirical": "NONE",
+  "format": "integer",
+  "id": "traffic_countries",
+  "kind": "panel",
+  "label": "Traffic by country",
+  "sample": {
+    "basis": "hand-authored, illustrative country mix, reviewed 2026-09-03",
+    "rows": [
+      {
+        "key": "US",
+        "label": "United States",
+        "share": 0.5,
+        "value": 420
+      },
+      {
+        "key": "GB",
+        "label": "United Kingdom",
+        "share": 0.25,
+        "value": 210
+      },
+      {
+        "key": "DE",
+        "label": "Germany",
+        "share": 0.15,
+        "value": 126
+      },
+      {
+        "key": "CA",
+        "label": "Canada",
+        "share": 0.1,
+        "value": 84
+      }
+    ],
+    "series": [
+      840
+    ],
+    "value": 840
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "analytics-traffic.v1",
+    "expectedUnit": "count",
+    "featureId": "traffic_countries",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.MetricsService/GetTrafficBreakdown?dimension=COUNTRY\u0026limit=6\u0026window_days=30",
+    "select": "traffic_countries",
+    "selector": "traffic_countries",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "trust": "UNAVAILABLE",
+  "unit": "count"
+}

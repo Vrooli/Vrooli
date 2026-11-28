@@ -4,8 +4,9 @@ package apierror
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+
+	"github.com/vrooli/browser-automation-studio/internal/logx"
 )
 
 // APIError represents a structured API error response.
@@ -43,19 +44,35 @@ func (e *APIError) WithMessage(message string) *APIError {
 
 // RespondError writes a JSON error response with the appropriate status code.
 func RespondError(w http.ResponseWriter, err *APIError) {
+	RespondErrorWithLogger(w, err, logx.Standard{})
+}
+
+// RespondErrorWithLogger writes a JSON error response and reports encoding
+// failures through the supplied logger.
+func RespondErrorWithLogger(w http.ResponseWriter, err *APIError, logger logx.Logger) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.Status)
 	if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
-		log.Printf("apierror: failed to encode error response: %v", encodeErr)
+		if logger != nil {
+			logger.Errorf("apierror: failed to encode error response: %v", encodeErr)
+		}
 	}
 }
 
 // RespondSuccess writes a JSON success response.
 func RespondSuccess(w http.ResponseWriter, statusCode int, data any) {
+	RespondSuccessWithLogger(w, statusCode, data, logx.Standard{})
+}
+
+// RespondSuccessWithLogger writes a JSON success response and reports encoding
+// failures through the supplied logger.
+func RespondSuccessWithLogger(w http.ResponseWriter, statusCode int, data any, logger logx.Logger) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if encodeErr := json.NewEncoder(w).Encode(data); encodeErr != nil {
-		log.Printf("apierror: failed to encode success response: %v", encodeErr)
+		if logger != nil {
+			logger.Errorf("apierror: failed to encode success response: %v", encodeErr)
+		}
 	}
 }
 

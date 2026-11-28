@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@/test-utils";
 import { GeneratorFormFooter } from "./GeneratorFormFooter";
 import type { ValidationError } from ".";
 
@@ -21,7 +21,7 @@ describe("GeneratorFormFooter", () => {
     render(<GeneratorFormFooter {...defaultProps} />);
 
     expect(
-      screen.getByRole("button", { name: "Generate Desktop Application" })
+      screen.getByRole("button", { name: "Generate Desktop Application" }),
     ).toBeInTheDocument();
   });
 
@@ -29,14 +29,16 @@ describe("GeneratorFormFooter", () => {
     render(<GeneratorFormFooter {...defaultProps} isUpdateMode={true} />);
 
     expect(
-      screen.getByRole("button", { name: "Update Desktop Application" })
+      screen.getByRole("button", { name: "Update Desktop Application" }),
     ).toBeInTheDocument();
   });
 
   it("shows 'Generating...' when isPending is true", () => {
     render(<GeneratorFormFooter {...defaultProps} isPending={true} />);
 
-    expect(screen.getByRole("button", { name: "Generating..." })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Generating..." }),
+    ).toBeInTheDocument();
   });
 
   it("disables button when isPending is true", () => {
@@ -51,7 +53,9 @@ describe("GeneratorFormFooter", () => {
     ];
     render(<GeneratorFormFooter {...defaultProps} validationErrors={errors} />);
 
-    expect(screen.getByRole("button", { name: "Generate Desktop Application" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Generate Desktop Application" }),
+    ).toBeDisabled();
   });
 
   it("enables button when no pending state and no validation errors", () => {
@@ -66,7 +70,7 @@ describe("GeneratorFormFooter", () => {
         {...defaultProps}
         isError={true}
         errorMessage="Something went wrong"
-      />
+      />,
     );
 
     expect(screen.getByText(/Error:/)).toBeInTheDocument();
@@ -79,7 +83,7 @@ describe("GeneratorFormFooter", () => {
         {...defaultProps}
         isError={false}
         errorMessage="Something went wrong"
-      />
+      />,
     );
 
     expect(screen.queryByText(/Error:/)).not.toBeInTheDocument();
@@ -87,7 +91,11 @@ describe("GeneratorFormFooter", () => {
 
   it("does not display error message when errorMessage is null", () => {
     render(
-      <GeneratorFormFooter {...defaultProps} isError={true} errorMessage={null} />
+      <GeneratorFormFooter
+        {...defaultProps}
+        isError={true}
+        errorMessage={null}
+      />,
     );
 
     expect(screen.queryByText(/Error:/)).not.toBeInTheDocument();
@@ -112,13 +120,13 @@ describe("GeneratorFormFooter", () => {
         {...defaultProps}
         validationErrors={errors}
         onDismissErrors={onDismissErrors}
-      />
+      />,
     );
 
     // Find the dismiss button (X icon button) - it's the one that's not the submit button
     const buttons = screen.getAllByRole("button");
     const dismissButton = buttons.find(
-      (btn) => !btn.textContent?.includes("Desktop Application")
+      (btn) => !btn.textContent?.includes("Desktop Application"),
     );
     expect(dismissButton).toBeDefined();
     if (dismissButton) {

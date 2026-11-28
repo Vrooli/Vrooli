@@ -1,0 +1,14 @@
+{
+  "receipts": [
+    {"schemaVersion":1,"receiptId":"admitted","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_ADMITTED","reasonCode":"VALIDATION_REASON_CODE_NONE","revision":"1"},
+    {"schemaVersion":1,"receiptId":"attached","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_ATTACHED","reasonCode":"VALIDATION_REASON_CODE_NONE","revision":"1"},
+    {"schemaVersion":1,"receiptId":"queued","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_QUEUED","reasonCode":"VALIDATION_REASON_CODE_NONE","revision":"2"},
+    {"schemaVersion":1,"receiptId":"running","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_RUNNING","reasonCode":"VALIDATION_REASON_CODE_NONE","revision":"3"},
+    {"schemaVersion":1,"receiptId":"retry","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_RETRY_PENDING","reasonCode":"VALIDATION_REASON_CODE_CAPACITY_UNAVAILABLE","revision":"4"},
+    {"schemaVersion":1,"receiptId":"succeeded","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_SUCCEEDED","reasonCode":"VALIDATION_REASON_CODE_NONE","revision":"5"},
+    {"schemaVersion":1,"receiptId":"failed","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_FAILED","reasonCode":"VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_FAILED","revision":"5"},
+    {"schemaVersion":1,"receiptId":"degraded","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_DEGRADED","reasonCode":"VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_MISSING","revision":"5"},
+    {"schemaVersion":1,"receiptId":"cancelled","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_CANCELLED","reasonCode":"VALIDATION_REASON_CODE_ABORTED","revision":"5"},
+    {"schemaVersion":1,"receiptId":"superseded","lineageId":"lineage","intentId":"intent","state":"RECEIPT_STATE_SUPERSEDED","reasonCode":"VALIDATION_REASON_CODE_SUPERSEDED","revision":"5"}
+  ]
+}

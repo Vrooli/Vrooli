@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "investigate-a-declined-charge",
+    "title": "Understand why a charge was refused",
+    "purpose": "An agent reports it could not buy something. The operator needs to learn which constraint refused it and what would change that, without reading logs. A decline is usually the system working, so this journey should feel like reading a record rather than debugging a failure.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-002",
+      "OT-P0-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "activity",
+      "state": "default",
+      "intent": "Find the refused attempt, which is listed by default rather than hidden behind a filter."
+    },
+    {
+      "page": "activity",
+      "state": "default",
+      "intent": "Read the specific constraint that refused it \u2014 a cap, a scope entry, a lapsed mandate, or unverifiable identity.",
+      "via": "the attempt row"
+    },
+    {
+      "page": "activity",
+      "state": "default",
+      "intent": "Reconstruct the full decision path to confirm no other constraint would also have refused it.",
+      "via": "the row's replay affordance"
+    },
+    {
+      "page": "budgets",
+      "state": "default",
+      "intent": "Decide whether to widen the constraint or leave it, with current headroom visible while deciding.",
+      "via": "the constraint's link to its owning budget"
+    }
+  ]
+}

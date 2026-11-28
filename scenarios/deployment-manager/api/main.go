@@ -28,12 +28,15 @@ package main
 import (
 	"log"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	"github.com/vrooli/api-core/preflight"
 
 	"deployment-manager/server"
 )
 
 func main() {
+	eventpublishing.Register()
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "deployment-manager",

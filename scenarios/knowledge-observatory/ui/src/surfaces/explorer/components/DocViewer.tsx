@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RefreshCw, Settings } from "lucide-react";
 import { Button } from "../../../shared/ui/button";
-import type { DocViewMode } from "../../../shared/hooks/viewerHooks";
+import type { DocViewMode } from "../../../shared/controllers/viewerController";
 import { CodeView } from "../../viewer/components/CodeView";
 import { PreviewView } from "../../viewer/components/PreviewView";
 import { ViewModeToggle } from "../../viewer/components/ViewModeToggle";

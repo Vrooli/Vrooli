@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Trace one real public rug from its launch through a bridge to a publicly evidenced exchange cluster in a private packet; if a candidate cannot meet the evidence floor, retain it as unmet and do not lower grades or publish an accusation.",
+      "id": "CF6-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Private cross-chain rug showcase",
+      "validation": [
+        {
+          "notes": "Only close with a privately retained real public-rug trace whose launch, bridge, and exchange-cluster links each meet their evidence floor; record the candidate and unmet reason if the evidence floor fails.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Reconcile Treasury fork-wallet activity from chain data alone, including replay, removal, re-inclusion, and exact quantity; do not read Treasury databases, use signing keys, broadcast, or modify Treasury code.",
+      "id": "CF6-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Treasury fork reconciliation",
+      "validation": [
+        {
+          "notes": "Run deterministic fork-chain reconciliation tests for exact quantities, removed/replayed/re-included events, and independent JSON-RPC balance reads without Treasury database, key, signing, or broadcast access.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Have the owner-owned CI2 evaluator import and test the same Go library against seeded linkability cases; claim adoption only after the real CI2 consumer path and test pass, and leave the target open if no owner-owned import path exists.",
+      "id": "CF6-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Crypto Infrastructure CI2 adoption",
+      "validation": [
+        {
+          "notes": "Compile and run the owner-owned Crypto Infrastructure CI2 test importing packages/chain-forensics; leave this requirement open until that real import and seeded linkability test pass.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

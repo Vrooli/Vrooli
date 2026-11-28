@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "system-monitor-investigator",
+  "profileKey": "system-monitor/default",
+  "description": "Agent profile for system-monitor investigations",
+  "roleRef": "code.default",
+  "maxTurns": 75,
+  "timeout": "600s",
+  "allowedTools": ["read", "write", "shell"],
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF"
+  },
+  "createdBy": "system-monitor",
+  "effort": "medium"
+}

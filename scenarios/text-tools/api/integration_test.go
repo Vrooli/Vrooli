@@ -247,7 +247,7 @@ func TestEndToEndAnalyzeWorkflow(t *testing.T) {
 
 	t.Run("MultipleAnalyses", func(t *testing.T) {
 		reqBody := AnalyzeRequest{
-			Text: "Contact me at test@example.com. This is a great product! Visit https://example.com for more.",
+			Text:     "Contact me at test@example.com. This is a great product! Visit https://example.com for more.",
 			Analyses: []string{"entities", "sentiment", "statistics", "keywords", "language"},
 		}
 
@@ -298,7 +298,7 @@ func TestEndToEndAnalyzeWorkflow(t *testing.T) {
 
 	t.Run("SummaryGeneration", func(t *testing.T) {
 		reqBody := AnalyzeRequest{
-			Text: "This is a long text that should be summarized into a shorter version for easy reading",
+			Text:     "This is a long text that should be summarized into a shorter version for easy reading",
 			Analyses: []string{"summary"},
 			Options: AnalyzeOptions{
 				SummaryLength: 5,

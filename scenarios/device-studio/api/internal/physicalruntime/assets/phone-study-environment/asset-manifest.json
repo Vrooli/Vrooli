@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-phone-study-environment-v1",
+  "status": "derived_unreviewed_not_library_promoted",
+  "asset": {
+    "path": "phone-study-environment.glb",
+    "media_type": "model/gltf-binary",
+    "gltf_version": "2.0",
+    "size_bytes": 421404,
+    "sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+    "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+    "node_count": 14,
+    "triangle_count": 5856,
+    "nodes": {
+      "RoomBackWall": 0,
+      "TableLeg-NE": 1,
+      "TableLeg-NW": 2,
+      "TableLeg-SE": 3,
+      "TableLeg-SW": 4,
+      "TableTop": 5,
+      "TeaCup": 6,
+      "TeaCupHandle": 7,
+      "TeaSurface": 8,
+      "WindowFrameRailLower": 9,
+      "WindowFrameRailUpper": 10,
+      "WindowFrameUprightLeft": 11,
+      "WindowFrameUprightRight": 12,
+      "WindowLightPanel": 13
+    }
+  },
+  "support_interface": {
+    "contact_region_part_id": "table-top",
+    "frame_part_id": "table-top",
+    "id": "table-top-flat",
+    "local_frame_translation_meters": [
+      0.0,
+      0.0170000196,
+      0.0
+    ],
+    "world_top_height_meters": 0.7499999814
+  },
+  "materials": [
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 0,
+      "name": "Warm plaster backdrop",
+      "pbr": {
+        "baseColorFactor": [
+          0.6800000071525574,
+          0.6299999952316284,
+          0.5600000023841858,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8999999761581421
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 1,
+      "name": "Warm pale timber support legs",
+      "pbr": {
+        "baseColorFactor": [
+          0.3799999952316284,
+          0.28999999165534973,
+          0.20000000298023224,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7200000286102295
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 2,
+      "name": "Pale warm mineral sides",
+      "pbr": {
+        "baseColorFactor": [
+          0.6899999976158142,
+          0.6299999952316284,
+          0.5400000214576721,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7149999737739563
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 3,
+      "name": "Travertine001 top material slot",
+      "pbr": {
+        "baseColorFactor": [
+          0.6499999761581421,
+          0.6000000238418579,
+          0.5,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7799999713897705
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 4,
+      "name": "Warm ivory glazed ceramic",
+      "pbr": {
+        "baseColorFactor": [
+          0.7799999713897705,
+          0.7300000190734863,
+          0.6499999761581421,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.23999999463558197
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 5,
+      "name": "Dark tea scale cue",
+      "pbr": {
+        "baseColorFactor": [
+          0.054999999701976776,
+          0.03200000151991844,
+          0.017999999225139618,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.20000000298023224
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0.6240000128746033,
+        0.656000018119812,
+        0.7039999961853027
+      ],
+      "index": 6,
+      "name": "Soft luminous window",
+      "pbr": {
+        "baseColorFactor": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "window_emission_conversion": {
+    "conversion": "multiply the approved Blender emission color by its strength; encode the resulting linear RGB as glTF emissiveFactor with strength 1.0",
+    "export_emissive_factor_linear_rgb": [
+      0.624,
+      0.656,
+      0.704
+    ],
+    "export_strength": 1.0,
+    "name": "Soft luminous window",
+    "profile": "EMISSION_V1",
+    "study_color_linear_rgb": [
+      0.78,
+      0.82,
+      0.88
+    ],
+    "study_strength": 0.8
+  },
+  "related_texture_package": {
+    "package_id": "device-studio-starter-phone-table-v1",
+    "manifest": "../phone-table/asset-manifest.json",
+    "manifest_sha256": "ddd003cb1560332896a801b0edef773ff15f06a004e62cae0f3d69f30e3aae34",
+    "notes": "Travertine001 maps are shipped by the sibling phone-table starter. The full-scene GLB contains no embedded/external images and does not bind those maps; material application remains a separate typed scene binding."
+  },
+  "provenance": {
+    "profile_id": "device-studio-phone-study-environment-export-v1",
+    "source_table_glb_sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
+    "source_table_glb_bytes": 350488,
+    "manifest": "docs/internal/goal/evidence/E3/scene-studies/phone/asset-derivation/runs/environment-1/cpu-export/full-scene-manifest.json",
+    "manifest_sha256": "2a11882dfc72c5a4d582558387607859bd3bccc61f9c94767f468b485bab5035",
+    "export_script": "assets/sources/phone-study-environment/export_environment.py",
+    "export_script_sha256": "1cadc29e06491aae213963d731b7edcc7145ebbb54072baef48522b2ce7564b9",
+    "inventory": "environment-inventory.json",
+    "inventory_sha256": "6c4f11341c642e54b0ae211aa9b6536406b9e9f7fd814e52efd6ce31b5e40ec7",
+    "operation_terminal_receipt": "scenarios/device-studio/docs/internal/goal/evidence/E3/scene-studies/phone/asset-derivation/runs/environment-1/cpu-export/operation-terminal.json",
+    "operation_terminal_sha256": "b40f5cd4f3644e36f5e67b97b827412a73d6a5208e82eb325a85153c041915c8"
+  },
+  "limitations": [
+    "Geometry candidate only; no phone, screen texture, camera, lights, animation, or embedded images.",
+    "The output GLB does not itself bind the related Travertine001 maps.",
+    "Vrooli-authored scene geometry is not measured furniture or product CAD.",
+    "Unreviewed and not promoted to the Library."
+  ]
+}

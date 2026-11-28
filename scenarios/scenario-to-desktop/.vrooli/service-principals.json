@@ -1,0 +1,10 @@
+{
+  "principals": [
+    {
+      "name": "scenario-to-desktop-lpbs-deployment-manager",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:deployment.manage"]
+    }
+  ]
+}

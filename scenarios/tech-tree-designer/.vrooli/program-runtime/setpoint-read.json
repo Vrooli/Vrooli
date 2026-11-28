@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "tech-tree-designer.setpoint-read",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Enumerate all ecosystem-design outcomes and compose bounded proto-plan, ontology and skill-registry diagnostics without manufacturing product acceptance.",
+  "inputs": {
+    "collect_diagnostics": {"type": "boolean", "default": true, "description": "False reads only the declared outcome inventory; it never qualifies live behavior."}
+  },
+  "assumptions": [
+    "The PRD owns outcome meaning; the caller's approved mandate owns required selection. ecosystem-design-v1 contains all 18 PRD outcomes, not an approval of optional tiers.",
+    "No owner acceptance sensor is implemented for the expanded product. All outcome rows remain pending_telemetry and all acceptance bands remain null; numeric proposals have not been approved.",
+    "Live diagnostics require Tech Tree Designer, SDA, Prompt Manager and Program Runtime. The nested skill-set program has its own bounded read-only contract; an incomplete child remains unknown.",
+    "Ontology counts are authored inventory, not verified capability fulfillment. Existing proto-plan inventory is not repository-wide proposal evidence."
+  ],
+  "invariants": [
+    "Read-only: no inference, delegation, publication, owner restart, private HTTP or filesystem access.",
+    "All 18 outcomes survive missing or failed diagnostic reads; required unknown outcomes cannot be accepted.",
+    "Diagnostic values are never banded. Missing targets remain distinct from missing measurements.",
+    "One bounded JSON envelope on catchable program paths. Runtime cancellation or hard budget termination can prevent reporting; the caller must retain that failure as unknown, never acceptance. At most three diagnostics and one child summary; no artifact content or source errors are returned.",
+    "No materialize call. The nested child has its own head limit of 50; this parent reads at most one child envelope."
+  ],
+  "bindings": [
+    {"id": "tech-tree-designer/plan/list", "effect": "read", "optional": true},
+    {"id": "tech-tree-designer/ontology/coverage", "effect": "read", "optional": true}
+  ],
+  "verbs": ["gather", "lib"],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "failed"]},
+    "phase": {"enum": ["validate", "collect", "classify", "report"]},
+    "signals": {
+      "target_revision": "ecosystem-design-v1; inventory identity, not a reviewed mandate digest",
+      "acceptance": "Always unknown until owner-backed acceptance is implemented",
+      "rows": "18 standard setpoint rows keyed by PRD OT-P0-001..009, OT-P1-001..006, OT-P2-001..003. reading, target and in_band are null; unavailable true; reason pending_telemetry.",
+      "required_selection": "caller_mandate; no implicit approval or filtering of unknown outcomes",
+      "unresolved_outcomes": "18, independent of diagnostic success",
+      "diagnostics_requested": "Resolved collect_diagnostics input",
+      "diagnostics": "At most three unbanded standard rows: proto-plans count, ontology capability/scenario counts, skill-registry usage/improve booleans. Failed reads have null reading and a validity reason.",
+      "child": "Optional bounded skill-set child status and artifact digest, acceptance_eligible false. Child success alone does not prove complete readings."
+    },
+    "errors": {"classes": ["scenario_unreachable", "no_grant", "not_run_eligible", "inference_spend_exceeded", "delegated_run_spend_exceeded", "ambiguous_response", "invalid_input", "no_governed_binding", "remote_error", "deadline_exceeded", "binding_error", "kernel_runtime", "invalid_evidence"]},
+    "evidence": "At most three governed read or child program locators; not acceptance receipts"
+  },
+  "budget": {"wall_ms": 60000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 50, "output_bytes": 65536},
+  "fixtures": [
+    {"id": "inventory-only", "inputs": {"collect_diagnostics": false}, "expect": {"status": ["ok"], "signals": {"acceptance": "unknown", "unresolved_outcomes": 18, "diagnostics": []}}, "note": "Executed permanent-gap path; no live owner observation."},
+    {"id": "invalid-mode", "inputs": {"collect_diagnostics": "false"}, "expect": {"admission_error": "invalid_argument"}, "note": "Typed admission rejection, not executed product behavior."},
+    {"id": "live-diagnostics", "inputs": {}, "expect": {"status": ["ok"], "signals": {"acceptance": "unknown", "unresolved_outcomes": 18}}, "requires": ["tech-tree-designer", "scenario-dependency-analyzer", "prompt-manager", "program-runtime"], "note": "Healthy child and owners should yield ok; a partial result fails this qualification rather than normalizing an outage."}
+  ],
+  "rung": "S3",
+  "owner_skill": "tech-tree-designer-improve"
+}

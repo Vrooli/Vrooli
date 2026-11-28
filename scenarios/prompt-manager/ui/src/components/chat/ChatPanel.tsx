@@ -22,9 +22,21 @@ interface ChatPanelProps {
   events: RunEvent[]
   eventsLoading: boolean
   onContinue: (message: string) => Promise<void>
+  /** Allow composing the first turn before a run exists (persona conversations). */
+  canStart?: boolean
+  onStart?: (message: string) => Promise<void>
+  startError?: string | null
 }
 
-export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelProps) {
+export function ChatPanel({
+  run,
+  events,
+  eventsLoading,
+  onContinue,
+  canStart = false,
+  onStart,
+  startError = null,
+}: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +63,8 @@ export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelP
 
   const isGenerating = run != null && ['running', 'pending'].includes(run.status)
   const canContinue = run?.actions?.canContinue === true
+  const canSend = run ? canContinue : canStart && onStart != null
+  const displayError = error ?? startError
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -68,10 +82,12 @@ export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelP
   const handleSend = async () => {
     const trimmed = input.trim()
     if (!trimmed || isSending) return
+    const handler = run ? onContinue : onStart
+    if (!handler) return
     setIsSending(true)
     setError(null)
     try {
-      await onContinue(trimmed)
+      await handler(trimmed)
       setInput('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
@@ -154,14 +170,14 @@ export function ChatPanel({ run, events, eventsLoading, onContinue }: ChatPanelP
       </div>
 
       {/* Error display */}
-      {error && (
+      {displayError && (
         <div className="mx-4 mb-2 px-3 py-2 bg-destructive/20 text-destructive text-sm rounded-lg">
-          {error}
+          {displayError}
         </div>
       )}
 
       {/* Input area */}
-      {canContinue && (
+      {canSend && (
         <div className="border-t border-border p-4">
           <div className="flex gap-2">
             <textarea

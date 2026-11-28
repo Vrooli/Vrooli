@@ -1,0 +1,307 @@
+package tts
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strconv"
+	"strings"
+
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
+
+	"audio-tools/cli/domains/internal/providerlabels"
+	"github.com/vrooli/cli-core/cliapp"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
+	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
+)
+
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client ttsconnect.TTSServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		core:   core,
+		client: ttsconnect.NewTTSServiceClient(httpClient, baseURL),
+	}
+}
+
+func responseFormatFromFlag(s string) commonv1.ResponseFormat {
+	switch s {
+	case "", "mp3":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_MP3
+	case "wav":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_WAV
+	case "opus":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS
+	case "flac":
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC
+	default:
+		return commonv1.ResponseFormat_RESPONSE_FORMAT_UNSPECIFIED
+	}
+}
+
+// responseFormatLabel renders a common.ResponseFormat as its lower-case
+// wire name for human output. Display inverse of responseFormatFromFlag.
+func responseFormatLabel(f commonv1.ResponseFormat) string {
+	switch f {
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_MP3:
+		return "mp3"
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_WAV:
+		return "wav"
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_OPUS:
+		return "opus"
+	case commonv1.ResponseFormat_RESPONSE_FORMAT_FLAC:
+		return "flac"
+	default:
+		return "unspecified"
+	}
+}
+
+func adapterVoiceOverride(raw string) ([]*ttsv1.AdapterMapping, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	adapter, voice, _ := strings.Cut(raw, "=")
+	tier, provider, _ := strings.Cut(adapter, ":")
+	tiers := map[string]commonv1.ProviderTier{
+		"local":  commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
+		"byok":   commonv1.ProviderTier_PROVIDER_TIER_BYOK,
+		"vrooli": commonv1.ProviderTier_PROVIDER_TIER_VROOLI,
+	}
+	value, ok := tiers[tier]
+	if !ok || strings.TrimSpace(provider) == "" || strings.TrimSpace(voice) == "" {
+		return nil, fmt.Errorf("--adapter-voice requires tier:provider=voice (local, byok, or vrooli)")
+	}
+	return []*ttsv1.AdapterMapping{{Tier: value, ProviderId: provider, BackendVoiceId: voice}}, nil
+}
+
+func (h *handlers) synthesizePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(
+		func(ctx cliapp.OperationContext) (*ttsv1.SynthesizeResponse, error) {
+			if ctx.BoolFlag("json-metadata-only") && ctx.Flag("out") == "" {
+				return nil, fmt.Errorf("--json-metadata-only requires --out")
+			}
+			speed := 1.0
+			if s := ctx.Flag("speed"); s != "" {
+				if v, err := strconv.ParseFloat(s, 64); err == nil {
+					speed = v
+				}
+			}
+			voice := ctx.Flag("voice")
+			if voice == "" {
+				voice = "voice.neutral.default"
+			}
+			overrides, err := adapterVoiceOverride(ctx.Flag("adapter-voice"))
+			if err != nil {
+				return nil, err
+			}
+			req := connect.NewRequest(&ttsv1.SynthesizeRequest{
+				Text:           ctx.Flag("text"),
+				Voice:          voice,
+				VoiceOverrides: overrides,
+				Speed:          speed,
+				ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
+			})
+			resp, err := h.client.Synthesize(context.Background(), req)
+			if err != nil {
+				return nil, cliapp.WrapAPIError("synthesize", err, nil)
+			}
+			if resp == nil || resp.Msg == nil {
+				return nil, fmt.Errorf("server returned no synthesis response")
+			}
+			if out := ctx.Flag("out"); out != "" {
+				if err := os.WriteFile(out, resp.Msg.Audio, 0o644); err != nil {
+					return nil, fmt.Errorf("write %s: %w", out, err)
+				}
+			}
+			return resp.Msg, nil
+		},
+		func(ctx cliapp.RunContext, resp *ttsv1.SynthesizeResponse) error {
+			if ctx.Flag("out") == "" {
+				_, _ = ctx.Stdout().Write(resp.Audio)
+			}
+			return cliapp.RenderProtoMutation(ctx, resp, synthesizeReport(resp))
+		},
+		func(ctx cliapp.RunContext, resp *ttsv1.SynthesizeResponse) error {
+			// JSON mode is a machine-readable Connect response. Keep binary audio
+			// inside the proto's base64 field; writing it before the JSON document
+			// makes the nominal JSON output unparsable.
+			if ctx.BoolFlag("json-metadata-only") {
+				metadata := proto.Clone(resp).(*ttsv1.SynthesizeResponse)
+				metadata.Audio = nil
+				return cliapp.PrintProtoJSON(ctx.Stdout(), metadata)
+			}
+			return cliapp.PrintProtoJSON(ctx.Stdout(), resp)
+		},
+	)
+}
+
+func synthesizeReport(resp *ttsv1.SynthesizeResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Synthesized %d bytes (%s) via %s/%s in %.0fms.",
+				len(resp.Audio), resp.ContentType,
+				providerlabels.TierLabel(resp.GetProviderTier()), resp.ProviderId, resp.LatencyMs),
+		},
+	}
+}
+
+func (h *handlers) synthesize(ctx cliapp.RunContext) error { return h.synthesizePrimitive().Run(ctx) }
+
+// synthesizeStream calls the server-streaming SynthesizeStream RPC and
+// appends each frame's audio bytes to --out (or stdout) as they arrive.
+// Streaming-capable providers emit incremental frames; non-streaming
+// providers emit a single is_final=true frame with the full audio.
+func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
+	speed := 1.0
+	if s := ctx.Flag("speed"); s != "" {
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			speed = v
+		}
+	}
+	voice := ctx.Flag("voice")
+	if voice == "" {
+		voice = "voice.neutral.default"
+	}
+	req := connect.NewRequest(&ttsv1.SynthesizeRequest{
+		Text:           ctx.Flag("text"),
+		Voice:          voice,
+		Speed:          speed,
+		ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
+	})
+	stream, err := h.client.SynthesizeStream(context.Background(), req)
+	if err != nil {
+		return cliapp.WrapAPIError("synthesize-stream", err, nil)
+	}
+	defer stream.Close()
+
+	outPath := ctx.Flag("out")
+	var sink io.Writer = os.Stdout
+	var outFile *os.File
+	if outPath != "" {
+		f, err := os.Create(outPath)
+		if err != nil {
+			return fmt.Errorf("open %s: %w", outPath, err)
+		}
+		defer f.Close()
+		outFile = f
+		sink = f
+	}
+
+	var (
+		totalBytes int
+		finalTier  string
+		finalID    string
+		finalModel string
+		finalMs    float64
+		contentTy  string
+	)
+	for {
+		ok := stream.Receive()
+		if !ok {
+			if err := stream.Err(); err != nil && !errors.Is(err, io.EOF) {
+				return cliapp.WrapAPIError("synthesize-stream receive", err, nil)
+			}
+			break
+		}
+		frame := stream.Msg()
+		if frame == nil {
+			continue
+		}
+		if len(frame.Audio) > 0 {
+			n, werr := sink.Write(frame.Audio)
+			if werr != nil {
+				return fmt.Errorf("write audio frame: %w", werr)
+			}
+			totalBytes += n
+		}
+		if frame.IsFinal {
+			finalTier = providerlabels.TierLabel(frame.GetProviderTier())
+			finalID = frame.ProviderId
+			finalModel = frame.ModelId
+			finalMs = frame.LatencyMs
+			contentTy = frame.ContentType
+		}
+	}
+	if outFile != nil {
+		_ = outFile.Sync()
+	}
+
+	return cliapp.RenderProtoMutation(ctx, &ttsv1.AudioFrame{}, cliapp.MutationReport{
+		Result: []string{
+			fmt.Sprintf("Synthesized %d bytes (%s) via %s/%s/%s in %.0fms.",
+				totalBytes, contentTy, finalTier, finalID, finalModel, finalMs),
+		},
+	})
+}
+
+// formats prints the TTS egress capability matrix: the output containers
+// the API can produce for a --format. Human-friendly output per
+// feedback_cli_default_human_output.
+func (h *handlers) formatsPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustom(
+		func(_ cliapp.OperationContext) (*ttsv1.GetSupportedFormatsResponse, error) {
+			resp, err := h.client.GetSupportedFormats(context.Background(), connect.NewRequest(&ttsv1.GetSupportedFormatsRequest{}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("tts-formats", err, nil)
+			}
+			if resp == nil || resp.Msg == nil {
+				return nil, fmt.Errorf("server returned no supported formats")
+			}
+			return resp.Msg, nil
+		},
+		func(ctx cliapp.RunContext, msg *ttsv1.GetSupportedFormatsResponse) error {
+			fmt.Fprintf(ctx.Stdout(), "TTS egress — producible output formats:\n")
+			for _, f := range msg.GetEmittedFormats() {
+				fmt.Fprintf(ctx.Stdout(), "  - %s\n", responseFormatLabel(f))
+			}
+			fmt.Fprintf(ctx.Stdout(), "ffmpeg encode backend = %s\n", availabilityLabel(msg.GetFfmpegAvailable()))
+			return nil
+		},
+	)
+}
+
+func (h *handlers) formats(ctx cliapp.RunContext) error { return h.formatsPrimitive().Run(ctx) }
+
+func availabilityLabel(ok bool) string {
+	if ok {
+		return "available"
+	}
+	return "unavailable"
+}
+
+func (h *handlers) voicesPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(
+		func(_ cliapp.OperationContext) (*ttsv1.ListVoicesResponse, error) {
+			resp, err := h.client.ListVoices(context.Background(), connect.NewRequest(&ttsv1.ListVoicesRequest{}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("list voices", err, nil)
+			}
+			if resp == nil || resp.Msg == nil {
+				return nil, fmt.Errorf("server returned no voices")
+			}
+			return resp.Msg, nil
+		},
+		func(_ cliapp.OperationContext, resp *ttsv1.ListVoicesResponse) cliapp.ListReport {
+			results := make([]string, 0, len(resp.Voices))
+			for _, v := range resp.Voices {
+				results = append(results, fmt.Sprintf("%s — %s", v.Id, v.Name))
+			}
+			return cliapp.ListReport{
+				Summary:        []string{fmt.Sprintf("Found %d canonical voice(s).", len(resp.Voices))},
+				ResultsHeading: "Voices",
+				Results:        results,
+			}
+		},
+	)
+}
+
+func (h *handlers) voices(ctx cliapp.RunContext) error { return h.voicesPrimitive().Run(ctx) }

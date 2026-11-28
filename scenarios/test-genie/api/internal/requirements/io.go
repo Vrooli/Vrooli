@@ -5,105 +5,37 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"test-genie/internal/shared/filesystem"
 )
 
-// Reader abstracts file reading operations for testing.
-type Reader interface {
-	ReadFile(path string) ([]byte, error)
-	ReadDir(path string) ([]fs.DirEntry, error)
-	Stat(path string) (fs.FileInfo, error)
-	Exists(path string) bool
-}
-
-// Writer abstracts file writing operations for testing.
-type Writer interface {
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-	MkdirAll(path string, perm fs.FileMode) error
-	Remove(path string) error
-}
-
-// FileSystem combines Reader and Writer interfaces.
-type FileSystem interface {
-	Reader
-	Writer
-}
-
-// osReader implements Reader using the os package.
-type osReader struct{}
+// Reader and Writer keep the requirements package API while sharing the
+// capability contracts with its collaborating packages.
+type Reader = filesystem.Reader
+type Writer = filesystem.RemovableWriter
+type FileSystem = filesystem.FileSystem
 
 // NewOSReader creates a Reader that uses the real file system.
 func NewOSReader() Reader {
-	return &osReader{}
+	return filesystem.OS{}
 }
-
-func (r *osReader) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
-
-func (r *osReader) ReadDir(path string) ([]fs.DirEntry, error) {
-	return os.ReadDir(path)
-}
-
-func (r *osReader) Stat(path string) (fs.FileInfo, error) {
-	return os.Stat(path)
-}
-
-func (r *osReader) Exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-// osWriter implements Writer using the os package.
-type osWriter struct{}
 
 // NewOSWriter creates a Writer that uses the real file system.
 func NewOSWriter() Writer {
-	return &osWriter{}
-}
-
-func (w *osWriter) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-func (w *osWriter) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (w *osWriter) Remove(path string) error {
-	return os.Remove(path)
-}
-
-// osFileSystem implements FileSystem using the os package.
-type osFileSystem struct {
-	osReader
-	osWriter
+	return filesystem.OS{}
 }
 
 // NewOSFileSystem creates a FileSystem that uses the real file system.
 func NewOSFileSystem() FileSystem {
-	return &osFileSystem{}
+	return filesystem.OS{}
 }
 
-// Walker abstracts directory walking for testing.
-type Walker interface {
-	Walk(root string, fn filepath.WalkFunc) error
-	WalkDir(root string, fn fs.WalkDirFunc) error
-}
-
-// osWalker implements Walker using filepath.
-type osWalker struct{}
+// Walker preserves the requirements package API for injected directory walks.
+type Walker = filesystem.Walker
 
 // NewOSWalker creates a Walker that uses the real file system.
 func NewOSWalker() Walker {
-	return &osWalker{}
-}
-
-func (w *osWalker) Walk(root string, fn filepath.WalkFunc) error {
-	return filepath.Walk(root, fn)
-}
-
-func (w *osWalker) WalkDir(root string, fn fs.WalkDirFunc) error {
-	return filepath.WalkDir(root, fn)
+	return filesystem.OS{}
 }
 
 // memReader implements Reader with in-memory data for testing.
@@ -168,7 +100,7 @@ type memFileInfo struct {
 
 func (f *memFileInfo) Name() string       { return f.name }
 func (f *memFileInfo) Size() int64        { return f.size }
-func (f *memFileInfo) Mode() fs.FileMode  { return 0644 }
+func (f *memFileInfo) Mode() fs.FileMode  { return 0o644 }
 func (f *memFileInfo) ModTime() time.Time { return time.Time{} }
 func (f *memFileInfo) IsDir() bool        { return f.isDir }
 func (f *memFileInfo) Sys() any           { return nil }

@@ -8,6 +8,7 @@ type CaptureType string
 const (
 	CaptureScreenshot CaptureType = "screenshot"
 	CaptureRecording  CaptureType = "recording"
+	CaptureJourney    CaptureType = "journey"
 )
 
 // Capture holds metadata for a single persisted capture file.
@@ -20,8 +21,16 @@ type Capture struct {
 	Width         int         `json:"width,omitempty"`
 	Height        int         `json:"height,omitempty"`
 	DurationMs    int64       `json:"duration_ms,omitempty"`
+	Checksum      string      `json:"checksum"`
 	SourceSession string      `json:"source_session"`
+	PipelineID    string      `json:"pipeline_id,omitempty"`
+	VoidReason    string      `json:"void_reason,omitempty"`
+	VoidedAt      *time.Time  `json:"voided_at,omitempty"`
+	SupersededBy  string      `json:"superseded_by,omitempty"`
 	CreatedAt     time.Time   `json:"created_at"`
+	// CapturedAt is the observation time supplied by the producing run. It is
+	// distinct from metadata persistence time for audit and run-window checks.
+	CapturedAt time.Time `json:"captured_at"`
 }
 
 // CapturesSummary provides aggregate statistics for a scenario's captures.

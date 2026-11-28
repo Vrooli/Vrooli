@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Released version",
+      "role": "anatomy",
+      "mode": "pinned",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-version-row]"
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "name": "Missing release details",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {"version": "", "sha": "", "status": ""},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-version-row]"}]
+    },
+    {
+      "id": "loading",
+      "name": "Loading health",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {"version": "2.4.0", "sha": "loading", "status": "loading", "testRuns": 0},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-version-row]"}]
+    },
+    {
+      "id": "error",
+      "name": "Failed release health",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {"version": "2.4.0", "sha": "deadbeef", "status": "error", "gateFailCount": 3},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-version-row]"}]
+    },
+    {
+      "id": "one",
+      "name": "One adopter",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {"version": "2.4.0", "sha": "abc123", "status": "released", "adopters": [{"scenario": "catalog", "adoptedVersion": "2.4.0"}]},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-version-row]"}]
+    },
+    {
+      "id": "many",
+      "name": "Many adopters",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {"version": "2.4.0", "sha": "abc123", "status": "released", "adopters": [{"scenario": "catalog"}, {"scenario": "studio"}, {"scenario": "operations"}, {"scenario": "billing"}]},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-version-row]"}]
+    },
+    {
+      "id": "overflow",
+      "name": "Long source path",
+      "role": "boundary",
+      "mode": "pinned",
+      "args": {"version": "2.4.0", "sha": "abc123", "status": "released", "sourcePath": "scenarios/react-component-library/library/components/VersionRow/versions/2.4.0/VersionRow.tsx with a deliberately long provenance path"},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-version-row]"}]
+    }
+  ]
+}

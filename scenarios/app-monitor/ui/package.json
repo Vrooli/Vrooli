@@ -5,32 +5,36 @@
   "type": "module",
   "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
   "scripts": {
-    "dev": "VITE_PORT=${VITE_PORT} vite",
-    "build": "tsc && vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "vite build",
+    "build:profile": "vite build --mode profile",
     "preview": "vite preview",
-    "start": "node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "debug": "VITE_PORT=${VITE_PORT} vite --debug --force",
-    "clean": "rm -rf dist node_modules .vite",
+    "debug": "vrooli lifecycle protect -- vite --debug --force",
+    "clean": "node scripts/clean.mjs",
     "test": "vitest run --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000",
+    "test:coverage": "vitest run --coverage --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0 --coverage.thresholds.statements=0 --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000",
+    "test:coverage:strict": "vitest run --coverage --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000",
     "test:watch": "vitest --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000",
     "test:related": "vitest related --run --pool=forks --maxWorkers=1 --minWorkers=1 --no-file-parallelism --testTimeout=10000 --hookTimeout=10000"
   },
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "axios": "^1.6.2",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
+    "axios": "^1.21.0",
     "clsx": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "express": "^4.22.3",
     "lucide-react": "^0.544.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.21.0",
+    "react-router-dom": "^6.30.6",
     "react-use-websocket": "^4.5.0",
-    "ws": "^8.14.2",
+    "ws": "^8.22.1",
     "zustand": "^4.5.7"
   },
   "devDependencies": {
@@ -51,8 +55,8 @@
     "jsdom": "^24.0.0",
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.54.0",
-    "vite": "^5.0.8",
-    "vitest": "^2.1.4"
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
   },
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

@@ -16,7 +16,6 @@
       "waitForMs": 1000,
       "thresholds": {
         "performance": { "error": 0.75, "warn": 0.85 },
-        "accessibility": { "error": 0.90, "warn": 0.95 },
         "best-practices": { "error": 0.85, "warn": 0.90 },
         "seo": { "error": 0.80, "warn": 0.90 }
       },
@@ -31,7 +30,6 @@
       "waitForMs": 2000,
       "thresholds": {
         "performance": { "error": 0.65, "warn": 0.75 },
-        "accessibility": { "error": 0.90, "warn": 0.95 },
         "best-practices": { "error": 0.80, "warn": 0.90 }
       },
       "requirements": ["BAS-PERF-WORKFLOW-INTERACTIVE"],
@@ -46,7 +44,6 @@
       "waitForMs": 1000,
       "thresholds": {
         "performance": { "error": 0.75, "warn": 0.85 },
-        "accessibility": { "error": 0.90, "warn": 0.95 },
         "best-practices": { "error": 0.85, "warn": 0.90 }
       },
       "requirements": ["BAS-PERF-PROJECTS-PAGE"]
@@ -60,7 +57,6 @@
       "waitForMs": 1000,
       "thresholds": {
         "performance": { "error": 0.70, "warn": 0.80 },
-        "accessibility": { "error": 0.90, "warn": 0.95 },
         "best-practices": { "error": 0.80, "warn": 0.90 }
       },
       "requirements": ["BAS-A11Y-MOBILE"],

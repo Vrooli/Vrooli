@@ -1,0 +1,10 @@
+{
+  "gate": "usage-contract",
+  "assetId": "calibration-usage-contract",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.usage_contract.coverage_incomplete",
+  "catalogAsset": "asset.json",
+  "source": "missing-contract.tsx",
+  "description": "A component declares a renderable item collection but intentionally has no versioned usage contract."
+}

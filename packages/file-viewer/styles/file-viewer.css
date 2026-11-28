@@ -1,0 +1,177 @@
+/*
+ * @vrooli/file-viewer styles.
+ *
+ * Import once. The viewer is themed through CSS variables holding RGB channel
+ * triplets ("34 211 238"), which Tailwind composes with an alpha. The defaults
+ * below match a dark console; map them to your own tokens to theme the viewer:
+ *
+ *   :root { --fv-accent: var(--app-accent); }
+ *
+ * The defaults sit in :where(), so any declaration of yours wins regardless of
+ * import order.
+ */
+:where(:root) {
+  /* Surfaces */
+  --fv-surface-base: 2 6 23;
+  --fv-surface-raised: 15 23 42;
+  --fv-surface-input: 30 41 59;
+
+  /* Text */
+  --fv-text-primary: 248 250 252;
+  --fv-text-secondary: 226 232 240;
+  --fv-text-muted: 148 163 184;
+  --fv-text-faint: 100 116 139;
+
+  /* Borders carry their own alpha: "r g b / a" */
+  --fv-border-default: 255 255 255 / 0.1;
+  --fv-border-hover: 255 255 255 / 0.3;
+
+  /* Accent */
+  --fv-accent: 34 211 238;
+  --fv-accent-fg: 15 23 42;
+  --fv-accent-border: 6 182 212 / 0.4;
+
+  /* State */
+  --fv-error-text: 252 165 165;
+  --fv-error-detail: 248 113 113;
+  --fv-success: 74 222 128;
+
+  /* Layering of in-pane chrome */
+  --fv-z-chrome: 10;
+}
+
+/* Rich markdown labels belong to their link: inline-code chips and bold text
+ * otherwise override the anchor's accent color with ordinary body text. */
+.markdown-content a span,
+.markdown-content a code,
+.markdown-content a strong,
+.markdown-content a em {
+  color: inherit;
+}
+
+/* The component library's controls read its semantic --color-* contract; this
+ * adapts it to the viewer's tokens inside the surfaces that host them. */
+[data-testid="audio-preview-player"],
+.fv-artifact-preview {
+  --color-background: rgb(var(--fv-surface-base));
+  --color-foreground: rgb(var(--fv-text-secondary));
+  --color-primary: rgb(var(--fv-accent));
+  --color-primary-foreground: rgb(var(--fv-accent-fg));
+  --color-secondary: rgb(var(--fv-accent));
+  --color-surface: rgb(var(--fv-surface-input));
+  --color-surface-raised: rgb(var(--fv-surface-raised));
+  --color-surface-muted: rgb(var(--fv-surface-base));
+  --color-border: rgb(var(--fv-border-default));
+  --color-border-strong: rgb(var(--fv-border-hover));
+  --color-muted-foreground: rgb(var(--fv-text-muted));
+  --color-accent: rgb(var(--fv-accent));
+  --color-focus: rgb(var(--fv-accent));
+  --color-danger: rgb(var(--fv-error-detail));
+  --color-info: rgb(var(--fv-accent));
+  --color-success: rgb(var(--fv-accent));
+  --color-on-primary: rgb(var(--fv-accent-fg));
+}
+
+/* ── File-preview markdown: skip off-screen blocks ──
+ * A markdown file arrives as one string (up to 1 MiB) and renders as one tall
+ * DOM tree with no virtualization, so every block is laid out and painted even
+ * though only a screenful is visible. `content-visibility: auto` lets the
+ * browser skip layout and paint for blocks outside the viewport, and the
+ * intrinsic size keeps the scrollbar stable for the ones it skipped. Scoped to
+ * the file preview: the message list has its own virtualizer, and applying
+ * this to a row it is measuring would fight that measurement. */
+[data-testid="file-preview-markdown"] .markdown-content > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+/* ── File-preview markdown: give the reader its own scroll layer ──
+ * On iOS WebKit the file viewer is a position:fixed, transform-animated drawer.
+ * A very tall overflow:auto area inside that composited/clipped ancestor is
+ * scrolled by repainting the whole area synchronously, so scrolling a long
+ * document janks in proportion to its height — acutely on the image-heavy
+ * atlas, which is ~150,000px tall. Promoting the reading pane to its own
+ * compositing layer moves it onto WebKit's tiled async-scrolling path, where
+ * only the visible tiles are rasterized. Desktop Blink already scrolls this
+ * smoothly (measured), so the hint is inert there; `contain: paint` keeps the
+ * promoted layer's work bounded to the pane. */
+[data-testid="reader-reading-pane"] {
+  transform: translateZ(0);
+  will-change: transform;
+  contain: paint;
+}
+
+/* Artifact inspection backgrounds are content surfaces, separate from chrome. */
+.fv-image-checkerboard {
+  background-color: rgb(var(--fv-surface-base));
+  background-image: linear-gradient(45deg, rgb(var(--fv-text-muted) / .12) 25%, transparent 25%, transparent 75%, rgb(var(--fv-text-muted) / .12) 75%), linear-gradient(45deg, rgb(var(--fv-text-muted) / .12) 25%, transparent 25%, transparent 75%, rgb(var(--fv-text-muted) / .12) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+.fv-artifact-preview:fullscreen { width: 100vw; height: 100dvh; }
+.fv-pdf-scroll { --viewer-container-height: 100%; }
+.fv-pdf-scroll .pdfViewer { padding: 12px 0; }
+.fv-pdf-scroll .pdfViewer .page { margin-bottom: 12px; }
+.fv-markdown-reader h1 { font-size: 1.75em; }
+.fv-markdown-reader h2 { font-size: 1.45em; }
+.fv-markdown-reader h3 { font-size: 1.2em; }
+.fv-markdown-reader h4, .fv-markdown-reader h5, .fv-markdown-reader h6 { font-size: 1em; }
+.fv-markdown-reader :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top: 1rem; }
+
+/* Dense source reading for a pointer; retain full line-selection touch targets. */
+@media (pointer: fine) {
+  .fv-source-line-number, .fv-source-line-text { min-height: 1.5rem; padding-block: .125rem; }
+}
+
+/* Inspection controls own their form appearance and keep mobile focus at 16px. */
+.fv-inspection-choices { display: flex; min-inline-size: 0; gap: .25rem; padding: .25rem; border: 1px solid rgb(var(--fv-border-default)); border-radius: .875rem; background: rgb(var(--fv-surface-base)); }
+.fv-inspection-picker { appearance: none; -webkit-appearance: none; border: 0; border-radius: .5rem; padding-inline: .75rem 2rem; background-color: transparent; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23899bb2' stroke-width='1.7'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .5rem center; font-size: 1rem; text-overflow: ellipsis; }
+[dir=rtl] .fv-inspection-picker { background-position: left .5rem center; }
+.fv-inspection-picker option { background: rgb(var(--fv-surface-raised)); color: rgb(var(--fv-text-primary)); }
+.fv-inspection-settings input[type=text], .fv-inspection-settings select { font-size: 1rem; }
+.fv-inspection-toggle { display: inline-flex; align-items: center; flex-shrink: 0; inline-size: 2.25rem; block-size: 1.375rem; padding: .1875rem; border-radius: 9999px; background: rgb(var(--fv-surface-input)); border: 1px solid rgb(var(--fv-border-default)); }
+.fv-inspection-toggle::after { content: ""; inline-size: .875rem; block-size: .875rem; border-radius: 50%; background: rgb(var(--fv-text-muted)); }
+.fv-inspection-toggle-on { justify-content: end; background: rgb(var(--fv-accent)); border-color: transparent; }
+.fv-inspection-toggle-on::after { background: rgb(var(--fv-accent-fg)); }
+
+/* Diff content stays dense and uses the canvas as its only scroll container.
+   One grid shares split track sizing and row heights across all line pairs. */
+.fv-diff-line { display: flex; align-items: stretch; min-inline-size: 0; min-block-size: 24px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; line-height: 20px; tab-size: 4; }
+.fv-diff-number { flex: 0 0 auto; inline-size: calc(var(--fv-diff-digits, 2) * 1ch + .5rem); padding: 2px .25rem; border-inline-end: 1px solid rgb(var(--fv-border-default)); background: rgb(var(--fv-surface-raised) / .3); color: inherit; opacity: .75; font-size: 11px; text-align: end; font-variant-numeric: tabular-nums; user-select: none; }
+.fv-diff-code { margin: 0; padding: 2px .5rem; min-inline-size: 0; flex: 1; background: transparent; font: inherit; overflow: visible; }
+.fv-diff-line[data-diff-kind=context] .fv-diff-number { color: rgb(var(--fv-text-muted)); }
+.fv-diff-line[data-diff-kind=note] { color: rgb(var(--fv-text-muted)); font-style: italic; }
+.fv-diff-line[data-diff-kind=empty] { background: repeating-linear-gradient(135deg, transparent, transparent 4px, rgb(var(--fv-text-muted) / .04) 4px, rgb(var(--fv-text-muted) / .04) 5px); }
+.fv-diff-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-inline-size: 44rem; }
+.fv-diff-column { margin: 0; padding: .5rem .75rem; background: rgb(var(--fv-surface-raised)); color: rgb(var(--fv-text-muted)); font-size: 11px; font-weight: 600; }
+.fv-diff-nowrap { inline-size: max-content; min-inline-size: 100%; }
+.fv-diff-split.fv-diff-nowrap { grid-template-columns: repeat(2, minmax(max-content, 1fr)); min-inline-size: max(44rem, 100%); }
+.fv-diff-nowrap .fv-diff-code { min-inline-size: max-content; }
+
+
+/* Reflowing Word reader: app typography, inert document content. */
+.fv-document-reader { color: rgb(var(--fv-text-secondary)); line-height: 1.85; overflow-wrap: anywhere; }
+.fv-document-reader > :first-child { margin-block-start: 0; }
+.fv-document-reader p { margin-block: 0 1.15em; }
+.fv-document-reader h1, .fv-document-reader h2, .fv-document-reader h3,
+.fv-document-reader h4, .fv-document-reader h5, .fv-document-reader h6 { color: rgb(var(--fv-text-primary)); font-weight: 650; line-height: 1.3; margin-block: 1.6em .65em; letter-spacing: -.025em; scroll-margin-block: 1.5rem; }
+.fv-document-reader h1 { font-size: 1.9em; }
+.fv-document-reader h2 { font-size: 1.45em; }
+.fv-document-reader h3 { font-size: 1.15em; }
+.fv-document-reader ul, .fv-document-reader ol { padding-inline-start: 1.5em; margin-block: 0 1.2em; }
+.fv-document-reader ul { list-style: disc; } .fv-document-reader ol { list-style: decimal; }
+.fv-document-reader li { padding-inline-start: .2em; margin-block: .3em; }
+.fv-document-reader strong { color: rgb(var(--fv-text-primary)); font-weight: 650; }
+.fv-document-reader blockquote { border-inline-start: 3px solid rgb(var(--fv-border-default)); padding-inline-start: 1.2em; margin-block: 1.5em; color: rgb(var(--fv-text-muted)); }
+.fv-document-reader a[href] { color: rgb(var(--fv-accent)); text-decoration: underline; text-underline-offset: .2em; }
+.fv-document-reader a[href]:focus-visible { outline: 2px solid rgb(var(--fv-accent)); outline-offset: 3px; }
+.fv-document-reader img { max-inline-size: 100%; block-size: auto; margin-block: 1em; }
+.fv-document-reader pre { overflow: auto; padding: 1em; background: rgb(var(--fv-surface-input)); border-radius: .5rem; }
+.fv-document-reader hr { border: 0; border-block-start: 1px solid rgb(var(--fv-border-default)); margin-block: 2em; }
+.fv-document-table { max-inline-size: 100%; overflow-x: auto; margin-block: 1.5em; }
+.fv-document-table table { border-collapse: collapse; min-inline-size: 100%; font-size: .875em; line-height: 1.65; }
+.fv-document-table td, .fv-document-table th { padding: .75em 1em; border: 1px solid rgb(var(--fv-border-default)); vertical-align: top; min-inline-size: 6rem; }
+.fv-document-table th { background: rgb(var(--fv-surface-raised)); color: rgb(var(--fv-text-primary)); text-align: start; font-weight: 600; }
+.fv-document-table p:last-child { margin-block-end: 0; }
+
+.fv-folder-columns { display: grid; grid-template-columns: minmax(0, 1fr) 6rem 8rem 1rem; align-items: center; gap: .75rem; }

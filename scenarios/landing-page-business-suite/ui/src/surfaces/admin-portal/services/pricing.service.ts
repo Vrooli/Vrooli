@@ -60,7 +60,7 @@ const INTERVAL_MAPPINGS: Record<string, IntervalSlug> = {
 /**
  * Normalize billing interval to a consistent slug
  */
-export function normalizeInterval(value: PlanOption['billing_interval'] | string | number | null | undefined): IntervalSlug {
+export function normalizeInterval(value: string | number | null | undefined): IntervalSlug {
   if (typeof value === 'number') {
     if (value === 1) return 'month';
     if (value === 2) return 'year';
@@ -155,7 +155,7 @@ export function buildPriceFormValues(
   defaults: { planName: string; displayWeight: number; displayEnabled: boolean; priceId: string }
 ): PriceFormValues {
   const features = Array.isArray(metadata?.features)
-    ? (metadata?.features as string[]).map((entry) => String(entry))
+    ? metadata.features
     : [];
 
   return {
@@ -203,11 +203,15 @@ export function buildPriceFormsFromBundles(bundles: BundleCatalogEntry[]): Recor
  * Get unique identifier for a price option
  */
 export function getPriceIdentifier(price: PlanOption): string {
-  return (
-    price.stripe_price_id ||
-    (price.metadata && (price.metadata as Record<string, unknown>).__price_pk?.toString()) ||
-    price.plan_name
-  );
+  const metadata = price.metadata;
+  const primaryKey = metadata?.__price_pk;
+  const metadataIdentifier =
+    typeof primaryKey === 'string'
+      ? primaryKey
+      : typeof primaryKey === 'number'
+        ? String(primaryKey)
+        : undefined;
+  return price.stripe_price_id || metadataIdentifier || price.plan_name;
 }
 
 /**
@@ -265,7 +269,7 @@ export function applyFormOverrides(
     if (trimmed.length > 0) {
       nextMetadata[field] = trimmed;
     } else {
-      delete nextMetadata[field];
+      Reflect.deleteProperty(nextMetadata, field);
     }
   };
 
@@ -277,7 +281,7 @@ export function applyFormOverrides(
   if (features.length > 0) {
     nextMetadata.features = features;
   } else {
-    delete nextMetadata.features;
+    Reflect.deleteProperty(nextMetadata, 'features');
   }
 
   const metadata = Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;

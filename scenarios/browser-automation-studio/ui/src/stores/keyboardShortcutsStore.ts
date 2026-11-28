@@ -268,7 +268,7 @@ interface KeyboardShortcutsState {
   addContext: (context: ShortcutContext) => void;
   removeContext: (context: ShortcutContext) => void;
   registerAction: (shortcutId: string, action: () => void) => void;
-  unregisterAction: (shortcutId: string) => void;
+  unregisterAction: (shortcutId: string, expectedAction: () => void) => void;
   setEnabled: (enabled: boolean) => void;
 
   // Chord handling
@@ -329,11 +329,12 @@ export const useKeyboardShortcutsStore = create<KeyboardShortcutsState>((set, ge
     set({ actions: newActions });
   },
 
-  unregisterAction: (shortcutId) => {
+  unregisterAction: (shortcutId, expectedAction) => {
     // Defer state update to avoid React error #185 (Maximum update depth exceeded)
     // This can happen when cleanup runs during render phase due to modal state changes
     queueMicrotask(() => {
       const { actions } = get();
+      if (actions.get(shortcutId) !== expectedAction) return;
       const newActions = new Map(actions);
       newActions.delete(shortcutId);
       set({ actions: newActions });
@@ -448,36 +449,6 @@ export function formatShortcut(shortcut: ShortcutDefinition): string {
   if (shortcut.chord) {
     return `${parts[0]} then ${shortcut.chord.toUpperCase()}`;
   }
-
-  return parts.join(' + ');
-}
-
-/**
- * Legacy format function for backward compatibility
- */
-export function formatShortcutLegacy(
-  key: string,
-  modifiers?: ModifierKey[]
-): string {
-  const parts: string[] = [];
-
-  if (modifiers?.includes('ctrl') || modifiers?.includes('meta')) {
-    parts.push(getModifierKey());
-  }
-  if (modifiers?.includes('alt')) {
-    parts.push(getAltKey());
-  }
-  if (modifiers?.includes('shift')) {
-    parts.push('Shift');
-  }
-
-  let displayKey = key.toUpperCase();
-  if (key === 'escape') displayKey = 'Esc';
-  if (key === 'enter') displayKey = '↵';
-  if (key === '/') displayKey = '/';
-  if (key === '?') displayKey = '?';
-
-  parts.push(displayKey);
 
   return parts.join(' + ');
 }

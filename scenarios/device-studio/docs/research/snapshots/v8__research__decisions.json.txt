@@ -1,0 +1,107 @@
+{
+  "status": "answered",
+  "questions": [
+    {
+      "id": "release_scope",
+      "question": "What should count as the first complete release, distinct from the first working photographic milestone?",
+      "recommended": "A",
+      "options": {
+        "A": "Representative library: phone, laptop, tablet, foldable, watch, monitor/TV, smart display/frame and vehicle host. Qualify phone rotation and laptop lid motion; give other assets explicit supported poses/motions.",
+        "B": "Fully polished phone and laptop workflows first; broader visual library follows in a later release.",
+        "C": "Every researched screen-device family, with all relevant articulation/deformation, before calling the scenario complete."
+      },
+      "follow_up": "Expand concrete asset sourcing, scene/rig qualification and acceptance matrix to the selected catalog; all options retain generalized contracts and AI creation.",
+      "selected": "A"
+    },
+    {
+      "id": "editing_depth",
+      "question": "How much direct scene and motion editing should the UI offer?",
+      "recommended": "A",
+      "options": {
+        "A": "Guided shot builder plus advanced camera, lighting, placement, screen calibration and motion/keyframe controls; native-file import/export for mesh work.",
+        "B": "Preset-driven builder with a small parameter set; advanced edits primarily through AI or native files.",
+        "C": "General-purpose in-browser 3D editor including mesh and material-graph authoring."
+      },
+      "follow_up": "Validate the selected interaction model, timeline controls, accessibility alternatives and browser performance; do not rebuild Blender unless C is explicitly chosen.",
+      "selected": "A"
+    },
+    {
+      "id": "output_target",
+      "question": "Which output profile must be qualified for the first release?",
+      "recommended": "A",
+      "options": {
+        "A": "1080p at 24/30 fps SDR for video, landscape and portrait compositions, plus high-resolution stills where source/renderer supports them; qualify 4K video later.",
+        "B": "4K at 24/30 fps SDR video from the first release, accepting longer asynchronous rendering and stricter source-resolution requirements.",
+        "C": "4K/60 fps and HDR/professional finishing formats in the initial acceptance scope."
+      },
+      "follow_up": "Measure selected native render profile and screen legibility, assess plate/source resolution, codec/color pipeline and storage cost. A larger output file alone is not higher native detail.",
+      "selected": "A"
+    },
+    {
+      "id": "deployment",
+      "question": "Where must the scenario and rendering worker run initially?",
+      "recommended": "A",
+      "options": {
+        "A": "The current Vrooli host, with browser access and responsive review; qualify the existing GPU and retain CPU fallback.",
+        "B": "Also work as a standalone Linux desktop product in the first release.",
+        "C": "Also support standalone Windows and macOS desktop products in the first release."
+      },
+      "follow_up": "Resolve supported Blender provisioning, runtime isolation, GPU discovery, installation and packaging obligations for selected platforms.",
+      "selected": "A"
+    },
+    {
+      "id": "generation_cost_policy",
+      "question": "What should the scenario support for external generation and compute?",
+      "recommended": "A",
+      "options": {
+        "A": "Local tools plus optional cloud/BYOK providers under explicitly configured project budgets; no automatic paid fallback.",
+        "B": "Local tools and already-included agent/subscription capabilities only; no additional paid API or render service.",
+        "C": "Prefer cloud generation/rendering when it improves quality or speed, automatically within configured budgets."
+      },
+      "follow_up": "Qualify the selected owner-managed provider route and parameter/cost receipts. No credentials or actual spending limits are assumed by this answer; a paid proof requires its configured cap before invocation.",
+      "selected": "A"
+    },
+    {
+      "id": "capture_privacy",
+      "question": "May external AI providers receive real app screenshots or recordings for analysis or generation?",
+      "recommended": "A",
+      "options": {
+        "A": "Only with explicit per-project opt-in; by default use blank/redacted screens and public device/scene references.",
+        "B": "Never; keep real app media and screen-bearing renders local for every project.",
+        "C": "Allow by default for project media, with an opt-out for sensitive projects."
+      },
+      "follow_up": "Define generation and critique data flows, redaction and provider-upload evidence; include remote agent vision in the same policy, not only the image-generation API.",
+      "selected": "A"
+    },
+    {
+      "id": "ai_creation_autonomy",
+      "question": "How independently should AI create and improve new device models and scenes?",
+      "recommended": "A",
+      "options": {
+        "A": "Search/import/build/refine candidates autonomously within a budget, then present comparisons for review before reusable-library release; reuse approved assets automatically.",
+        "B": "Guided creation: choose sources and approve major modeling/scene changes as the job progresses."
+      },
+      "follow_up": "Specify resumable stages, intervention points, candidate evaluation, cost/compute ceilings and review flow; preserve upstream human-only release rules.",
+      "selected": "A"
+    }
+  ],
+  "settled_constraints": [
+    "Zero-purchase model sourcing; prefer good free models, accurate dimension references, and explicitly labeled generic fallbacks.",
+    "Actual app captures remain separate from generated scenery and simulated OS/browser chrome.",
+    "Photographic and full 3D rendering coexist; selected configuration determines eligibility.",
+    "Phone rotation and laptop lid motion remain requested scope, not silently replaced by screen-only video.",
+    "The broad device domain and reference-based AI creation are first-class requirements.",
+    "Direct PNG/MP4/model delivery, immutable evidence and saved reproducible shot recipes remain required."
+  ],
+  "scope_note": "Operator choices authorize dependent research and implementation/validation design; no scenario scaffold, provider spend, pricing publication or account change performed.",
+  "supersedes": {
+    "path": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/v7/research/decisions.json",
+    "sha256": "3fdabe6d8973de839198c28d90a44b8cba3671bd11887525640cfd2129e71a68"
+  },
+  "operator_response": "1A; 2A; 3A; 4A with cross-platform architecture from the start like system-monitor; 5A with normal monetization, Vrooli credits/account sign-in and downloadable desktop use; 6A; 7A with clear AI and agent-launch disclosure.",
+  "clarifications": {
+    "deployment": "Current host is initial runtime qualification target; architecture must support Windows/macOS/Linux and downloadable desktop use for other users from the start. Per-platform certification must be explicit, not inferred.",
+    "generation_cost_policy": "Align with existing Vrooli monetization, sign-in and credits alongside local/BYOK execution. Research actual owners and implementation; no live spend or price policy invented.",
+    "ai_creation_autonomy": "Always clearly disclose AI use or an agent launch before the initiating action, including nested autonomous work within the disclosed budget and scope."
+  }
+}

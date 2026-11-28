@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { getProxyInfo } from "@vrooli/api-base";
 import { AppShell } from "./components/layout/AppShell";
 import Dashboard from "./pages/Dashboard";
 import ScenarioDetail from "./pages/ScenarioDetail";
@@ -8,13 +9,22 @@ import CampaignsView from "./pages/CampaignsView";
 import SettingsView from "./pages/SettingsView";
 import { KeyboardShortcuts } from "./components/ui/keyboard-shortcuts";
 
+function getRouterBasename(): string {
+  const proxyInfo = getProxyInfo();
+  const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath;
+  if (!proxyPath) {
+    return "";
+  }
+  return proxyPath.replace(/\/+$/, "");
+}
+
 function AppContent() {
   const navigate = useNavigate();
 
   return (
     <>
       <AppShell>
-        <main role="main" aria-label="Tidiness Manager Application">
+        <div aria-label="Tidiness Manager Application">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -24,7 +34,7 @@ function AppContent() {
             <Route path="/campaigns" element={<CampaignsView />} />
             <Route path="/settings" element={<SettingsView />} />
           </Routes>
-        </main>
+        </div>
       </AppShell>
       <KeyboardShortcuts onNavigate={navigate} />
     </>
@@ -32,8 +42,10 @@ function AppContent() {
 }
 
 export default function App() {
+  const routerBasename = getRouterBasename();
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <AppContent />
     </BrowserRouter>
   );

@@ -1,2 +1,11 @@
 api/web-console
+api/web-console-api
+api/*.err
+api/web-console
+wc-test-*
+*.sock
 cli/cli
+cli/web-console
+
+# Installed local runtime environment.
+/data/program-runtime/

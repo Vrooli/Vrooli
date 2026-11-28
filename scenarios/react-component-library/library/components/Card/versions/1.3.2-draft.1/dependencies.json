@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Card",
+  "version": "1.3.2-draft.1",
+  "resolvedAt": "2026-11-15T16:20:56Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "major": 1,
+      "observed": "1.0.6",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Contracts",
+      "major": 1,
+      "observed": "1.0.1",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.2",
+      "rank": 1
+    }
+  ]
+}

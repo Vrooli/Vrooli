@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-launch-status-spec-smoke",
+    "description": "Observer smoke: the Launch progress page renders at phone width for a real, retained research-home record (folders are never deleted, only marked).",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "launch-status",
+      "surface": "experience-launch-status"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-launch-status",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/launch/local-models-w1-20261111",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Launch progress"
+        }
+      }
+    },
+    {
+      "id": "wait-launch-status-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.launchStatus",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Launch progress page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-launch-status",
+      "source": "navigate-launch-status",
+      "target": "wait-launch-status-page"
+    }
+  ]
+}

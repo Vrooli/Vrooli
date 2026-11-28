@@ -1,0 +1,23 @@
+//go:build linux || darwin
+
+package main
+
+import (
+	"os"
+	"syscall"
+)
+
+func openNativeOperatorLifetime(handle uintptr) (*os.File, error) {
+	if err := syscall.SetNonblock(int(handle), true); err != nil {
+		return nil, err
+	}
+	return os.NewFile(handle, "native-operator-lifetime"), nil
+}
+
+func protectNativeOperatorLifetime(file *os.File) error {
+	raw, err := file.SyscallConn()
+	if err != nil {
+		return err
+	}
+	return raw.Control(func(fd uintptr) { syscall.CloseOnExec(int(fd)) })
+}

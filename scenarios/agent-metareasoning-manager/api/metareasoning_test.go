@@ -71,7 +71,7 @@ func TestReasoningRequest(t *testing.T) {
 		req := ReasoningRequest{
 			Input:       "Should we adopt microservices?",
 			Type:        "pros_cons",
-			Model:       "llama3.2",
+			Model:       "chat.default",
 			Context:     "E-commerce platform with 10M users",
 			Constraints: "Budget: $500k, Timeline: 6 months",
 		}
@@ -110,7 +110,7 @@ func TestReasoningResponse(t *testing.T) {
 			Type:       "pros_cons",
 			Confidence: 0.85,
 			Timestamp:  time.Now(),
-			Model:      "llama3.2",
+			Model:      "chat.default",
 			Success:    true,
 		}
 
@@ -345,9 +345,9 @@ func TestGetModel(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"DefaultModel", "", "llama3.2"},
+		{"DefaultModel", "", "chat.default"},
 		{"CustomModel", "gpt-4", "gpt-4"},
-		{"LlamaModel", "llama3.1", "llama3.1"},
+		{"RoleModel", "chat.small", "chat.small"},
 	}
 
 	for _, tt := range tests {
@@ -475,7 +475,7 @@ func BenchmarkCalculateItemsScore(b *testing.B) {
 func BenchmarkGetModel(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = getModel("llama3.2")
+		_ = getModel("chat.default")
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/internal/sessionpermission"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -50,6 +52,11 @@ type Spec struct {
 
 	// Session reuse policy: "fresh", "clean", or "reuse"
 	ReuseMode string
+	// BrowserBackend selects the already configured BAS browser executable owner.
+	// Agent Access supplies this only from its trusted backend admission.
+	BrowserBackend string
+	// SessionProfileVersion identifies the selected profile and saved revision for safe pooling.
+	SessionProfileVersion string
 
 	// Recording-specific fields
 	StorageState   json.RawMessage       // Restore auth state from session profile
@@ -59,12 +66,41 @@ type Spec struct {
 	// Execution-specific fields
 	BaseURL      string                // Base URL for relative navigation
 	Capabilities CapabilityRequirement // HAR, video, tracing needs
+	// Absolute WAV path served as a deterministic fake microphone.
+	// The driver launches a dedicated browser instance per distinct value.
+	FakeMicrophoneWav         string
+	AudioMode                 sessionpermission.AudioMode
+	AudioDeviceEvidence       bool
+	AudioPlaybackPauseMS      int
+	AudioPlaybackStartDelayMS int
+	AudioPlaybackDeferStart   bool
 
 	// Labels for debugging/filtering
 	Labels map[string]string
 
-	// Anti-detection and human-like behavior configuration
+	// Legacy signal-adjustment and interaction-timing settings; no site-specific
+	// detection or access outcome is implied.
 	BrowserProfile *sessionprofilepersistence.BrowserProfile
+
+	// AppTarget and ValidationContext are required together for an
+	// Electron validation session. The driver attaches to the target; it does
+	// not own the desktop process.
+	AppTarget         *driver.AppTarget
+	ValidationContext *driver.ValidationContext
+
+	// Authorizer is supplied by the existing grant/consent authority. It is
+	// carried by the broker-owned session and checked before user or agent
+	// mutations. Nil preserves legacy internal workflows; agent access callers
+	// must provide it.
+	Authorizer sessionpermission.Authorizer
+	// OpenAuthorizer and OpenRequest admit the session before browser creation.
+	// If an action authorizer is supplied, this admission contract is mandatory.
+	OpenAuthorizer sessionpermission.OpenAuthorizer
+	OpenRequest    *sessionpermission.OpenRequest
+	CallerResolver sessionpermission.CallerResolver
+	// PermissionProfile is copied to the driver for a second URL/effect check.
+	// It is metadata admitted by this API, never supplied by the remote caller.
+	PermissionProfile *sessionpermission.Profile
 }
 
 // RecordingCallbacks configures callbacks for recording sessions.
@@ -119,8 +155,8 @@ type FrameInfo struct {
 
 // FrameStreamingConfig configures live preview frame streaming.
 type FrameStreamingConfig struct {
-	// CallbackURL is where frames are posted. Auto-generated if empty.
-	CallbackURL string
+	// URL is the shared source-bearing WebSocket ingress. Auto-generated if empty.
+	URL string
 	// Quality is JPEG quality 1-100, default 55.
 	Quality int
 	// FPS is frames per second, default 6.
@@ -131,15 +167,17 @@ type FrameStreamingConfig struct {
 
 // CapabilityRequirement specifies execution capabilities needed.
 type CapabilityRequirement struct {
-	NeedsParallelTabs bool
-	NeedsIframes      bool
-	NeedsFileUploads  bool
-	NeedsDownloads    bool
-	NeedsHAR          bool
-	NeedsVideo        bool
-	NeedsTracing      bool
-	MinViewportWidth  int
-	MinViewportHeight int
+	NeedsParallelTabs  bool
+	NeedsIframes       bool
+	NeedsFileUploads   bool
+	NeedsDownloads     bool
+	NeedsHAR           bool
+	NeedsVideo         bool
+	NeedsTracing       bool
+	NeedsPerfTrace     bool
+	NeedsAccessibility bool
+	MinViewportWidth   int
+	MinViewportHeight  int
 }
 
 // IsEmpty returns true if no capabilities are required.

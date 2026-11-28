@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "qemu-arm",
+  "description": "QEMU AArch64 system emulator used by the disposable fresh-host validation lane",
+  "commands": [
+    "qemu-system-aarch64"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "qemu-system-arm",
+  "packages": {
+    "apt": "qemu-system-arm",
+    "apt-get": "qemu-system-arm",
+    "dnf": "qemu-system-aarch64-core",
+    "pacman": "qemu-system-aarch64"
+  },
+  "installHint": "Install the QEMU AArch64 system emulator through the declared host requirement before running arm64 guests.",
+  "bundling": "host-required",
+  "capability": "headless-gui",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "The local-QEMU provider declares Linux host execution only."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "The local-QEMU provider declares Linux host execution only."
+    }
+  }
+}

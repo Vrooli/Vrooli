@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "motion.auto-animate-layout",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "description": "The declarative layout-transition component animating keyed insertion, removal, reordering, and resizing through layout-difference calculation rather than tweened layout properties.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "AutoAnimateLayout",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:AutoAnimateLayout",
+  "tags": []
+}

@@ -20,6 +20,7 @@ type Enricher interface {
 // Summary contains aggregate statistics.
 type Summary struct {
 	Total            int
+	RoadmapTotal     int
 	ByDeclaredStatus map[types.DeclaredStatus]int
 	ByLiveStatus     map[types.LiveStatus]int
 	ByCriticality    map[types.Criticality]int
@@ -64,8 +65,24 @@ func (e *enricher) Enrich(ctx context.Context, index *parsing.ModuleIndex, evide
 	default:
 	}
 
-	// Phase 1: Match evidence to validations
+	// Build the set of modules that opted into automatic enrichment once. The
+	// hierarchy phase must use the same boundary as evidence matching and
+	// aggregation; resolving against the original index would mutate modules
+	// that explicitly opted out.
+	enabled := parsing.NewModuleIndex()
 	for _, module := range index.Modules {
+		if types.AutoSyncEnabledFor(index.Modules, module) {
+			if err := enabled.AddModule(module); err != nil {
+				return err
+			}
+		}
+	}
+	if len(enabled.Modules) == 0 {
+		return nil
+	}
+
+	// Phase 1: Match evidence to validations
+	for _, module := range enabled.Modules {
 		for i := range module.Requirements {
 			req := &module.Requirements[i]
 			e.enrichRequirement(ctx, req, evidence)
@@ -73,7 +90,7 @@ func (e *enricher) Enrich(ctx context.Context, index *parsing.ModuleIndex, evide
 	}
 
 	// Phase 2: Aggregate validation status to requirement level
-	for _, module := range index.Modules {
+	for _, module := range enabled.Modules {
 		for i := range module.Requirements {
 			req := &module.Requirements[i]
 			e.aggregator.AggregateRequirement(req)
@@ -81,7 +98,25 @@ func (e *enricher) Enrich(ctx context.Context, index *parsing.ModuleIndex, evide
 	}
 
 	// Phase 3: Resolve parent/child hierarchy status
-	if err := e.hierarchy.ResolveHierarchy(ctx, index); err != nil {
+	// Rebuild edges from enabled modules only. This prevents requirements in
+	// opted-out modules from being changed or influencing an enabled parent.
+	enabled.BuildHierarchy()
+	for parentID, childIDs := range enabled.ChildrenMap {
+		kept := childIDs[:0]
+		for _, childID := range childIDs {
+			if index.GetRequirement(childID) != nil && enabled.GetRequirement(childID) == nil {
+				continue // This child exists only in an opted-out module.
+			}
+			kept = append(kept, childID)
+		}
+		enabled.ChildrenMap[parentID] = kept
+	}
+	for childID := range enabled.ParentIndex {
+		if index.GetRequirement(childID) != nil && enabled.GetRequirement(childID) == nil {
+			delete(enabled.ParentIndex, childID)
+		}
+	}
+	if err := e.hierarchy.ResolveHierarchy(ctx, enabled); err != nil {
 		return err
 	}
 
@@ -143,6 +178,10 @@ func (e *enricher) ComputeSummary(modules []*types.RequirementModule) Summary {
 
 	for _, module := range modules {
 		for _, req := range module.Requirements {
+			if req.IsRoadmap() {
+				summary.RoadmapTotal++
+				continue
+			}
 			summary.Total++
 
 			// Count by declared status

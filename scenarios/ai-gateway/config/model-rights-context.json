@@ -1,0 +1,25 @@
+{
+  "schema_version": "1",
+  "context": {
+    "id": "operator-stated-business-context",
+    "version": "2026-11-21-rights03",
+    "entity_scope": "operator-group",
+    "revenue_status": "pre_revenue",
+    "as_of": "2026-11-21",
+    "source": "operator_statement",
+    "monthly_active_users": {
+      "2023-06": "0",
+      "2024-06": "0",
+      "2024-08": "0"
+    },
+    "monthly_active_users_evidence": {
+      "2023-06": "history/OPERATOR-ANSWERS-20261114.md#LM5-RIGHTS-01 (received 2026-11-14T21:33:22Z)",
+      "2024-06": "history/OPERATOR-ANSWERS-20261114.md#LM5-RIGHTS-01 (received 2026-11-14T21:33:22Z)",
+      "2024-08": "history/OPERATOR-ANSWERS-20261114.md#LM5-RIGHTS-01 (received 2026-11-14T21:33:22Z)"
+    },
+    "unverified_local_inference": "accept",
+    "unverified_local_inference_evidence": "Superseded by normal_use_licensing below; kept only so binaries built before 2026-11-21-rights03 keep accepting unverified local inference until they restart. Remove once every consumer is rebuilt.",
+    "normal_use_licensing": "any_license_class",
+    "normal_use_licensing_evidence": "Operator 2026-11-21 (Claude Code session, verbatim): \"We should always use the best models regardless of licensing for normal use, since I always want the best results. Only when considering monetization or other things does licensing come into play.\" Earlier standing stance, operator 2026-11-11 (image-tools-foundation MISSION): \"push forward ambitiously to find out what works and optimize and expand capabilities, and fill in any usage configs/restrictions later\". Applies to local_inference only (normal use: non-commercial, conditional and unverified licenses included); monetized_use, hosted_inference and every redistribution use stay license-bound."
+  }
+}

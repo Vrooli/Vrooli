@@ -1,74 +1,16 @@
 package vision
 
-import (
-	"github.com/vrooli/browser-automation-studio/services/credits"
-)
-
-// BypassCondition represents a condition under which credit charging is bypassed.
-type BypassCondition string
-
-const (
-	// BypassBYOK bypasses credit charging when the user provides their own API key.
-	BypassBYOK BypassCondition = "byok"
-
-	// BypassResourceOpenrouter bypasses credit charging when using resource openrouter.
-	BypassResourceOpenrouter BypassCondition = "resource_openrouter"
-
-	// BypassLocalExecution bypasses credit charging for local-only execution.
-	BypassLocalExecution BypassCondition = "local_execution"
-)
-
-// CreditPolicy defines how credits are charged for a navigator.
+// CreditPolicy describes the meter surfaced to clients. Authorization and
+// usage reservation/charging are exclusively owned by AI Gateway.
 type CreditPolicy struct {
-	// RequiresCredits indicates whether this navigator charges credits.
-	RequiresCredits bool
-
-	// OperationType is the credit operation type for charging.
-	OperationType credits.OperationType
+	// RequiresCredits indicates account-backed use may be metered by Gateway.
+	RequiresCredits bool `json:"requires_credits"`
 
 	// PerStepCharging indicates whether credits are charged per step.
-	PerStepCharging bool
+	PerStepCharging bool `json:"per_step_charging"`
 
-	// CreditsPerStep is the number of credits charged per navigation step.
-	CreditsPerStep int
-
-	// BypassConditions lists conditions that bypass credit charging.
-	BypassConditions []BypassCondition
-}
-
-// ShouldChargeCredits determines if credits should be charged given the conditions.
-func (p CreditPolicy) ShouldChargeCredits(isBYOK, hasResourceOpenrouter, isLocalExecution bool) bool {
-	if !p.RequiresCredits {
-		return false
-	}
-
-	for _, condition := range p.BypassConditions {
-		switch condition {
-		case BypassBYOK:
-			if isBYOK {
-				return false
-			}
-		case BypassResourceOpenrouter:
-			if hasResourceOpenrouter {
-				return false
-			}
-		case BypassLocalExecution:
-			if isLocalExecution {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
-// ToInfo converts the policy to a JSON-serializable form.
-func (p CreditPolicy) ToInfo() CreditPolicyInfo {
-	return CreditPolicyInfo{
-		RequiresCredits:  p.RequiresCredits,
-		CreditsPerStep:   p.CreditsPerStep,
-		BypassConditions: p.BypassConditions,
-	}
+	// CreditsPerStep is a fixed price hint; zero means Gateway determines usage.
+	CreditsPerStep int `json:"credits_per_step"`
 }
 
 // ClientSource identifies the source of a client request.

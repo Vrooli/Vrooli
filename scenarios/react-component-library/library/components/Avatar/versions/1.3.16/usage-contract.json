@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Text",
+      "Icon"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 0
+  },
+  "componentId": "react-component-library:Avatar",
+  "version": "1.3.16"
+}

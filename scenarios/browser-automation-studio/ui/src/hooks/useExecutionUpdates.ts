@@ -3,19 +3,18 @@
  * Listens to WebSocket messages and updates execution/dashboard stores
  */
 
-import { useEffect } from 'react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+
+import { useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { useDashboardStore } from '@stores/dashboardStore';
-import { useExecutionStore } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
 import { logger } from '@utils/logger';
 
 export function useExecutionUpdates() {
-  const { lastMessage } = useWebSocket();
+
   const { fetchRunningExecutions, fetchRecentExecutions } = useDashboardStore();
   const { refreshTimeline, currentExecution } = useExecutionStore();
 
-  useEffect(() => {
-    if (!lastMessage) return;
+  useWebSocketMessage((lastMessage) => {
 
     const { type, execution_id: executionId } = lastMessage;
 
@@ -53,7 +52,8 @@ export function useExecutionUpdates() {
       case 'step_completed':
       case 'step_failed':
       case 'progress':
-        refreshCurrentExecution();
+        // Active viewers own bounded timeline reconciliation. Fetching the full
+        // timeline for every incremental event makes run cost grow with steps.
         break;
 
       case 'workflow_created':
@@ -98,20 +98,14 @@ export function useExecutionUpdates() {
         case 3: // log
         case 4: // heartbeat
         case 5: // telemetry
-          if (execId && currentExecution?.id === execId) {
-            void refreshTimeline(execId);
-          }
           break;
         case 1: // status_update
           refreshDashboard();
-          if (execId && currentExecution?.id === execId) {
-            void refreshTimeline(execId);
-          }
           break;
 
         default:
           logger.debug('Unknown envelope event', { component: 'useExecutionUpdates', kind });
       }
     }
-  }, [lastMessage, fetchRunningExecutions, fetchRecentExecutions, refreshTimeline, currentExecution]);
+  });
 }

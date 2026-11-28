@@ -1,6 +1,10 @@
 package golang
 
-import "regexp"
+import (
+	"regexp"
+
+	"git-control-tower/filerelations/languages"
+)
 
 // Patterns for Go import statements
 var (
@@ -23,13 +27,13 @@ type ImportMatch struct {
 // MatchSingleImports finds single-line import statements
 func MatchSingleImports(content string) []ImportMatch {
 	var results []ImportMatch
-	lineStarts := buildLineIndex(content)
+	lineStarts := languages.BuildLineIndex(content)
 
 	matches := singleImportPattern.FindAllStringSubmatchIndex(content, -1)
 	for _, match := range matches {
 		if len(match) >= 4 {
 			path := content[match[2]:match[3]]
-			line := findLineNumber(lineStarts, match[0])
+			line := languages.FindLineNumber(lineStarts, match[0])
 			results = append(results, ImportMatch{Path: path, Line: line})
 		}
 	}
@@ -40,7 +44,7 @@ func MatchSingleImports(content string) []ImportMatch {
 // MatchImportBlocks finds all imports within import blocks
 func MatchImportBlocks(content string) []ImportMatch {
 	var results []ImportMatch
-	lineStarts := buildLineIndex(content)
+	lineStarts := languages.BuildLineIndex(content)
 
 	// Find all import blocks
 	blockMatches := importBlockPattern.FindAllStringSubmatchIndex(content, -1)
@@ -58,34 +62,13 @@ func MatchImportBlocks(content string) []ImportMatch {
 			if len(importMatch) >= 4 {
 				path := blockContent[importMatch[2]:importMatch[3]]
 				absolutePos := blockStart + importMatch[0]
-				line := findLineNumber(lineStarts, absolutePos)
+				line := languages.FindLineNumber(lineStarts, absolutePos)
 				results = append(results, ImportMatch{Path: path, Line: line})
 			}
 		}
 	}
 
 	return results
-}
-
-// buildLineIndex returns the starting index of each line
-func buildLineIndex(content string) []int {
-	lineStarts := []int{0}
-	for i, ch := range content {
-		if ch == '\n' {
-			lineStarts = append(lineStarts, i+1)
-		}
-	}
-	return lineStarts
-}
-
-// findLineNumber returns the 1-indexed line number for the given position
-func findLineNumber(lineStarts []int, pos int) int {
-	for i := len(lineStarts) - 1; i >= 0; i-- {
-		if lineStarts[i] <= pos {
-			return i + 1
-		}
-	}
-	return 1
 }
 
 // IsRelativeImport returns true if the import is a relative path (starts with ./)

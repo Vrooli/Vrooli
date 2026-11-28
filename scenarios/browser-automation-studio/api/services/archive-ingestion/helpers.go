@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,15 +92,8 @@ func readZipFile(entry *zip.File) ([]byte, string, error) {
 	}
 
 	data := buf.Bytes()
-	contentType := http.DetectContentType(firstN(data, 512))
+	contentType := storage.SniffContentType(bytes.NewReader(data))
 	return data, contentType, nil
-}
-
-func firstN(data []byte, n int) []byte {
-	if len(data) <= n {
-		return data
-	}
-	return data[:n]
 }
 
 func decodeDimensions(data []byte) (int, int) {

@@ -1,0 +1,223 @@
+{
+  "_metadata": {
+    "description": "The Week destination: a seven-day board of configurable slots on wide screens, a phone day agenda, Meals, Nutrition, and Time & cost views, occurrence operations, leftovers, prep, and Plan my week.",
+    "module": "week-board-and-agenda",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "WEEK-001",
+      "title": "The board shows configurable slots on local dates",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Week board shall show seven local-date day columns starting on the user's configured week start and configurable slot rows, defaulting to breakfast, lunch, and dinner while keeping snacks, custom slots, and routine or supplement rows available, with multiple items per slot, explicit open or social slots, cards showing thumbnail, title, useful servings, active time, and status labels, and Time not set instead of zero for unknown durations.",
+      "tags": [
+        "week",
+        "board",
+        "slots",
+        "dates"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the data model accepts slot sets other than three rows and a week starting on Sunday; unknown durations render as Time not set (R09.1)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: the same week viewed across local midnight and a DST change keeps meals on their local dates (AT-012)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-002",
+      "title": "Narrow widths use a day agenda, never a shrunken board",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "When each day column cannot receive at least about 136 CSS px plus the row-label column, the scenario shall show a day selector with Day and All week controls, the selected day's slot cards stacked, and an All week list of seven compact day sections instead of a shrunken seven-column matrix, preserving each day's state when switching.",
+      "tags": [
+        "week",
+        "agenda",
+        "mobile",
+        "responsive"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the layout switches to the agenda below the minimum day width and never renders a seven-column grid on a phone (R06.1, R09.6)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: Week at 390 px with large text is a readable agenda with no whole-page horizontal overflow (AT-011)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-003",
+      "title": "Meals, Nutrition, and Time & cost views share one plan",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Week destination shall offer Meals, Nutrition, and Time & cost views over the same date range and occurrence identities, where Nutrition rows state nutrient and unit, amount or known subtotal, bounds, period, and completeness under a Planned, Recorded, or Expected selector, and Time & cost separates active from elapsed time, counts shared preparation once, and distinguishes portion cost from incremental checkout with coverage and currency.",
+      "tags": [
+        "week",
+        "nutrition",
+        "cost",
+        "time"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: switching views keeps the date range and occurrence ids; Expected never double-counts planned and recorded intake (AT-013); a missing upper-bound contribution yields an unknown assessment (AT-014)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: unpriced products prevent a validated budget claim in Time & cost (AT-015)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-004",
+      "title": "Occurrences move, copy, and lock with non-drag alternatives",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Selecting a Week card shall open an occurrence panel with summary, relevant nutrition, ingredients, notes, and actions; Add shall open Your meals or Explore with the target slot context; Move shall use a date and slot picker with dragging as an extra shortcut; a drop on an occupied slot shall ask whether to swap, add alongside, or replace; and Copy shall create new occurrence identities without copying consumption.",
+      "tags": [
+        "week",
+        "occurrence",
+        "move",
+        "keyboard"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: every drag has a Move to and Copy to menu path reachable by keyboard (R07, R09.2)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: moving a meal onto an occupied slot requires an explicit choice and preserves both meals until applied (AT-009)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-005",
+      "title": "Leftovers link to one batch identity",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "When a cooked occurrence reserves extra portions for later occurrences, the scenario shall show For and From links on both sides that reference one planned or actual batch identity rather than two independently costed recipes, preview affected consumers before the producer moves or is removed, reject or repair a producer moved after its leftover, and release rather than discard a canceled leftover reservation.",
+      "tags": [
+        "week",
+        "leftovers",
+        "batches"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a leftover occurrence adds no second shopping requirement or batch consumption (RD-007, FIX-03)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a swap or move that conflicts with a locked leftover dependency shows an impact preview or repair and deletes nothing silently (AT-008)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-006",
+      "title": "Prep for the week groups only supported tasks",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The Week destination shall group actionable preparation tasks such as Cook rice only when meal methods and user choices support them, link each task to its contributing meals with known active and elapsed estimates, and offer Schedule prep as a proposed time block through the calendar adapter without marking the task done.",
+      "tags": [
+        "week",
+        "prep",
+        "batching"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: repeated ingredients are not merged into a prep task without compatible preparation state and storage (R09.3); scheduling prep leaves the task incomplete (R24.2)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-007",
+      "title": "Plan my week previews before apply",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "service",
+      "criticality": "P0",
+      "description": "When the user chooses Plan my week, the scenario shall build a preview for unlocked future slots that keeps locks, user anchors, open slots, and recorded history, revalidate a stale proposal before apply, and never let a temporary preference mode relax exclusions or required targets.",
+      "tags": [
+        "week",
+        "replan",
+        "preview",
+        "locks"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a replan with locks and open or social slots preserves the locks and leaves open slots honestly unknown (AT-010, ACT-019)."
+        }
+      ]
+    },
+    {
+      "id": "WEEK-008",
+      "title": "The week summary names its scope",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "The Week header shall show the localized range, previous, next, and today controls, and summary values such as planned days or slots, active cooking time, priced checkout subtotal, and missing-data counts, counting a day as fully planned only when its configured required slots are assigned or intentionally open.",
+      "tags": [
+        "week",
+        "summary",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a day with only dinner assigned is reported with dinner scope rather than as a fully planned day (R09.1)."
+        }
+      ]
+    }
+  ]
+}

@@ -19,7 +19,7 @@ func TestServiceCreation(t *testing.T) {
 func TestGetFilePath(t *testing.T) {
 	service := NewService("/home/test")
 	path := service.GetFilePath("my-scenario")
-	expected := "/home/test/.vrooli/deployment/telemetry/my-scenario.jsonl"
+	expected := "/home/test/my-scenario.jsonl"
 	if path != expected {
 		t.Errorf("expected path %q, got %q", expected, path)
 	}
@@ -40,8 +40,7 @@ func TestSummaryMissing(t *testing.T) {
 }
 
 func TestSummaryWithData(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
+	telemetryDir := t.TempDir()
 	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
 		t.Fatalf("failed to create telemetry dir: %v", err)
 	}
@@ -56,7 +55,7 @@ func TestSummaryWithData(t *testing.T) {
 		t.Fatalf("failed to write telemetry file: %v", err)
 	}
 
-	service := NewService(vrooliRoot)
+	service := NewService(telemetryDir)
 	ctx := context.Background()
 	summary, err := service.GetSummary(ctx, "test-scenario")
 	if err != nil {
@@ -195,9 +194,8 @@ func TestNormalizeEvent(t *testing.T) {
 }
 
 // writeTelemetryFile is a helper that creates a telemetry JSONL file for a scenario.
-func writeTelemetryFile(t *testing.T, vrooliRoot, scenario, content string) {
+func writeTelemetryFile(t *testing.T, telemetryDir, scenario, content string) {
 	t.Helper()
-	telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
 	if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
 		t.Fatalf("failed to create telemetry dir: %v", err)
 	}
@@ -218,8 +216,8 @@ func getInsightsOrFail(ctx context.Context, t *testing.T, service *DefaultServic
 }
 
 func TestGetInsights(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	service := NewService(vrooliRoot)
+	telemetryDir := t.TempDir()
+	service := NewService(telemetryDir)
 	ctx := context.Background()
 
 	t.Run("missing file", func(t *testing.T) {
@@ -235,7 +233,7 @@ func TestGetInsights(t *testing.T) {
 			`{"event":"app_ready","ingested_at":"2026-01-01T00:01:00Z"}`,
 			`{"event":"app_session_succeeded","ingested_at":"2026-01-01T00:02:00Z","session_id":"sess-1","details":{"started_at":"2026-01-01T00:00:00Z","ready_at":"2026-01-01T00:01:00Z"}}`,
 		}, "\n")
-		writeTelemetryFile(t, vrooliRoot, "insights-scenario", content)
+		writeTelemetryFile(t, telemetryDir, "insights-scenario", content)
 
 		insights := getInsightsOrFail(ctx, t, service, "insights-scenario")
 		if !insights.Exists {
@@ -251,7 +249,7 @@ func TestGetInsights(t *testing.T) {
 
 	t.Run("with smoke test data", func(t *testing.T) {
 		content := `{"event":"smoke_test_passed","ingested_at":"2026-01-01T00:00:00Z","session_id":"smoke-1"}`
-		writeTelemetryFile(t, vrooliRoot, "smoke-scenario", content)
+		writeTelemetryFile(t, telemetryDir, "smoke-scenario", content)
 
 		insights := getInsightsOrFail(ctx, t, service, "smoke-scenario")
 		if insights.LastSmokeTest == nil {
@@ -264,7 +262,7 @@ func TestGetInsights(t *testing.T) {
 
 	t.Run("with error data", func(t *testing.T) {
 		content := `{"event":"service_error","level":"error","ingested_at":"2026-01-01T00:00:00Z","details":{"error":"test error"}}`
-		writeTelemetryFile(t, vrooliRoot, "error-scenario", content)
+		writeTelemetryFile(t, telemetryDir, "error-scenario", content)
 
 		insights := getInsightsOrFail(ctx, t, service, "error-scenario")
 		if insights.LastError == nil {
@@ -281,7 +279,7 @@ func TestGetInsights(t *testing.T) {
 			`{"event":"app_ready","ingested_at":"2026-01-01T00:01:00Z"}`,
 			`{"event":"app_shutdown","ingested_at":"2026-01-01T00:02:00Z"}`,
 		}, "\n")
-		writeTelemetryFile(t, vrooliRoot, "lifecycle-scenario", content)
+		writeTelemetryFile(t, telemetryDir, "lifecycle-scenario", content)
 
 		insights := getInsightsOrFail(ctx, t, service, "lifecycle-scenario")
 		if insights.LastSession == nil {
@@ -294,8 +292,8 @@ func TestGetInsights(t *testing.T) {
 }
 
 func TestGetTail(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	service := NewService(vrooliRoot)
+	telemetryDir := t.TempDir()
+	service := NewService(telemetryDir)
 	ctx := context.Background()
 
 	t.Run("missing file", func(t *testing.T) {
@@ -309,7 +307,6 @@ func TestGetTail(t *testing.T) {
 	})
 
 	t.Run("returns last N entries", func(t *testing.T) {
-		telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
 		if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
 			t.Fatalf("failed to create telemetry dir: %v", err)
 		}
@@ -342,8 +339,8 @@ func TestGetTail(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	service := NewService(vrooliRoot)
+	telemetryDir := t.TempDir()
+	service := NewService(telemetryDir)
 	ctx := context.Background()
 
 	t.Run("delete missing file", func(t *testing.T) {
@@ -357,7 +354,6 @@ func TestDelete(t *testing.T) {
 	})
 
 	t.Run("delete existing file", func(t *testing.T) {
-		telemetryDir := filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry")
 		if err := os.MkdirAll(telemetryDir, 0o755); err != nil {
 			t.Fatalf("failed to create telemetry dir: %v", err)
 		}

@@ -2,7 +2,7 @@
 
 ## Active Issues
 
-_No active issues. All P0 requirements complete with comprehensive security, full permission coverage, and 100% test pass rate (34/34 tests)._
+_No active issues. The JSONB tag filter was corrected to array containment and is covered by `TestListGraphsFiltersJSONBTags` (2026-11-24)._
 
 ## Code Quality Assessment (2025-10-02)
 

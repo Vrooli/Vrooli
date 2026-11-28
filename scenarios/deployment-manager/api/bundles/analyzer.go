@@ -9,9 +9,17 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"deployment-manager/shared"
 )
+
+// skeletonFetchTimeout bounds the cross-scenario analyzer call. A desktop
+// deployment must report an unavailable analyzer instead of tying up its
+// complete orchestration window on an unresponsive peer.
+// Refreshing the complete dependency graph can exceed 30 seconds on a busy
+// build host. Keep it bounded within the desktop pipeline export budget.
+var skeletonFetchTimeout = 90 * time.Second
 
 // analyzerBundleResponse represents the response structure from the analyzer's bundle endpoint.
 // The analyzer may return the manifest in two formats:
@@ -42,6 +50,9 @@ func extractManifestBytes(manifestField json.RawMessage) ([]byte, error) {
 
 // FetchSkeletonBundle retrieves the analyzer-emitted desktop bundle skeleton for a scenario.
 func FetchSkeletonBundle(ctx context.Context, scenario string) (*Manifest, error) {
+	fetchCtx, cancel := context.WithTimeout(ctx, skeletonFetchTimeout)
+	defer cancel()
+
 	baseURL, err := shared.GetConfigResolver().ResolveAnalyzerURL()
 	if err != nil {
 		return nil, err
@@ -55,19 +66,22 @@ func FetchSkeletonBundle(ctx context.Context, scenario string) (*Manifest, error
 	q.Set("refresh", "true")
 	target.RawQuery = q.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, target.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create analyzer request: %w", err)
 	}
 
-	res, err := shared.GetHTTPClient(ctx).Do(req)
+	res, err := shared.GetHTTPClient(fetchCtx).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("call analyzer: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<15))
+		body, err := io.ReadAll(io.LimitReader(res.Body, 1<<15))
+		if err != nil {
+			return nil, fmt.Errorf("read analyzer error response: %w", err)
+		}
 		return nil, fmt.Errorf("analyzer returned %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
 	}
 

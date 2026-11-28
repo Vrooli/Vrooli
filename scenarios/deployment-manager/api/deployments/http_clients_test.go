@@ -1,0 +1,571 @@
+package deployments
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+func TestNewHTTPCloudHealthClientUsesConfiguredURL(t *testing.T) {
+	previous := os.Getenv("SCENARIO_TO_CLOUD_URL")
+	t.Cleanup(func() { _ = os.Setenv("SCENARIO_TO_CLOUD_URL", previous) })
+	if err := os.Setenv("SCENARIO_TO_CLOUD_URL", "http://cloud.example/"); err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewHTTPCloudHealthClient(nil)
+	if err != nil {
+		t.Fatalf("NewHTTPCloudHealthClient() error = %v", err)
+	}
+	if client.baseURL != "http://cloud.example" {
+		t.Fatalf("baseURL = %q", client.baseURL)
+	}
+	if client.resolveBaseURL != nil {
+		t.Fatal("configured cloud URL must remain pinned")
+	}
+	if !client.receiptVerificationStrict {
+		t.Fatal("production cloud client must require receipt verification")
+	}
+}
+
+func TestHTTPCloudHealthClientResolvesCurrentPeerPerOperation(t *testing.T) {
+	var requestsA, requestsB atomic.Int32
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsA.Add(1)
+		_, _ = w.Write([]byte(`{"deployment":{"status":"healthy"}}`))
+	}))
+	defer serverA.Close()
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsB.Add(1)
+		_, _ = w.Write([]byte(`{"deployment":{"status":"healthy"}}`))
+	}))
+	defer serverB.Close()
+	var resolutions atomic.Int32
+	client := &HTTPCloudHealthClient{
+		httpClient: http.DefaultClient,
+		resolveBaseURL: func(context.Context) (string, error) {
+			if resolutions.Add(1) == 1 {
+				return serverA.URL + "/", nil
+			}
+			return serverB.URL, nil
+		},
+	}
+	for range 2 {
+		if _, err := client.cloudDeploymentStatus(context.Background(), "deployment"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if resolutions.Load() != 2 || requestsA.Load() != 1 || requestsB.Load() != 1 {
+		t.Fatalf("resolutions=%d requests A/B=%d/%d, want 2 and 1/1", resolutions.Load(), requestsA.Load(), requestsB.Load())
+	}
+}
+
+func TestDesktopPackagerClientResolvesCurrentPeerPerOperation(t *testing.T) {
+	var requestsA, requestsB atomic.Int32
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsA.Add(1)
+		_, _ = w.Write([]byte(`{"status":"ready"}`))
+	}))
+	defer serverA.Close()
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsB.Add(1)
+		_, _ = w.Write([]byte(`{"status":"ready"}`))
+	}))
+	defer serverB.Close()
+	var resolutions atomic.Int32
+	client := &DesktopPackagerClient{
+		httpClient: http.DefaultClient,
+		resolveURL: func(context.Context) (string, error) {
+			if resolutions.Add(1) == 1 {
+				return serverA.URL, nil
+			}
+			return serverB.URL, nil
+		},
+	}
+	for range 2 {
+		status, err := client.GetBuildStatus(context.Background(), "build")
+		if err != nil || status.Status != "ready" {
+			t.Fatalf("status=%+v err=%v", status, err)
+		}
+	}
+	if resolutions.Load() != 2 || requestsA.Load() != 1 || requestsB.Load() != 1 {
+		t.Fatalf("resolutions=%d requests A/B=%d/%d; want 2 and 1/1", resolutions.Load(), requestsA.Load(), requestsB.Load())
+	}
+}
+
+func TestDesktopPackagerClientKeepsConfiguredAddressPinned(t *testing.T) {
+	t.Setenv("SCENARIO_TO_DESKTOP_URL", "http://desktop.example:18000/")
+	client, err := NewDesktopPackagerClient(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.baseURL != "http://desktop.example:18000" || client.resolveURL != nil {
+		t.Fatalf("configured address must remain pinned: base=%q resolver=%v", client.baseURL, client.resolveURL != nil)
+	}
+}
+
+func TestOutboundScenarioURLAdaptersShareValidationPolicy(t *testing.T) {
+	invalid := []string{"", "ftp://peer.example:18000", "https://user:secret@peer.example", "http://"}
+	for _, value := range invalid {
+		for _, mode := range []string{"configured", "discovered"} {
+			t.Run(mode+"/"+value, func(t *testing.T) {
+				resolve := func(context.Context) (string, error) { return value, nil }
+				cloud := &HTTPCloudHealthClient{}
+				lpbs := &HTTPLPBSReleaseClient{}
+				desktop := &DesktopPackagerClient{}
+				if mode == "configured" {
+					cloud.baseURL, lpbs.baseURL, desktop.baseURL = value, value, value
+				} else {
+					cloud.resolveBaseURL, lpbs.resolveBaseURL, desktop.resolveURL = resolve, resolve, resolve
+				}
+				if _, err := cloud.baseURLFor(context.Background()); err == nil {
+					t.Errorf("cloud accepted invalid URL %q", value)
+				}
+				if _, err := lpbs.endpoint(context.Background(), "/health"); err == nil {
+					t.Errorf("LPBS accepted invalid URL %q", value)
+				}
+				if _, err := desktop.endpoint(context.Background(), "/health"); err == nil {
+					t.Errorf("desktop accepted invalid URL %q", value)
+				}
+			})
+		}
+	}
+}
+
+func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {
+	var statusCalls, observationCalls atomic.Int32
+	var executeCalls, listCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			if r.Method != http.MethodPost {
+				t.Fatalf("create method = %s", r.Method)
+			}
+			var body map[string]json.RawMessage
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode create request: %v", err)
+			}
+			if string(body["manifest"]) != `{"scenario":{"id":"demo"}}` {
+				t.Fatalf("manifest = %s", body["manifest"])
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-1"}}`))
+		case "/api/v1/deployments/dep-1/execute":
+			if r.Method != http.MethodPost {
+				t.Fatalf("execute method = %s", r.Method)
+			}
+			executeCalls.Add(1)
+			// The owner commits admission but the caller sees a failed response.
+			w.WriteHeader(http.StatusBadGateway)
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			if listCalls.Add(1) == 1 {
+				_, _ = w.Write([]byte(`{"operations":[]}`))
+			} else {
+				_, _ = w.Write([]byte(`{"operations":[{"operationId":"op-1","requestKey":"dm-cloud:release-op-1"}]}`))
+			}
+		case "/api/v1/deployments/dep-1":
+			call := statusCalls.Add(1)
+			status := "deploying"
+			if call > 1 {
+				status = "deployed"
+			}
+			_, _ = w.Write([]byte(`{"deployment":{"status":"` + status + `"}}`))
+		case "/api/v1/deployments/dep-1/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","scenario_id":"demo","target_kind":"vps","destination_id":"sha256:target","destination_host":"vps.example","destination_workdir":"/srv/demo","destination_domain":"demo.example","bundle_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","outcome":"deployed","health":"healthy","external_receipt":"scenario-to-cloud:dep-1","observed_at":"` + time.Now().UTC().Format(time.RFC3339) + `","producer_ref":"scenario-to-cloud","target_key":"host:vps.example","release_digest":"` + strings.Repeat("a", 64) + `"}}`))
+		case "/api/v1/deployments/dep-1/health/observation":
+			observationCalls.Add(1)
+			_, _ = w.Write([]byte(healthyObservationJSON("dep-1", "sha256:"+strings.Repeat("a", 64), time.Now().UTC())))
+		case "/api/v1/deployments/dep-1/evidence":
+			if r.URL.Query().Get("release_digest") != strings.Repeat("a", 64) {
+				t.Fatalf("evidence release_digest = %q", r.URL.Query().Get("release_digest"))
+			}
+			_, _ = w.Write([]byte(`{"schema_version":"1","evidence":{"schema_version":"1","profile_id":"cloud-launch-v1","release_digest":"` + strings.Repeat("a", 64) + `","target_key":"host:vps.example","cells":[{"case_id":"GOV-05","lane":"api","disposition":"passed","required":true,"record_id":"rec-1","receipt_refs":["cloud-target:op-1:GOV-05"]}],"required_cells":1,"passed":true,"producer_ref":"scenario-to-cloud"}}`))
+		case "/api/v1/deployments/dep-1/publication":
+			_, _ = w.Write([]byte(`{"schema_version":"1","publication":{"id":"pub-1","request_key":"req-1","review_ref":"rr-1","release_digest":"` + strings.Repeat("a", 64) + `","state":"published","activated_release_digest":"` + strings.Repeat("a", 64) + `","predecessor_release_digest":"` + strings.Repeat("9", 64) + `","target_key":"host:vps.example"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	receipt, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-1", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), RunPreflight: true})
+	if err != nil {
+		t.Fatalf("DeployCloud() error = %v", err)
+	}
+	if receipt.DeploymentID != "dep-1" || receipt.DestinationID != "sha256:target" {
+		t.Fatalf("receipt = %#v", receipt)
+	}
+	if receipt.Evidence == nil || !receipt.Evidence.Passed || receipt.Publication == nil || receipt.Publication.PredecessorReleaseDigest != strings.Repeat("9", 64) {
+		t.Fatalf("receipt evidence/publication = %#v / %#v", receipt.Evidence, receipt.Publication)
+	}
+	if statusCalls.Load() < 2 {
+		t.Fatalf("status calls = %d, expected wait for deployed state", statusCalls.Load())
+	}
+	if observationCalls.Load() != 1 {
+		t.Fatalf("observation calls = %d, the receipt must be backed by the typed observation", observationCalls.Load())
+	}
+	if executeCalls.Load() != 1 || listCalls.Load() != 2 {
+		t.Fatalf("execute/list calls = %d/%d, lost response must reconcile without duplicate admission", executeCalls.Load(), listCalls.Load())
+	}
+}
+
+// TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation
+// [REQ:STC-P0-034] proves a receipt that says healthy is not accepted when
+// the typed observation disagrees.
+func TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-3"}}`))
+		case "/api/v1/deployments/dep-3/execute":
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"operation_id":"op-3"}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			_, _ = w.Write([]byte(`{"operations":[]}`))
+		case "/api/v1/deployments/dep-3":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
+		case "/api/v1/deployments/dep-3/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-3","scenario_id":"demo","target_kind":"vps","destination_id":"sha256:target","destination_host":"vps.example","destination_workdir":"/srv/demo","destination_domain":"demo.example","bundle_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","outcome":"deployed","health":"healthy","external_receipt":"scenario-to-cloud:dep-3","observed_at":"` + time.Now().UTC().Format(time.RFC3339) + `","producer_ref":"scenario-to-cloud","target_key":"host:vps.example","release_digest":"` + strings.Repeat("a", 64) + `"}}`))
+		case "/api/v1/deployments/dep-3/health/observation":
+			body := strings.Replace(healthyObservationJSON("dep-3", "sha256:"+strings.Repeat("a", 64), time.Now().UTC()), "HEALTH_STATUS_HEALTHY", "HEALTH_STATUS_UNHEALTHY", 1)
+			_, _ = w.Write([]byte(body))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	_, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-3", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)})
+	if err == nil || !strings.Contains(err.Error(), "status_not_healthy") {
+		t.Fatalf("DeployCloud() error = %v, want the observation verdict", err)
+	}
+}
+
+func TestHTTPCloudDeploymentClientRetriesPreAdmissionFailureWithSameIdentity(t *testing.T) {
+	var createCalls, executeCalls, acceptedCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			createCalls.Add(1)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-retry"}}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			_, _ = w.Write([]byte(`{"operations":[]}`))
+		case "/api/v1/deployments/dep-retry/execute":
+			executeCalls.Add(1)
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["request_key"] != "dm-cloud:release-op-retry" {
+				t.Fatalf("execute request key body=%v err=%v", body, err)
+			}
+			if executeCalls.Load() == 1 {
+				// Refused before the S2C admission transaction.
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			acceptedCalls.Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"operation_id":"s2c-op-retry"}`))
+		case "/api/v1/deployments/dep-retry":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
+		case "/api/v1/deployments/dep-retry/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	var deploymentID, ownerOperationID string
+	request := &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-retry", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), OnProgress: func(update CloudStepProgress) error {
+		if update.DeploymentID != "" {
+			deploymentID = update.DeploymentID
+		}
+		if update.OwnerOperationID != "" {
+			ownerOperationID = update.OwnerOperationID
+		}
+		return nil
+	}}
+	if _, err := client.DeployCloud(context.Background(), request); err == nil {
+		t.Fatal("pre-admission refusal was accepted")
+	}
+	if deploymentID != "dep-retry" {
+		t.Fatalf("persisted deployment identity = %q", deploymentID)
+	}
+	request.ExistingDeploymentID = deploymentID
+	if _, err := client.DeployCloud(context.Background(), request); err == nil {
+		t.Fatal("incomplete fixture receipt should be rejected after accepted retry")
+	}
+	if createCalls.Load() != 1 || executeCalls.Load() != 2 || acceptedCalls.Load() != 1 || ownerOperationID != "s2c-op-retry" {
+		t.Fatalf("create/execute/accepted/owner-op = %d/%d/%d/%q", createCalls.Load(), executeCalls.Load(), acceptedCalls.Load(), ownerOperationID)
+	}
+}
+
+func TestHTTPCloudDeploymentClientMarksLostResponseAmbiguousWhenReadbackFails(t *testing.T) {
+	var listCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-ambiguous"}}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			if listCalls.Add(1) == 1 {
+				_, _ = w.Write([]byte(`{"operations":[]}`))
+				return
+			}
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case "/api/v1/deployments/dep-ambiguous/execute":
+			w.WriteHeader(http.StatusBadGateway)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	var progress CloudStepProgress
+	_, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{
+		RequestKey: "dm-cloud:release-op-ambiguous", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`),
+		OnProgress: func(next CloudStepProgress) error { progress = next; return nil },
+	})
+	if !errors.Is(err, ErrCloudOperationAmbiguous) {
+		t.Fatalf("error=%v, want ambiguous effect outcome", err)
+	}
+	if progress.State != "reconciliation_required" || progress.DeploymentID != "dep-ambiguous" || progress.Reason == "" {
+		t.Fatalf("reconciliation progress = %+v", progress)
+	}
+}
+
+func TestHTTPCloudDeploymentClientReattachesToSavedPendingOperation(t *testing.T) {
+	var createCalls, executeCalls, listCalls, operationReads atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/GetOperation":
+			operationReads.Add(1)
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["operation_id"] != "s2c-op-pending" {
+				t.Fatalf("GetOperation body=%v err=%v", body, err)
+			}
+			_, _ = w.Write([]byte(`{"operationId":"s2c-op-pending","deploymentId":"dep-pending","requestKey":"dm-cloud:release-op-pending","state":"running","stepReceipts":[{"step":"edge.dns.ensure","outcome":"succeeded","detail":"provider-record-id"}]}`))
+		case "/api/v1/deployments":
+			createCalls.Add(1)
+		case "/api/v1/deployments/dep-pending/execute":
+			executeCalls.Add(1)
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			listCalls.Add(1)
+		case "/api/v1/deployments/dep-pending":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deploying"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Millisecond)
+	defer cancel()
+	var saved CloudStepProgress
+	_, err := client.DeployCloud(ctx, &CloudDeploymentRequest{
+		RequestKey: "dm-cloud:release-op-pending", ExistingDeploymentID: "dep-pending", ExistingOperationID: "s2c-op-pending",
+		Manifest:   json.RawMessage(`{"scenario":{"id":"demo"},"edge":{"managed_dns_profile":"staging"}}`),
+		OnProgress: func(update CloudStepProgress) error { saved = update; return nil },
+	})
+	if err == nil || operationReads.Load() < 2 {
+		t.Fatalf("DeployCloud error=%v, operation reads=%d", err, operationReads.Load())
+	}
+	if createCalls.Load() != 0 || executeCalls.Load() != 0 || listCalls.Load() != 0 {
+		t.Fatalf("reattach repeated an effect: create/execute/list=%d/%d/%d", createCalls.Load(), executeCalls.Load(), listCalls.Load())
+	}
+	if saved.DeploymentID != "dep-pending" || saved.OwnerOperationID != "s2c-op-pending" {
+		t.Fatalf("saved owner identity changed during reattach: %+v", saved)
+	}
+	if saved.ManagedDNSState != "succeeded" || saved.ManagedDNSEvidenceSHA256 == "" || strings.Contains(saved.ManagedDNSEvidenceSHA256, "provider-record-id") {
+		t.Fatalf("managed DNS standing was not reduced to durable redacted evidence: %+v", saved)
+	}
+}
+
+func TestHTTPCloudDeploymentClientRejectsIncompleteReceipt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-2"}}`))
+		case "/api/v1/deployments/dep-2/execute":
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"operation_id":"op-2"}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			_, _ = w.Write([]byte(`{"operations":[]}`))
+		case "/api/v1/deployments/dep-2":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
+		case "/api/v1/deployments/dep-2/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-2","outcome":"deployed"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	if _, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-2", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)}); err == nil {
+		t.Fatal("incomplete receipt was accepted")
+	}
+}
+
+func TestHTTPCloudRecoveryClientRequiresOwnerReceipt(t *testing.T) {
+	var received map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/deployments/dep-1/recovery" || r.Method != http.MethodPost {
+			t.Fatalf("recovery request = %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatalf("decode recovery request: %v", err)
+		}
+		_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","action":"halt","outcome":"halted","health":"stopped","external_receipt":"scenario-to-cloud:recovery:dep-1","observed_at":"2026-09-08T21:00:00Z"}}`))
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL}
+	receipt, err := client.RecoverCloud(context.Background(), &CloudRecoveryRequest{DeploymentID: "dep-1", Action: "halt", ExpectedBundleSHA: "sha256:bundle", Confirmation: "halt dep-1"})
+	if err != nil {
+		t.Fatalf("RecoverCloud() error = %v", err)
+	}
+	if receipt.Outcome != "halted" || received["confirmation"] != "halt dep-1" || received["expected_bundle_sha256"] != "sha256:bundle" {
+		t.Fatalf("receipt/request = %#v / %#v", receipt, received)
+	}
+}
+
+func TestHTTPCloudRecoveryClientPollsDurableRepairOperation(t *testing.T) {
+	var statusCalls atomic.Int32
+	var received map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/deployments/dep-1/recovery":
+			if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+				t.Fatalf("decode recovery request: %v", err)
+			}
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","operation_id":"op-1","action":"rollback","outcome":"pending","health":"unknown"}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments/dep-1/recovery/op-1":
+			call := statusCalls.Add(1)
+			if call == 1 {
+				_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","operation_id":"op-1","action":"rollback","outcome":"running","health":"unknown"}}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"receipt":{"schema_version":1,"deployment_id":"dep-1","operation_id":"op-1","action":"rollback","outcome":"rolled_back","health":"healthy","bundle_sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","external_receipt":"scenario-to-cloud:recovery:op-1","observed_at":"2026-09-08T21:00:00Z"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	receipt, err := client.RecoverCloud(context.Background(), &CloudRecoveryRequest{
+		DeploymentID: "dep-1", Action: "rollback", ExpectedBundleSHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		RepairBundleSHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", DataCompatibility: "compatible",
+		IdempotencyKey: "recovery-key", Confirmation: "rollback dep-1",
+	})
+	if err != nil {
+		t.Fatalf("RecoverCloud() error = %v", err)
+	}
+	if receipt == nil || receipt.OperationID != "op-1" || receipt.Outcome != "rolled_back" || receipt.BundleSHA256 == "" {
+		t.Fatalf("receipt = %#v", receipt)
+	}
+	if statusCalls.Load() < 2 {
+		t.Fatalf("status calls = %d, expected durable operation polling", statusCalls.Load())
+	}
+	if received["repair_bundle_sha256"] != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" || received["data_compatibility"] != "compatible" || received["idempotency_key"] != "recovery-key" {
+		t.Fatalf("recovery request = %#v", received)
+	}
+}
+
+func TestDesktopPackagerClientHTTPWorkflow(t *testing.T) {
+	var statusCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/desktop/generate/quick":
+			var request QuickGenerateRequest
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode quick request: %v", err)
+			}
+			if request.ScenarioName != "demo" || request.DeploymentMode != "release" || request.StrategyID != "electron-sidecar" {
+				t.Errorf("quick request = %+v", request)
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"build_id":"b1","status":"building","scenario_name":"demo","desktop_path":"/tmp/demo","status_url":"/status/b1"}`))
+		case "/api/v1/desktop/build/demo":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"build_id":"b2","status":"building","scenario":"demo","desktop_path":"/tmp/demo","platforms":["linux"],"status_url":"/status/b2"}`))
+		case "/api/v1/desktop/status/b1":
+			call := statusCalls.Add(1)
+			status := "building"
+			if call > 1 {
+				status = "ready"
+			}
+			_, _ = w.Write([]byte(`{"build_id":"b1","scenario_name":"demo","status":"` + status + `","platforms":["linux"]}`))
+		case "/api/v1/signing/demo/ready":
+			_, _ = w.Write([]byte(`{"ready":true,"scenario":"demo","platforms":{"linux":{"ready":true}}}`))
+		case "/health":
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	client := &DesktopPackagerClient{httpClient: srv.Client(), baseURL: srv.URL, log: func(string, map[string]interface{}) {}}
+	generated, err := client.QuickGenerate(context.Background(), &QuickGenerateRequest{ScenarioName: "demo", DeploymentMode: "release", Platforms: []string{"linux"}, StrategyID: "electron-sidecar"})
+	if err != nil || generated.BuildID != "b1" {
+		t.Fatalf("QuickGenerate() = %+v, %v", generated, err)
+	}
+	built, err := client.BuildScenario(context.Background(), "demo", &ScenarioBuildRequest{Platforms: []string{"linux"}})
+	if err != nil || built.BuildID != "b2" {
+		t.Fatalf("BuildScenario() = %+v, %v", built, err)
+	}
+	ready, err := client.WaitForBuild(context.Background(), "b1", time.Millisecond)
+	if err != nil || ready.Status != "ready" {
+		t.Fatalf("WaitForBuild() = %+v, %v", ready, err)
+	}
+	if !client.IsAvailable(context.Background()) {
+		t.Fatal("IsAvailable() = false")
+	}
+	signing, err := client.CheckSigningReadiness(context.Background(), "demo")
+	if err != nil || !signing.Ready {
+		t.Fatalf("CheckSigningReadiness() = %+v, %v", signing, err)
+	}
+}
+
+func TestDesktopPackagerClientBuildFailureAndCancellation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/desktop/status/fail":
+			_, _ = w.Write([]byte(`{"build_id":"fail","status":"failed","error":"compiler failed"}`))
+		case "/api/v1/signing/missing/ready":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v1/desktop/status/bad":
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte("bad gateway"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &DesktopPackagerClient{httpClient: srv.Client(), baseURL: srv.URL, log: func(string, map[string]interface{}) {}}
+
+	failed, err := client.WaitForBuild(context.Background(), "fail", time.Millisecond)
+	if failed == nil || err == nil {
+		t.Fatalf("failed WaitForBuild() = %+v, %v", failed, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := client.WaitForBuild(ctx, "fail", time.Millisecond); err == nil {
+		t.Fatal("cancelled WaitForBuild() returned nil error")
+	}
+	missing, err := client.CheckSigningReadiness(context.Background(), "missing")
+	if err != nil || missing.Ready || len(missing.Issues) == 0 {
+		t.Fatalf("missing signing readiness = %+v, %v", missing, err)
+	}
+	if _, err := client.GetBuildStatus(context.Background(), "bad"); err == nil {
+		t.Fatal("non-200 GetBuildStatus() returned nil error")
+	}
+}

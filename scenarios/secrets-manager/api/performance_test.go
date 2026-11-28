@@ -29,10 +29,10 @@ func BenchmarkHealthHandler(b *testing.B) {
 	}
 }
 
-// BenchmarkVaultSecretsStatusHandler benchmarks the vault status endpoint
-func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
+// BenchmarkCredentialCoverageStatusHandler benchmarks the vault status endpoint
+func BenchmarkCredentialCoverageStatusHandler(b *testing.B) {
 	router := benchmarkServer().routes()
-	req, _ := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/status", nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -44,7 +44,7 @@ func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
 // BenchmarkValidateHandler benchmarks the validation endpoint
 func BenchmarkValidateHandler(b *testing.B) {
 	router := benchmarkServer().routes()
-	req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/validate", nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -75,7 +75,7 @@ func BenchmarkProvisionHandler(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
+		req, _ := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -142,74 +142,6 @@ func BenchmarkIsLikelyRequired(b *testing.B) {
 	}
 }
 
-// BenchmarkParseVaultCLIOutput benchmarks vault CLI output parsing
-func BenchmarkParseVaultCLIOutput(b *testing.B) {
-	output := `Resource: postgres
-Status: Configured
-Secrets Found: 5
-- DATABASE_URL (configured)
-- DB_PASSWORD (configured)
-- DB_USER (configured)
-- DB_PORT (configured)
-- DB_NAME (configured)
-
-Resource: openai
-Status: Missing
-Missing Secrets:
-- OPENAI_API_KEY (required)
-- OPENAI_ORG_ID (optional)
-`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parseVaultCLIOutput(output, "")
-	}
-}
-
-// BenchmarkParseVaultScanOutput benchmarks vault scan output parsing
-func BenchmarkParseVaultScanOutput(b *testing.B) {
-	output := `Scanning resources...
-Found: postgres
-Found: vault
-Found: openai
-Found: n8n
-Found: redis
-Found: qdrant
-Found: ollama
-Found: claude-code
-Scan complete: 8 resources
-`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parseVaultScanOutput(output)
-	}
-}
-
-// BenchmarkParseVaultValidationOutput benchmarks validation output parsing
-func BenchmarkParseVaultValidationOutput(b *testing.B) {
-	output := `Validation Results:
-Total Secrets: 25
-Valid: 20
-Invalid: 3
-Missing: 2
-
-Resource: postgres
-- DATABASE_URL: valid
-- DB_PASSWORD: valid
-- DB_USER: valid
-
-Resource: openai
-- OPENAI_API_KEY: missing
-- OPENAI_ORG_ID: valid
-`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parseVaultValidationOutput(output)
-	}
-}
-
 // BenchmarkScanResourceDirectory benchmarks resource directory scanning
 func BenchmarkScanResourceDirectory(b *testing.B) {
 	// Setup
@@ -217,7 +149,9 @@ func BenchmarkScanResourceDirectory(b *testing.B) {
 	defer os.RemoveAll(tempDir)
 
 	resourceDir := filepath.Join(tempDir, "test-resource")
-	os.MkdirAll(resourceDir, 0755)
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		b.Fatal(err)
+	}
 
 	// Create test files
 	files := map[string]string{
@@ -239,7 +173,9 @@ database:
 	}
 
 	for name, content := range files {
-		os.WriteFile(filepath.Join(resourceDir, name), []byte(content), 0644)
+		if err := os.WriteFile(filepath.Join(resourceDir, name), []byte(content), 0o644); err != nil {
+			b.Fatal(err)
+		}
 	}
 
 	b.ResetTimer()
@@ -254,10 +190,14 @@ func BenchmarkIsTextFile(b *testing.B) {
 	defer os.RemoveAll(tempDir)
 
 	textFile := filepath.Join(tempDir, "text.txt")
-	os.WriteFile(textFile, []byte("This is a text file with some content"), 0644)
+	if err := os.WriteFile(textFile, []byte("This is a text file with some content"), 0o644); err != nil {
+		b.Fatal(err)
+	}
 
 	binaryFile := filepath.Join(tempDir, "binary.bin")
-	os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01, 0x02, 0x03}, 0644)
+	if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01, 0x02, 0x03}, 0o644); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -268,10 +208,10 @@ func BenchmarkIsTextFile(b *testing.B) {
 
 // BenchmarkJSONEncoding benchmarks JSON encoding of responses
 func BenchmarkJSONEncoding(b *testing.B) {
-	response := VaultSecretsStatus{
+	response := CredentialCoverageStatus{
 		TotalResources:      10,
 		ConfiguredResources: 7,
-		MissingSecrets: []VaultMissingSecret{
+		MissingSecrets: []MissingCredential{
 			{
 				ResourceName: "openai",
 				SecretName:   "OPENAI_API_KEY",
@@ -280,7 +220,7 @@ func BenchmarkJSONEncoding(b *testing.B) {
 				Description:  "OpenAI API key for AI features",
 			},
 		},
-		ResourceStatuses: []VaultResourceStatus{
+		ResourceStatuses: []CredentialResourceStatus{
 			{
 				ResourceName:    "postgres",
 				SecretsTotal:    5,
@@ -317,7 +257,7 @@ func BenchmarkConcurrentValidation(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
+			req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/validate", nil)
 			rr := httptest.NewRecorder()
 			router.ServeHTTP(rr, req)
 		}
@@ -331,16 +271,24 @@ func BenchmarkEstimateFileCount(b *testing.B) {
 
 	scenariosDir := filepath.Join(tempDir, "scenarios")
 	resourcesDir := filepath.Join(tempDir, "resources")
-	os.MkdirAll(scenariosDir, 0755)
-	os.MkdirAll(resourcesDir, 0755)
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
+		b.Fatal(err)
+	}
+	if err := os.MkdirAll(resourcesDir, 0o755); err != nil {
+		b.Fatal(err)
+	}
 
 	// Create some test structure
 	for i := 0; i < 10; i++ {
 		dir := filepath.Join(resourcesDir, "resource-"+string(rune('a'+i)))
-		os.MkdirAll(dir, 0755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			b.Fatal(err)
+		}
 		for j := 0; j < 5; j++ {
 			file := filepath.Join(dir, "file"+string(rune('0'+j))+".txt")
-			os.WriteFile(file, []byte("content"), 0644)
+			if err := os.WriteFile(file, []byte("content"), 0o644); err != nil {
+				b.Fatal(err)
+			}
 		}
 	}
 

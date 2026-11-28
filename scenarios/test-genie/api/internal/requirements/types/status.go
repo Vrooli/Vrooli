@@ -44,6 +44,16 @@ const (
 	CriticalityP2 Criticality = "P2"
 )
 
+// DeliveryScope distinguishes commitments that belong in the current delivery
+// score from explicitly deferred roadmap work. The zero value is committed so
+// existing registries keep their current semantics.
+type DeliveryScope string
+
+const (
+	ScopeCommitted DeliveryScope = "committed"
+	ScopeRoadmap   DeliveryScope = "roadmap"
+)
+
 // ValidationType categorizes validation sources.
 type ValidationType string
 
@@ -129,6 +139,18 @@ func NormalizeCriticality(s string) Criticality {
 		return CriticalityP2
 	default:
 		return CriticalityP2
+	}
+}
+
+// NormalizeDeliveryScope standardizes the requirement's delivery scope.
+// Unknown values intentionally resolve to committed: excluding a requirement
+// from delivery reporting must always be an explicit, recognized choice.
+func NormalizeDeliveryScope(s string) DeliveryScope {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "roadmap", "deferred":
+		return ScopeRoadmap
+	default:
+		return ScopeCommitted
 	}
 }
 

@@ -1,0 +1,9 @@
+<!doctype html>
+<!-- Follows the Hub's theme (it has dark styles), but one card keeps a literal
+     white background and lets its text inherit: light text on white in dark mode. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root[data-theme="dark"] .hero { border-color: #334155; }
+.hero { border: 1px solid #cbd5e1; }
+.card { background: #ffffff; border-radius: 12px; padding: 12px; }
+</style></head><body><div class="hero"><h1>Pick one</h1></div><div class="card"><h2>Option A</h2><p>Unreadable in dark mode.</p></div></body></html>

@@ -1,0 +1,854 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
+import { SegmentedControl } from "../../components/ui/segmented-control";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
+import { Toggle } from "../../components/ui/toggle";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
+import { listAIOperations, type AIOperationInfo, type AIParamsInput } from "../../api/ai";
+import { modelsClient } from "../../api/models";
+import { needsConsent } from "../../api/safety";
+import { useSafetyPolicy } from "../safety/useSafetyPolicy";
+import { TIER_LABEL } from "./aiCatalog";
+import {
+  DEFAULT_SIZE_PRESET,
+  SIZE_PRESETS,
+  VARIATION_OPTIONS,
+  type SizePreset,
+} from "./createCatalog";
+import { capabilityMeta, capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
+import type { InpaintOpParams, PoseGenerateOpParams } from "./opParams.generated";
+import { ModelCapacityNote } from "./ModelCapacityNote";
+import { ModelPickerButton } from "../models/ModelPickerButton";
+import { VerdictBadge } from "../models/VerdictBadge";
+import { JobRatingControl } from "./JobRatingControl";
+import { MaskBrush } from "./MaskBrush";
+import { PoseChartPicker } from "./PoseChartPicker";
+import { SwapExtentControl } from "./SwapExtentControl";
+import { defaultSelection, extentOpParams, type ExtentSelection } from "./swapExtent";
+import { MODE_LABEL } from "./modeLabels";
+import { isCreateActive, type CreateVariation, type UseCreate } from "./useCreate";
+import { VariationGrid } from "./VariationGrid";
+import { cn } from "../../lib/utils";
+
+const AI_OPS_QUERY_KEY = ["ai-operations"] as const;
+
+export interface CreatePanelProps {
+  create: UseCreate;
+  /** The current canvas image (img2img / inpaint / object-removal input), or null. */
+  input: File | null;
+  /** Object URL of the current image, used by the mask brush. */
+  inputUrl: string | null;
+  onSendToCanvas: (variation: CreateVariation) => void;
+  onSendToEnhance: (variation: CreateVariation) => void;
+  /** Pre-selected generation op (from a Home tile handoff); optional. */
+  initialAction?: string;
+}
+
+const sizePresetByKey = (key: string): SizePreset =>
+  SIZE_PRESETS.find((preset) => preset.key === key) ?? DEFAULT_SIZE_PRESET;
+
+/**
+ * The Create-mode inspector: the operations whose manifest declares the `create`
+ * panel (discovered from `AIService.ListAIOperations`), a prompt, size / seed /
+ * variations controls, an Advanced disclosure, the hardware-fit model badge,
+ * and the full durable-job lifecycle (install gate → live progress → cancel /
+ * retry) — then the N-variation result grid. Masked ops (inpaint / object
+ * removal) surface the mask brush; img2img / inpaint compose on the current
+ * canvas image. The lifecycle lives in `useCreate` (injected client).
+ */
+export function CreatePanel({
+  create,
+  input,
+  inputUrl,
+  onSendToCanvas,
+  onSendToEnhance,
+  initialAction,
+}: CreatePanelProps) {
+  const { t } = useTranslation();
+  const aiOpsQuery = useQuery({ queryKey: AI_OPS_QUERY_KEY, queryFn: listAIOperations });
+  const policyQuery = useSafetyPolicy();
+
+  const [operation, setOperation] = useState(initialAction ?? "");
+  const [consentAffirmed, setConsentAffirmed] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [negative, setNegative] = useState("");
+  const [sizeKey, setSizeKey] = useState<string>(DEFAULT_SIZE_PRESET.key);
+  const [seed, setSeed] = useState("");
+  const [seedLocked, setSeedLocked] = useState(false);
+  const [variations, setVariations] = useState<string>(VARIATION_OPTIONS[0]);
+  const [modelOverride, setModelOverride] = useState("");
+  const [allowByok, setAllowByok] = useState(false);
+  const [forceCpu, setForceCpu] = useState(false);
+  const [cfgScale, setCfgScale] = useState("");
+  const [imageGuidance, setImageGuidance] = useState("");
+  const [cropToMask, setCropToMask] = useState(false);
+  const [cropContextPixels, setCropContextPixels] = useState("96");
+  const [mask, setMask] = useState<File | null>(null);
+  const [poseSource, setPoseSource] = useState<File | null>(null);
+  const [poseChartFile, setPoseChartFile] = useState<File | null>(null);
+  const [poseCell, setPoseCell] = useState<number | null>(null);
+  const [reference, setReference] = useState<File | null>(null);
+  const [openRailMAccepted, setOpenRailMAccepted] = useState(false);
+  const extent = operation ? capabilityMeta(operation)?.extent : undefined;
+  const [extentSelection, setExtentSelection] = useState<ExtentSelection | null>(null);
+
+  const generationOps = useMemo(
+    () => (aiOpsQuery.data?.operations ?? []).filter((op) => isPanelOperation(op.name, "create")),
+    [aiOpsQuery.data],
+  );
+
+  const opInfo: AIOperationInfo | undefined = useMemo(
+    () => generationOps.find((op) => op.name === operation),
+    [generationOps, operation],
+  );
+
+  const opMeta = operation ? capabilityPresentation(operation) : undefined;
+  const operationLabel = opMeta?.labelKey ? t(opMeta.labelKey) : operation;
+
+  // Default to the first generation op once discovery resolves.
+  useEffect(() => {
+    if (!operation && generationOps.length > 0) {
+      setOperation(generationOps[0]?.name ?? "");
+    }
+  }, [operation, generationOps]);
+
+  // Preview the selected op's model so the badge + install gate are honest
+  // before the user commits.
+  const { preview } = create;
+  useEffect(() => {
+    if (operation) {
+      preview(operation);
+    }
+  }, [operation, preview]);
+
+  // A new op means a new input contract; drop a stale mask and re-affirm consent.
+  useEffect(() => {
+    setMask(null);
+    setReference(null);
+    setPoseSource(null);
+    setPoseChartFile(null);
+    setPoseCell(null);
+    setOpenRailMAccepted(false);
+    setConsentAffirmed(false);
+    setCfgScale("");
+    setImageGuidance("");
+    setExtentSelection(null);
+    setCropToMask(false);
+    setCropContextPixels("96");
+  }, [operation]);
+
+  const poseChartOp = operation === "pose_generate";
+  const requiresImage = opInfo?.requiresImage ?? false;
+  const requiresMask = opInfo?.requiresMask ?? false;
+  const promptDriven = opInfo?.promptDriven ?? false;
+  const requiresReference = opInfo?.requiresReference ?? false;
+  // Whether this request needs a consent affirmation is the server's answer for
+  // the route it would take (the same rule the submit edge enforces): a
+  // high-weight op that stays on this machine asks for nothing, one that would
+  // leave it (cloud provider, remote node) or run on a public deployment asks.
+  // Until that answer arrives the deployment tier's own rule stands in.
+  const consentQuery = useQuery({
+    queryKey: ["create-consent", operation, modelOverride, allowByok, forceCpu],
+    queryFn: () =>
+      modelsClient.explainResolution({ operation, modelId: modelOverride, allowByok, forceCpu }),
+    enabled: !!operation && !!opInfo,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const explained = consentQuery.data?.resolution;
+  const requiresConsent = explained
+    ? explained.consentRequired
+    : needsConsent(policyQuery.data, operation);
+  const consentOffMachine = !!explained?.consentRequired && explained.consentBasis === "route";
+  const showSize = operation === "text_to_image";
+  const showVariations = !requiresMask;
+
+  const busy = isCreateActive(create.phase);
+  // Every variation of a run belongs to one job, and the rating attaches to it.
+  const ratedJobId = create.results[0]?.result.jobId ?? "";
+  const { model } = create;
+  const tierKey = TIER_LABEL[create.tier];
+
+  // The backend reports per-variation progress as "produced i/N"; localize it
+  // when present, otherwise fall through to the raw status message.
+  const producedMatch = /produced\s+(\d+)\/(\d+)/i.exec(create.progress.message);
+  const produced = producedMatch
+    ? { done: producedMatch[1] ?? "", total: producedMatch[2] ?? "" }
+    : null;
+
+  const params: AIParamsInput = useMemo(() => {
+    const preset = sizePresetByKey(sizeKey);
+    const out: AIParamsInput = { variations: showVariations ? Number(variations) : 1 };
+    if (promptDriven && prompt.trim()) {
+      out.prompt = prompt.trim();
+    }
+    if (negative.trim()) {
+      out.negativePrompt = negative.trim();
+    }
+    if (showSize) {
+      out.width = preset.width;
+      out.height = preset.height;
+    }
+    if (seedLocked && seed.trim()) {
+      out.seed = BigInt(seed.trim());
+    }
+    if (modelOverride.trim()) {
+      out.modelOverride = modelOverride.trim();
+    }
+    if (allowByok) {
+      out.allowByok = true;
+    }
+    if (forceCpu) {
+      out.forceCpu = true;
+    }
+    if (operation === "edit_instruct" && cfgScale.trim()) {
+      const value = Number(cfgScale);
+      if (Number.isFinite(value)) out.cfgScale = value;
+    }
+    if (operation === "edit_instruct" && imageGuidance.trim()) {
+      const value = Number(imageGuidance);
+      if (Number.isFinite(value)) out.strength = value;
+    }
+    if (operation === "inpaint" && cropToMask) {
+      // Operation-specific knobs ride `opParams`, validated against the
+      // operation's capability schema. Keys are the schema's (snake_case) names;
+      // a field the schema does not allow is rejected rather than ignored.
+      const context = Number(cropContextPixels);
+      out.opParams = {
+        inpaint_crop_to_mask: true,
+        inpaint_context_pixels:
+          Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
+      } satisfies InpaintOpParams;
+    }
+    if (poseChartOp && poseCell) {
+      out.opParams = {
+        pose_cell: poseCell,
+        pose_prepare: "auto",
+        pose_strength: 1,
+        ...(reference ? { character_strength: 0.6 } : {}),
+      } satisfies PoseGenerateOpParams;
+    }
+    if (extent) {
+      out.opParams = { ...extentOpParams(extent, extentSelection ?? defaultSelection(extent)) };
+    }
+    if (operation === "text_to_image" && poseSource) {
+      out.adapters = [
+        {
+          adapterId: "controlnet-openpose-sd15",
+          scale: 1,
+          conditioningImageKey: "",
+          preprocessorOverride: "pose",
+          licenseTermsAccepted: openRailMAccepted,
+        },
+      ];
+    }
+    if (consentAffirmed) {
+      out.consentAffirmed = true;
+    }
+    return out;
+  }, [
+    sizeKey,
+    showSize,
+    showVariations,
+    variations,
+    promptDriven,
+    prompt,
+    negative,
+    seedLocked,
+    seed,
+    modelOverride,
+    allowByok,
+    forceCpu,
+    cfgScale,
+    imageGuidance,
+    cropToMask,
+    cropContextPixels,
+    consentAffirmed,
+    poseSource,
+    openRailMAccepted,
+    extent,
+    extentSelection,
+    operation,
+    poseChartOp,
+    poseCell,
+    reference,
+  ]);
+
+  const missingImage = poseChartOp ? !poseChartFile || !poseCell : requiresImage && !input;
+  const missingMask = requiresMask && !mask;
+  const missingReference = requiresReference && !reference;
+  const missingPrompt = promptDriven && !prompt.trim();
+  const missingConsent = requiresConsent && !consentAffirmed;
+  // Keep this route staged while the adapter and its pinned pose runtime are
+  // not installed and output-quality-qualified. Terms acceptance is captured
+  // in the typed request for any future submission.
+  const poseRouteUnavailable = operation === "text_to_image" && !!poseSource;
+  const canRun =
+    !busy && !!operation && !missingImage && !missingMask && !missingReference && !missingPrompt && !missingConsent && !poseRouteUnavailable;
+
+  const randomizeSeed = () => {
+    setSeed(String(Math.floor(Math.random() * 1_000_000_000)));
+    setSeedLocked(true);
+  };
+
+  const run = () => {
+    if (!canRun) {
+      return;
+    }
+    create.start(operation, params, {
+      input: poseChartOp
+        ? poseChartFile ?? undefined
+        : requiresImage
+          ? input ?? undefined
+          : operation === "text_to_image"
+            ? poseSource ?? undefined
+            : undefined,
+      mask: requiresMask ? mask ?? undefined : undefined,
+      reference: requiresReference || poseChartOp ? reference ?? undefined : undefined,
+    });
+  };
+
+  return (
+    <section
+      data-testid={selectors.workspace.create.panel}
+      aria-label={t(MODE_LABEL.create)}
+      className="rounded-panel border border-app-border bg-app-surface p-4"
+    >
+      <h3 className="text-sm font-medium text-app-muted-foreground">{t(MODE_LABEL.create)}</h3>
+      <p
+        data-testid={selectors.workspace.create.intro}
+        className="mt-1 text-xs text-app-muted-foreground"
+      >
+        {t(strings.workspace.create.intro)}
+      </p>
+
+      {aiOpsQuery.isLoading ? (
+        <p
+          data-testid={selectors.workspace.create.loading}
+          className="mt-3 text-sm text-app-foreground"
+        >
+          {t(strings.workspace.create.loading)}
+        </p>
+      ) : aiOpsQuery.error ? (
+        <p data-testid={selectors.workspace.create.error} className="mt-3 text-sm text-app-danger">
+          {t(strings.workspace.create.error)}
+        </p>
+      ) : (
+        <div className="mt-3 flex flex-col gap-4">
+          <div
+            data-testid={selectors.workspace.create.actions}
+            role="radiogroup"
+            aria-label={t(MODE_LABEL.create)}
+            className="grid grid-cols-2 gap-2"
+          >
+            {generationOps.map((op) => {
+              const meta = capabilityPresentation(op.name);
+              const Icon = meta?.Icon ?? familyIcon(undefined);
+              const selected = op.name === operation;
+              return (
+                <button
+                  key={op.name}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  data-testid={selectors.workspace.createAction({ name: op.name })}
+                  onClick={() => setOperation(op.name)}
+                  disabled={busy}
+                  className={
+                    selected
+                      ? "flex items-start gap-2 rounded-control border border-app-primary bg-app-primary/10 p-2 text-left disabled:opacity-60"
+                      : "flex items-start gap-2 rounded-control border border-app-border bg-app-surface p-2 text-left hover:border-app-primary disabled:opacity-60"
+                  }
+                >
+                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-brand" />
+                  <span className="flex flex-col items-start gap-1">
+                    <span className="text-xs font-medium text-app-foreground">
+                      {meta?.labelKey ? t(meta.labelKey) : op.name}
+                    </span>
+                    {op.defaultModelId ? (
+                      <VerdictBadge verdict={op.defaultVerdict} testId={selectors.workspace.opVerdict({ name: op.name })} />
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {promptDriven && (
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-app-muted-foreground">
+                {t(strings.workspace.create.promptLabel)}
+              </span>
+              <Textarea
+                className="image-tools-textarea"
+                data-testid={selectors.workspace.create.prompt}
+                value={prompt}
+                placeholder={t(strings.workspace.create.promptPlaceholder)}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </label>
+          )}
+
+          {poseChartOp && (
+            <fieldset className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
+              <legend className="px-1 text-xs font-medium text-app-foreground">{t(strings.workspace.create.poseChart.title)}</legend>
+              <p className="text-xs text-app-muted-foreground">{t(strings.workspace.create.poseChart.hint)}</p>
+              <input
+                data-testid="pose-chart-file"
+                type="file"
+                accept="image/*"
+                disabled={busy}
+                onChange={(event) => { setPoseChartFile(event.currentTarget.files?.[0] ?? null); setPoseCell(null); }}
+              />
+              {poseChartFile ? (
+                <PoseChartPicker chart={poseChartFile} onSelect={setPoseCell} disabled={busy} />
+              ) : (
+                <p className="text-xs text-app-muted-foreground" data-testid="pose-chart-needs-file">
+                  {t(strings.workspace.create.poseChart.needsChart)}
+                </p>
+              )}
+            </fieldset>
+          )}
+
+          {showSize && (
+            <fieldset className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
+              <legend className="px-1 text-xs font-medium text-app-foreground">{t(strings.workspace.create.pose.title)}</legend>
+              <p className="text-xs text-app-muted-foreground">
+                {t(strings.workspace.create.pose.body)}
+              </p>
+              <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+                <span>{t(strings.workspace.create.pose.stageLabel)}</span>
+                <input
+                  data-testid="create-pose-source"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setPoseSource(event.currentTarget.files?.[0] ?? null)}
+                />
+              </label>
+              {poseSource && (
+                <span className="text-xs text-app-muted-foreground" data-testid="create-pose-staged">
+                  {t(strings.workspace.create.pose.staged, { name: poseSource.name })}
+                </span>
+              )}
+              <label className="flex items-start gap-2 text-xs text-app-muted-foreground">
+                <input
+                  data-testid="create-pose-license-acceptance"
+                  type="checkbox"
+                  checked={openRailMAccepted}
+                  onChange={(event) => setOpenRailMAccepted(event.currentTarget.checked)}
+                />
+                <span>
+                  {t(strings.workspace.create.pose.acceptPrefix)}{" "}
+                  <a className="underline" href="/api/v1/adapters/controlnet-openpose-sd15/license-terms" target="_blank" rel="noreferrer">
+                    {t(strings.workspace.create.pose.license)}
+                  </a>{" "}
+                  {t(strings.workspace.create.pose.acceptSuffix)}
+                </span>
+              </label>
+            </fieldset>
+          )}
+
+          {requiresImage && !poseChartOp &&
+            (missingImage ? (
+              <p
+                data-testid={selectors.workspace.create.needsImage}
+                className="text-sm text-app-muted-foreground"
+              >
+                {t(strings.workspace.create.needsImage)}
+              </p>
+            ) : (
+              <p
+                data-testid={selectors.workspace.create.usesCurrent}
+                className="text-xs text-app-muted-foreground"
+              >
+                {t(strings.workspace.create.usesCurrent)}
+              </p>
+            ))}
+
+          {requiresMask && !missingImage && (
+            <>
+              <MaskBrush imageUrl={inputUrl} image={input} onMask={setMask} />
+              {missingMask && (
+                <p
+                  data-testid={selectors.workspace.create.needsMask}
+                  className="text-xs text-app-warning"
+                >
+                  {t(strings.workspace.create.needsMask)}
+                </p>
+              )}
+            </>
+          )}
+
+          {(requiresReference || poseChartOp) && (
+            <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+              <span>{poseChartOp ? t(strings.workspace.create.poseChart.reference) : t(strings.workspace.create.reference.label)}</span>
+              <input
+                data-testid={selectors.workspace.create.reference}
+                type="file"
+                accept="image/*"
+                onChange={(event) => setReference(event.currentTarget.files?.[0] ?? null)}
+              />
+              {missingReference ? (
+                <span data-testid={selectors.workspace.create.needsReference} className="text-app-warning">
+                  {t(strings.workspace.create.reference.needed)}
+                </span>
+              ) : (
+                <span>{poseChartOp && !reference ? t(strings.workspace.create.poseChart.referenceHint) : t(strings.workspace.create.reference.staged, { name: reference?.name ?? "" })}</span>
+              )}
+            </label>
+          )}
+
+          {extent && (
+            <SwapExtentControl
+              extent={extent}
+              selection={extentSelection ?? defaultSelection(extent)}
+              onChange={setExtentSelection}
+            />
+          )}
+
+          {showSize && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-app-muted-foreground">
+                {t(strings.workspace.create.sizeLabel)}
+              </span>
+              <SegmentedControl<string>
+                label={t(strings.workspace.create.sizeLabel)}
+                value={sizeKey}
+                options={SIZE_PRESETS.map((preset) => ({
+                  value: preset.key,
+                  label: t(preset.labelKey),
+                }))}
+                onChange={setSizeKey}
+                data-testid={selectors.workspace.create.size}
+              />
+            </div>
+          )}
+
+          {showVariations && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-app-muted-foreground">
+                {t(strings.workspace.create.variationsLabel)}
+              </span>
+              <SegmentedControl<string>
+                label={t(strings.workspace.create.variationsLabel)}
+                value={variations}
+                options={VARIATION_OPTIONS.map((n) => ({ value: n, label: n }))}
+                onChange={setVariations}
+                data-testid={selectors.workspace.create.variations}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-app-muted-foreground">
+              {t(strings.workspace.create.seedLabel)}
+            </span>
+            <div className="flex items-center gap-2">
+              <Input
+                data-testid={selectors.workspace.create.seed}
+                type="number"
+                value={seed}
+                aria-label={t(strings.workspace.create.seedLabel)}
+                placeholder={t(strings.workspace.create.seedRandom)}
+                onChange={(e) => setSeed(e.target.value)}
+                className="flex-1"
+              />
+              <button
+                type="button"
+                data-testid={selectors.workspace.create.seedRandomize}
+                onClick={randomizeSeed}
+                className="rounded-control border border-app-border px-2 py-2 text-xs text-app-foreground hover:border-app-primary"
+              >
+                {t(strings.workspace.create.seedRandomize)}
+              </button>
+            </div>
+            <Toggle
+              label={t(strings.workspace.create.seedLock)}
+              checked={seedLocked}
+              onChange={setSeedLocked}
+              data-testid={selectors.workspace.create.seedLock}
+            />
+          </div>
+
+          <details className="rounded-control border border-app-border bg-app-surface-muted p-2">
+            <summary
+              data-testid={selectors.workspace.create.advanced}
+              className="cursor-pointer text-xs font-medium text-app-muted-foreground"
+            >
+              {t(strings.workspace.create.advanced)}
+            </summary>
+            <div className="mt-2 flex flex-col gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-app-muted-foreground">
+                  {t(strings.workspace.create.negativeLabel)}
+                </span>
+                <Textarea
+                  className="image-tools-textarea"
+                  data-testid={selectors.workspace.create.negative}
+                  value={negative}
+                  placeholder={t(strings.workspace.create.negativePlaceholder)}
+                  onChange={(e) => setNegative(e.target.value)}
+                />
+              </label>
+              <Toggle
+                label={t(strings.workspace.create.byokLabel)}
+                checked={allowByok}
+                onChange={setAllowByok}
+                data-testid={selectors.workspace.create.byok}
+              />
+              <Toggle
+                label={t(strings.workspace.create.forceCpuLabel)}
+                checked={forceCpu}
+                onChange={setForceCpu}
+                data-testid={selectors.workspace.create.forceCpu}
+              />
+              {operation === "edit_instruct" && (
+                <>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-app-muted-foreground">
+                      {t(strings.workspace.create.instructionGuidanceLabel)}
+                    </span>
+                    <Input
+                      data-testid={selectors.workspace.create.cfgScale}
+                      type="number"
+                      min={0}
+                      max={20}
+                      step={0.5}
+                      value={cfgScale}
+                      placeholder="7.5"
+                      onChange={(e) => setCfgScale(e.target.value)}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-app-muted-foreground">
+                      {t(strings.workspace.create.imageGuidanceLabel)}
+                    </span>
+                    <Input
+                      data-testid={selectors.workspace.create.imageGuidance}
+                      type="number"
+                      min={0}
+                      max={4}
+                      step={0.1}
+                      value={imageGuidance}
+                      placeholder="1.5"
+                      onChange={(e) => setImageGuidance(e.target.value)}
+                    />
+                  </label>
+                </>
+              )}
+              {operation === "inpaint" && (
+                <>
+                  <Toggle
+                    label={t(strings.workspace.create.cropToMaskLabel)}
+                    checked={cropToMask}
+                    onChange={setCropToMask}
+                    data-testid={selectors.workspace.create.cropToMask}
+                  />
+                  {cropToMask && (
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs text-app-muted-foreground">
+                        {t(strings.workspace.create.cropContextPixelsLabel)}
+                      </span>
+                      <Input
+                        data-testid={selectors.workspace.create.cropContextPixels}
+                        type="number"
+                        min={0}
+                        max={512}
+                        step={16}
+                        value={cropContextPixels}
+                        onChange={(e) => setCropContextPixels(e.target.value)}
+                      />
+                    </label>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+
+          {requiresConsent && (
+            <div className="flex flex-col gap-1 rounded-control border border-app-warning/50 bg-app-surface-muted p-3">
+              {explained?.consentReason && (
+                <p data-testid={selectors.workspace.create.consentReason} className="text-xs text-app-foreground">
+                  {explained.consentReason}
+                </p>
+              )}
+              <Toggle
+                label={t(
+                  consentOffMachine
+                    ? strings.workspace.create.consent.labelOffMachine
+                    : strings.workspace.create.consent.label,
+                )}
+                checked={consentAffirmed}
+                onChange={setConsentAffirmed}
+                data-testid={selectors.workspace.create.consent}
+              />
+              {missingConsent && (
+                <p
+                  data-testid={selectors.workspace.create.consentRequired}
+                  className="text-xs text-app-warning"
+                >
+                  {t(strings.workspace.create.consent.required)}
+                </p>
+              )}
+            </div>
+          )}
+
+          {operation && (
+            <div data-testid={selectors.workspace.create.modelBadge}>
+              <ModelPickerButton
+                operation={operation}
+                operationLabel={operationLabel}
+                value={modelOverride}
+                onChange={setModelOverride}
+                forceCpu={forceCpu}
+              />
+            </div>
+          )}
+
+          <ModelCapacityNote model={operation && !modelOverride && !forceCpu ? model : null} />
+
+          {create.phase === "needs-install" && model ? (
+            <div
+              data-testid={selectors.workspace.create.installGate}
+              className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3"
+            >
+              <p className="text-sm font-medium text-app-foreground">
+                {t(strings.workspace.enhance.install.title, { model: model.name })}
+              </p>
+              <p className="text-xs text-app-muted-foreground">
+                {model.cpuCapable
+                  ? t(strings.workspace.enhance.install.cpu)
+                  : t(strings.workspace.enhance.install.gpu, { vram: model.minVramGb })}
+                {model.sizeMb > 0
+                  ? ` · ${t(strings.workspace.enhance.install.size, { size: model.sizeMb })}`
+                  : ""}
+              </p>
+              <Button
+                type="button"
+                data-testid={selectors.workspace.create.install}
+                onClick={create.installAndRun}
+                shape="square"
+              >
+                {t(strings.workspace.enhance.install.run)}
+              </Button>
+            </div>
+          ) : busy ? (
+            <div
+              data-testid={selectors.workspace.create.progress}
+              className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3"
+            >
+              <div className="flex items-center gap-2 text-sm text-app-foreground">
+                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin text-app-brand" />
+                <span>
+                  {create.phase === "installing"
+                    ? t(strings.workspace.enhance.install.installing)
+                    : t(strings.workspace.create.running)}
+                </span>
+              </div>
+              {create.phase === "running" && (
+                <>
+                  <p className="text-xs text-app-muted-foreground">
+                    {t(strings.workspace.create.progress, { percent: create.progress.percent })}
+                    {tierKey ? ` · ${t(tierKey)}` : ""}
+                  </p>
+                  {produced ? (
+                    <p className="text-xs text-app-muted-foreground">
+                      {t(strings.workspace.create.produced, produced)}
+                    </p>
+                  ) : create.progress.message ? (
+                    <p className="text-xs text-app-muted-foreground">{create.progress.message}</p>
+                  ) : null}
+                </>
+              )}
+              <Button
+                variant="ghost"
+                type="button"
+                data-testid={selectors.workspace.create.cancel}
+                onClick={create.cancel}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+              >
+                {t(strings.workspace.create.cancel)}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              data-testid={selectors.workspace.create.run}
+              disabled={!canRun}
+              onClick={run}
+              shape="square"
+            >
+              {t(strings.workspace.create.run)}
+            </Button>
+          )}
+
+          {create.warnings.length > 0 && (
+            <div
+              data-testid={selectors.workspace.create.warnings}
+              className="rounded-control border border-app-warning/50 bg-app-surface-muted p-2 text-xs text-app-foreground"
+            >
+              <p className="font-medium">{t(strings.workspace.create.warningsLabel)}</p>
+              <ul className="mt-1 list-disc pl-4 text-app-muted-foreground">
+                {create.warnings.map((warning, index) => (
+                  <li key={`${index}-${warning}`}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {create.phase === "succeeded" && (
+            <p
+              data-testid={selectors.workspace.create.succeeded}
+              className="text-sm text-app-success"
+            >
+              {t(strings.workspace.create.succeeded, { count: create.results.length })}
+            </p>
+          )}
+
+          {create.phase === "failed" && (
+            <div className="flex flex-col gap-2">
+              <p data-testid={selectors.workspace.create.failed} className="text-sm text-app-danger">
+                {create.error ?? t(strings.workspace.create.failed)}
+              </p>
+              {create.consentBlocked && (
+                <p
+                  data-testid={selectors.workspace.create.consentBlocked}
+                  className="text-xs text-app-warning"
+                >
+                  {t(strings.workspace.create.consent.required)}
+                </p>
+              )}
+              <Button
+                variant="ghost"
+                type="button"
+                data-testid={selectors.workspace.create.retry}
+                onClick={create.retry}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+              >
+                {t(strings.workspace.create.retry)}
+              </Button>
+            </div>
+          )}
+
+          <VariationGrid
+            results={create.results}
+            requestedCount={create.requestedCount}
+            busy={busy}
+            onSendToCanvas={onSendToCanvas}
+            onSendToEnhance={onSendToEnhance}
+          />
+
+          {create.phase === "succeeded" && ratedJobId ? <JobRatingControl jobId={ratedJobId} /> : null}
+        </div>
+      )}
+    </section>
+  );
+}

@@ -42,3 +42,17 @@ func TestInjectJSONField_InvalidJSON(t *testing.T) {
 		t.Error("should return original payload on invalid JSON")
 	}
 }
+
+func TestParseProtoStructJSON(t *testing.T) {
+	got, err := parseProtoStructJSON(`{"caller.count":7,"caller.payload":{"enabled":true}}`)
+	if err != nil {
+		t.Fatalf("parseProtoStructJSON: %v", err)
+	}
+	values := got.AsMap()
+	if values["caller.count"] != float64(7) || values["caller.payload"].(map[string]any)["enabled"] != true {
+		t.Fatalf("values = %#v", values)
+	}
+	if _, err := parseProtoStructJSON(`["not","an","object"]`); err == nil {
+		t.Fatal("expected non-object rejection")
+	}
+}

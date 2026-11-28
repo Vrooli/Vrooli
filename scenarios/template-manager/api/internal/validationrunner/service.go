@@ -1,0 +1,258 @@
+package validationrunner
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/catalog"
+
+	"github.com/google/uuid"
+)
+
+type Runner interface {
+	ValidateTemplate(ctx context.Context, req ValidateRequest) (ValidateResult, error)
+	RecordFleetDrift(ctx context.Context) (DriftResult, error)
+}
+
+type ValidateRequest struct {
+	TemplateID    string
+	Mode          catalog.ValidationMode
+	Trigger       string
+	TestPreset    string
+	WarningPolicy string
+	RetainTemp    bool
+}
+
+type ValidateResult struct {
+	Success      bool
+	Mode         catalog.ValidationMode
+	TemplateID   string
+	Target       string
+	PhaseResults []catalog.PhaseResult
+	Findings     []catalog.ValidationFinding
+}
+
+type DriftResult struct {
+	// Success means the scan completed. Findings determine the snapshot verdict.
+	Success   bool
+	Scenarios []DriftScenario
+}
+
+type DriftScenario struct {
+	Scenario        string
+	TemplateID      string
+	Status          string
+	ManifestDrifted bool
+	ContentDrifted  bool
+	Message         string
+}
+
+type Service struct {
+	repo   catalog.Repository
+	runner Runner
+	now    func() time.Time
+}
+
+func NewService(repo catalog.Repository, runner Runner) *Service {
+	return &Service{
+		repo:   repo,
+		runner: runner,
+		now:    func() time.Time { return time.Now().UTC() },
+	}
+}
+
+func (s *Service) RunValidation(ctx context.Context, req ValidateRequest) (catalog.ValidationRun, error) {
+	if strings.TrimSpace(req.TemplateID) == "" {
+		req.TemplateID = "react-vite"
+	}
+	if req.Mode == "" {
+		req.Mode = catalog.ModeShallow
+	}
+	// Deep validation owns a Test Genie run whose completion is evidence even
+	// when the HTTP client disconnects. Shallow validation is synchronous and
+	// remains attached to the caller so disconnects can stop its work.
+	executionCtx := ctx
+	if req.Mode == catalog.ModeDeep {
+		executionCtx = context.WithoutCancel(ctx)
+	}
+	started := s.now()
+	result, err := s.runner.ValidateTemplate(executionCtx, req)
+	finished := s.now()
+	if err != nil {
+		return catalog.ValidationRun{}, err
+	}
+	if result.TemplateID == "" {
+		result.TemplateID = req.TemplateID
+	}
+	if result.Mode == "" {
+		result.Mode = req.Mode
+	}
+	if result.Target == "" {
+		result.Target = fmt.Sprintf("templates/scenarios/%s", result.TemplateID)
+	}
+	// Once execution returns a result, it is terminal evidence. Preserve it if
+	// the caller disconnects between execution and the persistence write.
+	persistenceCtx := context.WithoutCancel(executionCtx)
+	status := "failed"
+	if result.Success {
+		status = "passed"
+	}
+	run := catalog.ValidationRun{
+		ID:           "validation-" + uuid.NewString(),
+		TemplateID:   result.TemplateID,
+		Mode:         result.Mode,
+		Target:       result.Target,
+		Status:       status,
+		Trigger:      nonEmpty(req.Trigger, "manual"),
+		StartedAt:    started,
+		FinishedAt:   finished,
+		PhaseResults: result.PhaseResults,
+		Findings:     result.Findings,
+	}
+	if err := s.repo.SaveValidationRun(persistenceCtx, run); err != nil {
+		return catalog.ValidationRun{}, err
+	}
+	// A clean deep validation is the release gate for source-owned debt. Fleet
+	// drift is intentionally excluded: it describes downstream divergence, not
+	// a defect in the current template release.
+	if run.Mode == catalog.ModeDeep && run.Status == "passed" && len(run.Findings) == 0 {
+		if err := s.repo.ResolveSourceDebt(persistenceCtx, run.TemplateID, finished); err != nil {
+			return catalog.ValidationRun{}, err
+		}
+	}
+	if run.Mode == catalog.ModeDeep && run.Status != "passed" {
+		if err := s.repo.ResolveSupersededDeepValidationDebt(persistenceCtx, run.TemplateID, finished); err != nil {
+			return catalog.ValidationRun{}, err
+		}
+	}
+	for _, finding := range result.Findings {
+		if strings.TrimSpace(finding.Key) == "" {
+			continue
+		}
+		if err := s.repo.UpsertDebt(persistenceCtx, catalog.DebtEntry{
+			Key:         finding.Key,
+			TemplateID:  run.TemplateID,
+			Source:      nonEmpty(finding.Source, "template validation"),
+			Severity:    nonEmpty(finding.Severity, "warning"),
+			Status:      "open",
+			Title:       nonEmpty(finding.Summary, finding.Key),
+			Detail:      nonEmpty(finding.Summary, finding.Key),
+			FirstSeenAt: started,
+			LastSeenAt:  finished,
+		}); err != nil {
+			return catalog.ValidationRun{}, err
+		}
+	}
+	return run, nil
+}
+
+func (s *Service) RecordFleetDrift(ctx context.Context) (catalog.DriftSnapshot, error) {
+	started := s.now()
+	result, err := s.runner.RecordFleetDrift(ctx)
+	if err != nil {
+		return catalog.DriftSnapshot{}, err
+	}
+	if !result.Success {
+		return catalog.DriftSnapshot{}, fmt.Errorf("fleet drift scan did not complete")
+	}
+	driftCount := int32(0)
+	incomplete := len(result.Scenarios) == 0
+	for _, scenario := range result.Scenarios {
+		if strings.TrimSpace(scenario.Scenario) == "" {
+			incomplete = true
+			continue
+		}
+		key := driftDebtKey(scenario)
+		if scenario.ManifestDrifted || scenario.ContentDrifted {
+			driftCount++
+			if scenario.Status != "drifted" {
+				incomplete = true
+			}
+			if err := s.repo.UpsertDebt(ctx, catalog.DebtEntry{
+				Key:          key,
+				TemplateID:   nonEmpty(scenario.TemplateID, "react-vite"),
+				ScenarioSlug: scenario.Scenario,
+				Source:       "template drift",
+				Severity:     "warning",
+				Status:       "open",
+				Title:        fmt.Sprintf("%s has template drift", scenario.Scenario),
+				Detail:       nonEmpty(scenario.Message, fmt.Sprintf("%s reported %s during fleet drift", scenario.Scenario, scenario.Status)),
+				FirstSeenAt:  started,
+				LastSeenAt:   started,
+			}); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+			// A scenario's template lineage can change while drift debt is open.
+			// Retire prior lineage keys only after the current finding is durable.
+			if err := s.repo.ResolveTemplateDriftDebt(ctx, scenario.Scenario, key, key, started); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+		} else if scenario.Status == "ok" {
+			if err := s.repo.ResolveTemplateDriftDebt(ctx, scenario.Scenario, key, "", started); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+		} else {
+			incomplete = true
+			// Preserve uncertainty as actionable debt without counting it as
+			// confirmed drift, then retire only superseded lineage rows.
+			if err := s.repo.UpsertDebt(ctx, catalog.DebtEntry{
+				Key:          key,
+				TemplateID:   nonEmpty(scenario.TemplateID, "react-vite"),
+				ScenarioSlug: scenario.Scenario,
+				Source:       "template drift",
+				Severity:     "warning",
+				Status:       "open",
+				Title:        fmt.Sprintf("%s template drift could not be verified", scenario.Scenario),
+				Detail:       nonEmpty(scenario.Message, fmt.Sprintf("Template drift status: %s", scenario.Status)),
+				FirstSeenAt:  started,
+				LastSeenAt:   started,
+			}); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+			if err := s.repo.ResolveTemplateDriftDebt(ctx, scenario.Scenario, key, key, started); err != nil {
+				return catalog.DriftSnapshot{}, err
+			}
+		}
+	}
+	status := catalog.DriftSnapshotStatusInSync
+	if driftCount > 0 {
+		status = catalog.DriftSnapshotStatusDrifted
+	}
+	if incomplete {
+		status = catalog.DriftSnapshotStatusIncomplete
+	}
+	snapshot := catalog.DriftSnapshot{
+		ID:         "drift-" + uuid.NewString(),
+		TemplateID: "react-vite",
+		Target:     "fleet",
+		Status:     status,
+		DriftCount: driftCount,
+		CapturedAt: started,
+	}
+	if err := s.repo.SaveDriftSnapshot(ctx, snapshot); err != nil {
+		return catalog.DriftSnapshot{}, err
+	}
+	// A real live run just landed, so retire any bootstrap 'pending-live-run'
+	// placeholder snapshot — it exists only to keep the surface non-empty before
+	// the first live run and would otherwise linger as an un-actionable row.
+	if err := s.repo.SupersedePendingDriftSnapshots(ctx, started); err != nil {
+		return catalog.DriftSnapshot{}, err
+	}
+	return snapshot, nil
+}
+
+func driftDebtKey(scenario DriftScenario) string {
+	if scenario.TemplateID == "" {
+		return "drift." + scenario.Scenario
+	}
+	return "drift." + scenario.TemplateID + "." + scenario.Scenario
+}
+
+func nonEmpty(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return value
+	}
+	return fallback
+}

@@ -58,6 +58,38 @@ func setupTestServer(t *testing.T) (*Server, *sql.DB, func()) {
 	return srv, db, cleanup
 }
 
+func createEventsViaAPI(t *testing.T, srv *Server, events ...domain.CreateEventRequest) {
+	t.Helper()
+	for _, event := range events {
+		body, err := json.Marshal(event)
+		if err != nil {
+			t.Fatalf("marshal event: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/events", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		srv.router.ServeHTTP(w, req)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("create event returned %d: %s", w.Code, w.Body.String())
+		}
+	}
+}
+
+func queryEventsViaAPI(t *testing.T, srv *Server, path string) domain.EventsResponse {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	w := httptest.NewRecorder()
+	srv.router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("query events returned %d: %s", w.Code, w.Body.String())
+	}
+	var result domain.EventsResponse
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("decode events response: %v", err)
+	}
+	return result
+}
+
 // =============================================================================
 // Event Schema Tests [REQ:LD-EVENT-SCHEMA]
 // =============================================================================
@@ -190,7 +222,6 @@ func TestEventStorage_SQLitePersistence(t *testing.T) {
 		SELECT id, domain, event_type, payload
 		FROM events WHERE id = ?
 	`, created.ID).Scan(&stored.ID, &stored.Domain, &stored.EventType, &payload)
-
 	if err != nil {
 		t.Fatalf("[REQ:LD-EVENT-STORAGE] Event not found in SQLite: %v", err)
 	}
@@ -491,27 +522,13 @@ func TestQueryFilter_ByDomain(t *testing.T) {
 	srv, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
-	// Create events in multiple domains
 	for _, d := range []string{"sleep", "sleep", "nutrition", "exercise"} {
-		event := domain.CreateEventRequest{
-			Domain:    d,
-			EventType: "test.event",
-			Payload:   json.RawMessage(`{}`),
-		}
-		body, _ := json.Marshal(event)
-		req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		srv.router.ServeHTTP(w, req)
+		createEventsViaAPI(t, srv, domain.CreateEventRequest{
+			Domain: d, EventType: "test.event", Payload: json.RawMessage(`{}`),
+		})
 	}
 
-	// Query only sleep domain
-	req := httptest.NewRequest("GET", "/api/v1/events?domain=sleep", nil)
-	w := httptest.NewRecorder()
-	srv.router.ServeHTTP(w, req)
-
-	var result domain.EventsResponse
-	json.NewDecoder(w.Body).Decode(&result)
+	result := queryEventsViaAPI(t, srv, "/api/v1/events?domain=sleep")
 
 	if result.Count != 2 {
 		t.Errorf("[REQ:LD-QUERY-FILTER] Expected 2 sleep events, got %d", result.Count)
@@ -530,31 +547,24 @@ func TestQueryFilter_ByEventType(t *testing.T) {
 	srv, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
-	// Create events with different types
 	eventTypes := []string{"supplement.taken", "supplement.taken", "sleep.recorded", "meal.logged"}
 	for _, et := range eventTypes {
-		event := domain.CreateEventRequest{
+		createEventsViaAPI(t, srv, domain.CreateEventRequest{
 			Domain:    "test",
 			EventType: et,
 			Payload:   json.RawMessage(`{}`),
-		}
-		body, _ := json.Marshal(event)
-		req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		srv.router.ServeHTTP(w, req)
+		})
 	}
 
-	// Query by event type
-	req := httptest.NewRequest("GET", "/api/v1/events?event_type=supplement.taken", nil)
-	w := httptest.NewRecorder()
-	srv.router.ServeHTTP(w, req)
-
-	var result domain.EventsResponse
-	json.NewDecoder(w.Body).Decode(&result)
+	result := queryEventsViaAPI(t, srv, "/api/v1/events?event_type=supplement.taken")
 
 	if result.Count != 2 {
 		t.Errorf("[REQ:LD-QUERY-FILTER] Expected 2 supplement.taken events, got %d", result.Count)
+	}
+	for _, event := range result.Events {
+		if event.EventType != "supplement.taken" {
+			t.Errorf("[REQ:LD-QUERY-FILTER] Expected only supplement.taken events, got %q", event.EventType)
+		}
 	}
 }
 
@@ -576,30 +586,25 @@ func TestQueryFilter_ByTimeRange(t *testing.T) {
 	}
 
 	for _, ts := range timestamps {
-		event := domain.CreateEventRequest{
+		createEventsViaAPI(t, srv, domain.CreateEventRequest{
 			Domain:    "test",
 			EventType: "test.event",
 			Timestamp: &ts,
 			Payload:   json.RawMessage(`{}`),
-		}
-		body, _ := json.Marshal(event)
-		req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		srv.router.ServeHTTP(w, req)
+		})
 	}
 
 	// Query events from last 2 days
 	start := now.Add(-48 * time.Hour).Format(time.RFC3339)
-	req := httptest.NewRequest("GET", "/api/v1/events?start="+start, nil)
-	w := httptest.NewRecorder()
-	srv.router.ServeHTTP(w, req)
-
-	var result domain.EventsResponse
-	json.NewDecoder(w.Body).Decode(&result)
+	result := queryEventsViaAPI(t, srv, "/api/v1/events?start="+start)
 
 	if result.Count != 2 {
 		t.Errorf("[REQ:LD-QUERY-FILTER] Expected 2 events in last 48h, got %d", result.Count)
+	}
+	for _, event := range result.Events {
+		if event.Timestamp < start {
+			t.Errorf("[REQ:LD-QUERY-FILTER] Returned event before start boundary: %s", event.Timestamp)
+		}
 	}
 }
 
@@ -609,27 +614,17 @@ func TestQueryFilter_Pagination(t *testing.T) {
 	srv, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
-	// Create 10 events
+	var events []domain.CreateEventRequest
 	for i := 0; i < 10; i++ {
-		event := domain.CreateEventRequest{
+		events = append(events, domain.CreateEventRequest{
 			Domain:    "test",
 			EventType: fmt.Sprintf("event.%d", i),
 			Payload:   json.RawMessage(`{}`),
-		}
-		body, _ := json.Marshal(event)
-		req := httptest.NewRequest("POST", "/api/v1/events", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		srv.router.ServeHTTP(w, req)
+		})
 	}
+	createEventsViaAPI(t, srv, events...)
 
-	// Query with limit
-	req := httptest.NewRequest("GET", "/api/v1/events?limit=5", nil)
-	w := httptest.NewRecorder()
-	srv.router.ServeHTTP(w, req)
-
-	var result domain.EventsResponse
-	json.NewDecoder(w.Body).Decode(&result)
+	result := queryEventsViaAPI(t, srv, "/api/v1/events?limit=5")
 
 	if result.Count != 5 {
 		t.Errorf("[REQ:LD-QUERY-FILTER] Expected 5 events with limit=5, got %d", result.Count)
@@ -948,7 +943,6 @@ func TestEventIndex_HypothesisPartialIndex(t *testing.T) {
 		SELECT sql FROM sqlite_master
 		WHERE type = 'index' AND name = 'idx_events_hypothesis'
 	`).Scan(&sql)
-
 	if err != nil {
 		t.Fatalf("[REQ:LD-EVENT-INDEX] Failed to get index definition: %v", err)
 	}
@@ -1012,7 +1006,6 @@ func TestEventIndex_QueryPerformance(t *testing.T) {
 		EXPLAIN QUERY PLAN
 		SELECT * FROM events WHERE domain = 'sleep' ORDER BY timestamp DESC
 	`).Scan(&id, &parent, &notUsed, &detail)
-
 	if err != nil {
 		t.Fatalf("[REQ:LD-EVENT-INDEX] EXPLAIN failed: %v", err)
 	}

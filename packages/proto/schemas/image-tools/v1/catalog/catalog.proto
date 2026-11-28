@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.catalog;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/catalog;catalog_v1";
+
+// =============================================================================
+// CATALOG DOMAIN — this scenario's published capability catalog
+// =============================================================================
+//
+// @stability experimental
+//
+// Image Tools publishes its capability manifests in the shared
+// `common.v1.MediaOperationCatalog` shape so a workflow builder in another
+// scenario (or the control plane) can discover and type-check image steps
+// without importing this scenario.
+//
+// The catalog is a projection of `api/internal/capability`, which is also what
+// the CLI/UI generated surfaces and the safety policy read. There is no second
+// declaration set behind this RPC.
+//
+// Publishing is not orchestration: Image Tools does not browse, merge, or run
+// peer catalogs. That is fleet-level surface (see COMPOSITION.md).
+// =============================================================================
+
+import "common/v1/media_operations.proto";
+
+service CatalogService {
+  // GetOperationCatalog returns every operation this scenario offers, with its
+  // typed ports, requirement facts, consent weight, and parameter schema.
+  rpc GetOperationCatalog(GetOperationCatalogRequest) returns (common.v1.MediaOperationCatalog);
+}
+
+message GetOperationCatalogRequest {
+  // Optional filter: omit for the whole catalog.
+  // generate | edit | enhance | restore | extract | compose
+  string family = 1;
+}

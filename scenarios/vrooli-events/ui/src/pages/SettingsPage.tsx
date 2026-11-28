@@ -5,7 +5,7 @@ import { fetchHealth } from "../lib/api";
 import { HEALTH_POLL_INTERVAL_MS } from "../lib/constants";
 import { formatBytes } from "../lib/utils";
 import { ErrorAlert } from "../components/ErrorAlert";
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Panel } from "../components/Panel";
 
 export function SettingsPage() {
@@ -17,7 +17,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader icon={Settings} title="Settings" />
+      <PageHeader leading={<Settings className="h-5 w-5 text-[var(--text-accent)]" />} level={2} title="Settings" />
 
       <Panel>
         <h3 className="mb-4 text-sm font-medium text-[var(--text-secondary)]">Retention Configuration</h3>

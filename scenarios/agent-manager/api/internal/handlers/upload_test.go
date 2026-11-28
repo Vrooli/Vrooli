@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -10,10 +11,106 @@ import (
 	"net/textproto"
 	"testing"
 
+	"agent-manager/internal/orchestration"
 	"agent-manager/internal/storage"
 
 	"github.com/gorilla/mux"
 )
+
+type uploadFailOnCall struct {
+	storage.Service
+	calls      int
+	failDelete bool
+}
+
+func (s *uploadFailOnCall) Upload(ctx context.Context, file multipart.File, header *multipart.FileHeader) (*storage.AttachmentMeta, error) {
+	s.calls++
+	if s.calls == 2 {
+		return nil, fmt.Errorf("injected second upload failure")
+	}
+	return s.Service.Upload(ctx, file, header)
+}
+
+func (s *uploadFailOnCall) Delete(ctx context.Context, id string) error {
+	if s.failDelete {
+		return fmt.Errorf("injected cleanup failure")
+	}
+	return s.Service.Delete(ctx, id)
+}
+
+func createMultipartBatchRequest(t *testing.T, names ...string) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	for _, name := range names {
+		part, err := writer.CreateFormFile("file", name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write(minimalPNG); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("POST", "/api/v1/attachments/upload", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req
+}
+
+func TestUploadAttachmentBatchFailureRollsBackEarlierFiles(t *testing.T) {
+	base := storage.NewMockService()
+	failing := &uploadFailOnCall{Service: base}
+	h := newUploadHandler(t, failing)
+	rr := httptest.NewRecorder()
+	h.UploadAttachment(rr, createMultipartBatchRequest(t, "first.png", "second.png"))
+
+	if rr.Code < 400 {
+		t.Fatalf("expected batch upload failure, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if base.DeleteCalls != 1 {
+		t.Fatalf("expected first stored file to be rolled back once, got %d deletes", base.DeleteCalls)
+	}
+	if _, err := base.Get(context.Background(), "mock-1"); err == nil {
+		t.Fatal("partial attachment remains stored after failed batch")
+	}
+}
+
+func TestUploadAttachmentBatchSuccessReturnsIDsInInputOrder(t *testing.T) {
+	store := storage.NewMockService()
+	h := newUploadHandler(t, store)
+	rr := httptest.NewRecorder()
+	h.UploadAttachment(rr, createMultipartBatchRequest(t, "first.png", "second.png"))
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var response struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(response.IDs) != "[mock-1 mock-2]" {
+		t.Fatalf("expected ordered attachment IDs, got %v", response.IDs)
+	}
+}
+
+func TestUploadAttachmentBatchCleanupFailureIsReported(t *testing.T) {
+	base := storage.NewMockService()
+	failing := &uploadFailOnCall{Service: base, failDelete: true}
+	h := newUploadHandler(t, failing)
+	rr := httptest.NewRecorder()
+	h.UploadAttachment(rr, createMultipartBatchRequest(t, "first.png", "second.png"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected cleanup failure status 500, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if _, err := base.Get(context.Background(), "mock-1"); err != nil {
+		t.Fatalf("failed cleanup should leave retryable storage record: %v", err)
+	}
+}
 
 // createMultipartRequest builds a multipart POST request with a single file field.
 func createMultipartRequest(t *testing.T, fieldName, fileName string, content []byte, contentType string) *http.Request {
@@ -46,7 +143,7 @@ func createMultipartRequest(t *testing.T, fieldName, fileName string, content []
 // The orchestration service is nil because upload handlers do not use it.
 func newUploadHandler(t *testing.T, storageSvc storage.Service) *Handler {
 	t.Helper()
-	return New(nil, WithStorage(storageSvc))
+	return New(orchestration.EmptyHandlerServices(), WithStorage(storageSvc))
 }
 
 // minimalPNG is a minimal valid PNG header (8-byte signature + enough data for detection).
@@ -150,7 +247,7 @@ func TestUploadAttachment_MissingFile(t *testing.T) {
 
 func TestUploadAttachment_NoStorage(t *testing.T) {
 	// Handler created without storage option
-	h := New(nil)
+	h := New(orchestration.EmptyHandlerServices())
 
 	req := createMultipartRequest(t, "file", "test.png", minimalPNG, "image/png")
 	rr := httptest.NewRecorder()

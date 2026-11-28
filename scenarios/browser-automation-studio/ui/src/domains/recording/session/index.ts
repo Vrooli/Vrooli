@@ -6,4 +6,4 @@
  */
 
 export { useExecutionModeState, type WorkflowNode, type WorkflowEdge } from './useExecutionModeState';
-export { useRecordingModeStateTemplate, type RecordingModeStateConfig } from './useRecordingModeState';
+export { useRecordingModeState, type RecordingModeStateConfig } from './useRecordingModeState';

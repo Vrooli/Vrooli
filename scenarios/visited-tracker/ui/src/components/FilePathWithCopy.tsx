@@ -8,7 +8,7 @@ interface FilePathWithCopyProps {
 }
 
 export function FilePathWithCopy({ path, className = '' }: FilePathWithCopyProps) {
-  const { isCopied, copy } = useClipboard();
+  const { isCopied, error, copy } = useClipboard();
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -25,7 +25,8 @@ export function FilePathWithCopy({ path, className = '' }: FilePathWithCopyProps
         size="sm"
         onClick={handleCopy}
         className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-        aria-label={isCopied ? "Copied!" : "Copy path"}
+        title={error ?? undefined}
+        aria-label={error ? "Copy failed. Retry copying path" : isCopied ? "Copied!" : "Copy path"}
       >
         {isCopied ? (
           <Check className="h-3 w-3 text-green-400" aria-hidden="true" />

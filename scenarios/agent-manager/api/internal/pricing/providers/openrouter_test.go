@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,16 +15,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockOpenRouterResponse struct {
-	Data []mockOpenRouterModel `json:"data"`
+type openRouterResponseFixture struct {
+	Data []openRouterModelFixture `json:"data"`
 }
 
-type mockOpenRouterModel struct {
-	ID      string                `json:"id"`
-	Pricing mockOpenRouterPricing `json:"pricing"`
+type openRouterModelFixture struct {
+	ID      string                   `json:"id"`
+	Pricing openRouterPricingFixture `json:"pricing"`
 }
 
-type mockOpenRouterPricing struct {
+type openRouterPricingFixture struct {
 	Prompt         string `json:"prompt"`
 	Completion     string `json:"completion"`
 	InputCacheRead string `json:"input_cache_read,omitempty"`
@@ -44,6 +45,11 @@ func TestOpenRouterProvider_RefreshInterval(t *testing.T) {
 	assert.Equal(t, 2*time.Hour, p2.RefreshInterval())
 }
 
+func TestOpenRouterProvider_DefaultHTTPTimeout(t *testing.T) {
+	p := NewOpenRouterProvider()
+	assert.Equal(t, 15*time.Second, p.client.Timeout)
+}
+
 func TestOpenRouterProvider_SupportsModel(t *testing.T) {
 	p := NewOpenRouterProvider()
 
@@ -62,12 +68,13 @@ func TestOpenRouterProvider_FetchAllPricing_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/models", r.URL.Path)
 		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Empty(t, r.Header.Get("Authorization"), "pricing model discovery must not send a key")
 
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "anthropic/claude-3-opus",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:         "0.000015",
 						Completion:     "0.000075",
 						InputCacheRead: "0.0000075",
@@ -75,7 +82,7 @@ func TestOpenRouterProvider_FetchAllPricing_Success(t *testing.T) {
 				},
 				{
 					ID: "openai/gpt-4",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.00003",
 						Completion: "0.00006",
 					},
@@ -121,11 +128,11 @@ func TestOpenRouterProvider_FetchAllPricing_Success(t *testing.T) {
 
 func TestOpenRouterProvider_FetchModelPricing_Found(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "anthropic/claude-3-sonnet",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.000003",
 						Completion: "0.000015",
 					},
@@ -152,11 +159,11 @@ func TestOpenRouterProvider_FetchModelPricing_Found(t *testing.T) {
 
 func TestOpenRouterProvider_FetchModelPricing_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "anthropic/claude-3-opus",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.000015",
 						Completion: "0.000075",
 					},
@@ -194,11 +201,11 @@ func TestOpenRouterProvider_FetchAllPricing_UsesCache(t *testing.T) {
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "test/model",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.000001",
 						Completion: "0.000002",
 					},
@@ -229,11 +236,11 @@ func TestOpenRouterProvider_ClearCache_ForcesRefresh(t *testing.T) {
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "test/model",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.000001",
 						Completion: "0.000002",
 					},
@@ -265,11 +272,11 @@ func TestOpenRouterProvider_ClearCache_ForcesRefresh(t *testing.T) {
 
 func TestOpenRouterProvider_CacheStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
-				{ID: "model-1", Pricing: mockOpenRouterPricing{Prompt: "0.001", Completion: "0.002"}},
-				{ID: "model-2", Pricing: mockOpenRouterPricing{Prompt: "0.001", Completion: "0.002"}},
-				{ID: "model-3", Pricing: mockOpenRouterPricing{Prompt: "0.001", Completion: "0.002"}},
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
+				{ID: "model-1", Pricing: openRouterPricingFixture{Prompt: "0.001", Completion: "0.002"}},
+				{ID: "model-2", Pricing: openRouterPricingFixture{Prompt: "0.001", Completion: "0.002"}},
+				{ID: "model-3", Pricing: openRouterPricingFixture{Prompt: "0.001", Completion: "0.002"}},
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -312,8 +319,10 @@ func TestOpenRouterProvider_FetchAllPricing_InvalidJSON(t *testing.T) {
 }
 
 func TestOpenRouterProvider_FetchAllPricing_EmptyResponse(t *testing.T) {
+	var callCount atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := mockOpenRouterResponse{Data: []mockOpenRouterModel{}}
+		callCount.Add(1)
+		response := openRouterResponseFixture{Data: []openRouterModelFixture{}}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			t.Errorf("encode response: %v", err)
@@ -321,20 +330,36 @@ func TestOpenRouterProvider_FetchAllPricing_EmptyResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewOpenRouterProvider(WithBaseURL(server.URL))
+	p := NewOpenRouterProvider(WithBaseURL(server.URL), WithTTL(time.Hour))
 
 	pricingList, err := p.FetchAllPricing(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, pricingList)
+
+	pricingList, err = p.FetchAllPricing(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, pricingList)
+	assert.Equal(t, int32(1), callCount.Load(), "a successful empty catalog is cached during its TTL")
+
+	modelPricing, err := p.FetchModelPricing(context.Background(), "unlisted/model")
+	require.NoError(t, err)
+	assert.Nil(t, modelPricing)
+	assert.Equal(t, int32(1), callCount.Load(), "model lookups reuse the same empty catalog")
+
+	p.ClearCache()
+	modelPricing, err = p.FetchModelPricing(context.Background(), "unlisted/model")
+	require.NoError(t, err)
+	assert.Nil(t, modelPricing)
+	assert.Equal(t, int32(2), callCount.Load(), "clearing an empty catalog forces the next fetch")
 }
 
 func TestOpenRouterProvider_FetchAllPricing_ZeroPriceOmitted(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "test/model",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:         "0.000001",
 						Completion:     "0", // Zero price
 						InputCacheRead: "",  // Empty string
@@ -363,18 +388,18 @@ func TestOpenRouterProvider_FetchAllPricing_ZeroPriceOmitted(t *testing.T) {
 
 func TestOpenRouterProvider_FetchAllPricing_SkipsEmptyModelID(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := mockOpenRouterResponse{
-			Data: []mockOpenRouterModel{
+		response := openRouterResponseFixture{
+			Data: []openRouterModelFixture{
 				{
 					ID: "", // Empty ID
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.000001",
 						Completion: "0.000002",
 					},
 				},
 				{
 					ID: "valid/model",
-					Pricing: mockOpenRouterPricing{
+					Pricing: openRouterPricingFixture{
 						Prompt:     "0.000001",
 						Completion: "0.000002",
 					},
@@ -423,9 +448,9 @@ func TestOpenRouterProvider_FetchAllPricing_FallsBackToCacheOnError(t *testing.T
 		callCount++
 		if callCount == 1 {
 			// First call succeeds
-			response := mockOpenRouterResponse{
-				Data: []mockOpenRouterModel{
-					{ID: "test/model", Pricing: mockOpenRouterPricing{Prompt: "0.001", Completion: "0.002"}},
+			response := openRouterResponseFixture{
+				Data: []openRouterModelFixture{
+					{ID: "test/model", Pricing: openRouterPricingFixture{Prompt: "0.001", Completion: "0.002"}},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")

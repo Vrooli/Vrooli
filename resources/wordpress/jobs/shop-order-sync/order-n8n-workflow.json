@@ -1,0 +1,235 @@
+{
+  "name": "WordPress \u00b7 WooCommerce Order Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "woocommerce-order-sync",
+        "responseMode": "usingRespondToWebhook",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "7fd7cba1-fbf1-4fa5-825f-5cc7346d4a94",
+      "name": "WooCommerce Order Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ],
+      "webhookId": "905d15f0-22bd-4f5d-b35d-7a4011cb620b"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.rawBody }}",
+        "encoding": "base64"
+      },
+      "id": "880ad734-6de4-41bc-a194-59030ff18a61",
+      "name": "Verify WooCommerce Signature",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        480,
+        320
+      ],
+      "notes": "Bind a Crypto credential whose secret is the exact local WooCommerce webhook secret. The workflow export contains no secret."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "signature-equality",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "={{ $('WooCommerce Order Webhook').item.json.headers['x-wc-webhook-signature'] }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2e51ef01-8f36-4399-bd79-2d7ed337972b",
+      "name": "Signature Is Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        700,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $('WooCommerce Order Webhook').first().json;\nconst raw = input.body && typeof input.body === 'object' ? input.body : input;\nconst siteId = 'k3-ground'; // Replace only when binding this job to a different WordPress recipe.\nconst allowedSkus = new Set(['K3-BOOK-001','K3-MUG-002','K3-SET-003']);\nconst status = String(raw.status || '');\nconst allowedStatuses = new Set(['pending','processing','on-hold','completed','cancelled','refunded','failed']);\nconst orderId = String(raw.id || '').trim();\nconst revision = String(raw.date_modified_gmt || '').trim();\nif (!orderId) throw new Error('missing_order_id');\nif (!revision) throw new Error('missing_revision');\nif (!allowedStatuses.has(status)) throw new Error('unsupported_order_status');\nif (!Array.isArray(raw.line_items) || raw.line_items.length === 0 || raw.line_items.length > 100) throw new Error('invalid_line_items');\nconst items = raw.line_items.map(line => {\n  const sku = String(line.sku || '').trim();\n  const quantity = Number(line.quantity);\n  if (!allowedSkus.has(sku)) throw new Error('unknown_sku: ' + sku);\n  if (!Number.isInteger(quantity) || quantity < 1) throw new Error('invalid_quantity');\n  return { productId: Number(line.product_id), sku, quantity, total: String(line.total || '0.00') };\n}).sort((a,b) => a.sku.localeCompare(b.sku) || a.productId-b.productId);\nreturn [{ json: { siteId, orderId, revision, status, customerEmail: String((raw.billing || {}).email || '').trim().toLowerCase(), items } }];"
+      },
+      "id": "e5f1e0f0-7a13-4b08-8dbe-6f5244d0be91",
+      "name": "Normalize Recipe Order Revision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://wordpress/wp-json/vrooli/v1/shop-order-sync",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "c8e7fa0c-8690-47ae-a1be-436ce6069668",
+      "name": "Upsert at Idempotent Local Destination",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        220
+      ],
+      "notes": "After import, select the local WordPress HTTP Basic Auth credential. The endpoint's unique key is siteId + orderId + date_modified_gmt."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'rejected', reason: 'invalid_woocommerce_signature' } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "3c09910a-a1a5-4ec7-a1c0-83f36470f958",
+      "name": "Reject Invalid Signature",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        940,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "3f768716-f829-4d0f-88a3-03984f5f1292",
+      "name": "Return Idempotent Receipt",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1460,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "WooCommerce Order Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify WooCommerce Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify WooCommerce Signature": {
+      "main": [
+        [
+          {
+            "node": "Signature Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature Is Valid": {
+      "main": [
+        [
+          {
+            "node": "Normalize Recipe Order Revision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Invalid Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Recipe Order Revision": {
+      "main": [
+        [
+          {
+            "node": "Upsert at Idempotent Local Destination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert at Idempotent Local Destination": {
+      "main": [
+        [
+          {
+            "node": "Return Idempotent Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false
+  },
+  "versionId": "1c2d5726-6238-4a4a-918d-46af072a6047",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,13 +1,17 @@
 package scenarios
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 )
 
 type fakeScenarioRepo struct {
@@ -15,6 +19,72 @@ type fakeScenarioRepo struct {
 	listErr       error
 	getSummary    *ScenarioSummary
 	getErr        error
+}
+
+func TestExperienceFreshnessIsServerDerivedAndFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	uiRoot := filepath.Join(root, "demo", "ui")
+	sourceDir := filepath.Join(uiRoot, "src")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := filepath.Join(sourceDir, "App.tsx")
+	if err := os.WriteFile(page, []byte("export default function App() {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	changeAt := time.Date(2026, 11, 15, 10, 0, 0, 0, time.UTC)
+	for _, path := range []string{page, sourceDir, uiRoot} {
+		if err := os.Chtimes(path, changeAt, changeAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)
+	verdictAt := changeAt.Add(time.Hour)
+	decorate := func(at *time.Time) ScenarioSummary {
+		t.Helper()
+		summary := ScenarioSummary{ScenarioName: "demo", LastExperienceAt: at}
+		svc.decorateScenario(&summary)
+		return summary
+	}
+
+	if got := decorate(&verdictAt).ExperienceFreshness; got != ExperienceEvaluatedAfterLastUIChange {
+		t.Fatalf("current verdict freshness = %q, want %q", got, ExperienceEvaluatedAfterLastUIChange)
+	}
+	if got := decorate(&changeAt).ExperienceFreshness; got != ExperienceOlderThanLastUIChange {
+		t.Fatalf("timestamp tie must fail closed as stale, got %q", got)
+	}
+	if got := decorate(nil).ExperienceFreshness; got != ExperienceNeverRun {
+		t.Fatalf("missing verdict freshness = %q, want %q", got, ExperienceNeverRun)
+	}
+
+	// A deletion leaves no file timestamp, so the containing directory's
+	// timestamp must advance the UI change frontier.
+	removedAt := changeAt.Add(2 * time.Hour)
+	if err := os.Remove(page); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{sourceDir, uiRoot} {
+		if err := os.Chtimes(path, removedAt, removedAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stale := decorate(&verdictAt)
+	if stale.ExperienceFreshness != ExperienceOlderThanLastUIChange || stale.LastUIChangeAt == nil || !stale.LastUIChangeAt.Equal(removedAt) {
+		t.Fatalf("deleted UI source did not stale verdict: freshness=%q uiChange=%v", stale.ExperienceFreshness, stale.LastUIChangeAt)
+	}
+
+	if err := os.RemoveAll(uiRoot); err != nil {
+		t.Fatal(err)
+	}
+	if got := decorate(&verdictAt).ExperienceFreshness; got != ExperienceUISurfaceUnavailable {
+		t.Fatalf("absent UI surface freshness = %q, want %q", got, ExperienceUISurfaceUnavailable)
+	}
+	if err := os.Symlink(filepath.Join(root, "missing-ui-target"), uiRoot); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if got := decorate(&verdictAt).ExperienceFreshness; got != ExperienceUIChangeTimeUnavailable {
+		t.Fatalf("uninspectable UI tree freshness = %q, want %q", got, ExperienceUIChangeTimeUnavailable)
+	}
 }
 
 func (f *fakeScenarioRepo) List(context.Context) ([]ScenarioSummary, error) {
@@ -47,15 +117,13 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	repo := &fakeScenarioRepo{
 		listSummaries: []ScenarioSummary{
 			{
-				ScenarioName:    "ecosystem-manager",
-				PendingRequests: 2,
-				TotalRequests:   3,
+				ScenarioName: "swarm-manager",
 			},
 		},
 	}
 	lister := &fakeScenarioLister{
 		items: []ScenarioMetadata{
-			{Name: "ecosystem-manager", Description: "Ops hub", Status: "running"},
+			{Name: "swarm-manager", Description: "Ops hub", Status: "running"},
 			{Name: "test-genie", Description: "AI testing", Status: "stopped"},
 		},
 	}
@@ -70,7 +138,7 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	}
 
 	first := results[0]
-	if first.ScenarioName != "ecosystem-manager" || first.ScenarioDescription != "Ops hub" {
+	if first.ScenarioName != "swarm-manager" || first.ScenarioDescription != "Ops hub" {
 		t.Fatalf("expected metadata to hydrate tracked scenario: %#v", first)
 	}
 
@@ -78,24 +146,40 @@ func TestScenarioDirectoryServiceListSummariesHydratesCatalog(t *testing.T) {
 	if second.ScenarioName != "test-genie" {
 		t.Fatalf("expected CLI-only scenario to be included, got %#v", second)
 	}
-	if second.TotalExecutions != 0 || second.TotalRequests != 0 {
+	if second.TotalExecutions != 0 {
 		t.Fatalf("expected zeroed stats for new scenario: %#v", second)
 	}
 }
 
 func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.T) {
 	repo := &fakeScenarioRepo{
-		listSummaries: []ScenarioSummary{{ScenarioName: "ecosystem-manager"}},
+		listSummaries: []ScenarioSummary{{ScenarioName: "swarm-manager"}},
 	}
 	lister := &fakeScenarioLister{err: errors.New("boom")}
 
-	svc := NewScenarioDirectoryService(repo, lister, "")
+	var logs bytes.Buffer
+	svc := NewScenarioDirectoryServiceWithLogger(repo, lister, "", log.New(&logs, "", 0))
 	results, err := svc.ListSummaries(context.Background())
 	if err != nil {
 		t.Fatalf("expected fallback list, got error: %v", err)
 	}
-	if len(results) != 1 || results[0].ScenarioName != "ecosystem-manager" {
+	if len(results) != 1 || results[0].ScenarioName != "swarm-manager" {
 		t.Fatalf("unexpected fallback results: %#v", results)
+	}
+	if !strings.Contains(logs.String(), "scenario lister failed: boom") {
+		t.Fatalf("injected logger output = %q, want lister failure", logs.String())
+	}
+}
+
+func TestScenarioDirectoryServiceGetSummaryLogsInjectedListerFailure(t *testing.T) {
+	var logs bytes.Buffer
+	svc := NewScenarioDirectoryServiceWithLogger(&fakeScenarioRepo{getErr: sql.ErrNoRows}, &fakeScenarioLister{err: errors.New("boom")}, "", log.New(&logs, "", 0))
+	result, err := svc.GetSummary(context.Background(), "missing")
+	if result != nil || err != sql.ErrNoRows {
+		t.Fatalf("GetSummary result=%#v err=%v, want original not-found result", result, err)
+	}
+	if !strings.Contains(logs.String(), "scenario metadata lookup failed: boom") {
+		t.Fatalf("injected logger output = %q, want metadata lookup failure", logs.String())
 	}
 }
 
@@ -216,12 +300,13 @@ func TestScenarioDirectoryServiceRunScenarioTestsValidation(t *testing.T) {
 }
 
 func TestScenarioDirectoryServiceRunScenarioTestsRunnerFailure(t *testing.T) {
+	t.Setenv("TEST_GENIE_DISABLE", "1")
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
-		t.Fatalf("mkdir test dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "coverage"), 0o755); err != nil {
+		t.Fatalf("mkdir coverage dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "coverage", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
 		t.Fatalf("write run-tests: %v", err)
 	}
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)

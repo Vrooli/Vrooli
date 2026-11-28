@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "measured_platform_gated_skips": 155,
+  "budgets": {
+    "linux": 155,
+    "macos": 155,
+    "windows": 155
+  },
+  "policy": {
+    "over_budget_is_not_evidence": true,
+    "ratchet_direction": "down",
+    "record_kind": "platform_skip"
+  }
+}

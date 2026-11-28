@@ -1,6 +1,6 @@
 # Claude Code Sandbox Container
 # Provides isolated environment for testing claude-code capabilities
-FROM node:18-alpine
+FROM node@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
 
 # Install required dependencies
 RUN apk add --no-cache \

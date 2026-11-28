@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestLogger provides controlled logging during tests
@@ -119,7 +120,8 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 
 	// Setup router with all routes
 	router := mux.NewRouter()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
+	testHealthHandler := health.New().Version("1.0.0").Check(health.DB(testDB), health.Critical).Handler()
+	router.HandleFunc("/health", testHealthHandler).Methods("GET")
 	router.HandleFunc("/api/notes", getNotesHandler).Methods("GET")
 	router.HandleFunc("/api/notes", createNoteHandler).Methods("POST")
 	router.HandleFunc("/api/notes/{id}", getNoteHandler).Methods("GET")
@@ -133,8 +135,7 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	router.HandleFunc("/api/tags", createTagHandler).Methods("POST")
 	router.HandleFunc("/api/templates", getTemplatesHandler).Methods("GET")
 	router.HandleFunc("/api/templates", createTemplateHandler).Methods("POST")
-	router.HandleFunc("/api/search", searchHandler).Methods("POST")
-	router.HandleFunc("/api/search/semantic", semanticSearchHandler).Methods("POST")
+	registerSearchRoutes(router)
 
 	return &TestEnvironment{
 		DB:         testDB,

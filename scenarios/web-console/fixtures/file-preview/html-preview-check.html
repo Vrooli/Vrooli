@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML preview check</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px 22px 80px; font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4efe4; color: #1c1b18; }
+  .eyebrow { margin: 0 0 8px; font: 600 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; color: #8a8474; }
+  h1 { margin: 0 0 14px; font: 800 clamp(34px, 9vw, 64px)/0.98 Georgia, "Times New Roman", serif; letter-spacing: -.02em; }
+  h2 { margin: 0 0 8px; font-size: 22px; letter-spacing: -.01em; }
+  p { margin: 0 0 14px; max-width: 62ch; color: #3c3a33; }
+  .card { margin: 22px 0; padding: 20px; border-radius: 16px; background: #14140f; color: #f1ead9; }
+  .card p { color: #cfc7b4; margin-bottom: 0; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e8dfc8; color: #5b553f; font-size: 12px; font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 22px 0; }
+  select, button { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #cfc4a8; background: #fffdf6; color: #1c1b18; font: inherit; }
+  button { background: #1c1b18; border-color: #1c1b18; color: #f8f3e3; font-weight: 600; }
+  button:active { transform: translateY(1px); }
+  a { color: #0a6a63; text-underline-offset: 3px; }
+  .link-list { display: grid; gap: 8px; padding: 0; margin: 0 0 24px; list-style: none; }
+  .link-list a { display: block; padding: 12px 14px; border-radius: 10px; background: #fffdf6; border: 1px solid #e2d9c3; text-decoration: none; font-weight: 600; }
+  .status { min-height: 24px; margin: 8px 0 0; font: 600 14px/1.4 ui-monospace, Menlo, monospace; color: #0a6a63; }
+  .rows { display: grid; gap: 10px; margin-top: 26px; }
+  .row { padding: 14px 16px; border-radius: 12px; background: #fffdf6; border: 1px solid #e2d9c3; }
+  .row strong { display: block; font-size: 15px; }
+  .row span { font-size: 13px; color: #6f6857; }
+  .fill { height: 34px; border-radius: 8px; background: repeating-linear-gradient(90deg, #ddd2b6, #ddd2b6 6px, #e9e0ca 6px, #e9e0ca 14px); }
+  @media (min-width: 700px) { body { padding: 48px 40px 96px; } .rows { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Preview check &middot; <span id="engine">…</span></p>
+  <h1>Make the preview behave before it looks good.</h1>
+  <p>This page exists to exercise the Web Console HTML preview: a long scroll, a relative-free layout, real controls, in-page anchors and a link that the viewer should hand back to the console.</p>
+
+  <div class="controls">
+    <select id="viewport" aria-label="Sample select">
+      <option>Native select option</option>
+      <option>Second option</option>
+      <option>A much longer option that should ellipsize</option>
+    </select>
+    <button id="counter" type="button">Tap counter: 0</button>
+    <span class="tag" id="width">width …</span>
+  </div>
+  <p class="status" id="tap-status" role="status">No taps yet. On a phone, the counter must increment on the first tap.</p>
+
+  <div class="card">
+    <p class="eyebrow" style="color:#a79c82">Recommendation</p>
+    <h2>A &middot; The instrument</h2>
+    <p>Chrome above the document, controls legible, the page still scrolls. If the header or tool row sits below this card, the viewer is using the Chromium touch tray.</p>
+  </div>
+
+  <ul class="link-list">
+    <li><a href="#details">Jump to details (in-page anchor)</a></li>
+    <li><a href="#top-row">Jump to the last row</a></li>
+    <li><a href="./html-preview-check.html#details">Reopen this page as a file link</a></li>
+  </ul>
+
+  <h2 id="details">Details</h2>
+  <p>Numbers below are just content; scroll to the bottom to check that the tool row and location row stay reachable.</p>
+  <div class="rows" id="rows"></div>
+
+<script>
+  (function () {
+    const ua = navigator.userAgent || "";
+    const engine = /CriOS|FxiOS|EdgiOS/.test(ua) ? "iOS WebKit shell" : (/Chrome|Chromium|Edg\//.test(ua) ? "Chromium" : (/Safari/.test(ua) ? "WebKit" : "other"));
+    document.getElementById("engine").textContent = engine;
+    const width = document.getElementById("width");
+    const paint = () => { width.textContent = "width " + window.innerWidth + "px"; };
+    paint();
+    window.addEventListener("resize", paint);
+
+    let taps = 0;
+    const counter = document.getElementById("counter");
+    const status = document.getElementById("tap-status");
+    counter.addEventListener("click", (event) => {
+      taps += 1;
+      counter.textContent = "Tap counter: " + taps;
+      status.textContent = "Tap " + taps + " landed on the button (isTrusted=" + event.isTrusted + ").";
+    });
+
+    const rows = document.getElementById("rows");
+    for (let i = 1; i <= 14; i += 1) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.id = i === 14 ? "top-row" : "row-" + i;
+      row.innerHTML = '<strong>Row ' + i + ' &middot; ' + (i === 14 ? "last row" : "sample entry") + '</strong><span>Supporting line so the preview has real height to scroll.</span><div class="fill" style="margin-top:10px"></div>';
+      rows.append(row);
+    }
+  }());
+</script>
+</body>
+</html>

@@ -12,12 +12,9 @@ import (
 
 // GetDirectoryContents returns immediate children of a directory
 func GetDirectoryContents(ctx context.Context, deps FileDeps, dirPath string) (*DirListResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	fullPath, err := resolveDirectoryPath(repoDir, dirPath)
@@ -122,6 +119,9 @@ func buildDirEntries(ctx context.Context, dirEntries []os.DirEntry, dirPath stri
 // DeletePath removes a file or directory from the filesystem
 // This is a filesystem delete, NOT a git rm. Tracked files will show as "deleted" in git status.
 func DeletePath(ctx context.Context, deps FileDeps, req DeletePathRequest) (*DeletePathResponse, error) {
+	if err := requireHumanMutation(ctx, "delete path"); err != nil {
+		return nil, err
+	}
 	repoDir := strings.TrimSpace(deps.RepoDir)
 	if repoDir == "" {
 		return nil, fmt.Errorf("repo dir is required")

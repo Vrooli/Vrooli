@@ -14,6 +14,10 @@ import type {
   BrowserStatusSummary,
   CleanupStatus,
 } from '../../../src/observability/types';
+import { getObservabilityConfigSummary } from '../../../src/config';
+import { ObservabilityCache, getObservabilityCache, resetObservabilityCache } from '../../../src/observability/cache';
+import { handleObservability } from '../../../src/observability/route';
+import type { IncomingMessage, ServerResponse } from 'http';
 
 // Mock the playwright provider
 jest.mock('../../../src/playwright', () => ({
@@ -41,6 +45,19 @@ jest.mock('../../../src/utils', () => ({
   },
 }));
 
+jest.mock('../../../src/middleware', () => ({
+  sendJson: (res: { statusCode: number; setHeader: (name: string, value: string) => void; end: (body: string) => void }, status: number, data: unknown) => {
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  },
+}));
+
+jest.mock('../../../src/observability/index', () => ({
+  getObservabilityCache: jest.requireActual('../../../src/observability/cache').getObservabilityCache,
+  createObservabilityCollector: jest.fn(),
+}));
+
 // Helper to create mock dependencies
 function createMockDeps(overrides: Partial<{
   sessionSummary: Partial<SessionSummary>;
@@ -59,6 +76,8 @@ function createMockDeps(overrides: Partial<{
     }),
     getBrowserStatus: jest.fn().mockReturnValue({
       healthy: true,
+      runtime_identity_status: 'reported',
+      family: 'chromium',
       version: '120.0.6099.109',
       ...overrides.browserStatus,
     }),
@@ -75,6 +94,82 @@ function createMockDeps(overrides: Partial<{
 }
 
 describe('ObservabilityCollector', () => {
+  it.each([
+    ['unset', undefined, false],
+    ['set to default', '', false],
+    ['modified', 'synthetic-recovery-credential', true],
+  ] as const)('%s credential is represented safely in complete standard/deep responses and cache hits', async (_state, credential, modified) => {
+    const previous = process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+    if (credential === undefined) delete process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+    else process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET = credential;
+    try {
+      for (const depth of ['standard', 'deep'] as const) {
+        const deps = createMockDeps();
+        deps.getConfigSummary = getObservabilityConfigSummary;
+        const response = await new ObservabilityCollector(deps).collect(depth);
+        const cache = new ObservabilityCache(1000);
+        cache.set(depth, response);
+        const serialized = JSON.stringify(cache.get(depth));
+        expect(serialized).not.toContain('synthetic-recovery-credential');
+        expect(serialized).toContain('PLAYWRIGHT_DRIVER_ADMIN_SECRET');
+        expect(serialized).toContain('Shared secret required for loopback administrative session recovery');
+        expect(serialized).toContain(`"is_modified":${modified}`);
+        expect(serialized).toContain('"cached":true');
+        if (modified) {
+          expect(serialized).toContain('[REDACTED]');
+          expect(serialized).toContain('"modified_options"');
+        } else {
+          expect(serialized).not.toContain('"modified_options"');
+        }
+      }
+    } finally {
+      if (previous === undefined) delete process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+      else process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET = previous;
+    }
+  });
+
+  it.each([
+    ['unset', undefined, false],
+    ['set to default', '', false],
+    ['modified', 'synthetic-recovery-credential', true],
+  ] as const)('serves %s credential safely through the cached HTTP route', async (_state, credential, modified) => {
+    const previous = process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+    if (credential === undefined) delete process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+    else process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET = credential;
+    resetObservabilityCache();
+    try {
+      for (const depth of ['standard', 'deep'] as const) {
+        const deps = createMockDeps();
+        deps.getConfigSummary = getObservabilityConfigSummary;
+        getObservabilityCache().set(depth, await new ObservabilityCollector(deps).collect(depth));
+        let body = '';
+        const res = {
+          statusCode: 0,
+          setHeader: jest.fn(),
+          end: jest.fn((value: string) => { body = value; }),
+        } as unknown as ServerResponse;
+
+        await handleObservability(
+          { url: `/observability?depth=${depth}` } as IncomingMessage,
+          res,
+          {} as Parameters<typeof handleObservability>[2],
+        );
+
+        expect(res.statusCode).toBe(200);
+        expect(body).not.toContain('synthetic-recovery-credential');
+        expect(body).toContain('"cached":true');
+        expect(body).toContain('PLAYWRIGHT_DRIVER_ADMIN_SECRET');
+        expect(body).toContain(`"is_modified":${modified}`);
+        expect(body).toContain('Shared secret required for loopback administrative session recovery');
+        if (modified) expect(body).toContain('[REDACTED]');
+      }
+    } finally {
+      resetObservabilityCache();
+      if (previous === undefined) delete process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+      else process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET = previous;
+    }
+  });
+
   describe('collect - quick depth', () => {
     it('should return status ok when browser is healthy', async () => {
       const deps = createMockDeps();
@@ -120,6 +215,16 @@ describe('ObservabilityCollector', () => {
       expect(result.ready).toBe(false);
     });
 
+    it('keeps runtime readiness separate from a connected browser identity', async () => {
+      const deps = createMockDeps({
+        browserStatus: { healthy: true, runtime_identity_status: 'unavailable', family: undefined, version: undefined },
+      });
+      const collector = new ObservabilityCollector(deps);
+      const result = await collector.collect('quick');
+      expect(result.ready).toBe(true);
+      expect(result.summary.browser_connected).toBe(false);
+    });
+
     it('should include uptime and version', async () => {
       const deps = createMockDeps();
       const collector = new ObservabilityCollector(deps);
@@ -156,10 +261,27 @@ describe('ObservabilityCollector', () => {
 
       const browser = result.components?.browser;
       expect(browser?.status).toBe('healthy');
+      expect(browser?.runtime_identity_status).toBe('reported');
+      expect(browser?.family).toBe('chromium');
       expect(browser?.version).toBe('120.0.6099.109');
       expect(browser?.connected).toBe(true);
       expect(browser?.provider).toBe('rebrowser-playwright');
       expect(browser?.capabilities?.evaluate_isolated).toBe(true);
+    });
+
+    it('does not report a live connection or version when runtime identity is unavailable', async () => {
+      const deps = createMockDeps({
+        browserStatus: { healthy: true, runtime_identity_status: 'unavailable', family: undefined, version: undefined },
+      });
+      const collector = new ObservabilityCollector(deps);
+      const result = await collector.collect('standard');
+      const browser = result.components?.browser;
+      expect(browser?.status).toBe('healthy');
+      expect(browser?.runtime_identity_status).toBe('unavailable');
+      expect(browser?.connected).toBe(false);
+      expect(browser?.family).toBeUndefined();
+      expect(browser?.version).toBeUndefined();
+      expect(browser?.message).toContain('live runtime identity unavailable');
     });
 
     it('should include sessions component details', async () => {

@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-surface
-export type Route = "dashboard" | "search" | "explorer" | "viewer" | "metrics" | "graph" | "collection";
+export type Route = "dashboard" | "search" | "explorer" | "viewer" | "metrics" | "graph" | "collection" | "maintenance";
 
 const ROUTE_HASHES: Record<Route, string> = {
   dashboard: "#/",
@@ -9,6 +9,7 @@ const ROUTE_HASHES: Record<Route, string> = {
   metrics: "#/metrics",
   graph: "#/graph",
   collection: "#/collections",
+  maintenance: "#/maintenance",
 };
 
 const ROUTE_TITLES: Record<Route, string> = {
@@ -19,6 +20,7 @@ const ROUTE_TITLES: Record<Route, string> = {
   metrics: "Quality Metrics",
   graph: "Knowledge Graph",
   collection: "Collection Details",
+  maintenance: "Maintenance Queue",
 };
 
 export function parseRouteFromHash(hash: string): Route {
@@ -30,6 +32,7 @@ export function parseRouteFromHash(hash: string): Route {
   if (value.startsWith("metrics")) return "metrics";
   if (value.startsWith("graph")) return "graph";
   if (value.startsWith("collections/")) return "collection";
+  if (value.startsWith("maintenance")) return "maintenance";
   return "dashboard";
 }
 

@@ -1,16 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 )
 
 // [REQ:TM-AC-002] Enforce maximum K concurrent campaigns
 func TestAutoCampaign_ConcurrencyLimit(t *testing.T) {
-	_, aco, cleanup := setupAutoCampaignConcurrencyTest(t)
+	_, aco, cleanup := setupAutoCampaignTest(t)
 	defer cleanup()
 
 	// Create 3 campaigns (at the limit)
@@ -40,7 +38,7 @@ func TestAutoCampaign_ConcurrencyLimit(t *testing.T) {
 
 // [REQ:TM-AC-002] Test edge case: release concurrency slot when campaign completes
 func TestAutoCampaign_ConcurrencySlotRelease(t *testing.T) {
-	_, aco, cleanup := setupAutoCampaignConcurrencyTest(t)
+	_, aco, cleanup := setupAutoCampaignTest(t)
 	defer cleanup()
 
 	// Fill all 3 slots
@@ -81,7 +79,7 @@ func TestAutoCampaign_ConcurrencySlotRelease(t *testing.T) {
 
 // [REQ:TM-AC-002] Test concurrent campaign count calculation accuracy
 func TestAutoCampaign_ActiveCountAccuracy(t *testing.T) {
-	_, aco, cleanup := setupAutoCampaignConcurrencyTest(t)
+	_, aco, cleanup := setupAutoCampaignTest(t)
 	defer cleanup()
 
 	// Create campaigns in different states
@@ -116,78 +114,4 @@ func TestAutoCampaign_ActiveCountAccuracy(t *testing.T) {
 	if count != 2 {
 		t.Errorf("expected 2 active campaigns after termination, got %d", count)
 	}
-}
-
-// setupAutoCampaignConcurrencyTest creates the test environment for concurrency tests
-func setupAutoCampaignConcurrencyTest(t *testing.T) (*sql.DB, *AutoCampaignOrchestrator, func()) {
-	t.Helper()
-
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping auto-campaign tests")
-	}
-
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
-	}
-
-	// Create campaigns table if not exists
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS campaigns (
-			id SERIAL PRIMARY KEY,
-			scenario VARCHAR(255) NOT NULL,
-			status VARCHAR(20) DEFAULT 'created',
-			max_sessions INTEGER DEFAULT 10,
-			max_files_per_session INTEGER DEFAULT 5,
-			current_session INTEGER DEFAULT 0,
-			files_visited INTEGER DEFAULT 0,
-			files_total INTEGER DEFAULT 0,
-			error_count INTEGER DEFAULT 0,
-			error_reason TEXT,
-			visited_tracker_campaign_id INTEGER,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			completed_at TIMESTAMP
-		)
-	`)
-	if err != nil {
-		t.Fatalf("failed to create campaigns table: %v", err)
-	}
-
-	// Create config table with max_concurrent_campaigns
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS config (
-			key VARCHAR(100) PRIMARY KEY,
-			value TEXT NOT NULL,
-			description TEXT,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
-		t.Fatalf("failed to create config table: %v", err)
-	}
-
-	_, err = db.Exec(`
-		INSERT INTO config (key, value, description)
-		VALUES ('max_concurrent_campaigns', '3', 'Max concurrent campaigns')
-		ON CONFLICT (key) DO UPDATE SET value = '3'
-	`)
-	if err != nil {
-		t.Fatalf("failed to set config: %v", err)
-	}
-
-	campaignMgr := NewCampaignManager()
-	orchestrator, err := NewAutoCampaignOrchestrator(db, campaignMgr)
-	if err != nil {
-		t.Fatalf("failed to create orchestrator: %v", err)
-	}
-
-	cleanup := func() {
-		// Clean up test data
-		_, _ = db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'test-%'")
-		db.Close()
-	}
-
-	return db, orchestrator, cleanup
 }

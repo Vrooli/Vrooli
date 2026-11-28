@@ -2,13 +2,14 @@ package queue
 
 import (
 	"bytes"
+	"github.com/vrooli/api-core/apihttptest"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 type listResponse struct {
@@ -34,9 +35,8 @@ func TestList_Empty(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/queue", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[listResponse](t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
+	resp := apihttptest.MustDecodeJSON[listResponse](t, rec.Body.Bytes())
 	if len(resp.Items) != 0 {
 		t.Errorf("expected empty queue, got %d items", len(resp.Items))
 	}
@@ -51,9 +51,8 @@ func TestCreate_AddsItem(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/queue", bytes.NewBuffer(body))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusCreated(t, rec)
-	resp := testutil.DecodeJSON[itemResponse](t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 201)
+	resp := apihttptest.MustDecodeJSON[itemResponse](t, rec.Body.Bytes())
 
 	if resp.Item.ID == "" {
 		t.Errorf("expected id to be set")
@@ -65,7 +64,7 @@ func TestCreate_AddsItem(t *testing.T) {
 		t.Errorf("expected created timestamp to be set")
 	}
 
-	items := testutil.ReadJSONFile[[]Item](t, queuePath)
+	items := repocontracttest.ReadJSONFileInto[[]Item](t, queuePath)
 	if len(items) != 1 {
 		t.Fatalf("expected 1 item persisted, got %d", len(items))
 	}
@@ -81,20 +80,20 @@ func TestDelete_Idempotent(t *testing.T) {
 	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/queue", bytes.NewBuffer(body))
 	createRec := httptest.NewRecorder()
 	router.ServeHTTP(createRec, createReq)
-	testutil.AssertStatusCreated(t, createRec)
-	created := testutil.DecodeJSON[itemResponse](t, createRec)
+	apihttptest.AssertStatus(t, createRec.Result(), 201)
+	created := apihttptest.MustDecodeJSON[itemResponse](t, createRec.Body.Bytes())
 
 	// Delete once
 	delReq := httptest.NewRequest(http.MethodDelete, "/api/v1/queue/"+created.Item.ID, nil)
 	delRec := httptest.NewRecorder()
 	router.ServeHTTP(delRec, delReq)
-	testutil.AssertStatus(t, delRec, http.StatusNoContent)
+	apihttptest.AssertStatus(t, delRec.Result(), http.StatusNoContent)
 
 	// Delete again (idempotent)
 	delReq2 := httptest.NewRequest(http.MethodDelete, "/api/v1/queue/"+created.Item.ID, nil)
 	delRec2 := httptest.NewRecorder()
 	router.ServeHTTP(delRec2, delReq2)
-	testutil.AssertStatus(t, delRec2, http.StatusNoContent)
+	apihttptest.AssertStatus(t, delRec2.Result(), http.StatusNoContent)
 }
 
 func TestCreate_Invalid(t *testing.T) {
@@ -105,6 +104,5 @@ func TestCreate_Invalid(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/queue", bytes.NewBuffer([]byte(`{}`)))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }

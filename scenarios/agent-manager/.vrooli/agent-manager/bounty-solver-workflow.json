@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "agent-manager",
+  "key": "agent-manager/bounty-solver",
+  "version": "1.0.0",
+  "description": "Run one blind bounty solver against a disposable preimage checkout. The input contract excludes reference and winning-fix material.",
+  "trigger": {"initiators": ["programmatic"], "selfTrigger": {"mode": "deny"}},
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "caseId": {"type": "string", "minLength": 1, "maxLength": 128},
+      "task": {"type": "string", "minLength": 1, "maxLength": 32768},
+      "checkout": {"type": "string", "minLength": 1, "maxLength": 4096}
+    },
+    "required": ["caseId", "task", "checkout"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "outcome": {"type": "string", "enum": ["solved", "blocked", "incomplete"]},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 4096},
+          "changedFiles": {"type": "array", "maxItems": 200, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+        },
+        "required": ["outcome", "summary", "changedFiles"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["result"],
+    "additionalProperties": false
+  },
+  "entryNode": "solve",
+  "nodes": [
+    {
+      "id": "solve",
+      "kind": "run",
+      "run": {
+        "profileKey": "agent-manager/bounty-solver",
+        "tag": "bounty-replay-solver",
+        "force": true,
+        "projectRootTemplate": "{{.checkout}}",
+        "scopePathTemplate": ".",
+        "promptRef": {"skillId": "bounty-replay-solver"},
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": {"type": "string", "enum": ["solved", "blocked", "incomplete"]},
+              "summary": {"type": "string", "minLength": 1, "maxLength": 4096},
+              "changedFiles": {"type": "array", "maxItems": 200, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+            },
+            "required": ["outcome", "summary", "changedFiles"],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          {"name": "case_id", "source": "workflow_input", "selector": "$.caseId", "limit": 1, "maxBytes": 256, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "task", "source": "workflow_input", "selector": "$.task", "limit": 1, "maxBytes": 32768, "renderAs": "text", "missingPolicy": "error"},
+          {"name": "checkout", "source": "workflow_input", "selector": "$.checkout", "limit": 1, "maxBytes": 4096, "renderAs": "text", "missingPolicy": "error"}
+        ],
+        "maxTurns": 48,
+        "timeoutSeconds": 1800,
+        "sandboxConfig": {
+          "mode": "protected",
+          "manualReview": false,
+          "autoApply": true,
+          "applyOnFailure": false,
+          "networkMode": "none"
+        }
+      }
+    },
+    {
+      "id": "complete",
+      "kind": "end",
+      "end": {
+        "status": "succeeded",
+        "bindings": [
+          {"name": "result", "source": "structured_result", "selector": "node=solve;$.value", "limit": 1, "maxBytes": 8192, "renderAs": "json", "missingPolicy": "error"}
+        ]
+      }
+    }
+  ],
+  "edges": [{"from": "solve", "to": "complete"}],
+  "budgets": {
+    "wallTimeSeconds": 1800,
+    "maxTurns": 48,
+    "maxTokens": 300000,
+    "maxChargeMicroUsd": 5000000,
+    "maxNodeAttempts": 1,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 1,
+    "maxWaitSeconds": 1
+  },
+  "metadata": {"feature": "bounty-replay", "owner": "agent-manager", "role": "solver", "referenceAccess": "excluded-from-input-and-checkout"}
+}

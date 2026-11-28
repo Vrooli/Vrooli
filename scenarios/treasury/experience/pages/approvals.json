@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "approvals",
+    "title": "Approvals",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Show every charge waiting on a human and let the operator judge each one without opening a detail view. This is the landing surface because approval is the only workflow where the system is blocked on a person.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each pending request states its amount and counterparty before anything else"
+    },
+    {
+      "statement": "The operator can approve or decline from the list without navigating away"
+    },
+    {
+      "statement": "A request approaching its expiry is distinguishable from one that just arrived"
+    },
+    {
+      "statement": "The mandate and budget that admitted each request are identifiable in one glance"
+    },
+    {
+      "statement": "An empty queue reads as a healthy resting state, not as a failure to load"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One or more requests are pending."
+    },
+    {
+      "id": "loading",
+      "description": "The queue is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No request is pending. This is the normal steady state and must not read as an error."
+    },
+    {
+      "id": "submitting",
+      "description": "A resolution is being recorded; the affected row is busy while others stay actionable."
+    },
+    {
+      "id": "stale",
+      "description": "The queue has not refreshed recently; the age of the data is shown rather than implied."
+    },
+    {
+      "id": "request-error",
+      "description": "The queue could not be fetched. The operator is told whether anything is pending is unknown, not shown an empty list."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller is not in the operator realm. Approval controls are absent rather than present-and-refusing."
+    },
+    {
+      "id": "offline",
+      "description": "Resolution cannot reach the API; pending resolutions are held rather than silently dropped."
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; the page names which rather than showing a blank."
+    }
+  ],
+  "claims": [
+    {
+      "id": "approvals-amount-first",
+      "type": "reading-order",
+      "statement": "Amount and counterparty precede every other field in each row's reading order.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-resolve-inline",
+      "type": "affordance-present",
+      "statement": "Approve and decline are reachable from the list row without navigation.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-empty-distinct",
+      "type": "state-distinct",
+      "statement": "The empty state is visually and textually distinct from the request-error state.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-error-not-empty",
+      "type": "state-covered",
+      "statement": "The request-error state renders dedicated content that says the pending set is unknown.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Every approve and decline control is operable by keyboard with a visible focus state.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-named-actions",
+      "type": "element-present",
+      "statement": "Each money-acting control carries an accessible name stating the amount and counterparty.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-status-not-color-alone",
+      "type": "state-distinct",
+      "statement": "Request urgency is conveyed by text or shape in addition to colour.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "approvals-no-scroll",
+      "type": "visible-without-scroll",
+      "statement": "At least three pending requests are readable without scrolling at the desktop baseline.",
+      "tier": "aspirational"
+    }
+  ]
+}

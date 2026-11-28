@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import type { GroupingRule } from "./FileList";
+import type { ChangeGroupAPI } from "../lib/api";
 
 
 /** Extract the prefixes array from a rule, falling back to the singular prefix field. */
@@ -16,6 +17,36 @@ interface SettingsTabGroupingProps {
   rules: GroupingRule[];
   onChangeRules: (rules: GroupingRule[]) => void;
   isMobile: boolean;
+  contractGroups?: ChangeGroupAPI[];
+}
+
+function ContractGroups({ groups, isMobile }: { groups?: ChangeGroupAPI[]; isMobile: boolean }) {
+  const contractGroups = (groups ?? []).filter((group) => group.source === "contract");
+  if (contractGroups.length === 0) return null;
+  return (
+    <div className="space-y-3" data-testid="contract-groups">
+      <div>
+        <h3 className={`${isMobile ? "text-sm" : "text-xs"} font-semibold text-slate-200`}>Repository targets</h3>
+        <p className={`${isMobile ? "text-xs" : "text-[11px]"} text-slate-500 mt-1`}>
+          Contract-derived groups are read-only. Manual rules take precedence.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {contractGroups.map((group) => (
+          <div key={group.key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800/60 bg-slate-950/50 px-3 py-2">
+            <div className="min-w-0">
+              <div className="truncate text-xs font-medium text-slate-200">{group.label}</div>
+              <div className="truncate font-mono text-[11px] text-slate-500">{group.root ?? ""}</div>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2 text-[10px] text-slate-500">
+              <span className="uppercase">{group.kind ?? "target"}</span>
+              <span>{group.files.length} files</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function createRule(): GroupingRule {
@@ -32,7 +63,8 @@ export function SettingsTabGrouping({
   onToggleGrouping,
   rules,
   onChangeRules,
-  isMobile
+  isMobile,
+  contractGroups,
 }: SettingsTabGroupingProps) {
   if (isMobile) {
     return (
@@ -68,10 +100,11 @@ export function SettingsTabGrouping({
               </p>
             </div>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => onChangeRules([...rules, createRule()])}
               className="h-10 px-4 touch-target"
+              style={{ background: "transparent" }}
             >
               <Plus className="h-4 w-4 mr-1" />
               Add
@@ -149,7 +182,7 @@ export function SettingsTabGrouping({
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-semibold text-slate-300">Prefixes</div>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => {
                             const nextRules = rules.map((item) =>
@@ -160,6 +193,7 @@ export function SettingsTabGrouping({
                             onChangeRules(nextRules);
                           }}
                           className="h-9 px-3"
+                          style={{ background: "transparent" }}
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Add prefix
@@ -216,6 +250,8 @@ export function SettingsTabGrouping({
             </div>
           )}
         </div>
+
+        <ContractGroups groups={contractGroups} isMobile={isMobile} />
       </div>
     );
   }
@@ -252,10 +288,11 @@ export function SettingsTabGrouping({
             </p>
           </div>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => onChangeRules([...rules, createRule()])}
             className="h-7 px-2"
+            style={{ background: "transparent" }}
           >
             <Plus className="h-3 w-3 mr-1" />
             Add group
@@ -333,7 +370,7 @@ export function SettingsTabGrouping({
                       <div className="flex items-center justify-between mb-1">
                         <div className="text-[11px] font-semibold text-slate-300">Prefixes</div>
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
                           onClick={() => {
                             const nextRules = rules.map((item) =>
@@ -344,6 +381,7 @@ export function SettingsTabGrouping({
                             onChangeRules(nextRules);
                           }}
                           className="h-7 px-2"
+                          style={{ background: "transparent" }}
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Add prefix
@@ -401,6 +439,8 @@ export function SettingsTabGrouping({
           </div>
         )}
       </div>
+
+      <ContractGroups groups={contractGroups} isMobile={isMobile} />
     </div>
   );
 }

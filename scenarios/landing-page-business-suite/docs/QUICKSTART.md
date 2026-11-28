@@ -1,6 +1,6 @@
 ---
 title: "Quick Start Guide"
-description: "Get your first landing page running in 5 minutes"
+description: "Start and validate Landing Page Business Suite"
 category: "getting-started"
 order: 1
 audience: ["users", "developers"]
@@ -8,270 +8,102 @@ audience: ["users", "developers"]
 
 # Quick Start Guide
 
-Get your landing page running in 5 minutes.
+Use the scenario lifecycle to prepare, start, inspect, and stop Landing Page
+Business Suite (LPBS). Its manifest owns required resources, component builds,
+and dynamically assigned ports.
 
 ## Prerequisites
 
-Before starting, ensure you have:
+- Vrooli CLI installed and connected to the local Vrooli runtime.
+- A local checkout of the Vrooli workspace.
 
-- [ ] Vrooli CLI installed (`vrooli --version`)
-- [ ] PostgreSQL running (`resource-postgres status`)
-- [ ] Go 1.21+ installed (`go version`)
-- [ ] Node.js 18+ with pnpm (`pnpm --version`)
+The declared scenario contract documents lifecycle ownership and port discovery
+([The Declared Scenario](../../../docs/architecture/the-declared-scenario.md)).
+Use the toolchain and workspace setup instructions for your installed release
+([Getting Started](../../../docs/scenarios/getting-started.md)). The LPBS
+manifest declares PostgreSQL and AI Gateway as required dependencies; do not
+start resources or component servers separately.
 
-If Vrooli isn't set up yet:
-```bash
-cd ~/Vrooli
-./scripts/manage.sh setup --yes yes
-```
+## Start LPBS
 
----
-
-## Option 1: Using Landing Manager (Recommended)
-
-Landing Manager generates complete landing pages from this template.
+From `scenarios/landing-page-business-suite`:
 
 ```bash
-# Generate a new landing page
-vrooli scenario start landing-manager
-
-# Follow the prompts to configure your landing page
-# This creates a new scenario in scenarios/<your-slug>/
-```
-
-Once generated:
-```bash
-cd scenarios/<your-slug>
+make setup
 make start
+make status
 ```
 
----
+The lifecycle prepares declared resources and schemas, builds the API and UI,
+assigns ports, and checks readiness. To inspect processes and logs, use
+`vrooli scenario status landing-page-business-suite` and `make logs`. Stop it
+with `make stop`.
 
-## Option 2: Direct Template Usage
+## Open the landing page
 
-For development or customization of the template itself:
-
-### Step 1: Start PostgreSQL
+Resolve the allocated endpoints; LPBS does not use fixed ports:
 
 ```bash
-resource-postgres start
-resource-postgres status  # Verify it's running
+vrooli scenario port landing-page-business-suite UI_PORT
+vrooli scenario port landing-page-business-suite API_PORT
 ```
 
-### Step 2: Build the API
+Open `http://localhost:<UI_PORT>/` for the public page and
+`http://localhost:<UI_PORT>/admin` for the admin portal. The API health route
+is `http://localhost:<API_PORT>/health`. Replace each placeholder with the
+port returned by the CLI.
+
+For local login, use the administrator configured through LPBS's local secret
+surface. For production, provision the administrator credential through the
+credential authority and set the canonical `PUBLIC_BASE_URL` through supported
+configuration before startup. See [Security](reference/SECURITY.md) and
+[Configuration](guides/CONFIGURATION_GUIDE.md). LPBS generates and witnesses
+its session and encryption credentials; production requires an absolute HTTPS
+public URL. Existing installations can keep `AUTH_MAGIC_LINK_BASE_URL` as a
+compatibility fallback.
+
+## Review and publish content
+
+Open `/admin/presentation/control` or select an existing variant in
+Presentation. Edit the configured product-hero block, save the draft, and
+inspect its private root or app-detail preview. Resolve validation errors and
+missing capability or asset qualification before choosing **Publish draft**;
+saving alone does not change the public page. Review-fixture artwork is not a
+released asset, and upcoming remote/device features must remain marked coming
+soon. Follow the [Admin Guide](guides/ADMIN_GUIDE.md) for content and variant
+workflows.
+
+## Configure payments (optional)
+
+Start in Stripe test mode. Configure payment credentials through the governed
+Billing → Stripe workflow in `/admin/billing`; never put secret values in source
+or docs. Follow [Configuration](guides/CONFIGURATION_GUIDE.md), [restricted
+Stripe keys](reference/STRIPE_RESTRICTED_KEYS.md), [webhook setup](reference/STRIPE_WEBHOOKS.md),
+and the [Payments API guide](reference/api/payments.md). After changing
+configuration, run `make restart` and the deployment readiness check. It
+reports missing fields and route readiness without returning secret values.
+
+## Validate and troubleshoot
 
 ```bash
-cd scripts/scenarios/templates/landing-page-react-vite/api
-go build -o landing-api .
-```
-
-### Step 3: Set Environment Variables
-
-```bash
-export API_PORT=8080
-export UI_PORT=3000
-export DATABASE_URL="postgres://postgres:postgres@localhost:5432/landing_dev"
-```
-
-### Step 4: Initialize Database
-
-```bash
-psql $DATABASE_URL -f initialization/postgres/schema.sql
-psql $DATABASE_URL -f initialization/postgres/seed.sql  # Optional demo data
-```
-
-### Step 5: Start the API
-
-```bash
-./landing-api
-```
-
-### Step 6: Start the UI (new terminal)
-
-```bash
-cd scripts/scenarios/templates/landing-page-react-vite/ui
-pnpm install
-pnpm run dev
-```
-
----
-
-## Accessing Your Landing Page
-
-| Surface | URL | Purpose |
-|---------|-----|---------|
-| Public Landing | `http://localhost:3000/` | What visitors see |
-| Admin Portal | `http://localhost:3000/admin` | Manage content |
-| API Health | `http://localhost:8080/health` | Service status |
-
-### Default Admin Credentials
-
-```
-Email: admin@localhost
-Password: changeme123
-```
-
-**For production deployments**, override these defaults using environment variables:
-- `ADMIN_DEFAULT_EMAIL` - Your admin email
-- `ADMIN_DEFAULT_PASSWORD` - Your admin password (12+ chars, letters and numbers)
-
-For scenario-to-cloud deployments, add these via the **Secrets Tab** and restart the scenario.
-
-Alternatively, visit `/admin/profile` after your first login to change credentials manually.
-
----
-
-## First Steps in Admin Portal
-
-### 1. Check Health
-
-Navigate to `/admin` and log in. The dashboard shows:
-- Quick navigation to Landing, Billing, Apps, and Users dashboards
-- Variant and traffic allocation snapshot
-- Stripe readiness indicators
-
-### 2. Preview Your Landing Page
-
-Click "Preview Landing" or visit `/` in a new tab.
-
-### 3. Edit Hero Content
-
-1. Go to **Customization**
-2. Select the **Control** variant
-3. Click **Hero** section
-4. Edit the headline and CTA
-5. Watch the live preview update
-6. Click **Save**
-
-### 4. View Analytics
-
-Go to **Analytics** to see:
-- Page views
-- CTA clicks
-- Conversion rates (once you have payments configured)
-
----
-
-## Configuring Stripe (Optional)
-
-To enable payments:
-
-### 1. Get Stripe Keys
-
-From [Stripe Dashboard](https://dashboard.stripe.com/apikeys):
-- Publishable key: `pk_test_...`
-   - Restricted key: `rk_test_...`
-
-### 2. Configure in Admin
-
-1. Go to **Billing → Stripe** (`/admin/billing`)
-2. Enter your keys
-3. Save
-
-### 3. Set Up Webhooks
-
-In Stripe Dashboard → Developers → Webhooks:
-- Endpoint: `http://your-domain/api/v1/webhooks/stripe`
-- Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`
-
-### 4. Test Payment
-
-Use test card `4242 4242 4242 4242` with any future date and CVC.
-
----
-
-## Creating Your First A/B Test
-
-### 1. Create a Variant
-
-1. Go to **Customization** (`/admin/customization`)
-2. Click **Create New Variant**
-3. Name it (e.g., "Holiday Special")
-4. Set weight to 50 (splits traffic evenly with Control)
-
-### 2. Customize the Variant
-
-1. Select your new variant
-2. Edit sections (try changing the hero headline)
-3. Save changes
-
-### 3. Test It
-
-Add `?variant=holiday-special` to your URL to force that variant.
-
-### 4. Monitor Results
-
-Check **Analytics** after traffic comes in to compare conversion rates.
-
----
-
-## Common Commands
-
-```bash
-# Start scenario (from generated scenario directory)
-make start
-
-# Stop scenario
-make stop
-
-# View logs
-make logs
-
-# Run tests
 make test
-
-# Check status
-vrooli scenario status <slug>
-
-# Get allocated ports
-vrooli scenario port <slug> UI_PORT
-vrooli scenario port <slug> API_PORT
+make status
+make logs
 ```
 
----
+- If a declared dependency is unavailable, run `make restart`, then inspect
+  status and logs. Lifecycle startup owns required resources.
+- If a port does not respond, resolve it again with `vrooli scenario port`;
+  do not assume a fixed port.
+- For build failures, run `make setup` and `make test`, then inspect the
+  scenario's Test Genie findings.
+- For admin, content, or deployment details, use the owner guides below.
 
-## Troubleshooting Quick Fixes
+## Owner guides
 
-### "Database connection failed"
-```bash
-resource-postgres start
-```
-
-### "Port already in use"
-```bash
-make stop
-# Wait a few seconds
-make start
-```
-
-### "Go build failed"
-```bash
-cd api
-go mod tidy
-go build -o landing-api .
-```
-
-### Can't access admin portal
-- Ensure you're at `/admin` (not `/admin/`)
-- Clear browser cookies
-- Check API is running: `curl http://localhost:8080/health`
-
----
-
-## Next Steps
-
-| Goal | Document |
-|------|----------|
-| Manage content effectively | [Admin Guide](guides/ADMIN_GUIDE.md) |
-| Write converting copy | [Content Guide](guides/CONTENT_GUIDE.md) |
-| Understand the architecture | [Architecture](concepts/ARCHITECTURE.md) |
-| Deploy to production | [Deployment Guide](guides/DEPLOYMENT.md) |
-| Integrate with Stripe | [Payments API](reference/api/payments.md) |
-
----
-
-## Getting Help
-
-1. Check [FAQ](FAQ.md) for common questions
-2. Review [Troubleshooting](guides/TROUBLESHOOTING.md) for specific issues
-3. Run `vrooli help` for CLI assistance
+- [Admin Guide](guides/ADMIN_GUIDE.md) — administration, content, variants,
+  and analytics.
+- [Content Guide](guides/CONTENT_GUIDE.md) — product content and copy.
+- [Configuration Guide](guides/CONFIGURATION_GUIDE.md) — supported settings.
+- [Architecture](concepts/ARCHITECTURE.md) and [Deployment](guides/DEPLOYMENT.md).
+- [FAQ](guides/faq.md) and [Troubleshooting](guides/TROUBLESHOOTING.md).

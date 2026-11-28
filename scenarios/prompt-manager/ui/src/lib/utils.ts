@@ -33,6 +33,14 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + '...'
 }
 
+/** Keep long entity names identifiable in narrow headers without changing the stored value. */
+export function compactIdentityLabel(name: string): string {
+  if (name.length <= 24) return name
+  const words = name.split(/[\s_-]+/).filter(Boolean)
+  if (words.length <= 4) return name
+  return `${words[0]} · ${words[words.length - 1]}`
+}
+
 export function estimateTokens(text: string): number {
   // Rough estimation: 1 token ≈ 4 characters
   return Math.ceil(text.length / 4)

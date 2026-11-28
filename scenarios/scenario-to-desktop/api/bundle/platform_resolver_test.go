@@ -3,7 +3,7 @@ package bundle
 import (
 	"testing"
 
-	bundlemanifest "scenario-to-desktop-runtime/manifest"
+	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 func TestExpandShorthandToHostArch(t *testing.T) {
@@ -112,15 +112,25 @@ func TestDefaultPlatformResolverResolveBinaryForPlatform(t *testing.T) {
 			shouldFindMatch: true,
 		},
 		{
-			name: "shorthand expansion match (linux finds linux-x64)",
+			name: "architecture alias match (linux-amd64 to linux-x64)",
+			service: bundlemanifest.Service{
+				ID:       "test-svc",
+				Binaries: map[string]bundlemanifest.Binary{"linux-x64": {Path: "/path/linux-x64"}},
+			},
+			platform:        "linux-amd64",
+			expectPath:      "/path/linux-x64",
+			shouldFindMatch: true,
+		},
+		{
+			name: "shorthand target uses matching host-architecture declaration",
 			service: bundlemanifest.Service{
 				ID: "test-svc",
 				Binaries: map[string]bundlemanifest.Binary{
-					"linux-x64": {Path: "/path/linux-x64"},
+					"linux": {Path: "/path/linux"},
 				},
 			},
 			platform:        "linux",
-			expectPath:      "/path/linux-x64",
+			expectPath:      "/path/linux",
 			shouldFindMatch: true,
 		},
 	}

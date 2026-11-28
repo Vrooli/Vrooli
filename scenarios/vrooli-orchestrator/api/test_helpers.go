@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestLogger provides controlled logging during tests
@@ -102,7 +103,7 @@ func setupTestDB(t *testing.T) *TestEnvironment {
 
 	// Setup router
 	router := mux.NewRouter()
-	router.HandleFunc("/health", Health).Methods("GET")
+	router.HandleFunc("/health", health.Handler()).Methods("GET")
 	router.HandleFunc("/api/v1/profiles", service.ListProfiles).Methods("GET")
 	router.HandleFunc("/api/v1/profiles", service.CreateProfile).Methods("POST")
 	router.HandleFunc("/api/v1/profiles/{profileName}", service.GetProfile).Methods("GET")
@@ -256,8 +257,8 @@ func assertErrorResponse(t *testing.T, rr *httptest.ResponseRecorder, expectedSt
 func containsIgnoreCase(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 &&
-		bytes.Contains(bytes.ToLower([]byte(s)), bytes.ToLower([]byte(substr)))))
+			(len(s) > 0 && len(substr) > 0 &&
+				bytes.Contains(bytes.ToLower([]byte(s)), bytes.ToLower([]byte(substr)))))
 }
 
 // createTestProfile creates a test profile in the database
@@ -287,21 +288,6 @@ func cleanupProfiles(env *TestEnvironment) {
 	env.DB.Exec("UPDATE active_profile SET profile_id = NULL, activated_at = NULL WHERE id = 1")
 }
 
-// assertProfileField validates a specific field in a profile response
-func assertProfileField(t *testing.T, profile map[string]interface{}, fieldName string, expectedValue interface{}) {
-	t.Helper()
-
-	actualValue, exists := profile[fieldName]
-	if !exists {
-		t.Errorf("Expected field '%s' in profile response", fieldName)
-		return
-	}
-
-	if expectedValue != nil && actualValue != expectedValue {
-		t.Errorf("Expected %s='%v', got '%v'", fieldName, expectedValue, actualValue)
-	}
-}
-
 // assertProfileListResponse validates a profile list response
 func assertProfileListResponse(t *testing.T, response map[string]interface{}, expectedCount int) []interface{} {
 	t.Helper()
@@ -323,20 +309,4 @@ func assertProfileListResponse(t *testing.T, response map[string]interface{}, ex
 	}
 
 	return profiles
-}
-
-// waitForDatabaseCondition waits for a database condition to be met
-func waitForDatabaseCondition(t *testing.T, db *sql.DB, query string, timeout time.Duration) bool {
-	t.Helper()
-
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		var result bool
-		err := db.QueryRow(query).Scan(&result)
-		if err == nil && result {
-			return true
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	return false
 }

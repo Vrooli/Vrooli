@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "accessibility",
+    "description": "Semantics, naming, structure, and announcement — whether the surface is legible to assistive technology, as distinct from whether it is legible to the eye (perception) or operable (interaction)."
+  },
+  "capabilities": [
+    {
+      "id": "accessible-naming",
+      "title": "Every interactive element is named",
+      "facets": ["promises"],
+      "description": "Each control exposes an accessible name that describes its action, and an icon-only control never relies on the glyph alone to convey what it does.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["accessible-name", "element-present"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Provable today and the single most-exercised capability in the catalog — the overwhelming majority of the 273 authored story expectations are role-plus-name assertions, which is exactly this and nothing more."
+    },
+    {
+      "id": "semantic-structure",
+      "title": "Correct roles and landmarks",
+      "facets": ["promises"],
+      "description": "Regions, lists, tables, and forms use the semantic role that matches their function, so assistive technology can offer structural navigation rather than a flat run of text.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["element-present"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "page", "page-template", "pattern", "navigation"],
+      "rationale": "The element vocabulary is already WAI-ARIA and the parser validates roles against the ARIA registry, so the contract half is done. What is missing is asserting that a surface declares the landmarks it should have rather than only that declared elements exist."
+    },
+    {
+      "id": "heading-hierarchy",
+      "title": "Headings form a coherent outline",
+      "facets": ["promises"],
+      "description": "Heading levels descend without skipping, and the visual heading size is decoupled from the semantic level so styling never distorts the document outline.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["heading-hierarchy"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["page", "page-template", "pattern"],
+      "rationale": "Deterministic from the tree and cheap to check. It becomes load-bearing the moment a Heading primitive separates visual level from semantic level, which is exactly what the target catalog specifies."
+    },
+    {
+      "id": "status-announced",
+      "title": "State changes are announced",
+      "facets": ["promises"],
+      "description": "Entering a loading, success, error, or offline state produces a polite announcement, so a user who cannot see the change is told about it once and not repeatedly.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["announced", "state-covered"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Two catalog components (AsyncPanel, VoiceInputButton) already assert announcement behavior through `custom` claims because no typed claim exists for it. This is the capability that would let those be promoted from custom to machine."
+    },
+    {
+      "id": "error-association",
+      "title": "Errors are attached to what they describe",
+      "facets": ["promises"],
+      "description": "A validation message is programmatically associated with the control it concerns, and a form-level summary links to the fields it lists.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["error-association"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "DESIGN.md requires field-level validation near the affected control plus a form-level summary on submit failure. Association is deterministic from the accessibility tree; whether the message is *useful* is not."
+    },
+    {
+      "id": "non-color-status",
+      "title": "Status is never color alone",
+      "facets": ["promises"],
+      "description": "Every status distinction is carried by text, icon, shape, or position in addition to color, so it survives high-contrast mode and color vision deficiency.",
+      "proves": {
+        "axes": { "forced-colors": ["active"] },
+        "evidence": ["ax-tree", "screenshot"],
+        "claimTypes": ["state-distinct"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Distinct from perception's forced-colors-legibility, which asks whether the surface remains readable. This asks whether meaning survives when the palette is replaced — the same axis, a different question."
+    },
+    {
+      "id": "reading-order-honest",
+      "title": "Perceived order matches programmatic order",
+      "facets": ["promises"],
+      "description": "The order content is presented visually matches the order it appears in the accessibility tree, in both reading directions.",
+      "proves": {
+        "axes": { "locale": ["en", "ar"] },
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["reading-order"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The evaluator exists and the claim type is documented as direction-aware, but with no locale axis it has only ever been exercised left-to-right. CSS-reordered layouts are the classic way this breaks and it is invisible without the RTL capture."
+    },
+    {
+      "id": "permission-explained",
+      "title": "Permission states are explained, not blank",
+      "facets": ["promises"],
+      "description": "When a capability is unavailable because permission was refused or not yet granted, the surface explains what is unavailable and what the user can do, without leaking why access is restricted.",
+      "proves": {
+        "axes": { "permission": ["denied", "prompt"] },
+        "evidence": ["ax-tree"],
+        "claimTypes": ["state-covered", "state-distinct"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "page", "page-template", "pattern"],
+      "rationale": "`permission-denied` is in the canonical state list and DESIGN.md's state contract, and no scenario has ever captured it. VoiceInputButton is the first catalog asset that genuinely needs the permission axis."
+    }
+  ]
+}

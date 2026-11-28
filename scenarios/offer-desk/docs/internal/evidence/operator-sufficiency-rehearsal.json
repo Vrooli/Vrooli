@@ -1,0 +1,23 @@
+{
+  "artifact": "operator-sufficiency-rehearsal",
+  "status": "executed-with-capture-boundary",
+  "protected_sources": {
+    "docs/monetization": "copied; not written",
+    "scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json": "copied; not written"
+  },
+  "rows": [
+    {"id":"catalog","artifact":"evidence/catalog-rehearsal.json","result":"44-file dry-run/apply and malformed-status/manifest-drift blocking evidence"},
+    {"id":"pricing-matrix","artifact":"evidence/catalog-rehearsal.json","result":"variant and sells_at edge counts recorded"},
+    {"id":"membership","artifact":"evidence/catalog-rehearsal.json","result":"belongs_to edges and dangling-reference rejection recorded"},
+    {"id":"promotion-tracking","artifact":"evidence/board-degradation-rehearsal.json","result":"trigger/evaluation/proposal state is visible"},
+    {"id":"monetary-inputs","artifact":"../../money-ledger/docs/internal/evidence/operator-input-rehearsal.json","result":"eight monetary fields admitted; pending fields absent"},
+    {"id":"measures","artifact":"../../money-ledger/docs/internal/evidence/operator-input-rehearsal.json","result":"four measures classified without postings"},
+    {"id":"mrr","artifact":"../../money-ledger/docs/internal/evidence/operator-input-rehearsal.json","result":"derived rate refused as posting"},
+    {"id":"financial-rules","artifact":"../../money-ledger/docs/internal/evidence/operator-input-rehearsal.json","result":"four goal declarations and weekly/monthly units recorded"},
+    {"id":"posture","artifact":"evidence/board-degradation-rehearsal.json","result":"board joins posture and preserves named degradation"},
+    {"id":"space","artifact":"evidence/space-projection-rehearsal.json","result":"three obligation cells returned with sketch confidence"},
+    {"id":"judgment","artifact":"evidence/operator-sufficiency-rehearsal.json","result":"narrative/positioning remains human-owned and untouched"},
+    {"id":"journeys","artifact":"../experience/index.json","result":"cross-scenario journey remains an explicit platform backlog boundary"}
+  ],
+  "capture_boundary": "Browser Automation Studio screenshot/accessibility capture was unavailable because its CLI rebuild is blocked by unrelated fleet-wide Go module drift; scenario UI suites and direct live CLI/API evidence remain green."
+}

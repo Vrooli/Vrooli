@@ -1,0 +1,671 @@
+{
+  "_metadata": {
+    "module": "desktop-companion",
+    "description": "Portal Everywhere mandatory acceptance obligations; planned evidence is not completion.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-01",
+      "title": "Real capture probe",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given a screenshot executable exists but capture permission is denied, when readiness is inspected, device-control shall ensure: Capture is denied rather than ready.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-01 in the device-control producer suite. Required assertion: Capture is denied rather than ready. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-02",
+      "title": "User-session isolation",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given two OS users have desktop sessions, when one session receives a control request, device-control shall ensure: Only the authorized session can be addressed.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-02 in the device-control producer suite. Required assertion: Only the authorized session can be addressed. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-03",
+      "title": "Windows semantic action",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given the Windows fixture exposes an Export button, when a semantic flow invokes it, device-control shall ensure: The expected artifact is independently verified.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-03 in the device-control producer suite. Required assertion: The expected artifact is independently verified. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-04",
+      "title": "macOS revoke",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given a capture grant is revoked, when the helper next observes, device-control shall ensure: It returns permission evidence without stale success.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-04 in the device-control producer suite. Required assertion: It returns permission evidence without stale success. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-05",
+      "title": "X11 geometry",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given the fixture moves to a negative-origin display, when a fresh action resolves, device-control shall ensure: The intended control receives input.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-05 in the device-control producer suite. Required assertion: The intended control receives input. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-06",
+      "title": "GNOME Wayland",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given the portal grants a selected desktop session, when the fixture flow runs, device-control shall ensure: Declared capture and input actions verify.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-06 in the device-control producer suite. Required assertion: Declared capture and input actions verify. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-07",
+      "title": "KDE Wayland",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given the selected backend provides its declared portal interfaces, when the fixture flow runs, device-control shall ensure: Declared capture and input actions verify.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-07 in the device-control producer suite. Required assertion: Declared capture and input actions verify. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-08",
+      "title": "Unicode input",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given the fixture accepts non-ASCII text, when the flow enters the specified text, device-control shall ensure: The exact persisted text matches.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-08 in the device-control producer suite. Required assertion: The exact persisted text matches. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-09",
+      "title": "Held input release",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given a drag or modifier is active, when stop is issued, device-control shall ensure: Held input is released and queued input is rejected.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-09"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-09 in the device-control producer suite. Required assertion: Held input is released and queued input is rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-10",
+      "title": "Session lock",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given the desktop becomes locked, when a control operation arrives, device-control shall ensure: It refuses with an actionable session state.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-10"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-10 in the device-control producer suite. Required assertion: It refuses with an actionable session state. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-11",
+      "title": "Semantic ambiguity",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given two windows expose identical labels, when an underspecified selector resolves, device-control shall ensure: It returns ambiguity without clicking.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-11"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-11 in the device-control producer suite. Required assertion: It returns ambiguity without clicking. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-12",
+      "title": "Geometry revision",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given display layout changes after observation, when an old coordinate action arrives, device-control shall ensure: It is rejected or re-resolved before actuation.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-12"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-12 in the device-control producer suite. Required assertion: It is rejected or re-resolved before actuation. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-13",
+      "title": "Helper restart",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given a helper restarts after lease issuance, when an old epoch sends input, device-control shall ensure: The prior epoch is rejected.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-13"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-13 in the device-control producer suite. Required assertion: The prior epoch is rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-NAT-14",
+      "title": "Protected control",
+      "status": "planned",
+      "prd_ref": "OT-P0-015",
+      "category": "nat",
+      "criticality": "P0",
+      "description": "Given an elevated or protected OS surface is inaccessible, when the agent requests interaction, device-control shall ensure: The adapter reports unsupported or denied without false success.",
+      "tags": [
+        "portal-everywhere",
+        "NAT-14"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case NAT-14 in the device-control producer suite. Required assertion: The adapter reports unsupported or denied without false success. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-01",
+      "title": "Wrong target",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given a grant names node A, when input names node B, device-control shall ensure: No native action occurs.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-01 in the device-control producer suite. Required assertion: No native action occurs. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-02",
+      "title": "Expired grant",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given a grant has expired, when input arrives, device-control shall ensure: The destination refuses.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-02 in the device-control producer suite. Required assertion: The destination refuses. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-03",
+      "title": "Concurrent controllers",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given two actors request control, when both attempt actuation, device-control shall ensure: Only the current lease holder acts.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-03 in the device-control producer suite. Required assertion: Only the current lease holder acts. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-04",
+      "title": "Epoch takeover",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given a user takes control, when a queued agent input arrives, device-control shall ensure: The stale epoch is rejected.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-04 in the device-control producer suite. Required assertion: The stale epoch is rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-05",
+      "title": "Duplicate command",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given a completed command is submitted again unchanged, when the owner reconciles, device-control shall ensure: It returns the original receipt without another effect.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-05 in the device-control producer suite. Required assertion: It returns the original receipt without another effect. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-06",
+      "title": "Conflicting duplicate",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given a command ID is reused with changed payload, when the owner admits it, device-control shall ensure: It refuses a conflict.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-06 in the device-control producer suite. Required assertion: It refuses a conflict. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-07",
+      "title": "Crash after effect",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given the helper crashes after native effect but before final receipt, when the client reconnects, device-control shall ensure: The outcome remains unknown until independently reconciled.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-07 in the device-control producer suite. Required assertion: The outcome remains unknown until independently reconciled. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-08",
+      "title": "Observation only",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given a session has only view permission, when input is requested, device-control shall ensure: The destination refuses.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-08 in the device-control producer suite. Required assertion: The destination refuses. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-AUTH-09",
+      "title": "Forged helper",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "auth",
+      "criticality": "P0",
+      "description": "Given an unauthenticated process claims a user session, when registration is attempted, device-control shall ensure: The owner rejects it.",
+      "tags": [
+        "portal-everywhere",
+        "AUTH-09"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case AUTH-09 in the device-control producer suite. Required assertion: The owner rejects it. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-01",
+      "title": "Cross-surface replay",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a saved desktop flow version exists, when browser Portal companion and CLI run it, device-control shall ensure: All use the same owner execution and assertions.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-01 in the device-control producer suite. Required assertion: All use the same owner execution and assertions. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-02",
+      "title": "Failed candidate",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a candidate execution fails, when promotion is requested, device-control shall ensure: No saved version is created.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-02 in the device-control producer suite. Required assertion: No saved version is created. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-03",
+      "title": "Incomplete candidate",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a run has no final outcome evidence, when promotion is requested, device-control shall ensure: The owner refuses.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-03 in the device-control producer suite. Required assertion: The owner refuses. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-04",
+      "title": "Weakened repair",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a repair removes an assertion, when validation runs, device-control shall ensure: The candidate is rejected.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-04 in the device-control producer suite. Required assertion: The candidate is rejected. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-05",
+      "title": "Stale version",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a repair names an old expected version, when it attempts persistence, device-control shall ensure: The owner returns a conflict.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-05 in the device-control producer suite. Required assertion: The owner returns a conflict. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-06",
+      "title": "Old revision replay",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a newer version has been promoted, when an exact old version is selected, device-control shall ensure: The original immutable procedure executes.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-06 in the device-control producer suite. Required assertion: The original immutable procedure executes. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-07",
+      "title": "Vision budget",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given an unfamiliar task exhausts its budget, when the agent requests another step, device-control shall ensure: Execution terminates with a bounded unresolved result.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-07 in the device-control producer suite. Required assertion: Execution terminates with a bounded unresolved result. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-08",
+      "title": "Demonstration authoring",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a user demonstrates a successful task, when the system creates a candidate, device-control shall ensure: Promotion still requires assertions and replay.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-08 in the device-control producer suite. Required assertion: Promotion still requires assertions and replay. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-09",
+      "title": "Cross-owner program",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given a task combines browser export and desktop verification, when the program runs, device-control shall ensure: Each owner supplies its own attributable receipt.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-09"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-09 in the device-control producer suite. Required assertion: Each owner supplies its own attributable receipt. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "DEVICECONTROL-EVERYWHERE-FLOW-10",
+      "title": "Undeclared binding",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "flow",
+      "criticality": "P0",
+      "description": "Given generated code requests an undeclared operation, when runtime validates it, device-control shall ensure: It rejects execution before the operation.",
+      "tags": [
+        "portal-everywhere",
+        "FLOW-10"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case FLOW-10 in the device-control producer suite. Required assertion: It rejects execution before the operation. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    }
+  ]
+}

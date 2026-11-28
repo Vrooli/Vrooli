@@ -1,9 +1,9 @@
 # Video Bottom Flicker Bug — Root Cause Analysis
 
-**Status:** FIXED
+**Status:** FIXED for the historical geometry repair described below; full-page screenshot/native-video interaction remains reproduced and unrepaired (see the October 2 follow-up).
 **Date:** 2026-03-13
 **Affected:** ALL Playwright `recordVideo` recordings in browser-automation-studio
-**Fix:** CDP `Emulation.setDeviceMetricsOverride` in `context-builder.ts`
+**Current repair:** SDK compositor sizing and capture ordering (077 candidate). The original BAS override below is retained as historical investigation.
 **Related:** [Playwright #36032](https://github.com/microsoft/playwright/issues/36032) (fixed in Playwright v1.55.0, BAS uses rebrowser-playwright 1.52.0)
 
 ## Symptom
@@ -95,3 +95,88 @@ The fix is non-fatal: if the CDP call fails, a warning is logged but the session
 1. **CSS viewport stabilization** — Prevents scrollbar reflow but doesn't affect video encoder dimensions
 2. **FFmpeg filter chain improvements** — Only affects export/render path, not Playwright's `recordVideo`
 3. **Pixel-level test coverage** — Tests the FFmpeg assembly path, not the Playwright recording path
+
+
+## 2026-09-23 amendment — shared SDK geometry owner
+
+The original headful-only explanation is incomplete. Fresh Chromium 136 probes
+reproduce the 87-pixel height loss in regular Chromium with both SDK headless
+settings. The headless shell control passes. Setting only the compositor visible
+size after window sizing fixes initial, landscape and portrait capture without
+changing mobile or DPR emulation. Concurrent SDK screenshots and viewport changes
+also reproduce stale DOM geometry and blank image regions. Joining the existing
+Screenshotter queue fixes this second failure; a compositor command alone does
+not establish capture ordering.
+
+The canonical Rebrowser patch now applies these invariants at SDK Page and
+Chromium viewport ownership. SDA installs the unchanged approved 1.52.0 version.
+The BAS video-only asynchronous metrics override is removed: it duplicated screen
+policy, overwrote mobile emulation, and left its CDP session attached. Existing
+video layout stabilization remains separate behavior. Two native recordings at
+640×480 and 900×640, DPR2, decode to 55 painted frames with zero gray bottom bands
+without that override. Receipt: `/tmp/bas-video-geometry-077/receipt.json`.
+Full driver and live-app qualification remain pending at this amendment; refer
+to the goal home (`docs/internal/goal/`) for the final candidate's status and limitations.
+
+
+## 2026-10-02 follow-up — full-page screenshots during native video
+
+This is a separate capture-quality finding, not a reversal of the historical
+SDK geometry receipts. Existing BAS shadow health/status verified the route
+`http://localhost:15372/api/v1` before bounded adhoc tests using only a
+self-contained neutral `data:text/html` ruler page. No product requests,
+credentials, external assets, service changes or persistent settings were used.
+
+- Mixed run `15ce1a8f-ff37-4da9-b258-1716a7a6c255`: fixed 1440×900, DPR 2,
+  document height 2112; alternated viewport/full-page/viewport/full-page/viewport
+  screenshots. Both full-page captures produced shrunken imagery and about 57%
+  gray area in native WebM: frames 116–124 (4.64–4.96s) and 254–262
+  (10.16–10.48s), nine frames per burst. Representative decoded comparison
+  frames 115/120/125 and 253/260/263 show normal, shrunken/gray, normal
+  presentation around each event. The archive analysis reports gray fractions
+  0.578 and 0.572 respectively; the video is 378 frames at 25 fps with SHA-256
+  `630f36c595334c59469094bb391075d700a4501d702f622aea7228e9aab63166`.
+  DOM measurements between captures remained 1440×900. All steps completed.
+- Matched viewport-only control `fbd825bc-d4b5-4459-9ede-da7238980ee8`:
+  357 frames, zero gray-area events and no large image changes after startup.
+  This validates viewport-only capture for this neutral geometry/runtime only.
+- Initial taller neutral run `c1ad5a6c-484e-4bf4-8f05-9afa4549dec5` failed:
+  raster 2850×12384 exceeded the 201326592-byte screenshot decode budget.
+  The failed receipt and video remain evidence; no budget was raised.
+
+The delivered buyer account WebM and H.264 derivative contain the same sizing
+defects at the same frames; conversion did not introduce those defects.
+Planner Focus's visible flash aligns with a scripted `/focus` reload and is a
+separate navigation/loading observation. Do not treat all reported flicker as one
+cause, dismiss it as acceptable, or infer product layout correctness from damaged
+capture. Internal compositor/CDP operations were not instrumented; that part of
+the mechanism remains source-supported inference.
+
+[Native diagnosis and reusable isolation procedure](https://docs.google.com/document/d/1ovXTxVRHgKA4z3-zWPJsR9B56JXNYeacl6iV-cppJOg/edit)
+and [scope and delivery-route brief (REC-FIX authorized by current local queue and epoch)](https://docs.google.com/document/d/1P8U8weXPXJTY788NnOYKj2Dx0nthSYHJazo0z3QJ07M/edit)
+contain the evidence and approval boundary. Reusable flows, original neutral
+videos, timelines, comparisons and receipts are in Library
+`libfile_8f96b0d25f7081919ec2eb1dd1e16478` (`capture-quality-evidence.zip`),
+SHA-256 `48dd87f0246f6b09df1ce0d328f69cfab86a2bf62c85535d9a12d3c5805fce2f`.
+Materialize through the current supported Library route and verify readable
+bytes/hashes; paths from another executor are not local evidence.
+
+Product-level workaround validation and destination-player playback remain
+pending. Separate-session full-page stills and product capture segmentation are
+proposals, not tested remedies here. No repair is approved by this documentation
+update. Preserve the existing shared SDK ownership and dependency governance;
+do not restore the historical asynchronous BAS CDP override from this report.
+Future capture entrypoint: [Screenshot Node capture-quality procedure](../nodes/screenshot.md#capture-quality-during-native-video).
+
+### REC-FIX source change (2026-10-03)
+
+The driver now reads actual raster dimensions from PNG/JPEG bytes, retries an
+oversized full-page PNG as JPEG at the same extent, and rejects a still that
+remains over the decode budget. A full-page still requested while native video
+is active returns an actionable error. Focused current-source tests cover these
+branches. The isolated shadow could not be rebuilt after the change because its
+Vite UI build failed resolving `@bufbuild/protobuf/dist/esm/index.js/wire`; the
+old shadow result is not post-change proof. The required 12-journey Linux run,
+decoded-frame comparison, and destination-player review therefore remain
+unverified for this change. See the REC-FIX epoch record for the preserved
+baseline hashes and exact lifecycle failure.

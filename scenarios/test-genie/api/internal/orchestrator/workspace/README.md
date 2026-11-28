@@ -25,6 +25,7 @@ flowchart TB
 
     subgraph Output["Phase Environment"]
         scenarioDir["ScenarioDir"]
+        mapping["Mapping"]
         testDir["TestDir"]
         appRoot["AppRoot"]
         phaseDir["PhaseDir"]
@@ -36,6 +37,7 @@ flowchart TB
     sw --> env
     sw --> artifact
     env --> scenarioDir
+    env --> mapping
     env --> testDir
     env --> appRoot
 
@@ -63,6 +65,21 @@ fmt.Println(workspace.PhaseDir)     // /path/to/scenarios/my-scenario/coverage/p
 fmt.Println(workspace.AppRoot)      // /path/to/scenarios (Vrooli root)
 ```
 
+Use `NewWithOptions` when the physical scenario directory differs from the
+logical repo placement used for validation:
+
+```go
+workspace, err := workspace.NewWithOptions("/repo/scenarios", "demo", workspace.Options{
+    ScenarioPath:           "/tmp/vrooli-template/scenarios/demo",
+    LogicalRepoRoot:        "/repo",
+    LogicalScenarioRelPath: "scenarios/demo",
+})
+```
+
+`ScenarioPath` is the physical directory to read and write. The logical fields
+are only for repo-relative validation, such as docs links from a temp generated
+scenario back to repo-level documentation.
+
 ### Validation Rules
 
 | Rule | Error |
@@ -81,10 +98,12 @@ env := workspace.Environment()
 
 // Phase runners receive this:
 type Environment struct {
-    ScenarioName string  // "my-scenario"
-    ScenarioDir  string  // Full path to scenario
-    TestDir      string  // Full path to coverage directory (legacy "test root")
-    AppRoot      string  // Vrooli repository root
+    ScenarioName    string   // "my-scenario"
+    ScenarioDir     string   // Physical scenario path
+    TestDir         string   // Full path to coverage directory
+    AppRoot         string   // Physical app root
+    PhysicalAppRoot string   // Explicit physical app root
+    Mapping         Mapping  // Physical/logical placement contract
 }
 ```
 

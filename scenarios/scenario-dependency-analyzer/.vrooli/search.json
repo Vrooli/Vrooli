@@ -1,0 +1,892 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "scenario-dependency-analyzer.dependencies",
+      "lifecycle": "production",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_REUSE",
+      "type": "dependency",
+      "description": "Third-party dependency/package selection and governance — which package to use for a purpose (for example \"a React forms library\", \"a Go HTTP router\", \"image resizing\"), the approved version ranges, and which packages are denied or vulnerable. Route here for 'what dependency/package/library should I use for X' and 'is package Y approved'. Do NOT route here for prior-work records, CLI commands, skills, docs, or scenario status.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "last_indexed_at",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/SearchApprovedDependencies",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "records",
+        "id_field": "packageName",
+        "title_field": "packageName",
+        "score_field": "relevanceScore",
+        "snippet_field": "rationale",
+        "path_field": "packageName",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0.65
+        }
+      },
+      "scoring": {},
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "tests": {
+        "name": "scenario-dependency-analyzer dependencies — governance corpus",
+        "description": "RANK-CENTRIC golden corpus for the dependency governance index: a purpose query should surface the approved package recorded for that purpose.",
+        "cases": [
+          {
+            "id": "connect-rpc",
+            "query": "connect rpc client and server",
+            "tags": [
+              "strong",
+              "go",
+              "package-governance"
+            ],
+            "expect_ids": [
+              "@connectrpc/connect-web",
+              "@connectrpc/connect",
+              "connectrpc.com/connect"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "http-middleware",
+            "query": "Go HTTP middleware for CORS logging and request handling",
+            "tags": [
+              "strong",
+              "go",
+              "http",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "github.com/gorilla/handlers"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12: the approved HTTP middleware record is the first dependency hit."
+          },
+          {
+            "id": "sqlite-persistence",
+            "query": "pure Go SQLite driver without CGO for local persistence",
+            "tags": [
+              "strong",
+              "go",
+              "storage",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "modernc.org/sqlite"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12 against the modernc SQLite governance record."
+          },
+          {
+            "id": "sqlmock-testing",
+            "query": "mock SQL database driver for Go unit tests",
+            "tags": [
+              "weak-real",
+              "go",
+              "testing",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "github.com/DATA-DOG/go-sqlmock"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12 against the focused SQL mock dependency record."
+          },
+          {
+            "id": "container-integration-tests",
+            "query": "run Go integration tests against real containers",
+            "tags": [
+              "hard",
+              "go",
+              "testing",
+              "integration",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "github.com/testcontainers/testcontainers-go"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12: Testcontainers is returned for real-service integration testing."
+          },
+          {
+            "id": "go-module-tools",
+            "query": "official Go module-aware tooling library",
+            "tags": [
+              "weak",
+              "go",
+              "tooling",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "golang.org/x/mod"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Live verified 2026-07-12 against the Go module tooling dependency record."
+          },
+          {
+            "id": "browser-connect-client",
+            "query": "TypeScript browser client for Connect RPC APIs",
+            "tags": [
+              "strong",
+              "typescript",
+              "rpc",
+              "package-governance",
+              "reviewed-live"
+            ],
+            "expect_ids": [
+              "@connectrpc/connect-web"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Reviewed companion to the Go Connect RPC case; the stable browser package is a distinct governed surface."
+          },
+          {
+            "id": "gibberish-1",
+            "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.65,
+            "expect_no_strong_hit": true,
+            "note": "Junk rejection: nonsense must not surface a confident hit."
+          }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "package-governance",
+              "description": "Approved dependency lookup and package-purpose governance.",
+              "tags": [
+                "go",
+                "package-governance"
+              ],
+              "min_reviewed_positive": 1
+            }
+          ]
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        }
+      }
+    },
+    {
+      "provider_id": "scenario-dependency-analyzer.scenarios",
+      "lifecycle": "production",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_REUSE",
+      "type": "scenarios",
+      "description": "Scenario connection graph — what a scenario depends on and what depends on it (its reverse dependents). Route here for 'what does X depend on', 'what depends on X', 'X's dependencies / dependents', and the cross-scenario dependency/connection graph. Do NOT route here for a scenario's purpose, anatomy, responsibilities, or internal domains — that is architecture-cartographer's domain-map. Connection-only.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "last_indexed_at",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/SearchInterfaceGraph",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "scenario",
+        "title_field": "scenario",
+        "score_field": "relevanceScore",
+        "snippet_field": "summary",
+        "path_field": "scenario",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "tests": {
+        "name": "scenario-dependency-analyzer scenarios — connection corpus",
+        "description": "RANK-CENTRIC golden corpus for the scenario-connection index: a connection query should surface the scenario whose dependency/dependent record matches. Expanded to the engine adequacy floor in Phase 5.",
+        "cases": [
+          {
+            "id": "plan-manager-depends",
+            "query": "what does plan-manager depend on",
+            "tags": [
+              "strong",
+              "headline"
+            ],
+            "expect_ids": [
+              "plan-manager"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Headline: NL connection intent -\u003e the scenario's connection record."
+          },
+          {
+            "id": "swarm-manager-depends",
+            "query": "what does swarm-manager depend on",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "swarm-manager"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "depends-on-prompt-manager",
+            "query": "what depends on prompt-manager",
+            "tags": [
+              "strong",
+              "reverse"
+            ],
+            "expect_ids": [
+              "prompt-manager"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Reverse-direction: dependents of a scenario."
+          },
+          {
+            "id": "test-genie-deps",
+            "query": "test-genie scenario dependencies",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "test-genie"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "git-control-tower-depends",
+            "query": "what does git-control-tower depend on",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "git-control-tower"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "search-hub-depends",
+            "query": "what does search-hub depend on",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "search-hub"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "arch-cart-depends",
+            "query": "what does architecture-cartographer connect to",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "architecture-cartographer"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "web-search-depends",
+            "query": "what does web-search depend on",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "web-search"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "depends-on-proto-health",
+            "query": "what depends on proto-health",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "proto-health"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "swarm-manager-depends-weak-real",
+            "query": "what does swarm-manager depend on",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "swarm-manager"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "deployment-manager-conn",
+            "query": "scenarios deployment-manager connects to",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "deployment-manager"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "meta-opt-depends",
+            "query": "what does meta-optimization-manager depend on",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "meta-optimization-manager"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "gibberish-scn",
+            "query": "asdfqwer zxcvbnm florbnax qwop connection",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true,
+            "note": "Junk rejection: no scenario should surface confidently for nonsense."
+          }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "scenario-connections",
+              "description": "Forward and reverse scenario dependency queries.",
+              "tags": [
+                "headline",
+                "reverse",
+                "weak-real"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        }
+      }
+    },
+    {
+    "provider_id": "scenario-dependency-analyzer.resources",
+    "lifecycle": "experimental",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_REUSE",
+      "type": "resources",
+      "description": "Local resource usage — which scenarios use a given local resource (postgres, redis, qdrant, ollama, vault, minio, ...). Route here for 'which scenarios use postgres', 'what uses qdrant', 'who uses resource Y'. Do NOT route here for third-party package/dependency selection (that is the dependency leaf) or scenario-to-scenario connections (that is the scenarios leaf).",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "index_timestamp_field": "last_indexed_at",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.scenario_dependency_analyzer.v1.resource_usage.ResourceUsageService/SearchResourceUsage",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "resource",
+        "title_field": "resource",
+        "score_field": "relevanceScore",
+        "snippet_field": "summary",
+        "path_field": "resource",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "config_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteConfig",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.05,
+        "telemetry_required": true,
+        "minimum_samples": 8
+      },
+      "tests": {
+        "name": "scenario-dependency-analyzer resources — usage corpus",
+        "description": "RANK-CENTRIC golden corpus for the resource-usage index: a usage query should surface the resource whose consuming-scenarios record matches. Expanded to the engine adequacy floor in Phase 5.",
+        "cases": [
+          {
+            "id": "use-postgres",
+            "query": "which scenarios use postgres",
+            "tags": [
+              "strong",
+              "headline"
+            ],
+            "expect_ids": [
+              "postgres"
+            ],
+            "expect_within_top_k": 5,
+            "note": "Headline: resource-usage intent -\u003e the resource's usage record."
+          },
+          {
+            "id": "use-qdrant",
+            "query": "which scenarios use qdrant",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "qdrant"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-ollama",
+            "query": "what uses ollama",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "ollama"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-redis",
+            "query": "which scenarios use redis",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "redis"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-minio",
+            "query": "what uses minio object storage",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "minio"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-claude-code",
+            "query": "which scenarios use claude-code",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "claude-code"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-openrouter",
+            "query": "what uses openrouter",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "openrouter"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-unstructured",
+            "query": "which scenarios use unstructured-io",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "unstructured-io"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-reranker",
+            "query": "what uses the reranker",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "reranker"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-vault",
+            "query": "which scenarios use vault",
+            "tags": [
+              "strong"
+            ],
+            "expect_ids": [
+              "vault"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-searxng",
+            "query": "what uses searxng",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "searxng"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "use-browserless",
+            "query": "which scenarios use browserless",
+            "tags": [
+              "weak-real"
+            ],
+            "expect_ids": [
+              "browserless"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "gibberish-res",
+            "query": "asdfqwer zxcvbnm florbnax qwop resource",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_max_score": 0.3,
+            "expect_no_strong_hit": true,
+            "note": "Junk rejection: no resource should surface confidently for nonsense."
+          }
+        ],
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "resource-usage",
+              "description": "Local resource usage lookup queries.",
+              "tags": [
+                "headline",
+                "weak-real"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        },
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        }
+      }
+    },
+    {
+      "provider_id": "scenario-dependency-analyzer.resource-inventory",
+      "lifecycle": "experimental",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_STATE",
+      "type": "inventory",
+      "description": "Declared local resource inventory and anatomy from the canonical resource catalog and resource.json manifests: catalog slug/name, driver, ports, health-check shape, declared dependencies, and safe runtime shape. Route here for resource ports, driver, manifest checks, runtime configuration shape, and declared resource dependencies. This provider does not run probes; health and serving state are unknown. Catalog slug is canonical even when manifest name differs. Use the separate resources leaf for scenarios that consume a resource.",
+      "routing_profile": {
+        "answer_spaces": ["resource_inventory", "resource_anatomy"],
+        "intents": ["inspect_resource", "identify_resource", "explain"],
+        "positive_examples": [
+          "what ports and driver does qdrant declare",
+          "show reranker's declared health checks and runtime shape",
+          "which local resource provides vector database and semantic search"
+        ],
+        "exclusions": [
+          "is qdrant currently healthy or reachable",
+          "which scenarios use qdrant",
+          "install or start a resource"
+        ]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/resources/inventory/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "resource": "resource",
+          "evidence_basis": "evidenceBasis",
+          "runtime_status_known": "runtimeStatusKnown"
+        },
+        "degradations_field": "degradations"
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 1, "telemetry_required": false},
+      "tests": {
+        "minimum": {"reviewed_positive": 3, "negative": 2},
+        "suite_id": "scenario-dependency-analyzer.resource-inventory.primary",
+        "name": "Canonical declared resource anatomy",
+        "description": "Development suite for resource catalog and manifest anatomy. It does not claim current health, serving status, install authority, or complete end-to-end resource answerability.",
+        "cases": [
+          {"id": "qdrant-vector-database-ports", "query": "what ports and driver does qdrant vector database declare", "expect_ids": ["resource-inventory:qdrant"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "ports", "driver"]},
+          {"id": "ollama-model-runtime-shape", "query": "show ollama declared model serving runtime shape", "expect_ids": ["resource-inventory:ollama"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-shape"]},
+          {"id": "reranker-health-check-anatomy", "query": "show reranker health check type and readiness", "expect_ids": ["resource-inventory:reranker"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "health-check"]},
+          {"id": "vector-embedding-resource", "query": "which resource provides vector database embeddings and semantic search", "expect_ids": ["resource-inventory:qdrant"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "resource-description"]},
+          {"id": "unrelated-weather-query", "query": "weather forecast tomorrow", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "unrelated-ui-color-query", "query": "blue user interface theme palette", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
+      "provider_id": "scenario-dependency-analyzer.dependency-rationale",
+      "lifecycle": "experimental",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_REUSE",
+      "type": "rationale",
+      "description": "Declaration-backed reasons for cross-scenario dependencies, including runtime-only reason and degraded behavior. Route to this leaf for why a scenario depends on another scenario or why an optional runtime edge is not an in-process package import. It reports only authored manifest fields and preserves missing rationale as missing; dependency graph edges alone are not treated as rationale. This is separate from approved third-party package rationale.",
+      "routing_profile": {
+        "answer_spaces": ["dependency_rationale", "scenario_dependency_reason"],
+        "intents": ["explain", "inspect_dependency", "identify_runtime_boundary"],
+        "positive_examples": [
+          "why does security-health use deployment-manager without importing its package",
+          "what is the runtime-only rationale for web-console using notification-hub",
+          "explain the declared degraded behavior for secrets-manager's data-backup-manager dependency"
+        ],
+        "exclusions": [
+          "which third-party package is approved for a purpose",
+          "what depends on prompt-manager without asking why",
+          "whether a dependency is healthy or currently reachable"
+        ]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/dependencies/rationale/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"{{scope_value}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "consumer": "consumer",
+          "dependency": "dependency",
+          "type": "type",
+          "required": "required",
+          "enabled": "enabled",
+          "runtime_only": "runtimeOnly",
+          "evidence": "evidence",
+          "source": "source",
+          "scan": "scan"
+        },
+        "degradations_field": "degradations"
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 1, "telemetry_required": false},
+      "tests": {
+        "minimum": {"reviewed_positive": 3, "negative": 2},
+        "suite_id": "scenario-dependency-analyzer.dependency-rationale.primary",
+        "name": "Declaration-backed cross-scenario dependency rationale",
+        "description": "Development suite for authored scenario dependency rationale. It expects declaration field provenance and never infers a reason from a graph edge or runtime health.",
+        "cases": [
+          {"id": "security-health-deployment-manager-reason", "query": "why does security-health use deployment-manager without importing its package", "scope": "scenario:security-health", "expect_ids": ["dependency-rationale:security-health:deployment-manager"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-boundary"]},
+          {"id": "web-console-notification-hub-reason", "query": "what is the runtime-only rationale for web-console using notification-hub", "scope": "scenario:web-console", "expect_ids": ["dependency-rationale:web-console:notification-hub"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-boundary"]},
+          {"id": "secrets-manager-backup-degraded-behavior", "query": "explain the declared degraded behavior for secrets-manager data-backup-manager dependency", "scope": "scenario:secrets-manager", "expect_ids": ["dependency-rationale:secrets-manager:data-backup-manager"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "degraded-behavior"]},
+          {"id": "switchboard-agent-manager-connect-rationale", "query": "why does switchboard call agent-manager through Connect rather than import it", "scope": "scenario:switchboard", "expect_ids": ["dependency-rationale:switchboard:agent-manager"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-boundary"]},
+          {"id": "unrelated-weather-query", "query": "weather forecast tomorrow", "scope": "scenario:security-health", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "unrelated-vector-inventory", "query": "qdrant vector database resource ports", "scope": "scenario:security-health", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    }
+  ]
+}

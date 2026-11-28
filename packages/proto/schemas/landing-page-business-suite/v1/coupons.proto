@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// CouponDuration is the Stripe coupon lifecycle duration.
+enum CouponDuration {
+  COUPON_DURATION_UNSPECIFIED = 0;
+  COUPON_DURATION_ONCE = 1;
+  COUPON_DURATION_REPEATING = 2;
+  COUPON_DURATION_FOREVER = 3;
+}
+
+// Coupon is the safe administrative representation of a Stripe coupon.
+message Coupon {
+  string id = 1;
+  optional string name = 2;
+  optional int64 amount_off = 3;
+  optional double percent_off = 4;
+  optional string currency = 5;
+  CouponDuration duration = 6;
+  optional int32 duration_in_months = 7;
+  optional int32 max_redemptions = 8;
+  optional int64 redeem_by = 9;
+  int32 times_redeemed = 10;
+  bool valid = 11;
+  int64 created = 12;
+  bool is_intro_coupon = 13;
+  optional string intro_tier = 14;
+}
+
+message ListCouponsRequest {}
+message ListCouponsResponse {
+  repeated Coupon coupons = 1;
+  map<string, string> intro_coupon_map = 2;
+}
+
+message CreateCouponRequest {
+  optional string id = 1;
+  optional string name = 2;
+  optional int64 amount_off = 3;
+  optional double percent_off = 4;
+  optional string currency = 5;
+  CouponDuration duration = 6;
+  optional int32 duration_in_months = 7;
+  optional int32 max_redemptions = 8;
+  optional int64 redeem_by = 9;
+}
+message CreateCouponResponse {
+  Coupon coupon = 1;
+}
+
+message GetCouponRequest {
+  string coupon_id = 1;
+}
+message GetCouponResponse {
+  Coupon coupon = 1;
+}
+
+message UpdateCouponRequest {
+  string coupon_id = 1;
+  optional string name = 2;
+}
+message UpdateCouponResponse {
+  Coupon coupon = 1;
+}
+
+message DeleteCouponRequest {
+  string coupon_id = 1;
+}
+message DeleteCouponResponse {
+  bool deleted = 1;
+}
+
+message CouponUsageStat {
+  string coupon_id = 1;
+  int64 total_uses = 2;
+  optional string last_used_at = 3;
+}
+message ListCouponUsageRequest {}
+message ListCouponUsageResponse {
+  repeated CouponUsageStat usage = 1;
+}
+
+message GetCouponMappingsRequest {}
+message GetCouponMappingsResponse {
+  map<string, string> mappings = 1;
+}
+message SetCouponForPlanRequest {
+  string price_id = 1;
+  string coupon_id = 2;
+}
+message SetCouponForPlanResponse {
+  bool assigned = 1;
+}
+message RemoveCouponFromPlanRequest {
+  string price_id = 1;
+}
+message RemoveCouponFromPlanResponse {
+  bool removed = 1;
+}
+
+message CouponImportPreviewItem {
+  string id = 1;
+  optional string name = 2;
+  optional int64 amount_off = 3;
+  optional double percent_off = 4;
+  optional string currency = 5;
+  CouponDuration duration = 6;
+  optional int32 duration_in_months = 7;
+  int32 times_redeemed = 8;
+  bool valid = 9;
+  bool exists_locally = 10;
+}
+message GetCouponImportPreviewRequest {}
+message GetCouponImportPreviewResponse {
+  repeated CouponImportPreviewItem coupons = 1;
+  int32 total_coupons = 2;
+  int32 existing_count = 3;
+  int32 new_count = 4;
+}
+
+// CouponAdminService is the administrator-only coupon, usage, and plan-mapping boundary.
+service CouponAdminService {
+  rpc ListCoupons(ListCouponsRequest) returns (ListCouponsResponse);
+  rpc CreateCoupon(CreateCouponRequest) returns (CreateCouponResponse);
+  rpc GetCoupon(GetCouponRequest) returns (GetCouponResponse);
+  rpc UpdateCoupon(UpdateCouponRequest) returns (UpdateCouponResponse);
+  rpc DeleteCoupon(DeleteCouponRequest) returns (DeleteCouponResponse);
+  rpc ListCouponUsage(ListCouponUsageRequest) returns (ListCouponUsageResponse);
+  rpc GetCouponMappings(GetCouponMappingsRequest) returns (GetCouponMappingsResponse);
+  rpc SetCouponForPlan(SetCouponForPlanRequest) returns (SetCouponForPlanResponse);
+  rpc RemoveCouponFromPlan(RemoveCouponFromPlanRequest) returns (RemoveCouponFromPlanResponse);
+  rpc GetCouponImportPreview(GetCouponImportPreviewRequest) returns (GetCouponImportPreviewResponse);
+}

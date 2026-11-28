@@ -1,0 +1,45 @@
+{
+  "colors": {
+    "app-background": "color-mix(in srgb, var(--color-background) calc(<alpha-value> * 100%), transparent)",
+    "app-shell": "color-mix(in srgb, var(--color-shell) calc(<alpha-value> * 100%), transparent)",
+    "app-surface": "color-mix(in srgb, var(--color-surface) calc(<alpha-value> * 100%), transparent)",
+    "app-surface-muted": "color-mix(in srgb, var(--color-surface-muted) calc(<alpha-value> * 100%), transparent)",
+    "app-surface-raised": "color-mix(in srgb, var(--color-surface-raised) calc(<alpha-value> * 100%), transparent)",
+    "app-foreground": "color-mix(in srgb, var(--color-foreground) calc(<alpha-value> * 100%), transparent)",
+    "app-muted-foreground": "color-mix(in srgb, var(--color-muted-foreground) calc(<alpha-value> * 100%), transparent)",
+    "app-border": "color-mix(in srgb, var(--color-border) calc(<alpha-value> * 100%), transparent)",
+    "app-primary": "color-mix(in srgb, var(--color-primary) calc(<alpha-value> * 100%), transparent)",
+    "app-primary-foreground": "color-mix(in srgb, var(--color-primary-foreground) calc(<alpha-value> * 100%), transparent)",
+    "app-accent": "color-mix(in srgb, var(--color-accent) calc(<alpha-value> * 100%), transparent)",
+    "app-brand": "color-mix(in srgb, var(--color-brand) calc(<alpha-value> * 100%), transparent)",
+    "app-brand-strong": "color-mix(in srgb, var(--color-brand-strong) calc(<alpha-value> * 100%), transparent)",
+    "app-brand-foreground": "color-mix(in srgb, var(--color-brand-foreground) calc(<alpha-value> * 100%), transparent)",
+    "app-success": "color-mix(in srgb, var(--color-success) calc(<alpha-value> * 100%), transparent)",
+    "app-danger": "color-mix(in srgb, var(--color-danger) calc(<alpha-value> * 100%), transparent)",
+    "app-warning": "color-mix(in srgb, var(--color-warning) calc(<alpha-value> * 100%), transparent)",
+    "app-info": "color-mix(in srgb, var(--color-info) calc(<alpha-value> * 100%), transparent)",
+    "app-focus": "color-mix(in srgb, var(--color-focus) calc(<alpha-value> * 100%), transparent)",
+    "app-overlay": "color-mix(in srgb, var(--color-overlay) calc(<alpha-value> * 100%), transparent)"
+  },
+  "borderRadius": {
+    "control": "var(--radius-control)",
+    "panel": "var(--radius-panel)",
+    "sheet": "var(--radius-sheet)",
+    "pill": "var(--radius-pill)"
+  },
+  "fontFamily": {
+    "sans": "var(--font-sans)",
+    "mono": "var(--font-mono)"
+  },
+  "spacing": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-width)"
+  },
+  "minWidth": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-min-width)"
+  },
+  "maxWidth": {
+    "sidebar": "var(--sidebar-max-width)"
+  }
+}

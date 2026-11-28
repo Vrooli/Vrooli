@@ -10,12 +10,16 @@ type Requirement struct {
 	PRDRef      string         `json:"prd_ref,omitempty"`
 	Category    string         `json:"category,omitempty"`
 	Criticality Criticality    `json:"criticality,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Tags        []string       `json:"tags,omitempty"`
-	Children    []string       `json:"children,omitempty"`
-	DependsOn   []string       `json:"depends_on,omitempty"`
-	Blocks      []string       `json:"blocks,omitempty"`
-	Validations []Validation   `json:"validation,omitempty"`
+	// DeliveryScope is committed unless explicitly marked roadmap. Roadmap
+	// requirements remain traceable but are excluded from current delivery
+	// completion reporting.
+	DeliveryScope DeliveryScope `json:"delivery_scope,omitempty"`
+	Description   string        `json:"description,omitempty"`
+	Tags          []string      `json:"tags,omitempty"`
+	Children      []string      `json:"children,omitempty"`
+	DependsOn     []string      `json:"depends_on,omitempty"`
+	Blocks        []string      `json:"blocks,omitempty"`
+	Validations   []Validation  `json:"validation,omitempty"`
 
 	// Enriched fields (not persisted to requirement files)
 	LiveStatus       LiveStatus       `json:"-"`
@@ -72,16 +76,17 @@ func (r *Requirement) Clone() *Requirement {
 	}
 
 	clone := &Requirement{
-		ID:           r.ID,
-		Title:        r.Title,
-		Status:       r.Status,
-		PRDRef:       r.PRDRef,
-		Category:     r.Category,
-		Criticality:  r.Criticality,
-		Description:  r.Description,
-		LiveStatus:   r.LiveStatus,
-		SourceFile:   r.SourceFile,
-		SourceModule: r.SourceModule,
+		ID:            r.ID,
+		Title:         r.Title,
+		Status:        r.Status,
+		PRDRef:        r.PRDRef,
+		Category:      r.Category,
+		Criticality:   r.Criticality,
+		DeliveryScope: r.DeliveryScope,
+		Description:   r.Description,
+		LiveStatus:    r.LiveStatus,
+		SourceFile:    r.SourceFile,
+		SourceModule:  r.SourceModule,
 	}
 
 	if len(r.Tags) > 0 {
@@ -108,6 +113,12 @@ func (r *Requirement) Clone() *Requirement {
 	}
 
 	return clone
+}
+
+// IsRoadmap reports whether the requirement is intentionally deferred from the
+// current delivery commitment while remaining in the registry.
+func (r *Requirement) IsRoadmap() bool {
+	return r != nil && NormalizeDeliveryScope(string(r.DeliveryScope)) == ScopeRoadmap
 }
 
 // HasValidations returns true if the requirement has any validations.
@@ -145,10 +156,7 @@ func (v Validation) Clone() Validation {
 	}
 
 	if v.Metadata != nil {
-		clone.Metadata = make(map[string]any, len(v.Metadata))
-		for k, val := range v.Metadata {
-			clone.Metadata[k] = val
-		}
+		clone.Metadata = cloneMetadata(v.Metadata)
 	}
 
 	if v.LiveDetails != nil {
@@ -157,6 +165,35 @@ func (v Validation) Clone() Validation {
 	}
 
 	return clone
+}
+
+// cloneMetadata recursively copies the mutable map and slice containers used
+// by JSON-decoded validation metadata. Scalar JSON values are immutable by
+// value, so they can be carried through without reflection or serialization.
+func cloneMetadata(metadata map[string]any) map[string]any {
+	if metadata == nil {
+		return nil
+	}
+	clone := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		clone[key] = cloneMetadataValue(value)
+	}
+	return clone
+}
+
+func cloneMetadataValue(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		return cloneMetadata(value)
+	case []any:
+		clone := make([]any, len(value))
+		for i := range value {
+			clone[i] = cloneMetadataValue(value[i])
+		}
+		return clone
+	default:
+		return value
+	}
 }
 
 // Key returns a unique identifier for the validation within its requirement.

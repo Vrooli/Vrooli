@@ -1,0 +1,6 @@
+{
+  "tool": "scenario-completeness-scoring",
+  "score_floor": 96,
+  "template_version_pin": "react-vite@1.0.1",
+  "tool_version_pin": "1.0.0"
+}

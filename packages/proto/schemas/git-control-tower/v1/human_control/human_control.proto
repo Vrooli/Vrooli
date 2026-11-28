@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.human_control;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control;human_control_v1";
+
+// HumanControlService is the typed relying-party seam for exact repository
+// mutation authority. Authentication is owned by scenario-authenticator;
+// Git Control Tower owns repository permission and single-use intent state.
+service HumanControlService {
+  rpc GetAuthorityStatus(GetAuthorityStatusRequest) returns (AuthorityStatus);
+  rpc PrepareMutation(PrepareMutationRequest) returns (MutationPreview);
+  rpc ConfirmMutation(ConfirmMutationRequest) returns (MutationIntent);
+}
+
+message GetAuthorityStatusRequest {}
+
+message AuthorityStatus {
+  bool authenticated = 1;
+  string principal_id = 2;
+  string email = 3;
+  string realm = 4;
+  string caller_kind = 5;
+  bool can_mutate = 6;
+  string reason = 7;
+  repeated string capabilities = 8;
+  // Provider-neutral authentication metadata. These fields are safe for UI
+  // display and never contain assertions, cookies, or management credentials.
+  string auth_source = 9;
+  string auth_state = 10;
+  string recovery_url = 11;
+  string failure_class = 12;
+  repeated string auth_sources = 13;
+}
+
+message PrepareMutationRequest {
+  string repository_id = 1;
+  string operation = 2;
+  string subject_context = 3;
+}
+
+message MutationPreview {
+  string repository_id = 1;
+  string repository_path = 2;
+  string operation = 3;
+  string branch = 4;
+  string expected_revision = 5;
+  string subject_digest = 6;
+  repeated string staged_files = 7;
+  int32 file_count = 8;
+  google.protobuf.Timestamp generated_at = 9;
+  string subject_context = 10;
+}
+
+message ConfirmMutationRequest {
+  string repository_id = 1;
+  string operation = 2;
+  string expected_revision = 3;
+  string subject_digest = 4;
+  reserved 5;
+  reserved "step_up_confirmed";
+  string subject_context = 6;
+}
+
+message MutationIntent {
+  string intent_id = 1;
+  string principal_id = 2;
+  string repository_id = 3;
+  string operation = 4;
+  string expected_revision = 5;
+  string subject_digest = 6;
+  google.protobuf.Timestamp expires_at = 7;
+  bool single_use = 8;
+  reserved 9;
+  reserved "step_up_required";
+}

@@ -9,9 +9,10 @@ import (
 
 // PushPullDeps contains dependencies for push/pull operations.
 type PushPullDeps struct {
-	Git       GitRunner
-	RepoDir   string
-	CredStore *CredentialsStore
+	RecoveryRoot string
+	Git          GitRunner
+	RepoDir      string
+	CredStore    *CredentialsStore
 }
 
 // lookupCredential retrieves the best available credential for a remote.
@@ -29,10 +30,7 @@ func resolvePushTarget(ctx context.Context, deps PushPullDeps, repoDir string, r
 	branchFromUpstream := ""
 
 	if branch == "" {
-		status, err := GetRepoStatus(ctx, RepoStatusDeps{
-			Git:     deps.Git,
-			RepoDir: repoDir,
-		})
+		status, err := readRepoStatusSnapshot(ctx, deps.Git, repoDir)
 		if err == nil {
 			remoteFromUpstream, branchFromUpstream = parseUpstream(status.Branch.Upstream)
 			if branchFromUpstream != "" {
@@ -68,12 +66,12 @@ func pushFailure(remote, branch, errMsg string) *PushResponse {
 
 // PushToRemote pushes commits to the remote repository.
 func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*PushResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
+	if err := requireHumanMutation(ctx, "push to remote"); err != nil {
+		return nil, err
 	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	remote, branch := resolvePushTarget(ctx, deps, repoDir, req.Remote, req.Branch)
@@ -88,7 +86,14 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 	preRemoteOID, preRemoteKnown := resolveRemoteOID(ctx, deps, repoDir, remote, branch)
 
 	cred := lookupCredential(ctx, deps, remote)
-	if err := deps.Git.Push(ctx, repoDir, remote, branch, req.SetUpstream, cred); err != nil {
+	safety := deps.Git.InspectPushSafety(ctx, repoDir, remote, branch, cred)
+	if !safety.Complete || safety.State == "blocked" {
+		return pushFailure(remote, branch, safety.Reason), nil
+	}
+	if safety.Head != headOID {
+		return pushFailure(remote, branch, "Source commit changed during push inspection; refresh and retry."), nil
+	}
+	if err := deps.Git.Push(ctx, repoDir, remote, branch, safety.Head, req.SetUpstream, cred); err != nil {
 		return pushFailure(remote, branch, err.Error()), nil
 	}
 
@@ -104,12 +109,12 @@ func PushToRemote(ctx context.Context, deps PushPullDeps, req PushRequest) (*Pus
 
 // PullFromRemote pulls commits from the remote repository.
 func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*PullResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
+	if err := requireHumanMutation(ctx, "pull from remote"); err != nil {
+		return nil, err
 	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	remote := req.Remote
@@ -120,7 +125,7 @@ func PullFromRemote(ctx context.Context, deps PushPullDeps, req PullRequest) (*P
 	branch := req.Branch
 
 	cred := lookupCredential(ctx, deps, remote)
-	err := deps.Git.Pull(ctx, repoDir, remote, branch, cred)
+	err = deps.Git.Pull(ctx, repoDir, remote, branch, cred)
 	if err != nil {
 		errStr := err.Error()
 		hasConflicts := strings.Contains(errStr, "CONFLICT") || strings.Contains(errStr, "conflict")
@@ -211,12 +216,12 @@ func handleSetUpstreamAction(ctx context.Context, deps PushPullDeps, repoDir str
 
 // RunUpstreamAction executes a safe, whitelisted upstream action.
 func RunUpstreamAction(ctx context.Context, deps PushPullDeps, req UpstreamActionRequest) (*UpstreamActionResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
+	if err := requireHumanMutation(ctx, "upstream action"); err != nil {
+		return nil, err
 	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, err := validateGitRepoDeps(deps.Git, deps.RepoDir)
+	if err != nil {
+		return nil, err
 	}
 
 	action := strings.TrimSpace(strings.ToLower(req.Action))
@@ -323,7 +328,7 @@ func verifyPushResult(
 	}
 
 	cred := lookupCredential(ctx, deps, remote)
-	if err := deps.Git.FetchRemote(ctx, repoDir, remote, cred); err != nil {
+	if err := deps.Git.FetchRemoteBranch(ctx, repoDir, remote, branch, cred); err != nil {
 		resp.VerificationError = err.Error()
 		resp.Verified = false
 		return

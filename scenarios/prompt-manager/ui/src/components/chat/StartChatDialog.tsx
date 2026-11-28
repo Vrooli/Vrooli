@@ -1,12 +1,20 @@
 /**
- * StartChatDialog - Two-phase modal for launching agent chat from skill view.
+ * StartChatDialog - Two-phase modal for launching skill-scoped agent chat.
+ *
+ * This is the skill-context entrypoint, not the persona conversation path.
+ * Persona conversations (agent or agent-as-team-member) use
+ * MemberConversationPanel + useMemberConversation, which own durable identity
+ * and reload recovery. This dialog reuses the same per-turn request identity so
+ * a retried continuation is at most once, but it does not claim the persona
+ * identity contract.
  *
  * Phase 1 (Configure): User writes a message, selects skills for context.
  * Phase 2 (Active): Shows ChatPanel with live conversation.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Search, Loader2 } from 'lucide-react'
+import { Search } from 'lucide-react'
+import { OverlayActionBar, type OverlayActionList } from '@vrooli/react-component-library/OverlayActionBar/1.0.1'
 import { cn } from '@/lib/utils'
 import { Dialog } from '@/components/shared/Dialog'
 import { ChatPanel } from './ChatPanel'
@@ -17,6 +25,7 @@ import {
   getRunDetails,
   getRunEvents,
   continueRun,
+  newConversationRequestId,
   type RunDetails,
   type RunEvent,
 } from '@/services/heartbeatService'
@@ -43,6 +52,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
   const [run, setRun] = useState<RunDetails | null>(null)
   const [events, setEvents] = useState<RunEvent[]>([])
   const maxSequenceRef = useRef(-1)
+  const pendingTurnRequestRef = useRef<string | null>(null)
   const eventPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const runPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -58,6 +68,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
       setRun(null)
       setEvents([])
       maxSequenceRef.current = -1
+      pendingTurnRequestRef.current = null
     }
   }, [isOpen, initialSkill.id])
 
@@ -161,7 +172,12 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
 
   const handleContinue = async (msg: string) => {
     if (!run) return
-    await continueRun(run.id, msg)
+    // Reuse one id per logical turn so a retried send is at most once; clear it
+    // only after the owner accepted the turn.
+    const requestId = pendingTurnRequestRef.current ?? newConversationRequestId()
+    pendingTurnRequestRef.current = requestId
+    await continueRun(run.id, msg, { requestId })
+    pendingTurnRequestRef.current = null
   }
 
   const handleClose = () => {
@@ -187,6 +203,10 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
     const lower = skillFilter.toLowerCase()
     return s.name.toLowerCase().includes(lower) || s.description.toLowerCase().includes(lower)
   })
+  const configureActions = [
+    { id: 'start-chat', label: isLaunching ? 'Starting...' : 'Start Chat', onSelect: () => void handleStartChat(), disabled: !message.trim() || isLaunching, primary: true },
+    { id: 'cancel', label: 'Cancel', onSelect: handleClose },
+  ] satisfies OverlayActionList
 
   return (
     <Dialog
@@ -270,28 +290,7 @@ export function StartChatDialog({ isOpen, onClose, initialSkill, allSkills }: St
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 text-sm rounded-lg border border-white/10 text-slate-300 hover:bg-white/5 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleStartChat()}
-              disabled={!message.trim() || isLaunching}
-              className={cn(
-                'px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors',
-                'flex items-center gap-2',
-                (!message.trim() || isLaunching) && 'opacity-50 cursor-not-allowed',
-              )}
-            >
-              {isLaunching && <Loader2 className="h-4 w-4 animate-spin" />}
-              Start Chat
-            </button>
-          </div>
+          <OverlayActionBar actions={configureActions} className="prompt-overlay-actions--secondary-left" />
         </div>
       ) : (
         <div className="flex-1 overflow-hidden -m-6">

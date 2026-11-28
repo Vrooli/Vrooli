@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package vrooli.money_ledger.v1.access;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/access;access_v1";
+
+// =============================================================================
+// ACCESS DOMAIN — who may write the owner's financial records
+// =============================================================================
+//
+// AccessService tells a client whether the caller it presents may write to the
+// journal, before the client offers a write, and signs the owner's browser in
+// and out. GetWriteAccess reports the server's decision from the same policy
+// that gates every write; it is advisory for presentation and never a
+// substitute for that gate.
+//
+// Browser sign-in is the platform's same-origin facade to
+// scenario-authenticator (api-core browsersession), the mechanism Notification
+// Hub uses for its installed app: credentials are forwarded to the provider for
+// the money-ledger audience, and the session lives in HttpOnly cookies the page
+// script never reads. Signing in proves who the person is; the host's
+// owner-binding policy still decides whether that person owns these records.
+// Through the secure tunnel, the Cloudflare Access sign-in is used instead and
+// no form is needed.
+//
+// Consumed by:
+//   - API: handlers/access
+//   - UI:  ui/src/features/access (write-access state, sign-in, sign-out)
+//   - CLI: `money-ledger ledger write-access [--local-owner]`
+// =============================================================================
+
+service AccessService {
+  // GetWriteAccess reports whether the presented caller may write. When the
+  // browser's session has expired but its refresh cookie is still valid, it
+  // renews the session first, so a page opened days later is still signed in.
+  rpc GetWriteAccess(GetWriteAccessRequest) returns (GetWriteAccessResponse);
+  // SignIn forwards credentials to scenario-authenticator and sets the browser
+  // session cookies. Refused credentials are CodeUnauthenticated; throttling is
+  // CodeResourceExhausted; an unreachable provider is CodeUnavailable. A valid
+  // password on an account with a second factor returns mfa_required with a
+  // challenge to resubmit with a code.
+  rpc SignIn(SignInRequest) returns (SignInResponse);
+  // SignOut clears the browser session cookies and asks the provider to revoke
+  // the session. It is idempotent.
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
+}
+
+message GetWriteAccessRequest {}
+
+// WriteRefusal names why a caller may not write, so a client can say what to
+// do about it instead of showing a bare error.
+enum WriteRefusal {
+  WRITE_REFUSAL_UNSPECIFIED = 0;
+  // No credential was presented.
+  WRITE_REFUSAL_SIGNED_OUT = 1;
+  // A credential was presented but did not verify (expired, forged, wrong
+  // audience) or its provider could not be reached.
+  WRITE_REFUSAL_UNVERIFIED = 2;
+  // A verified person who is not the owner of these records.
+  WRITE_REFUSAL_NOT_OWNER = 3;
+  // An agent run. Agents never write the journal directly.
+  WRITE_REFUSAL_AGENT = 4;
+  // A verified service that is not a declared journal writer.
+  WRITE_REFUSAL_UNDECLARED_SERVICE = 5;
+  // The request presents two different verified identities (for example the
+  // tunnel sign-in and a Money Ledger browser session for another account).
+  WRITE_REFUSAL_CONFLICT = 6;
+}
+
+message GetWriteAccessResponse {
+  // True when the caller may perform the operator's writes.
+  bool can_write = 1;
+  // The name the journal records for this caller's writes, such as
+  // "operator". Empty when the caller may not write.
+  string actor = 2;
+  WriteRefusal refusal = 3;
+  // A sentence for the person reading it: what was decided and what to do.
+  string reason = 4;
+  // The verified person's email (or subject when the provider gives no email),
+  // so a page can say who is signed in. Empty when no person was verified.
+  string signed_in_as = 5;
+  // True when the browser presents a Money Ledger sign-in session, so a page
+  // can offer to sign out of it. The tunnel's Access sign-in is not one.
+  bool browser_session = 6;
+}
+
+message SignInRequest {
+  string email = 1;
+  string password = 2;
+  // Second-factor response to a challenge a previous SignIn returned.
+  string totp_code = 3;
+  string recovery_code = 4;
+  string mfa_challenge = 5;
+}
+
+message SignInResponse {
+  // The password was accepted and a second factor is required: resubmit with
+  // mfa_challenge and a code. No session was set.
+  bool mfa_required = 1;
+  string mfa_challenge = 2;
+  // The new session's write access, decided as the next request would be.
+  // Signing in does not make a person the owner: this may still refuse.
+  GetWriteAccessResponse access = 3;
+}
+
+message SignOutRequest {}
+
+message SignOutResponse {
+  // False when the cookies were cleared but scenario-authenticator could not
+  // confirm it revoked the session.
+  bool revocation_confirmed = 1;
+}

@@ -7,9 +7,13 @@ export interface PromptTrace {
   prompt: string;
   prompt_revision?: string;
   used_fallback: boolean;
+  /**
+   * True when the trace was reconstructed for display (retry/fixup/followup
+   * caller context) rather than being the literal prompt the agent ran with —
+   * the agent runs the bound operation's mode prompt.
+   */
+  synthetic?: boolean;
   captured_at: string;
-  experiment_id?: string;
-  variant_id?: string;
 }
 
 export interface PromptCatalogEntry {
@@ -28,7 +32,6 @@ export interface PromptCatalogEntry {
   output_paths?: string[];
   variable_keys?: string[];
   reference_skill_ids?: string[];
-  experiment_id?: string;
 }
 
 export interface PromptSkillSummary {

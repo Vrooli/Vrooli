@@ -6,6 +6,8 @@
  */
 
 import type { Agent } from 'node:http'
+import type { OriginPolicy } from '../server/origin-policy.js'
+import type { ExperienceTelemetryOptions } from '../experience/types.js'
 
 /**
  * Browser-like window environment
@@ -241,6 +243,52 @@ export interface ProxyOptions {
   keepAlive?: boolean
   /** Custom HTTP agent to use for proxying */
   agent?: Agent
+  /**
+   * Set when the upstream is a different browser origin than the server the
+   * browser called: another scenario's UI or a loopback service. The relay
+   * has applied its own origin policy, so the browser's Origin, Referer and
+   * Fetch Metadata headers are dropped instead of being judged by the
+   * upstream as if the relay's origin were its own. Defaults to false (the
+   * scenario's own API, which may apply its own Fetch Metadata checks).
+   */
+  crossOriginRelay?: boolean
+}
+
+/** Options for proxying a WebSocket upgrade. */
+export interface WebSocketProxyOptions extends ProxyOptions {
+  /**
+   * Origin policy applied to the browser handshake before the upstream is
+   * contacted. Express middleware never sees upgrades, so the WebSocket proxy
+   * enforces the policy itself. Defaults to same-origin only.
+   */
+  originPolicy?: OriginPolicy
+}
+
+/**
+ * Browser origin policy for a scenario UI server (server/origin-policy.ts).
+ * With no options, only same-origin pages and non-browser callers are served.
+ */
+export interface OriginPolicyOptions {
+  /**
+   * Exact origins (`scheme://host[:port]`) that may call the server
+   * cross-origin with credentials, e.g. `chrome-extension://<id>`. Wildcards,
+   * `*`, `null`, paths and comma-joined strings are refused at startup.
+   */
+  allowedOrigins?: readonly string[]
+  /**
+   * Paths whose GET/HEAD responses any origin may load and read without
+   * credentials (`Access-Control-Allow-Origin: *`). Strings are path prefixes
+   * (`"/preview/runtime/"`); regular expressions are tested against the path.
+   * Use only for content that is the same for every caller, or for capability
+   * URLs whose unguessable path is the authorization, such as resources
+   * imported by opaque-origin sandbox frames.
+   */
+  publicPaths?: ReadonlyArray<string | RegExp>
+}
+
+export interface LifecycleGuardConfig {
+  /** Skip lifecycle guard checks. Intended for tests only. */
+  disableLifecycleGuard?: boolean
 }
 
 /**
@@ -287,6 +335,10 @@ export interface ScenarioProxyHostOptions {
   loopbackHosts?: string[]
   /** Cache TTL for metadata lookups */
   cacheTtlMs?: number
+  /** Maximum additional age for a cached target when metadata lookup fails transiently. Disabled by default. */
+  metadataStaleIfErrorMs?: number
+  /** Minimum interval between metadata retries while a stale target is being used. Defaults to 1000 ms. */
+  metadataFailureRetryIntervalMs?: number
   /** Upstream host that runs the scenarios (default: 127.0.0.1) */
   upstreamHost?: string
   /** Timeout for upstream requests */
@@ -367,8 +419,6 @@ export interface ConfigEndpointOptions {
   additionalConfig?: Record<string, unknown>
   /** Custom config builder that overrides default behavior */
   configBuilder?: () => ScenarioConfig
-  /** Enable CORS headers */
-  cors?: boolean
   /** Add timestamp to response */
   includeTimestamp?: boolean
   /** Add cache control headers */
@@ -383,6 +433,14 @@ export interface HealthOptions {
   serviceName: string
   /** Service version */
   version?: string
+  /** Authored build identity reported by the managed process */
+  buildIdentity?: string
+  /** Runtime release selected by the lifecycle supervisor */
+  runtimeReleaseId?: string
+  /** Operation that selected the runtime release */
+  runtimeReleaseOperationId?: string
+  /** Lifecycle start operation currently served by this process */
+  startOperationId?: string
   /** API port for connectivity check */
   apiPort?: number | string
   /** API host for connectivity check */
@@ -397,6 +455,20 @@ export interface HealthOptions {
  * Options for the built-in embedded scenario proxy.
  * When `true`, uses defaults. When an object, allows fine-tuning.
  */
+/** Options for the built-in app notifications (see server/app-notifications.ts) */
+export interface AppNotificationsOptions {
+  /** Force on or off; by default the scenario's notifications.json decides */
+  enabled?: boolean
+  /** Scenario slug the hub sees; defaults to the server's serviceName */
+  scenario?: string
+  /** Path to .vrooli/notifications.json; defaults to ../.vrooli/notifications.json from the UI directory */
+  manifestPath?: string
+  /** Notification Hub API base URL; resolved through the lifecycle when omitted */
+  hubBaseUrl?: string
+  /** Timeout for Hub calls in ms (default 15000, capped at 60000) */
+  timeoutMs?: number
+}
+
 export interface EmbeddedProxyOptions {
   /** Enable/disable the proxy (default: true when object provided) */
   enabled?: boolean
@@ -413,7 +485,7 @@ export interface EmbeddedProxyOptions {
 /**
  * Options for creating scenario server
  */
-export interface ServerTemplateOptions {
+export interface ServerTemplateOptions extends LifecycleGuardConfig {
   /** UI server port */
   uiPort: number | string
   /** API server port */
@@ -430,21 +502,49 @@ export interface ServerTemplateOptions {
   serviceName?: string
   /** Service version */
   version?: string
-  /** CORS allowed origins */
-  corsOrigins?: string | string[]
+  /**
+   * Exact browser origins that may call this server cross-origin, with
+   * credentials. Same-origin access, including through the tunnel and Web
+   * Console's `/_local` proxy, needs no entry. See OriginPolicyOptions.
+   */
+  allowedOrigins?: OriginPolicyOptions['allowedOrigins']
+  /** Paths any origin may read without credentials. See OriginPolicyOptions. */
+  publicPaths?: OriginPolicyOptions['publicPaths']
+  /**
+   * Removed. Wildcard CORS let any page the operator visited read and change
+   * scenario data. createScenarioServer refuses this option; use
+   * `allowedOrigins` for exact origins, or nothing for same-origin access.
+   */
+  corsOrigins?: never
   /** Enable/disable logging */
   verbose?: boolean
   /** Custom config builder */
   configBuilder?: (env: Record<string, string | undefined>) => ScenarioConfig
   /** Custom route setup */
   setupRoutes?: (app: any) => void
+  /** Register ingress middleware before API and Connect proxies. */
+  setupBeforeProxy?: (app: any) => void
   /** Inject proxy metadata into HTML */
   proxyMetadata?: ProxyInfo
   /** Inject scenario config into HTML */
   scenarioConfig?: ScenarioConfig
-  /** WebSocket URL prefix to proxy (e.g., '/ws'). If set, automatically handles WebSocket upgrades */
+  /**
+   * Match filter for WebSocket upgrades (e.g. '/ws'). Upgrades whose URL starts
+   * with this prefix are proxied to the API; all others are refused. Setting it
+   * installs the upgrade handler on whichever http.Server serves the app, so it
+   * works with both `startScenarioServer` and `createScenarioServer` + `listen`.
+   *
+   * This selects requests. It does not rewrite them — see `wsPathTransform`.
+   */
   wsPathPrefix?: string
-  /** URL transformation for WebSocket paths (e.g., '/ws' -> '/api/v1'). Defaults to replacing prefix with '/api/v1' */
+  /**
+   * Optional remap of the upstream WebSocket path. Receives the incoming URL
+   * (path plus query) and returns the path to request from the API.
+   *
+   * Defaults to preserving the path unchanged, which is what a prefix the API
+   * also serves requires. Supply this only to mount the socket at a different
+   * upstream path, e.g. `(url) => url.replace(/^\/ws/, '/api/v1')`.
+   */
   wsPathTransform?: (path: string) => string
   /** Additional headers to inject into proxied requests */
   proxyHeaders?: Record<string, string> | ((req: any) => Record<string, string>)
@@ -460,6 +560,37 @@ export interface ServerTemplateOptions {
   cacheIndexHtml?: boolean
   /** Enable built-in embedded scenario proxy at /embedded. Pass true for defaults or an options object */
   embeddedProxy?: EmbeddedProxyOptions | boolean
+  /**
+   * Opt-in same-origin proxy for arbitrary HTTP services on this host's
+   * loopback interface. Destinations are selected only by a validated port;
+   * UI/API/WebSocket listener ports are excluded automatically.
+   */
+  localPortProxy?: LocalPortProxyOptions | boolean
+  /**
+   * Built-in app notifications at /vrooli-notify (shared push worker plus a
+   * route to Notification Hub). On by default when the scenario's
+   * .vrooli/notifications.json sets "appDelivery": true; pass false to turn
+   * it off or an options object to override.
+   */
+  appNotifications?: AppNotificationsOptions | boolean
+  /**
+   * Local-only interaction telemetry (see docs/guides/experience-telemetry.md).
+   * Defaults to on for loopback requests outside tests/CI; pass false to turn
+   * it off, or an options object to tune retention and sampling.
+   */
+  experienceTelemetry?: ExperienceTelemetryOptions | boolean
+}
+
+/** Options for the opt-in arbitrary loopback-port proxy. */
+export interface LocalPortProxyOptions {
+  /** URL path prefix (default: /_local). */
+  pathPrefix?: string
+  /** Ports owned by the proxy host that must never be proxied. */
+  excludedPorts?: Array<number | string>
+  /** Upstream request timeout in milliseconds (default: 30000). */
+  timeoutMs?: number
+  /** Enable proxy diagnostics (default: false). */
+  verbose?: boolean
 }
 
 /**
@@ -474,6 +605,14 @@ export interface HealthCheckResult {
   timestamp: string
   /** Service version */
   version?: string
+  /** Authored build identity reported by the managed process */
+  build_identity?: string
+  /** Runtime release selected by the lifecycle supervisor */
+  runtime_release_id?: string
+  /** Operation that selected the runtime release */
+  runtime_release_operation_id?: string
+  /** Lifecycle start operation currently served by this process */
+  start_operation_id?: string
   /** Whether service is ready to accept traffic */
   readiness: boolean
   /** API connectivity status */

@@ -1,0 +1,130 @@
+{
+  "scenario": "tech-tree-designer",
+  "workItem": "execute/tech-tree-designer-ecosystem-design-v1",
+  "objective": "PROPOSED: Develop the selected ecosystem-design contract through one approved engagement; read START-HERE and tech-tree-designer-improve, implement successive in-scope repairs, and retain unknown outcomes until qualifying owner evidence exists.",
+  "artifactPaths": [
+    "scenarios/tech-tree-designer/DESIGN.md",
+    "scenarios/tech-tree-designer/PRD.md",
+    "scenarios/tech-tree-designer/docs/START-HERE.md",
+    "scenarios/tech-tree-designer/docs/concepts/ARCHITECTURE.md",
+    "scenarios/tech-tree-designer/docs/concepts/DATA.md",
+    "scenarios/tech-tree-designer/docs/concepts/DOMAINS.md",
+    "scenarios/tech-tree-designer/docs/concepts/FLOWS.md",
+    "scenarios/tech-tree-designer/docs/concepts/INTEGRATIONS.md",
+    "scenarios/tech-tree-designer/docs/internal/DECISIONS.md",
+    "scenarios/tech-tree-designer/docs/internal/PERFORMANCE.md",
+    "scenarios/tech-tree-designer/docs/internal/SECURITY.md",
+    "scenarios/tech-tree-designer/docs/internal/TESTING.md",
+    "scenarios/tech-tree-designer/docs/operations/RUNBOOK.md",
+    "scenarios/tech-tree-designer/experience/README.md",
+    "scenarios/tech-tree-designer/experience/index.json",
+    "scenarios/tech-tree-designer/experience/journeys/apply-and-recover.json",
+    "scenarios/tech-tree-designer/experience/journeys/bottom-up-design.json",
+    "scenarios/tech-tree-designer/experience/journeys/degraded-observation.json",
+    "scenarios/tech-tree-designer/experience/journeys/top-down-learning.json",
+    "scenarios/tech-tree-designer/experience/pages/graph.json",
+    "scenarios/tech-tree-designer/experience/pages/ontology.json",
+    "scenarios/tech-tree-designer/experience/pages/overview.json",
+    "scenarios/tech-tree-designer/experience/pages/planning.json",
+    "scenarios/tech-tree-designer/experience/pages/settings.json",
+    "scenarios/tech-tree-designer/requirements/01-foundation/module.json",
+    "scenarios/tech-tree-designer/requirements/01-must-ship/module.json",
+    "scenarios/tech-tree-designer/requirements/02-post-launch/module.json",
+    "scenarios/tech-tree-designer/requirements/03-future/module.json",
+    "scenarios/tech-tree-designer/requirements/README.md",
+    "scenarios/tech-tree-designer/requirements/index.json"
+  ],
+  "outcomes": [
+    {
+      "id": "OT-P0-001",
+      "criterion": "When current interfaces are requested, TTD MUST expose SDA-derived scenario nodes and proto/Go import relationships with source provenance.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-002",
+      "criterion": "When planned proto contracts are edited, TTD MUST validate them against applicable schemas and refuse materialization when validation fails.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-003",
+      "criterion": "When ecosystem information is displayed, TTD MUST distinguish observed facts, intended capabilities, and proposal-local changes with provenance and uncertainty.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-004",
+      "criterion": "When a proposal is created, TTD MUST retain scoped changes across existing or new scenarios, resources, shared packages, and project artifacts without publishing them.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-005",
+      "criterion": "When a proposal is reviewed, TTD MUST expose the exact artifact and authored-graph revision, material changes, validation limitations, and plan references.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-006",
+      "criterion": "When authorized changes are applied, TTD MUST recheck relevant bases and owner grants, preserve unrelated edits, and retain idempotent per-entry recovery receipts.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-007",
+      "criterion": "If a draft requests ungranted effects or unsafe content paths, TTD MUST refuse the operation and identify the unmet boundary without publishing draft skills or programs.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-008",
+      "criterion": "When browsing or drafting at scale, TTD MUST bound query, response, compute and storage work and report truncation, freshness and unsupported limits explicitly.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P0-009",
+      "criterion": "When an authorized agent develops TTD, the scenario MUST expose its target and measurement gaps and require applicable evidence before claiming required outcomes satisfied.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P1-001",
+      "criterion": "When long-term capabilities are curated, TTD SHOULD expose hierarchy, fulfillment mappings, coverage and focus views beside the observed ecosystem.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P1-002",
+      "criterion": "When users inspect or edit designs, TTD SHOULD provide accessible graph and artifact views with loading, empty, partial, stale, error and recovery states.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    },
+    {
+      "id": "OT-P1-006",
+      "criterion": "When a design operation is available, TTD SHOULD expose equivalent typed API and CLI behavior and discoverable operator navigation without UI-only business rules.",
+      "evidenceSource": "PROPOSED; no acceptance resolver registered. Owner/protocol: docs/internal/TESTING.md Outcome evidence inventory. Require exact target/product revision, approved cohort and complete valid owner receipts. Setup reader output is not acceptance."
+    }
+  ],
+  "acceptanceAllow": [
+    "scenarios/tech-tree-designer/**"
+  ],
+  "acceptanceDeny": [
+    "scenarios/tech-tree-designer/PRD.md",
+    "scenarios/tech-tree-designer/requirements/**",
+    "scenarios/tech-tree-designer/experience/**",
+    "scenarios/tech-tree-designer/DESIGN.md",
+    "scenarios/tech-tree-designer/docs/internal/DECISIONS.md",
+    "scenarios/tech-tree-designer/docs/internal/PERFORMANCE.md",
+    "scenarios/tech-tree-designer/docs/internal/development-proposal.json",
+    "scenarios/tech-tree-designer/.env*",
+    "scenarios/tech-tree-designer/data/**"
+  ],
+  "allowedEffects": [
+    "PROPOSED ONLY: local source, tests and implementation documentation within allowed paths; preserve unrelated edits. Protected target edits require amendment.",
+    "PROPOSED ONLY: governed lifecycle, isolated test data and scoped Test Genie validation. No private host remediation.",
+    "DENIED: commit, push, deploy, external paid inference, credential export, production writes, destructive retention and delegated children.",
+    "Cross-owner repairs require an explicit amended allow-list; this initial preview does not grant them.",
+    "Proposed USD 25 aggregate cap and one active agent require owner-enforced accounting qualification; this legacy preview contract cannot encode a monetary limit. Do not launch from field completeness."
+  ],
+  "maxTokens": "1000000",
+  "maxWallSeconds": "28800",
+  "budgetPolicy": "metered-cancellation",
+  "guidance": {
+    "effort": "thorough",
+    "startingState": "prototype",
+    "validation": "targeted",
+    "repairRelatedCode": true,
+    "additionalInstructions": "Develop all nine P0 outcomes plus P1-001, P1-002 and P1-006. Deferred P1-003/004/005 and all P2 are excluded, not satisfied; retain P0 safety prerequisites. PERFORMANCE profile and DECISIONS retention/budget numbers remain proposals until reviewed. This request neither creates nor approves nor launches an item. Actual owner resolver registration, immutable retention, accounting and Swarm launch-path qualification are prerequisites. No substituted private workspace, scanner, Git engine or scheduler."
+  }
+}

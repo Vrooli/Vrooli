@@ -3,9 +3,10 @@ package strategies
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // mockExecutor implements checks.CommandExecutor for testing.
@@ -17,24 +18,35 @@ type mockExecutor struct {
 	runErr               error
 	lastCommand          string
 	lastArgs             []string
+	callLog              []string
 }
 
 func (m *mockExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.outputResult, m.outputErr
 }
 
 func (m *mockExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.combinedOutputResult, m.combinedOutputErr
 }
 
 func (m *mockExecutor) Run(ctx context.Context, name string, args ...string) error {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.runErr
+}
+
+func joinArgs(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	return strings.Join(args, " ")
 }
 
 func TestNewSystemdStrategy(t *testing.T) {
@@ -60,7 +72,7 @@ func TestNewSystemdStrategy(t *testing.T) {
 func TestSystemdStrategy_Restart(t *testing.T) {
 	t.Run("successful restart", func(t *testing.T) {
 		exec := &mockExecutor{
-			combinedOutputResult: []byte(""),
+			combinedOutputResult: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		}
 		strategy := NewSystemdStrategy("docker", exec)
 
@@ -69,11 +81,11 @@ func TestSystemdStrategy_Restart(t *testing.T) {
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
-		if exec.lastCommand != "sudo" {
-			t.Errorf("expected command 'sudo', got %s", exec.lastCommand)
+		if exec.lastCommand != "vrooli" {
+			t.Errorf("expected control-plane command 'vrooli', got %s", exec.lastCommand)
 		}
-		if len(exec.lastArgs) < 3 || exec.lastArgs[0] != "systemctl" || exec.lastArgs[1] != "restart" {
-			t.Errorf("expected 'systemctl restart', got %v", exec.lastArgs)
+		if len(exec.lastArgs) != 5 || exec.lastArgs[0] != "host" || exec.lastArgs[1] != "service" || exec.lastArgs[2] != "restart" {
+			t.Errorf("expected brokered 'systemctl restart', got %v", exec.lastArgs)
 		}
 		if result.ActionID != "restart" {
 			t.Errorf("expected action ID 'restart', got %s", result.ActionID)
@@ -103,7 +115,7 @@ func TestSystemdStrategy_Restart(t *testing.T) {
 func TestSystemdStrategy_Start(t *testing.T) {
 	t.Run("successful start", func(t *testing.T) {
 		exec := &mockExecutor{
-			combinedOutputResult: []byte(""),
+			combinedOutputResult: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		}
 		strategy := NewSystemdStrategy("docker", exec)
 
@@ -112,7 +124,7 @@ func TestSystemdStrategy_Start(t *testing.T) {
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
-		if len(exec.lastArgs) < 3 || exec.lastArgs[1] != "start" {
+		if len(exec.lastArgs) != 5 || exec.lastArgs[0] != "host" || exec.lastArgs[1] != "service" || exec.lastArgs[2] != "start" {
 			t.Errorf("expected 'systemctl start', got %v", exec.lastArgs)
 		}
 		if result.ActionID != "start" {
@@ -134,22 +146,12 @@ func TestSystemdStrategy_Start(t *testing.T) {
 	})
 }
 
-func TestSystemdStrategy_Stop(t *testing.T) {
-	t.Run("successful stop", func(t *testing.T) {
-		exec := &mockExecutor{
-			combinedOutputResult: []byte(""),
-		}
-		strategy := NewSystemdStrategy("docker", exec)
-
-		result := strategy.Stop(context.Background(), "infra-docker")
-
-		if !result.Success {
-			t.Errorf("expected success, got error: %s", result.Error)
-		}
-		if len(exec.lastArgs) < 3 || exec.lastArgs[1] != "stop" {
-			t.Errorf("expected 'systemctl stop', got %v", exec.lastArgs)
-		}
-	})
+func TestSystemdStrategy_StopRequiresAnExplicitOwnerCapability(t *testing.T) {
+	exec := &mockExecutor{}
+	result := NewSystemdStrategy("docker", exec).Stop(context.Background(), "infra-docker")
+	if result.Success || exec.lastCommand != "" {
+		t.Fatalf("ungranted stop executed: %+v %s", result, exec.lastCommand)
+	}
 }
 
 func TestSystemdStrategy_Status(t *testing.T) {
@@ -273,13 +275,13 @@ func TestSystemdStrategy_ServiceName(t *testing.T) {
 	}{
 		{"docker", (*SystemdStrategy).Restart, "docker"},
 		{"systemd-resolved", (*SystemdStrategy).Start, "systemd-resolved"},
-		{"cloudflared", (*SystemdStrategy).Stop, "cloudflared"},
+		{"cloudflared", (*SystemdStrategy).Restart, "cloudflared"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.serviceName, func(t *testing.T) {
 			exec := &mockExecutor{
-				combinedOutputResult: []byte(""),
+				combinedOutputResult: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 			}
 			strategy := NewSystemdStrategy(tc.serviceName, exec)
 

@@ -1,0 +1,299 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "personal_local",
+    "supported_modes": [
+      "personal_local",
+      "local_multi_user",
+      "remote_vrooli"
+    ],
+    "human_sign_in": "optional",
+    "provider": "scenario-authenticator",
+    "resource": "source-ledger",
+    "audience": "scenario-authenticator:source-ledger",
+    "offline": true,
+    "protected_routes": [
+      "/vrooli.source_ledger.v1.vector.VectorGenerationService/"
+    ],
+    "capabilities": [
+      {
+        "id": "source-ledger:read",
+        "effect": "read",
+        "agent_eligible": true
+      },
+      {
+        "id": "source-ledger:write",
+        "effect": "write",
+        "agent_eligible": false
+      }
+    ],
+    "requires_authenticator": false
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "source-ledger",
+    "displayName": "Source Ledger",
+    "description": "A scoped append-only source ledger with bounded recall, rebuildable compaction, and federated corpus search",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "source-ledger.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "sensitive": true,
+        "sqlite_maintenance": {
+          "mode": "incremental",
+          "owner": "scenarios/source-ledger/api/internal/ledgerdb/sqlite.go",
+          "rationale": "Fresh files enable incremental auto-vacuum before creating schema. The owner reclaims free pages on incremental files. Legacy files keep reusing pages pending a stopped owner conversion after cursor migration and verification."
+        },
+        "budget": {
+          "max_bytes": "4GiB",
+          "rationale": "Measured 551 MiB on 2026-11-26. The review ceiling covers the append-only ledger and its derived indexes as the corpus grows."
+        },
+        "rationale": "Authoritative append-only journal, its policies and provenance, and derived ledger indexes."
+      },
+      "data-wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "source-ledger.db-wal",
+        "format": "sqlite",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {"max_bytes": "128MiB", "rationale": "Measured 33 KiB on 2026-11-26. The review ceiling catches a WAL pinned by readers."},
+        "rationale": "The owner checkpoints committed ledger writes from the WAL. Preserve it with the database."
+      },
+      "data-shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "source-ledger.db-shm",
+        "format": "sqlite",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {"max_bytes": "1MiB", "rationale": "Measured 32 KiB on 2026-11-26. The review ceiling catches abnormal shared-memory growth."},
+        "rationale": "SQLite's live ledger coordination file. Preserve it with the database."
+      },
+      "file_index": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "cache",
+        "subpath": "files-index.db",
+        "format": "sqlite",
+        "regenerable": true,
+        "sensitive": true,
+        "agent_removal": "deny",
+        "reclaim": {"pruner": "custom"},
+        "sqlite_maintenance": {
+          "mode": "incremental",
+          "owner": "scenarios/source-ledger/api/internal/ledgerdb/sqlite.go",
+          "rationale": "File changes and removals free index pages for the owner's periodic maintenance. A lifecycle-fenced owner command can convert existing caches to incremental auto-vacuum."
+        },
+        "rationale": "FTS chunks and chunk vectors derived from the research home. The owner can rebuild the index from the corpus.",
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Measured 776 MiB on 2026-11-26. The review ceiling flags an index that stopped tracking the research home's ignore policy."
+        }
+      },
+      "file-index-wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "cache",
+        "subpath": "files-index.db-wal",
+        "format": "sqlite",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {"max_bytes": "128MiB", "rationale": "Measured 6.7 MiB on 2026-11-26. The review ceiling catches a WAL pinned by readers."},
+        "rationale": "Live cache WAL. The owner checkpoints it through SQLite."
+      },
+      "file-index-shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "cache",
+        "subpath": "files-index.db-shm",
+        "format": "sqlite",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {"max_bytes": "1MiB", "rationale": "Measured 32 KiB on 2026-11-26. The review ceiling catches abnormal shared-memory growth."},
+        "rationale": "SQLite's live cache coordination file. Preserve it with the database."
+      },
+      "deployment-report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "regenerable": false,
+        "budget": {"max_bytes": "5MiB", "rationale": "Measured 775 KiB on 2026-11-26. Lifecycle publishes one current deployment record."},
+        "rationale": "Lifecycle deployment evidence published beneath the scenario data root."
+      },
+      "retention_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Retention enforcement receipts the storage owner writes for this scenario: small operational state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Receipts are bounded by size and age."
+        }
+      }
+    },
+    "rationale": "Source Ledger owns the durable journal and derived engine state; external resource databases are not claimed by this scenario."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "generated_at": "2026-08-07T21:41:16Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "7c6abefa15a33669b5aff750d0a01da11c8b4beac70d1bd069c45e012f4ab898"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "source-ledger",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "source-ledger"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "ai-gateway": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Provides governed classification, embedding, and summary inference for source-ledger enrichment and compaction.",
+        "degraded_behavior": "The append-only ledger remains durable, while enrichment and compaction pause until ai-gateway is available.",
+        "supervision_precedence": "required"
+      },
+      "prompt-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Verifies the current investigator heartbeat owner when publishing a defect account.",
+        "degraded_behavior": "Capture and recall continue while account publications wait in the investigator's durable queue."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional federated search registration for source-ledger corpus discovery.",
+        "degraded_behavior": "Source-ledger recall remains available; only external search registration is unavailable."
+      }
+    }
+  },
+  "credentials": {},
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

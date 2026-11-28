@@ -2,8 +2,7 @@ import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type {
-  BacklogKind,
-  PromptCatalogEntry,
+	PromptCatalogEntry,
   PromptSkillSummary,
   PromptSkillVersions,
   PromptTrace,
@@ -14,46 +13,6 @@ export interface PromptPreviewResponse {
   with_scope: boolean;
   variables: Record<string, string>;
   prompt: string;
-}
-
-export interface PromptSimulateRequest {
-  kind: BacklogKind;
-  mode?: string;
-  item_name?: string;
-  item_title?: string;
-  item_description?: string;
-  item_status?: string;
-  item_priority?: string;
-  item_tags?: string;
-  item_folder?: string;
-  variables?: Record<string, string>;
-}
-
-export interface PromptSimulateResponse {
-  entry_id: string;
-  group: "backlog";
-  usage_type: "direct_runtime";
-  kind: string;
-  mode?: string;
-  skill_id: string;
-  variables: Record<string, string>;
-  prompt: string;
-}
-
-export interface ExperimentResultsData {
-  experimentId: string;
-  skillId?: string;
-  status?: string;
-  variants: {
-    variantId: string;
-    totalRuns: number;
-    readyCount: number;
-    needsWorkCount: number;
-    fixupRate: number;
-    avgDurationSecs?: number;
-  }[];
-  totalOutcomes: number;
-  analyzedAt: string;
 }
 
 export interface IPromptService {
@@ -73,9 +32,7 @@ export interface IPromptService {
   getSkillVersions(skillId: string): Promise<PromptSkillVersions>;
   revertSkillVersion(skillId: string, version: number): Promise<PromptSkillSummary>;
   preview(skillId: string, variables: Record<string, string>, withScope?: boolean): Promise<PromptPreviewResponse>;
-  simulate(payload: PromptSimulateRequest): Promise<PromptSimulateResponse>;
   getExecutionPromptTrace(executionId: string): Promise<PromptTrace>;
-  getExperimentResults(experimentId: string): Promise<ExperimentResultsData>;
 }
 
 export function createPromptService(apiClient: IApiClient = defaultApiClient): IPromptService {
@@ -142,10 +99,6 @@ export function createPromptService(apiClient: IApiClient = defaultApiClient): I
       });
     },
 
-    async simulate(payload: PromptSimulateRequest): Promise<PromptSimulateResponse> {
-      return apiClient.post<PromptSimulateResponse>(API_ENDPOINTS.promptsSimulate, payload);
-    },
-
     async getExecutionPromptTrace(executionId: string): Promise<PromptTrace> {
       const data = await apiClient.get<{ trace?: PromptTrace }>(API_ENDPOINTS.executionPromptTrace(executionId));
       if (!data.trace) {
@@ -154,9 +107,6 @@ export function createPromptService(apiClient: IApiClient = defaultApiClient): I
       return data.trace;
     },
 
-    async getExperimentResults(experimentId: string): Promise<ExperimentResultsData> {
-      return apiClient.get<ExperimentResultsData>(API_ENDPOINTS.promptExperimentResults(experimentId));
-    },
 
   };
 }

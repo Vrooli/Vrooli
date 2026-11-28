@@ -1,0 +1,207 @@
+{
+  "metadata": {
+    "name": "reach-device-remove",
+    "description": "Remove one device after confirming, and see the Hub list only the other.",
+    "requirement": "NOTIFICA-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "reach-device-remove"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Remove one device after confirming, and see the Hub list only the other.",
+      "requirement": "NOTIFICA-P0-003",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Settings so the page can reach the Hub API"
+          }
+        }
+      },
+      {
+        "id": "seed-reach",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/seed-owner.json",
+            "args": {
+              "profile": {
+                "string_value": "reach"
+              }
+            }
+          },
+          "metadata": {
+            "label": "Start from two devices with channels"
+          }
+        }
+      },
+      {
+        "id": "open-tablet",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach/devices/settings-test-tablet?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Spare tablet"
+          }
+        }
+      },
+      {
+        "id": "wait-remove",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.removeDevice",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for Remove device"
+          }
+        }
+      },
+      {
+        "id": "remove",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/reach.removeDevice"
+          },
+          "metadata": {
+            "label": "Remove the device"
+          }
+        }
+      },
+      {
+        "id": "wait-confirm",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.removeDeviceDialog",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Removal asks first"
+          }
+        }
+      },
+      {
+        "id": "confirm",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/reach.removeDeviceConfirm"
+          },
+          "metadata": {
+            "label": "Confirm the removal"
+          }
+        }
+      },
+      {
+        "id": "wait-notice",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/reach.deviceRemoved",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Back on the list with a removal notice"
+          }
+        }
+      },
+      {
+        "id": "assert-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const call=async(method)=>{const r=await fetch('/vrooli.notification_hub.v1.recipients.RecipientsService/'+method,{method:'POST',headers:{'content-type':'application/json','X-Vrooli-Test-Mode':'1','X-Vrooli-Browser-Session':'1'},credentials:'same-origin',body:'{}'});if(!r.ok)throw new Error(method+' failed '+r.status);return r.json();};const {devices=[]}=await call('ListDevices');const ids=devices.map(d=>d.id);if(ids.includes('settings-test-tablet')||!ids.includes('settings-test-laptop'))throw new Error('unexpected devices '+ids.join());return ids;})()"
+          },
+          "metadata": {
+            "label": "The Hub lists only Work laptop"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-00",
+        "source": "open-settings",
+        "target": "seed-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-01",
+        "source": "seed-reach",
+        "target": "open-tablet",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-02",
+        "source": "open-tablet",
+        "target": "wait-remove",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-03",
+        "source": "wait-remove",
+        "target": "remove",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-04",
+        "source": "remove",
+        "target": "wait-confirm",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-05",
+        "source": "wait-confirm",
+        "target": "confirm",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-06",
+        "source": "confirm",
+        "target": "wait-notice",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-07",
+        "source": "wait-notice",
+        "target": "assert-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

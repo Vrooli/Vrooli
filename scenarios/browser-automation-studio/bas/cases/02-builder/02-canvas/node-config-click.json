@@ -15,12 +15,6 @@
     {
       "id": "e7",
       "source": "drag-click-node",
-      "target": "wait-node-render",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "wait-node-render",
       "target": "verify-click-node",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -87,11 +81,15 @@
   ],
   "metadata": {
     "description": "Validates Click node property configuration including selector editing",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Node Config Click",
+    "version": "1"
   },
   "nodes": [
     {
@@ -121,16 +119,14 @@
           "timeout_ms": 15000
         }
       },
-      "execution_settings": {
-        "wait_after_ms": 600
-      },
       "id": "wait-builder"
     },
     {
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.click",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
@@ -142,22 +138,10 @@
     },
     {
       "action": {
-        "metadata": {
-          "label": "Wait for node to render"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 1500
-        }
-      },
-      "id": "wait-node-render"
-    },
-    {
-      "action": {
         "assert": {
           "failure_message": "Click node should appear",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node",
+          "selector": ".react-flow__node.workflow-node--click",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -170,7 +154,7 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type"
+          "selector": ".react-flow__node.workflow-node--click"
         },
         "metadata": {
           "label": "Click node to select"
@@ -184,7 +168,7 @@
         "assert": {
           "failure_message": "Node should be selected",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected",
+          "selector": ".react-flow__node.workflow-node--click.selected",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -199,7 +183,7 @@
         "assert": {
           "failure_message": "Selector input should be visible",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+          "selector": ".react-flow__node.workflow-node--click.selected input[placeholder*=\"Selector\" i]",
           "timeout_ms": 5000
         },
         "metadata": {
@@ -212,15 +196,12 @@
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--click.selected input[placeholder*=\"Selector\" i] /*dup-1*/"
         },
         "metadata": {
           "label": "Click selector input"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "click-selector-input"
     },
@@ -239,24 +220,18 @@
         },
         "type": "ACTION_TYPE_KEYBOARD"
       },
-      "execution_settings": {
-        "wait_after_ms": 200
-      },
       "id": "clear-selector"
     },
     {
       "action": {
         "input": {
-          "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-2*/",
+          "selector": ".react-flow__node.workflow-node--click.selected input[placeholder*=\"Selector\" i] /*dup-2*/",
           "value": "#test-button"
         },
         "metadata": {
           "label": "Type test selector"
         },
         "type": "ACTION_TYPE_INPUT"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "type-selector"
     },
@@ -270,30 +245,24 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 1000
-      },
       "id": "trigger-blur"
     },
     {
       "action": {
         "click": {
-          "selector": ".react-flow__node:first-of-type /*dup-1*/"
+          "selector": ".react-flow__node.workflow-node--click /*dup-1*/"
         },
         "metadata": {
           "label": "Re-select node to verify persistence"
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 800
-      },
       "id": "re-select-node"
     },
     {
       "action": {
         "evaluate": {
-          "expression": "document.querySelector('.react-flow__node.selected input[placeholder*=\"Selector\" i]')?.value === '#test-button'",
+          "expression": "document.querySelector('.react-flow__node.workflow-node--click.selected input[placeholder*=\"Selector\" i]')?.value === '#test-button'",
           "store_result": "selectorPersisted"
         },
         "metadata": {
@@ -308,7 +277,7 @@
         "assert": {
           "failure_message": "Selector should persist after blur",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": ".react-flow__node.selected input[value=\"#test-button\"]",
+          "selector": ".react-flow__node.workflow-node--click.selected input[value=\"#test-button\"]",
           "timeout_ms": 3000
         },
         "metadata": {

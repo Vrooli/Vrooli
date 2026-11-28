@@ -1,21 +1,34 @@
 {
-  "kind": "skill",
-  "schemaVersion": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "description": "Merged into architecture-lenses (\u00a71 Boundary of responsibility); read that.",
+  "entry": "SKILL.md",
+  "icon": "box",
   "id": "boundary-of-responsibility-enforcement",
-  "name": "Boundary of Responsibility Enforcement",
-  "description": "Clarify and enforce module boundaries and responsibilities",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
   "modes": [
     "steer",
     "architecture"
   ],
-  "tags": [
-    "skill"
-  ],
-  "icon": "box",
+  "name": "Boundary of Responsibility Enforcement",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 49,
+  "schemaVersion": 1,
   "status": "active",
-  "entry": "SKILL.md",
-  "defaultScope": "architecture-scope",
-  "revision": 48,
-  "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-04T13:41:36Z"
+  "tags": [
+    "skill",
+    "audit-technique"
+  ],
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

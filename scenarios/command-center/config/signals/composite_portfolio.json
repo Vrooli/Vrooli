@@ -1,0 +1,22 @@
+{
+  "id": "composite_portfolio",
+  "label": "Apps running",
+  "description": "Apps the control plane reports as running, the Hive room's headline.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "scalar",
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:vrooli-core",
+    "read": "/scenarios",
+    "select": "composite_portfolio",
+    "ttlSeconds": 60,
+    "integrationId": "vrooli-core",
+    "featureId": "composite_portfolio",
+    "contractVersion": "legacy.v1",
+    "selector": "composite_portfolio",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "NOW"
+}

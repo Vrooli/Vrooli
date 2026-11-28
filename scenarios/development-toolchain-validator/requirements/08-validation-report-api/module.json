@@ -1,0 +1,50 @@
+{
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "title": "Validation Report API",
+  "description": "Connect-RPC service exposing read endpoints: list goldens, list skills, list manifests, latest verdict per tuple, full run history per tuple, current stale flags.",
+  "requirements": [
+    {
+      "id": "REQ-P0-015",
+      "prd_ref": "OT-P0-008",
+      "title": "Proto service definition",
+      "description": "proto/v1/report/report.proto defining the ReportService with List* and Get* RPCs for goldens, skills, manifests, verdicts (latest + history), and stale flags. Message types reuse domain entities (Golden, Skill, Manifest, ValidationRecord) defined in their own protos.",
+      "category": "api",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/report/service_test.go::TestGetGoldenSummary_LatestPerTupleWins",
+          "status": "passing",
+          "notes": "Report service composes latest verdict per (skill|tool, golden) tuple."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-016",
+      "prd_ref": "OT-P0-008",
+      "title": "Connect handler implementations",
+      "description": "api/handlers/report/connect_handler.go implementing each RPC by composing the domain repositories from OT-P0-001 through OT-P0-007. Read-only at this OT; mutations live on their respective domain services.",
+      "category": "api",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/report/connect_handler_test.go::TestGoldenSummary_Passthrough",
+          "status": "passing",
+          "notes": "GetGoldenSummary Connect handler passes through to the service."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/report/connect_handler_test.go::TestCoverage_Passthrough",
+          "status": "passing",
+          "notes": "GetCoverage Connect handler passes through to the service."
+        }
+      ]
+    }
+  ]
+}

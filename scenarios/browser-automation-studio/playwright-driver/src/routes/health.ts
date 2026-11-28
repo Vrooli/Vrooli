@@ -85,7 +85,7 @@ export function handleHealth(
   let activeRecordings = 0;
   for (const id of sessionIds) {
     try {
-      const session = sessionManager.getSession(id);
+      const session = sessionManager.peekSession(id);
       if (session.pipelineManager?.isRecording()) {
         activeRecordings++;
       }
@@ -98,7 +98,9 @@ export function handleHealth(
   const browserCheck: HealthCheck = browserStatus.healthy
     ? {
         status: 'pass',
-        message: `Chromium ${browserStatus.version || 'ready'}`,
+        message: browserStatus.runtime_identity_status === 'reported'
+          ? `Chromium ${browserStatus.version || 'ready'}`
+          : 'Chromium ready; live runtime identity unavailable',
       }
     : {
         status: 'fail',
@@ -135,7 +137,11 @@ export function handleHealth(
     timestamp: new Date().toISOString(),
     sessions: sessionCount,
     active_recordings: activeRecordings,
-    version: VERSION,
+    driver_version: VERSION,
+    runtime_release_id: process.env.VROOLI_RUNTIME_RELEASE_ID,
+    runtime_release_operation_id: process.env.VROOLI_RUNTIME_RELEASE_OPERATION_ID,
+    start_operation_id: process.env.VROOLI_START_OPERATION_ID,
+    build_identity: process.env.VROOLI_BUILD_IDENTITY,
     browser: browserStatus,
     uptime_ms: Date.now() - serverStartTime,
     checks,

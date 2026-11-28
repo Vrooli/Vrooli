@@ -22,6 +22,8 @@ if (typeof window !== 'undefined' && window.parent !== window && !window[BRIDGE_
 // Configuration
 const DEFAULT_API_PORT = 17175;
 const LOOPBACK_HOST = '127.0.0.1';
+const LOOPBACK_PROTOCOL = 'http';
+const TILE_LAYER_TEMPLATE = '//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const apiResolution = resolveApiBase();
 const API_BASE = apiResolution.base;
 const API_BASE_SOURCE = apiResolution.source;
@@ -71,7 +73,7 @@ function resolveApiBase() {
     if (origin && hostname && !isLocalHostname(hostname)) {
         resolution.base = stripTrailingSlash(origin);
         resolution.source = 'same-origin';
-        resolution.notes = 'Using current origin as API base';
+        resolution.notes = 'Using current origin for the API base';
         return resolution;
     }
 
@@ -206,7 +208,7 @@ function normalizeProxyCandidate(candidate, win) {
     }
 
     if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)(:\\d+)?(\/.*)?$/i.test(trimmed)) {
-        return stripTrailingSlash(`http://${trimmed}`);
+        return stripTrailingSlash(`${LOOPBACK_PROTOCOL}://${trimmed}`);
     }
 
     return undefined;
@@ -249,7 +251,6 @@ function isLocalHostname(hostname) {
     const normalized = hostname.toLowerCase();
     return normalized === 'localhost' ||
         normalized === '127.0.0.1' ||
-        normalized === '0.0.0.0' ||
         normalized === '::1' ||
         normalized === '[::1]';
 }
@@ -304,7 +305,7 @@ function initializeMap() {
     map = L.map('map').setView([42.3601, -71.0589], 6);
     
     // Add autumn-themed tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(TILE_LAYER_TEMPLATE, {
         attribution: '© OpenStreetMap contributors',
         opacity: 0.8
     }).addTo(map);
@@ -1089,8 +1090,7 @@ function displayGalleryPhotos(photos) {
             return `
                 <div class="photo-card">
                     <div class="photo-image-container">
-                        <img src="${photo.photo_url}" alt="${regionName} foliage"
-                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22300%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3EImage not available%3C/text%3E%3C/svg%3E'">
+                        <img src="${photo.photo_url}" alt="${regionName} foliage">
                     </div>
                     <div class="photo-info">
                         <h4>${regionName}</h4>
@@ -1104,6 +1104,18 @@ function displayGalleryPhotos(photos) {
             `;
         })
         .join('');
+    attachPhotoFallbacks(grid);
+}
+
+function attachPhotoFallbacks(grid) {
+    grid.querySelectorAll('.photo-image-container img').forEach((img) => {
+        img.addEventListener('error', () => {
+            const fallback = document.createElement('div');
+            fallback.className = 'photo-image-fallback';
+            fallback.textContent = 'Image not available';
+            img.replaceWith(fallback);
+        }, { once: true });
+    });
 }
 
 // Filter gallery based on selected filters
@@ -1180,7 +1192,7 @@ function formatDate(dateStr) {
 
 // Export Functions
 
-// Export predictions as CSV
+// Export predictions to CSV
 async function exportPredictionsCSV() {
     try {
         const predictions = [];
@@ -1229,7 +1241,7 @@ async function exportPredictionsCSV() {
     }
 }
 
-// Export predictions as JSON
+// Export predictions to JSON
 async function exportPredictionsJSON() {
     try {
         const predictions = [];
@@ -1267,7 +1279,7 @@ async function exportPredictionsJSON() {
     }
 }
 
-// Export trip plans as CSV
+// Export trip plans to CSV
 async function exportTripsCSV() {
     try {
         const tripsResponse = await fetch(buildApiUrl('/api/trips'));
@@ -1306,7 +1318,7 @@ async function exportTripsCSV() {
     }
 }
 
-// Export trip plans as JSON
+// Export trip plans to JSON
 async function exportTripsJSON() {
     try {
         const tripsResponse = await fetch(buildApiUrl('/api/trips'));

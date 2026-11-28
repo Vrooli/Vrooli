@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "kind": "profile",
+  "key": "prose-studio/video-narration-local",
+  "created_by": "prose-studio",
+  "record": {
+    "style_refs": ["prose-studio/video-narration"],
+    "sampler": {"kind": "direct", "k": 1, "temperature_stance": "ignored", "max_output_tokens": 512},
+    "selection_policy": "take_first",
+    "gateway_role": "write.default",
+    "locality": "local_only",
+    "budget": {"max_output_tokens": 512, "max_session_cost_micros": 0},
+    "context_policy": {"full_text_token_budget": 2048, "always_full_previous": true},
+    "constraints": {"max_words": 900, "required_format": "paragraph"},
+    "composition": {
+      "target_section_words": 100,
+      "max_sections": 8,
+      "section_word_tolerance": 0.2,
+      "section_format": "paragraph",
+      "section_max_output_tokens": 512
+    }
+  }
+}

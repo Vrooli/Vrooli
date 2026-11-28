@@ -1,0 +1,17 @@
+{
+ "question": "Will you run and confirm the command to install the disk capacity update today?",
+ "big_picture": "The disk capacity update is built and its tests pass, but installation changes stored data in five areas and only you may approve that switch. I recommend running it today; you review the listed changes before confirming. If you hold, the current install stays in place, the feature remains inactive, and source work continues; nothing breaks. No answer has the same result as hold.",
+ "recommend": "run",
+ "reason": "The update is built and tested, and running the operator-approved switch makes disk capacity available.",
+ "options": [
+  {
+   "key": "run",
+   "label": "Run the command today; review the changes and confirm"
+  },
+  {
+   "key": "hold",
+   "label": "Hold; keep the current install and leave disk capacity inactive"
+  }
+ ],
+ "technical_details": "This is the second such request in five days: Hub asks 5ae2012a (15 Nov 2026) and 85eaea3e (11 Nov 2026). The persistent-state contract changes in disk capacity, resources, process records, managed services and operator state. Source: install agent. A separate decision is required to change the rule for added fields."
+}

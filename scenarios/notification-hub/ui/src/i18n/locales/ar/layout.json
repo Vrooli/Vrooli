@@ -1,0 +1,21 @@
+{
+  "sidebarLabel": "التنقل الرئيسي",
+  "bottomNavLabel": "التنقل على الهاتف",
+  "nav": {
+    "dashboard": "التحديثات",
+    "settings": "الإعدادات",
+    "asks": "بحاجة إلى ردك",
+    "history": "السجل"
+  },
+  "needsYouBadge": "{{count}} في الانتظار",
+  "needsYouBadge_one": "واحد في الانتظار",
+  "brandSub": "مكتب الليل",
+  "account": {
+    "signedOut": "غير مسجّل الدخول"
+  },
+  "sources": {
+    "title": "حسب المصدر",
+    "label": "تصفية حسب المصدر",
+    "all": "الكل {{count}}"
+  }
+}

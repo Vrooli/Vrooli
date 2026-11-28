@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "../../../lib/utils";
-import { Input } from "../../ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 
 interface SearchInputProps {
   value: string;
@@ -24,7 +24,7 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={placeholder}
-        className="h-9 pl-9 pr-8"
+        className="h-11 pl-9 pr-8 sm:h-9"
       />
       {value && (
         <button

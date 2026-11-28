@@ -1,0 +1,9 @@
+{
+  "title": "ハブの状態",
+  "loading": "ハブを確認中…",
+  "error": "ハブに接続できません。",
+  "refresh": "再確認",
+  "running": "稼働中",
+  "notRunning": "完全には正常ではありません",
+  "checked": "{{time}} に確認"
+}

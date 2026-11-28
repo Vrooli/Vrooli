@@ -14,6 +14,7 @@ import (
 func TestListModels(t *testing.T) {
 	ts := setupTestServer(t)
 	defer ts.cleanup(t)
+	ts.useModelCatalog([]integrations.ModelInfo{{ID: "anthropic/claude-3.5-sonnet", Name: "Claude 3.5 Sonnet"}})
 
 	req := httptest.NewRequest("GET", "/api/v1/models", nil)
 	w := httptest.NewRecorder()
@@ -37,6 +38,7 @@ func TestListModels(t *testing.T) {
 func TestListModelsFields(t *testing.T) {
 	ts := setupTestServer(t)
 	defer ts.cleanup(t)
+	ts.useModelCatalog([]integrations.ModelInfo{{ID: "anthropic/claude-3.5-sonnet", Name: "Claude 3.5 Sonnet"}})
 
 	req := httptest.NewRequest("GET", "/api/v1/models", nil)
 	w := httptest.NewRecorder()
@@ -61,6 +63,7 @@ func TestListModelsFields(t *testing.T) {
 func TestListModelsIncludesClaude(t *testing.T) {
 	ts := setupTestServer(t)
 	defer ts.cleanup(t)
+	ts.useModelCatalog([]integrations.ModelInfo{{ID: "anthropic/claude-3.5-sonnet", Name: "Claude 3.5 Sonnet"}})
 
 	req := httptest.NewRequest("GET", "/api/v1/models", nil)
 	w := httptest.NewRecorder()

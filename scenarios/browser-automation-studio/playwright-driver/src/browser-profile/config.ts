@@ -1,48 +1,45 @@
 /**
  * Browser Profile Configuration
  *
- * CONTROL SURFACE: Default values for anti-detection and fingerprint spoofing.
+ * CONTROL SURFACE: Default values for browser identity and signal adjustments.
  *
- * These defaults are designed to make automated browsers appear as
- * legitimate user browsers, reducing detection by anti-bot systems.
+ * These defaults support repeatable test environments. They do not establish
+ * that a browser appears human or passes site detection.
  *
  * ## Configuration Philosophy:
- * - Defaults should represent a "typical" real user's browser
+ * - Defaults should be internally consistent for the declared test profile
  * - Values should be internally consistent (e.g., viewport matches screen)
- * - Trade-offs are between detection avoidance and accuracy
+ * - Trade-offs include test fidelity and site compatibility; detection needs
+ *   separate per-mode, per-site evidence
  */
 
 // =============================================================================
-// HARDWARE FINGERPRINT DEFAULTS
+// Browser-profile test defaults
 // =============================================================================
 
 /**
- * Default hardware specifications for fingerprint spoofing.
- * These should match common consumer hardware to avoid outlier detection.
+ * Default hardware values for a repeatable browser test profile. They do not
+ * establish a match for a specific user's device or a detection outcome.
  */
 export const HARDWARE_DEFAULTS = {
   /**
-   * CPU core count.
-   * Most consumer devices have 4-8 cores. 4 is a conservative default.
+   * Reported CPU core count for the default test profile.
    */
   hardwareConcurrency: 4,
 
   /**
-   * Device memory in GB.
-   * 8GB is common for mid-range laptops/desktops.
+   * Reported device memory in GB for the default test profile.
    */
   deviceMemory: 8,
 
   /**
-   * Default viewport/screen dimensions (desktop).
-   * 1920x1080 is the most common resolution globally.
+   * Default viewport/screen dimensions for the desktop test profile.
    */
   viewportWidth: 1920,
   viewportHeight: 1080,
 
   /**
-   * Taskbar/chrome height reduction for availHeight.
-   * 40px is typical for Windows taskbar.
+   * Fixture taskbar/chrome height reduction for availHeight.
    */
   taskbarHeight: 40,
 
@@ -77,12 +74,12 @@ export const WINDOW_CHROME = {
 } as const;
 
 // =============================================================================
-// NETWORK CONNECTION SPOOFING
+// Network connection test defaults
 // =============================================================================
 
 /**
- * Network connection properties for Connection API spoofing.
- * These represent typical residential WiFi connections.
+ * Network connection values for the default test profile. They do not
+ * describe or change the actual network path.
  */
 export const CONNECTION_DEFAULTS = {
   /**

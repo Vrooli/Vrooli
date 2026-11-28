@@ -1,0 +1,355 @@
+{
+  "name": "notion-github",
+  "nodes": [
+    {
+      "id": "7c3adcf2-0f6c-4b9f-840c-9f1f1ad7b6fc",
+      "name": "Get many database pages",
+      "type": "n8n-nodes-base.notion",
+      "parameters": {
+        "options": {},
+        "resource": "databasePage",
+        "operation": "getAll",
+        "returnAll": true,
+        "databaseId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-notion-database"
+        }
+      }
+    },
+    {
+      "id": "35ccdc8d-063d-4177-9dbf-ef5ab0490083",
+      "name": "Create an issue",
+      "type": "n8n-nodes-base.github",
+      "parameters": {
+        "resource": "issue",
+        "operation": "create"
+      }
+    },
+    {
+      "id": "15822ab6-75eb-42f6-9735-462eee577f01",
+      "name": "Sort Issues Fields",
+      "type": "n8n-nodes-base.set",
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "name": "Title",
+              "type": "string",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "Description",
+              "type": "string",
+              "value": "={{ $json.property_description }}"
+            },
+            {
+              "name": "Labels",
+              "type": "string",
+              "value": "={{ $json.property_labels[0] }}"
+            },
+            {
+              "name": "Repository",
+              "type": "string",
+              "value": "={{ $json.property_repository[0] }}"
+            },
+            {
+              "name": "Status",
+              "type": "string",
+              "value": "={{ $json.property_status }}"
+            },
+            {
+              "name": "DatabasePageId",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ab5feb3b-b90b-46b8-817e-4d5304f1c052",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5d1c0a93-e655-40b6-800d-95fa9a45fb5a",
+      "name": "Get many users",
+      "type": "n8n-nodes-base.notion",
+      "parameters": {
+        "resource": "user",
+        "operation": "getAll"
+      }
+    },
+    {
+      "id": "26fb5264-ecc5-41c7-ba4b-190299ebe133",
+      "name": "Map Notion Users",
+      "type": "n8n-nodes-base.set",
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "name": "Name",
+              "type": "string",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "Email",
+              "type": "string",
+              "value": "={{ $json.person.email }}"
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "value": "={{ $json.type }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bf194122-52fb-466d-9532-21edd54857c7",
+      "name": "Set Status and Issue URL",
+      "type": "n8n-nodes-base.notion",
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update"
+      }
+    },
+    {
+      "id": "41f0a8c9-df5f-4fa8-a4e1-ed10017d1688",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "c494ba90-0e31-44f0-b7d3-9d59b42fbc67",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.Status }}",
+                    "rightValue": "To develop"
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "e2566cab-fc35-4ef9-ba23-44a2c128b61c",
+                    "operator": {
+                      "name": "filter.operator.equals",
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.Status }}",
+                    "rightValue": "Done"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3d653edc-4d9e-4efc-98b2-83ef168bc962",
+      "name": "Exclude Bot",
+      "type": "n8n-nodes-base.switch",
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "0abb60d1-baa3-42e2-9ced-913b24bf727d",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.type }}",
+                    "rightValue": "person"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b4ce6176-284a-45d7-a852-e456a596f833",
+      "name": "Send a message",
+      "type": "n8n-nodes-base.gmail",
+      "parameters": {
+        "resource": "message",
+        "operation": "send"
+      }
+    },
+    {
+      "id": "3b0bc8f4-4d6c-4c52-b123-78583df2ab89",
+      "name": "Group Recipients",
+      "type": "n8n-nodes-base.aggregate",
+      "parameters": {
+        "options": {},
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Email"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Create an issue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get many users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exclude Bot": {
+      "main": [
+        [
+          {
+            "node": "Group Recipients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many users": {
+      "main": [
+        [
+          {
+            "node": "Map Notion Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an issue": {
+      "main": [
+        [
+          {
+            "node": "Set Status and Issue URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group Recipients": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Notion Users": {
+      "main": [
+        [
+          {
+            "node": "Exclude Bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort Issues Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Sort Issues Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

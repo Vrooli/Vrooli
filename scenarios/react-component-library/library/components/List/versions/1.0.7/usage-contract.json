@@ -1,0 +1,17 @@
+{
+  "componentId": "react-component-library:List",
+  "items": {
+    "labelField": "title",
+    "maximumCount": 40,
+    "maximumLabelCharacters": 64,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "requiredFields": [
+      "id",
+      "title"
+    ],
+    "stableIdField": "id",
+    "typicalCount": 5
+  },
+  "version": "1.0.7"
+}

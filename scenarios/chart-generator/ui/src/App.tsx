@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, BarChart3, DownloadIcon } from 'lucide-react';
 
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 
 import type { ChartDatum, ChartStyleId, ChartType } from './lib/chart-engine';
 import { ChartEngine } from './lib/chart-engine';
@@ -11,7 +12,6 @@ import { ChartPreview } from './components/chart/chart-preview';
 import { ChartTypeSelector } from './components/chart/chart-type-selector';
 import { DataPanel } from './components/chart/data-panel';
 import { StyleSelector } from './components/chart/style-selector';
-import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { ScrollArea } from './components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -215,7 +215,7 @@ export default function App() {
             {(['png', 'svg'] as ExportFormat[]).map((format) => (
               <Button
                 key={format}
-                variant="outline"
+                variant="secondary"
                 onClick={() => handleExport(format)}
                 data-testid={`export-${format}`}
               >
@@ -233,7 +233,7 @@ export default function App() {
             <TabsTrigger value="styles" data-testid="tab-styles">Styles</TabsTrigger>
             <TabsTrigger value="data" data-testid="tab-data">Data</TabsTrigger>
           </TabsList>
-          <Button variant="link" className="text-sm text-muted-foreground" onClick={() => setActiveTab('data')}>
+          <Button variant="ghost" className="text-sm text-muted-foreground" onClick={() => setActiveTab('data')}>
             Data contracts <ArrowUpRight className="ml-1 h-4 w-4" />
           </Button>
         </div>

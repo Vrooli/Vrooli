@@ -1,5 +1,5 @@
 // CROSS-LANGUAGE COUPLING: Backend IDs must match BackendID constants in api/backend_registry.go
-import type { BackendID } from "../lib/api";
+import type { BackendID } from "../api/sessions";
 
 export interface BackendOptionConst {
   id: BackendID;
@@ -12,7 +12,7 @@ export const BACKEND_OPTIONS: BackendOptionConst[] = [
   {
     id: "standard",
     label: "Standard",
-    description: "Lightweight session. Lost if web console restarts.",
+    description: "Lightweight session. Lost if Aquila restarts.",
     survivesRestart: false,
   },
   {

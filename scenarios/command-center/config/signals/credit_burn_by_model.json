@@ -1,0 +1,50 @@
+{
+  "columns": {
+    "detail": {
+      "optional": true,
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "label": {
+      "optional": true,
+      "type": "string"
+    },
+    "share": {
+      "type": "number"
+    },
+    "value": {
+      "type": "number"
+    }
+  },
+  "coverage": "IN-REACH",
+  "description": "Producer-owned Business Digest reading.",
+  "format": "integer",
+  "id": "credit_burn_by_model",
+  "kind": "panel",
+  "label": "Credit burn by model",
+  "sample": {
+    "basis": "hand-authored zero baseline; production validation pending",
+    "series": [
+      0
+    ],
+    "value": 0
+  },
+  "shape": "rows",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "business-digest.v1",
+    "expectedUnit": "count",
+    "featureId": "digest_credit_model",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest?windowDays=30",
+    "select": "digest_credit_model",
+    "selector": "digest_credit_model",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
+}

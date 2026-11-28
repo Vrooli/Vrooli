@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-delivery-orchestrator",
+  "profileKey": "prompt-manager/delivery-orchestrator",
+  "description": "Long-lived delivery team leader (large-effort-orchestration). Admits and accepts epochs, spawns one epoch worker per epoch with run create --until and points it at the worker card large-effort-orchestration/references/worker.md, parks with the children producer and wakes on child exit, timer or wake-by-key, and writes only the goal home. Runs unsandboxed in the shared tree with network access because Workspace Sandbox cannot express loopback-only access to the control plane; infrastructure never blocks delivery (D5). The declared orchestrate scope lets it wake or stop only its own child runs.",
+  "roleRef": "code.economy.delivery",
+  "effort": "high",
+  "maxTurns": 0,
+  "timeout": "43200s",
+  "networkAccess": "NETWORK_ACCESS_FULL",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF",
+    "networkMode": "NETWORK_ACCESS_FULL"
+  },
+  "declaredScopes": ["agent-manager:orchestrate"],
+  "createdBy": "prompt-manager"
+}

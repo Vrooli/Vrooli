@@ -82,7 +82,10 @@ graph TB
 
 **Vrooli Checks** (`api/internal/checks/vrooli/`)
 - Resource health via `vrooli resource status`
-- Scenario health via `vrooli scenario status`
+- Scenario health via `vrooli scenario status --json`
+- Orphan process state via `vrooli orphans --json`
+- Port lock state via `vrooli locks --json`
+- Port diagnostics via `vrooli diagnose-port --json`
 
 ### Infrastructure Layer
 
@@ -130,16 +133,62 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 
 This centralizes operational configuration.
 
-### 3. CLI-Based Resource Management
+### 3. CLI-Based Core Contract Ownership
 
-Uses `vrooli resource/scenario` CLI commands instead of direct API calls:
+Autoheal consumes the core Vrooli CLI as the source of truth instead of reimplementing lifecycle and maintenance heuristics:
 
 ```go
-// Uses CLI for resource health
-cmd := exec.Command("vrooli", "resource", "status", resourceName)
+cmd := exec.Command("vrooli", "supervision-set", "--json")
+cmd := exec.Command("vrooli", "scenario", "status", scenarioName, "--json")
+cmd := exec.Command("vrooli", "orphans", "--json")
+cmd := exec.Command("vrooli", "locks", "--json")
+cmd := exec.Command("vrooli", "diagnose-port", port, scenarioName, "--json")
 ```
 
-The CLI handles authentication, port discovery, and error handling.
+This keeps maintenance semantics in one place:
+- scenario and resource membership, intent, and attribution are defined by the operator-declared supervision closure
+- lock staleness is defined by core
+- orphan classification is defined by core
+- autoheal only evaluates and presents the returned state
+
+The supervision controller loads that declaration at startup and every 30
+seconds. `must_start` members produce critical target checks; `try_start`
+members produce warning-level target checks. Persisted monitoring targets are
+additive operator overrides. If the source becomes unavailable, the controller
+keeps its in-memory last-known-good set and reports degraded source health; it
+never substitutes an empty set.
+
+Resource health has an additional typed observation seam. The shared
+`ResourceStatusSnapshotProvider` reads one fast fleet response for the
+supervised population, retains it only for a bounded TTL, and projects cloned
+per-resource values. It escalates fresh anomalies and placement drift through
+the existing named typed status call; recovery verification uses a forced
+named read that bypasses pre-action caches. Snapshot metadata and provider metrics
+are included in resource check details, while lifecycle, driver, health-probe,
+placement, and OS-specific behavior remain owned by the control plane.
+
+## Outbound Scenario Dependencies
+
+The five peers in `.vrooli/service.json` are optional at Autoheal startup. Each
+owns a separate capability, and unavailability must not make Autoheal report a
+false success or prevent unrelated local checks:
+
+| Peer | Capability | Unavailable behavior |
+| --- | --- | --- |
+| `system-monitor` | Authoritative disk-pressure observation | The observation reports an error; Autoheal does not invent a pressure value. |
+| `storage-manager` | Approved cleanup planning and disk-pressure reports | The selected cleanup action reports failure; Autoheal never performs the cleanup itself. |
+| `notification-hub` | Delivery-attempt projection and durable operator-ask verification | Delivery coverage is incomplete and approval verification fails closed. Notification delivery remains owned by Notification Hub. |
+| `vrooli-events` | Incident/remediation event publication and the decision webhook subscription | Publications remain pending for a later drain; subscription setup makes bounded attempts. The authorized manual approval route remains available. |
+| `scenario-authenticator` | Service-principal token exchange for authenticated boundaries | The affected authenticated operation fails closed; no unsigned request is sent. |
+
+Local discovery is performed when an observation, report, publication, or
+approval check runs, so a later operation sees a peer that restarted on a new
+port. The event subscription itself is reconciled in a bounded startup task;
+its durable row is then owned by Vrooli Events. The API clients retain
+fixed-base constructors for callers that explicitly pin deployment addresses.
+Event publication and Notification Hub delivery are separate contracts: a
+successful event publish does not prove that a human notification was
+delivered.
 
 ## Data Flow
 

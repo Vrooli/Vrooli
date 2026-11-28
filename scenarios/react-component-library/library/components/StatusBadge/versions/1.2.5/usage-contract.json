@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Text",
+      "span"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:StatusBadge",
+  "version": "1.2.5"
+}

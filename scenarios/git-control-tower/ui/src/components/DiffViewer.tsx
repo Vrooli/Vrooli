@@ -1,13 +1,13 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
+import { lazy, Profiler, Suspense, useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
+import { onProfilerRender } from "../lib/profiler";
 import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { ViewModeSelector } from "./ViewModeSelector";
-import { MarkdownPreview } from "./MarkdownPreview";
+import { FilePath } from "@vrooli/react-component-library/FilePath/1";
 import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
 import {
@@ -20,11 +20,15 @@ import {
   type LineChange
 } from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
-import { getFileTypeInfo } from "../lib/fileTypes";
+import { buildImagePreviewSrc, getFileTypeInfo } from "../lib/fileTypes";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { Popover } from "./ui/popover";
-import { formatPath } from "../lib/utils";
+
+const MonacoEditor = lazy(() => import("@monaco-editor/react"));
+const LazyMarkdownPreview = lazy(() =>
+  import("./MarkdownPreview").then(({ MarkdownPreview }) => ({ default: MarkdownPreview })),
+);
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -45,6 +49,8 @@ interface DiffViewerProps {
   isDiscarding?: boolean;
   // History mode props
   isHistoryMode?: boolean;
+  /** Immutable proposal subject: no working-tree actions or live view modes. */
+  isProposalMode?: boolean;
   commitHash?: string;
   // Related files
   onShowRelatedFiles?: (path: string) => void;
@@ -113,7 +119,10 @@ function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
   const buckets = new Map<number, Exclude<LineChange, "">>();
 
   changedLines.forEach(({ line, index }) => {
-    const change = line.change as Exclude<LineChange, "">;
+    const change = line.change;
+    if (change !== "added" && change !== "deleted" && change !== "modified") {
+      return;
+    }
     const lineNumber = getChangedLineNumber(line, index + 1);
     const ratio = maxLineNumber <= 1 ? 0 : (lineNumber - 1) / (maxLineNumber - 1);
     const bucket = clamp(Math.round(ratio * (bucketCount - 1)), 0, bucketCount - 1);
@@ -218,7 +227,7 @@ function getMonacoLanguage(filePath?: string): string {
   return languageMap[detected] ?? detected;
 }
 
-function defineMonacoTheme(monaco: MonacoInstance): void {
+function defineMonacoTheme(monaco: typeof Monaco): void {
   monaco.editor.defineTheme(monacoThemeName, {
     base: "vs-dark",
     inherit: true,
@@ -558,13 +567,16 @@ function SourceView({
   highlightedLines: HighlightedLine[] | null;
 }) {
   const lines = useMemo(() => content.split("\n"), [content]);
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    return new Map(highlightedLines.map((line) => [line.lineNumber, line.tokens]));
+  }, [highlightedLines]);
 
   return (
     <div className="divide-y divide-slate-800/30" data-testid="source-content">
       {lines.map((line, index) => {
         const lineNum = index + 1;
-        const highlighted = highlightedLines?.find((h) => h.lineNumber === lineNum);
-        const tokens = highlighted?.tokens || [{ content: line }];
+        const tokens = highlightMap.get(lineNum) || [{ content: line }];
 
         return (
           <HighlightedCodeLine
@@ -578,7 +590,7 @@ function SourceView({
   );
 }
 
-export function DiffViewer({
+function DiffViewerImpl({
   diff,
   selectedFile,
   isStaged,
@@ -594,21 +606,21 @@ export function DiffViewer({
   isStaging = false,
   isDiscarding = false,
   isHistoryMode = false,
+  isProposalMode = false,
   commitHash,
   onShowRelatedFiles,
   onOpenSearch,
   onOpenReview,
-  isReadOnly = false,
+  isReadOnly: readOnlyProp = false,
   onSaveFileContent,
   isSavingFile = false,
   onDeletePath,
   isDeleting = false
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
+  const isReadOnly = readOnlyProp || isProposalMode;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const minimapRailRef = useRef<HTMLDivElement>(null);
-  const titleRowRef = useRef<HTMLDivElement>(null);
-  const [maxPathChars, setMaxPathChars] = useState(60);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -624,7 +636,7 @@ export function DiffViewer({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflictHash, setConflictHash] = useState<string | null>(null);
   const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const monacoRef = useRef<MonacoInstance | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
   const monacoDecorationIdsRef = useRef<string[]>([]);
   const [scrollMetrics, setScrollMetrics] = useState({
     scrollTop: 0,
@@ -635,7 +647,7 @@ export function DiffViewer({
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
   const isBinaryDiff = Boolean(
-    diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
+    diff?.stats?.is_binary || (diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch")))
   );
   const absolutePath =
     selectedFile && repoDir ? `${repoDir.replace(/\/$/, "")}/${selectedFile}` : selectedFile;
@@ -723,13 +735,17 @@ export function DiffViewer({
     if (!fullContent) return 0;
     return fullContent.split("\n").length;
   }, [fullContent]);
-  const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
+  const isPreviewable = useMemo(
+    () => (selectedFile ? getFileTypeInfo(selectedFile) : null),
+    [selectedFile]
+  );
   const canEditMode = viewMode === "source" || viewMode === "full_diff";
   const canEditTextFile =
     isPreviewable?.category === "code" || isPreviewable?.category === "markdown";
   const canEdit =
     Boolean(selectedFile) &&
     !isHistoryMode &&
+    !isProposalMode &&
     hasFullContent &&
     canEditTextFile &&
     Boolean(onSaveFileContent);
@@ -739,14 +755,18 @@ export function DiffViewer({
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
   const showImagePreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
-  const minimapSourceLines = useMemo(() => {
+  const imagePreviewSrc = useMemo(
+    () => (isPreviewable ? buildImagePreviewSrc(isPreviewable, fullContent) : null),
+    [fullContent, isPreviewable]
+  );
+  const minimapSourceLines = useMemo<string[]>(() => {
     if (viewMode === "source") {
       return fullContent.split("\n");
     }
     if (viewMode === "full_diff") {
       return annotatedLines.map((line) => line.content);
     }
-    return [] as string[];
+    return [];
   }, [annotatedLines, fullContent, viewMode]);
   const minimapLineCount = viewMode === "source" ? fullContentLineCount : viewMode === "full_diff" ? annotatedLines.length : 0;
   const minimapMarkers = useMemo(
@@ -818,7 +838,7 @@ export function DiffViewer({
       setSaveError(err instanceof Error ? err.message : "Failed to save file");
     }
   }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
-  const handleMonacoBeforeMount = useCallback((monaco: MonacoInstance) => {
+  const handleMonacoBeforeMount = useCallback((monaco: typeof Monaco) => {
     monacoRef.current = monaco;
     defineMonacoTheme(monaco);
   }, []);
@@ -968,82 +988,33 @@ export function DiffViewer({
     }
   }, []);
 
-  // Dynamically compute max path chars based on available header width
-  useEffect(() => {
-    if (!titleRowRef.current || typeof ResizeObserver === "undefined") return;
-    const update = () => {
-      const width = titleRowRef.current?.clientWidth ?? 0;
-      // Account for: dot/badge (~30px), stats (~80px), overflow menu (~44px), gaps (~24px)
-      const usable = Math.max(0, width - 180);
-      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7)));
-      setMaxPathChars(nextMax);
-    };
-    const rafId = requestAnimationFrame(update);
-    const observer = new ResizeObserver(update);
-    observer.observe(titleRowRef.current);
-    return () => {
-      cancelAnimationFrame(rafId);
-      observer.disconnect();
-    };
-  }, []);
-
-  const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
+  const diffViewerStyle: CSSProperties & Record<"--code-font-size", string> = {
+    "--code-font-size": `${codeFontSize}px`
+  };
 
   return (
-    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties} data-testid="diff-viewer-panel">
+    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={diffViewerStyle} data-testid="diff-viewer-panel">
       <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
-        <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+        <div className={`flex w-full min-w-0 items-center ${isMobile ? "gap-2" : "gap-3"}`}>
           <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
             <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
               {!isMobile && (
                 <FileDiff className="flex-shrink-0 text-slate-500 h-4 w-4" />
               )}
               {selectedFile ? (
-                <Popover
-                  align="start"
-                  trigger={
-                    <span className="font-mono text-xs truncate cursor-pointer hover:text-blue-300 transition-colors">{displayPath}</span>
-                  }
-                >
-                  <div className="p-3 flex items-center gap-2 max-w-[90vw]">
-                    <span className="font-mono text-xs text-slate-200 break-all select-all flex-1">{absolutePath || selectedFile}</span>
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
-                      onClick={handleCopyPath}
-                      title={copied ? "Copied" : "Copy path"}
-                      aria-label="Copy path"
-                    >
-                      {copied ? (
-                        <Check className="text-emerald-300 h-3.5 w-3.5" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </div>
-                </Popover>
+                <FilePath
+                  path={absolutePath || selectedFile}
+                  showCopyButton={!isMobile && !isFullscreen}
+                  className="min-w-0 flex-1"
+                  testId="file-path-header"
+                  copyButtonTestId="copy-absolute-path"
+                />
               ) : (
                 <span className="text-xs">Diff Viewer</span>
               )}
             </CardTitle>
-            {/* Desktop-only: inline copy/related buttons (hidden in fullscreen) */}
-            {!isMobile && !isFullscreen && selectedFile && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
-                onClick={handleCopyPath}
-                title={copied ? "Copied" : "Copy absolute path"}
-                aria-label="Copy absolute path"
-                data-testid="copy-absolute-path"
-              >
-                {copied ? (
-                  <Check className="text-emerald-300 h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
-            )}
+            {/* Desktop-only related-file action remains adjacent to the shared path control. */}
             {!isMobile && !isFullscreen && selectedFile && onShowRelatedFiles && (
               <button
                 type="button"
@@ -1057,7 +1028,7 @@ export function DiffViewer({
               </button>
             )}
             {selectedFile && !isMobile && !isFullscreen && (
-              isHistoryMode ? (
+              isProposalMode ? <Badge variant="info">Proposed</Badge> : isHistoryMode ? (
                 <Badge variant="warning">
                   {commitHash ? commitHash.substring(0, 7) : "history"}
                 </Badge>
@@ -1072,7 +1043,7 @@ export function DiffViewer({
           {/* Right side of row 1 */}
           <div className={`flex items-center flex-shrink-0 ${isMobile ? "gap-2" : "gap-3"}`}>
             {/* Mobile: colored dot status indicator (hidden in fullscreen) */}
-            {selectedFile && isMobile && !isFullscreen && !isHistoryMode && (
+            {selectedFile && isMobile && !isFullscreen && !isHistoryMode && !isProposalMode && (
               <span
                 className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
                   isUntracked ? "bg-slate-400" :
@@ -1107,7 +1078,7 @@ export function DiffViewer({
             )}
 
             {/* Fullscreen: inline view mode + edit controls */}
-            {isFullscreen && selectedFile && !isLoading && !error && (
+            {isFullscreen && selectedFile && !isLoading && !error && !isProposalMode && (
               <ViewModeSelector
                 mode={viewMode}
                 onChange={onViewModeChange}
@@ -1132,18 +1103,19 @@ export function DiffViewer({
             {isFullscreen && selectedFile && !isLoading && !error && isEditing && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleCancelEditing}
                   className={isMobile ? "h-9 px-3" : "h-7 px-2"}
                   disabled={isSavingFile}
                   data-testid="cancel-editing-button"
+                  style={{ background: "transparent" }}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
                   Cancel
                 </Button>
                 <Button
-                  variant="default"
+                  variant="primary"
                   size="sm"
                   onClick={handleSaveContent}
                   className={`${isMobile ? "h-9 px-3" : "h-7 px-2"} bg-emerald-600 hover:bg-emerald-700`}
@@ -1231,7 +1203,7 @@ export function DiffViewer({
             {/* Desktop: view mode + edit/save buttons (hidden in fullscreen) */}
             {!isMobile && !isFullscreen && (
               <>
-                {selectedFile && !isLoading && !error && (
+                {selectedFile && !isLoading && !error && !isProposalMode && (
                   <ViewModeSelector
                     mode={viewMode}
                     onChange={onViewModeChange}
@@ -1256,18 +1228,19 @@ export function DiffViewer({
                 {selectedFile && !isLoading && !error && isEditing && (
                   <>
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={handleCancelEditing}
                       className="h-7 px-2"
                       disabled={isSavingFile}
                       data-testid="cancel-editing-button"
+                      style={{ background: "transparent" }}
                     >
                       <RotateCcw className="h-3.5 w-3.5 mr-1" />
                       Cancel
                     </Button>
                     <Button
-                      variant="default"
+                      variant="primary"
                       size="sm"
                       onClick={handleSaveContent}
                       className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700"
@@ -1281,12 +1254,13 @@ export function DiffViewer({
                 )}
                 {selectedFile && !isLoading && !error && !isEditing && onDeletePath && (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => onDeletePath(selectedFile, false)}
                     className="h-7 px-2 text-red-400 border-red-400/50 hover:bg-red-950/50 hover:text-red-300"
                     disabled={isDeleting}
                     data-testid="delete-file-button"
+                    style={{ background: "transparent" }}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
                     Delete
@@ -1299,7 +1273,7 @@ export function DiffViewer({
         </div>
 
         {/* Row 2 (mobile only): View mode + edit actions (hidden in fullscreen) */}
-        {isMobile && !isFullscreen && selectedFile && !isLoading && !error && (
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !error && !isProposalMode && (
           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800/50">
             <ViewModeSelector
               mode={viewMode}
@@ -1325,18 +1299,19 @@ export function DiffViewer({
             {isEditing && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleCancelEditing}
                   className="h-9 px-3"
                   disabled={isSavingFile}
                   data-testid="cancel-editing-button"
+                  style={{ background: "transparent" }}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
                   Cancel
                 </Button>
                 <Button
-                  variant="default"
+                  variant="primary"
                   size="sm"
                   onClick={handleSaveContent}
                   className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700"
@@ -1352,7 +1327,7 @@ export function DiffViewer({
         )}
       </CardHeader>
 
-      <CardContent className="flex-1 p-0 overflow-hidden relative">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0 overflow-hidden relative">
         {/* Mobile horizontal scroll hints */}
         {isMobile && (canScrollLeft || canScrollRight) && (
           <>
@@ -1379,7 +1354,7 @@ export function DiffViewer({
           </>
         )}
 
-        <ScrollArea className="h-full" ref={scrollContainerRef}>
+        <ScrollArea className="w-full flex-1 min-h-0" ref={scrollContainerRef}>
           {/* Loading State */}
           {(isLoading || isHighlighting) && (
             <div className="flex items-center justify-center py-12" data-testid="diff-loading">
@@ -1450,28 +1425,30 @@ export function DiffViewer({
           {/* Monaco edit mode */}
           {selectedFile && !isLoading && !error && isEditing && canEditMode && hasFullContent && (
             <div className="monaco-diff-editor h-full min-h-[360px] border-y border-slate-800 bg-slate-950" data-testid="monaco-editor-container">
-              <Editor
-                height="100%"
-                defaultLanguage={monacoLanguage}
-                language={monacoLanguage}
-                value={draftContent}
-                onChange={(value) => setDraftContent(value ?? "")}
-                beforeMount={handleMonacoBeforeMount}
-                onMount={handleMonacoMount}
-                theme={monacoThemeName}
-                options={{
-                  automaticLayout: true,
-                  minimap: { enabled: false },
-                  scrollBeyondLastLine: false,
-                  wordWrap: "off",
-                  fontSize: codeFontSize,
-                  lineHeight: Math.round(codeFontSize * 1.67),
-                  lineNumbersMinChars: 3,
-                  fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
-                  padding: { top: 2, bottom: 2 },
-                  renderLineHighlight: "line"
-                }}
-              />
+              <Suspense fallback={<div className="flex h-full min-h-[360px] items-center justify-center text-sm text-slate-500">Loading editor…</div>}>
+                <MonacoEditor
+                  height="100%"
+                  defaultLanguage={monacoLanguage}
+                  language={monacoLanguage}
+                  value={draftContent}
+                  onChange={(value) => setDraftContent(value ?? "")}
+                  beforeMount={handleMonacoBeforeMount}
+                  onMount={handleMonacoMount}
+                  theme={monacoThemeName}
+                  options={{
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: "off",
+                    fontSize: codeFontSize,
+                    lineHeight: Math.round(codeFontSize * 1.67),
+                    lineNumbersMinChars: 3,
+                    fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
+                    padding: { top: 2, bottom: 2 },
+                    renderLineHighlight: "line"
+                  }}
+                />
+              </Suspense>
             </div>
           )}
 
@@ -1511,15 +1488,14 @@ export function DiffViewer({
 
           {/* Preview mode - render markdown */}
           {showMarkdownPreview && (
-            <MarkdownPreview content={fullContent} />
+            <Suspense fallback={<div className="p-4 text-sm text-slate-500">Loading preview…</div>}>
+              <LazyMarkdownPreview content={fullContent} />
+            </Suspense>
           )}
 
           {/* Preview mode - render images */}
-          {showImagePreview && isPreviewable?.mimeType && (
-            <ImagePreview
-              src={`data:${isPreviewable.mimeType};base64,${fullContent}`}
-              alt={selectedFile}
-            />
+          {showImagePreview && imagePreviewSrc && (
+            <ImagePreview src={imagePreviewSrc} alt={selectedFile} />
           )}
 
           {/* Binary diff notice */}
@@ -1530,10 +1506,11 @@ export function DiffViewer({
                 The file is not displayed in the text editor because it is either binary or uses an unsupported text encoding.
               </p>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="mt-4"
                 onClick={() => setShowBinary(true)}
+                style={{ background: "transparent" }}
               >
                 Show Anyway
               </Button>
@@ -1558,8 +1535,6 @@ export function DiffViewer({
             </pre>
           )}
 
-          {/* Mobile spacer to account for fixed action bar (not needed in fullscreen) */}
-          {isMobile && !isFullscreen && selectedFile && !isLoading && !isEditing && (!isHistoryMode || onDeletePath) && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
         {showMinimap && (
@@ -1620,14 +1595,15 @@ export function DiffViewer({
 
         {/* Mobile Action Bar - history mode: delete only (hidden in fullscreen) */}
         {isMobile && !isFullscreen && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
+          <div className="sticky bottom-0 z-20 flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="flex-1 h-10 touch-target text-red-400 border-red-400/50 hover:bg-red-950/50"
                 onClick={() => onDeletePath(selectedFile, false)}
                 disabled={isDeleting}
+                style={{ background: "transparent" }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 {isDeleting ? "Deleting..." : "Delete"}
@@ -1637,25 +1613,26 @@ export function DiffViewer({
         )}
 
         {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
-        {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
-          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isProposalMode && !isEditing && (
+          <div className="sticky bottom-0 z-20 flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-amber-400 flex-1">
                   {isUntracked ? "Delete this file?" : "Discard changes?"}
                 </span>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="h-10 px-4 touch-target"
                   onClick={() => setConfirmingDiscard(false)}
                   disabled={isDiscarding}
+                  style={{ background: "transparent" }}
                 >
                   <X className="h-4 w-4 mr-1" />
                   Cancel
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="h-10 px-4 touch-target bg-red-600 border-red-600 hover:bg-red-700 text-white"
                   onClick={() => {
@@ -1663,6 +1640,7 @@ export function DiffViewer({
                     setConfirmingDiscard(false);
                   }}
                   disabled={isDiscarding}
+                  style={{ background: "transparent" }}
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   {isDiscarding ? "..." : isUntracked ? "Delete" : "Discard"}
@@ -1673,18 +1651,19 @@ export function DiffViewer({
                 {/* Stage/Unstage button */}
                 {isStaged ? (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="flex-1 h-10 touch-target"
                     onClick={() => onUnstage?.(selectedFile)}
                     disabled={isStaging}
+                    style={{ background: "transparent" }}
                   >
                     <Download className="h-4 w-4 mr-2" />
                     {isStaging ? "Unstaging..." : "Unstage"}
                   </Button>
                 ) : (
                   <Button
-                    variant="default"
+                    variant="primary"
                     size="sm"
                     className="flex-1 h-10 touch-target bg-emerald-600 hover:bg-emerald-700"
                     onClick={() => onStage?.(selectedFile)}
@@ -1698,11 +1677,12 @@ export function DiffViewer({
                 {/* Discard button - only for unstaged/untracked files */}
                 {!isStaged && (
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="h-10 px-4 touch-target text-red-400 border-red-400/50 hover:bg-red-950/50"
                     onClick={() => setConfirmingDiscard(true)}
                     disabled={isDiscarding}
+                    style={{ background: "transparent" }}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     {isUntracked ? "Delete" : "Discard"}
@@ -1763,5 +1743,13 @@ export function DiffViewer({
         </BottomSheet>
       )}
     </Card>
+  );
+}
+
+export function DiffViewer(props: DiffViewerProps) {
+  return (
+    <Profiler id="DiffViewer" onRender={onProfilerRender}>
+      <DiffViewerImpl {...props} />
+    </Profiler>
   );
 }

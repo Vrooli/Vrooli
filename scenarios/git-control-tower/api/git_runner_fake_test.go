@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"git-control-tower/internal/pushsafety"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +23,11 @@ import (
 //
 // This enables testing service logic without risk of affecting real repositories.
 type FakeGitRunner struct {
+	SafetyReport     *pushsafety.Report
+	RecoveryArtifact pushsafety.Artifact
+	RecoveryErr      error
+	RecoveryCalls    int
+
 	// Repository simulation state
 	Branch         FakeBranchState
 	LocalBranches  map[string]FakeBranchRef
@@ -29,10 +36,13 @@ type FakeGitRunner struct {
 	Unstaged       map[string]string // path -> content diff
 	Untracked      []string
 	Conflicts      []string
-	IsRepository   bool   // Whether this is a valid git repo
-	GitAvailable   bool   // Whether git binary is "installed"
-	RepoRoot       string // Configured repository root path
-	RemoteURL      string // Configured remote URL (for GetRemoteURL)
+	// StatusRecords adds already-encoded porcelain-v2 records for parser and
+	// service fixtures that need rename/copy metadata without a real index.
+	StatusRecords []string
+	IsRepository  bool   // Whether this is a valid git repo
+	GitAvailable  bool   // Whether git binary is "installed"
+	RepoRoot      string // Configured repository root path
+	RemoteURL     string // Configured remote URL (for GetRemoteURL)
 
 	// Error injection for testing error paths
 	StatusError          error
@@ -57,6 +67,7 @@ type FakeGitRunner struct {
 	CheckoutBranchError  error
 	TrackRemoteError     error
 	CheckRefFormatError  error
+	StagedCandidateError error
 
 	// Commit tracking
 	LastCommitMsg         string
@@ -67,7 +78,13 @@ type FakeGitRunner struct {
 	// History tracking
 	HistoryLines   []string
 	HistoryDetails []RepoHistoryEntry
-	NumstatLines   []string
+
+	// NumstatLines holds one `git diff --numstat` record per entry, written in
+	// the tab-separated form ("<add>\t<del>\t<path>"). DiffNumstat joins them
+	// into the NUL-delimited -z framing the real runner produces. A rename is
+	// expressed as an empty path field followed by its two paths, e.g.
+	// {"1\t0\t", "old.go", "new.go"}.
+	NumstatLines []string
 
 	// Config values
 	ConfigValues map[string]string
@@ -141,6 +158,7 @@ func NewFakeGitRunner() *FakeGitRunner {
 		Unstaged:          make(map[string]string),
 		Untracked:         []string{},
 		Conflicts:         []string{},
+		StatusRecords:     []string{},
 		IsRepository:      true,
 		GitAvailable:      true,
 		RepoRoot:          "/fake/repo",
@@ -194,6 +212,13 @@ func (f *FakeGitRunner) StatusPorcelainV2(ctx context.Context, repoDir string) (
 	// Conflict files
 	for _, path := range f.Conflicts {
 		buf.WriteString(fmt.Sprintf("u UU N... 100644 100644 100644 100644 abc def ghi %s\x00", path))
+	}
+
+	for _, record := range f.StatusRecords {
+		buf.WriteString(record)
+		if !strings.HasSuffix(record, "\x00") {
+			buf.WriteByte(0)
+		}
 	}
 
 	return buf.Bytes(), nil
@@ -295,7 +320,7 @@ func (f *FakeGitRunner) Unstage(ctx context.Context, repoDir string, paths []str
 
 // Commit simulates creating a commit.
 func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
-	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail)
+	f.recordCall("Commit", repoDir, message, options.AuthorName, options.AuthorEmail, fmt.Sprintf("no_verify=%v", options.NoVerify))
 
 	if f.CommitError != nil {
 		return "", f.CommitError
@@ -340,6 +365,24 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 	}
 
 	return []byte(""), nil
+}
+
+func (f *FakeGitRunner) WriteTree(ctx context.Context, repoDir string) (string, error) {
+	f.recordCall("WriteTree", repoDir)
+	paths := make([]string, 0, len(f.Staged))
+	for path := range f.Staged {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	var candidate strings.Builder
+	for _, path := range paths {
+		candidate.WriteString(path)
+		candidate.WriteByte(0)
+		candidate.WriteString(f.Staged[path])
+		candidate.WriteByte(0)
+	}
+	sum := sha256.Sum256([]byte(candidate.String()))
+	return fmt.Sprintf("fake-tree-%x", sum[:]), nil
 }
 
 // revParseSingleArg resolves a single rev-parse argument.
@@ -450,6 +493,18 @@ func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote 
 	return nil
 }
 
+// FetchRemoteBranch simulates fetching a single branch from a remote.
+func (f *FakeGitRunner) FetchRemoteBranch(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error {
+	f.recordCall("FetchRemoteBranch", repoDir, remote, branch)
+
+	if f.FetchError != nil {
+		return f.FetchError
+	}
+
+	f.FetchCount++
+	return nil
+}
+
 // GetRemoteURL returns the configured remote URL.
 func (f *FakeGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error) {
 	f.recordCall("GetRemoteURL", repoDir, remote)
@@ -493,7 +548,7 @@ func (f *FakeGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 // Push simulates pushing to a remote.
-func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error {
+func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, sourceOID string, setUpstream bool, cred *StoredCredential) error {
 	f.recordCall("Push", repoDir, remote, branch, fmt.Sprintf("setUpstream=%v", setUpstream))
 
 	if f.PushError != nil {
@@ -600,14 +655,14 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	}
 
 	var out strings.Builder
-	for index, entry := range entries {
-		if index > 0 {
-			out.WriteString("\n\n")
+	for _, entry := range entries {
+		message := entry.FullMessage
+		if message == "" {
+			message = entry.Subject
 		}
-		out.WriteString(fmt.Sprintf("%s\x00%s\x00%s\x00%s", entry.Hash, entry.Author, entry.Date, entry.Subject))
+		out.WriteString(fmt.Sprintf("\x1e%s\x00%s\x00%s\x00%s\x00\n", entry.Hash, entry.Author, entry.Date, message))
 		for _, file := range entry.Files {
-			out.WriteString("\n")
-			out.WriteString(file)
+			out.WriteString(file + "\x00")
 		}
 	}
 
@@ -615,11 +670,14 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 }
 
 func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
-	f.recordCall("DiffNumstat", repoDir, fmt.Sprintf("staged=%v", staged))
+	f.recordCall("DiffNumstat", append([]string{repoDir, fmt.Sprintf("staged=%v", staged)}, paths...)...)
 	if f.DiffError != nil {
 		return nil, f.DiffError
 	}
-	return []byte(strings.Join(f.NumstatLines, "\n")), nil
+	if len(f.NumstatLines) == 0 {
+		return nil, nil
+	}
+	return []byte(strings.Join(f.NumstatLines, "\x00") + "\x00"), nil
 }
 
 func (f *FakeGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {
@@ -694,6 +752,20 @@ func (f *FakeGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]
 		files = append(files, path)
 	}
 	sort.Strings(files)
+	return files, nil
+}
+
+// ReadStagedCandidate returns the fake index bytes without consulting the
+// simulated working tree.
+func (f *FakeGitRunner) ReadStagedCandidate(ctx context.Context, repoDir string) (map[string][]byte, error) {
+	f.recordCall("ReadStagedCandidate", repoDir)
+	if f.StagedCandidateError != nil {
+		return nil, f.StagedCandidateError
+	}
+	files := make(map[string][]byte, len(f.Staged))
+	for path, content := range f.Staged {
+		files[path] = []byte(content)
+	}
 	return files, nil
 }
 
@@ -890,4 +962,19 @@ func (f *FakeGitRunner) LogFileFrequency(ctx context.Context, repoDir string, co
 		result[k] = v
 	}
 	return result, nil
+}
+
+func (f *FakeGitRunner) InspectPushSafety(ctx context.Context, repo, remote, branch string, cred *StoredCredential) pushsafety.Report {
+	if f.SafetyReport != nil {
+		return *f.SafetyReport
+	}
+	return pushsafety.Report{Complete: true, State: "clear", Head: f.Branch.OID, Remote: remote, Branch: branch}
+}
+func (f *FakeGitRunner) PreparePushRecovery(ctx context.Context, repo, root string, r pushsafety.Report, cred *StoredCredential) (pushsafety.Artifact, error) {
+	f.RecoveryCalls++
+	return f.RecoveryArtifact, f.RecoveryErr
+}
+
+func (f *FakeGitRunner) GetPushRecovery(ctx context.Context, repo, root, key string) (pushsafety.Artifact, error) {
+	return f.RecoveryArtifact, f.RecoveryErr
 }

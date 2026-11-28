@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,8 +16,12 @@ func TestDefault(t *testing.T) {
 		if cfg.Server.ReadTimeout != 30*time.Second {
 			t.Errorf("expected ReadTimeout 30s, got %v", cfg.Server.ReadTimeout)
 		}
-		if cfg.Server.WriteTimeout != 30*time.Second {
-			t.Errorf("expected WriteTimeout 30s, got %v", cfg.Server.WriteTimeout)
+		// 24h effectively disables the per-response write deadline for
+		// long-lived SSE log streams. (api-core treats 0 as "unset" and
+		// substitutes its own 30s default, so we pass an explicit large
+		// value instead. See config.Default for the rationale.)
+		if cfg.Server.WriteTimeout != 24*time.Hour {
+			t.Errorf("expected WriteTimeout 24h (effectively disabled for SSE streams), got %v", cfg.Server.WriteTimeout)
 		}
 		if cfg.Server.IdleTimeout != 120*time.Second {
 			t.Errorf("expected IdleTimeout 120s, got %v", cfg.Server.IdleTimeout)
@@ -66,15 +71,6 @@ func TestDefault(t *testing.T) {
 	})
 
 	t.Run("Policy defaults", func(t *testing.T) {
-		if !cfg.Policy.RequireHumanApproval {
-			t.Error("expected RequireHumanApproval true")
-		}
-		if cfg.Policy.AutoApproveThresholdFiles != 10 {
-			t.Errorf("expected AutoApproveThresholdFiles 10, got %d", cfg.Policy.AutoApproveThresholdFiles)
-		}
-		if cfg.Policy.AutoApproveThresholdLines != 500 {
-			t.Errorf("expected AutoApproveThresholdLines 500, got %d", cfg.Policy.AutoApproveThresholdLines)
-		}
 		if cfg.Policy.CommitMessageTemplate != "Apply sandbox changes ({{.FileCount}} files)" {
 			t.Errorf("unexpected CommitMessageTemplate: %s", cfg.Policy.CommitMessageTemplate)
 		}
@@ -84,26 +80,19 @@ func TestDefault(t *testing.T) {
 	})
 
 	t.Run("Driver defaults", func(t *testing.T) {
-		// BaseDir should use XDG data directory (~/.local/share/workspace-sandbox)
-		home, err := os.UserHomeDir()
+		paths, err := ResolveStoragePaths()
 		if err != nil {
-			t.Fatalf("failed to get home dir: %v", err)
+			t.Fatalf("failed to resolve storage paths: %v", err)
 		}
-		expectedBaseDir := filepath.Join(home, ".local", "share", "workspace-sandbox")
+		expectedBaseDir := paths.PersistentData
 		if cfg.Driver.BaseDir != expectedBaseDir {
 			t.Errorf("expected BaseDir %s, got %s", expectedBaseDir, cfg.Driver.BaseDir)
-		}
-		if cfg.Driver.UseFuseOverlayfs {
-			t.Error("expected UseFuseOverlayfs false")
 		}
 	})
 
 	t.Run("Database defaults", func(t *testing.T) {
-		if cfg.Database.Schema != "workspace-sandbox" {
-			t.Errorf("expected Schema 'workspace-sandbox', got %s", cfg.Database.Schema)
-		}
-		if cfg.Database.SSLMode != "disable" {
-			t.Errorf("expected SSLMode 'disable', got %s", cfg.Database.SSLMode)
+		if cfg.Database.Path != "" {
+			t.Errorf("expected empty Database.Path default, got %q", cfg.Database.Path)
 		}
 	})
 }
@@ -114,11 +103,11 @@ func TestLoadFromEnv(t *testing.T) {
 	envVars := []string{
 		"API_PORT", "WORKSPACE_SANDBOX_READ_TIMEOUT", "WORKSPACE_SANDBOX_WRITE_TIMEOUT",
 		"WORKSPACE_SANDBOX_MAX_SANDBOXES", "WORKSPACE_SANDBOX_CORS_ORIGINS",
-		"WORKSPACE_SANDBOX_USE_FUSE", "WORKSPACE_SANDBOX_DEFAULT_TTL",
+		"WORKSPACE_SANDBOX_DEFAULT_TTL",
 		"WORKSPACE_SANDBOX_COMMIT_TEMPLATE", "WORKSPACE_SANDBOX_COMMIT_AUTHOR_MODE",
-		"PROJECT_ROOT", "SANDBOX_BASE_DIR", "DATABASE_URL",
-		"POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD",
-		"POSTGRES_DB", "POSTGRES_SCHEMA",
+		"PROJECT_ROOT", "SANDBOX_BASE_DIR", "SQLITE_PATH",
+		"XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME",
+		"WORKSPACE_SANDBOX_HOME_OVERLAY_BASE",
 	}
 	for _, key := range envVars {
 		originalEnv[key] = os.Getenv(key)
@@ -197,18 +186,18 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Run("loads driver config", func(t *testing.T) {
 		os.Setenv("API_PORT", "8080")
 		os.Setenv("SANDBOX_BASE_DIR", "/custom/path")
-		os.Setenv("WORKSPACE_SANDBOX_USE_FUSE", "true")
 		os.Setenv("PROJECT_ROOT", "/my/project")
 
 		cfg, err := LoadFromEnv()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Driver.BaseDir != "/custom/path" {
-			t.Errorf("expected BaseDir /custom/path, got %s", cfg.Driver.BaseDir)
+		paths, pathErr := ResolveStoragePaths()
+		if pathErr != nil {
+			t.Fatalf("ResolveStoragePaths: %v", pathErr)
 		}
-		if !cfg.Driver.UseFuseOverlayfs {
-			t.Error("expected UseFuseOverlayfs true")
+		if cfg.Driver.BaseDir != paths.PersistentData {
+			t.Errorf("expected authoritative BaseDir %s, got %s", paths.PersistentData, cfg.Driver.BaseDir)
 		}
 		if cfg.Driver.ProjectRoot != "/my/project" {
 			t.Errorf("expected ProjectRoot /my/project, got %s", cfg.Driver.ProjectRoot)
@@ -234,22 +223,14 @@ func TestLoadFromEnv(t *testing.T) {
 
 	t.Run("loads database config", func(t *testing.T) {
 		os.Setenv("API_PORT", "8080")
-		os.Setenv("DATABASE_URL", "postgres://localhost/test")
-		os.Setenv("POSTGRES_HOST", "db.example.com")
-		os.Setenv("POSTGRES_SCHEMA", "custom_schema")
+		os.Setenv("SQLITE_PATH", "/tmp/workspace-sandbox-test.db")
 
 		cfg, err := LoadFromEnv()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Database.URL != "postgres://localhost/test" {
-			t.Errorf("expected DATABASE_URL, got %s", cfg.Database.URL)
-		}
-		if cfg.Database.Host != "db.example.com" {
-			t.Errorf("expected Host db.example.com, got %s", cfg.Database.Host)
-		}
-		if cfg.Database.Schema != "custom_schema" {
-			t.Errorf("expected Schema custom_schema, got %s", cfg.Database.Schema)
+		if cfg.Database.Path != "" {
+			t.Errorf("expected SQLITE_PATH to be ignored, got %q", cfg.Database.Path)
 		}
 	})
 }
@@ -295,6 +276,15 @@ func TestValidate(t *testing.T) {
 		err := cfg.Validate()
 		if err == nil {
 			t.Error("expected error for low WriteTimeout")
+		}
+	})
+
+	t.Run("WriteTimeout=0 is allowed (treated as unset by api-core)", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Server.WriteTimeout = 0
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected WriteTimeout=0 to validate, got: %v", err)
 		}
 	})
 
@@ -400,6 +390,159 @@ func TestValidate(t *testing.T) {
 		err := cfg.Validate()
 		if err == nil {
 			t.Error("expected error for missing BaseDir")
+		}
+	})
+
+	t.Run("non-numeric port fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "not-a-port"
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "server.port") {
+			t.Errorf("expected server.port error for non-numeric port, got: %v", err)
+		}
+	})
+
+	t.Run("port out of range fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "70000"
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "server.port") {
+			t.Errorf("expected server.port range error, got: %v", err)
+		}
+	})
+
+	t.Run("MaxTotalSizeMB below MaxSandboxSizeMB fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Limits.MaxSandboxSizeMB = 1024
+		cfg.Limits.MaxTotalSizeMB = 512
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "maxTotalSizeMB") {
+			t.Errorf("expected maxTotalSizeMB error, got: %v", err)
+		}
+	})
+
+	t.Run("IdleTimeout greater than DefaultTTL fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.IdleTimeout = 48 * time.Hour
+		cfg.Lifecycle.DefaultTTL = 24 * time.Hour
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "idleTimeout") {
+			t.Errorf("expected idleTimeout error, got: %v", err)
+		}
+	})
+
+	t.Run("AutoHealBaseBackoff zero fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.AutoHealBaseBackoff = 0
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "autoHealBaseBackoff") {
+			t.Errorf("expected autoHealBaseBackoff error, got: %v", err)
+		}
+	})
+
+	t.Run("ProcessGracePeriod zero fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.ProcessGracePeriod = 0
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "processGracePeriod") {
+			t.Errorf("expected processGracePeriod error, got: %v", err)
+		}
+	})
+
+	t.Run("TerminalCleanupDelay non-zero with AutoCleanupTerminal=false fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.AutoCleanupTerminal = false
+		cfg.Lifecycle.TerminalCleanupDelay = 10 * time.Minute
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "terminalCleanupDelay") {
+			t.Errorf("expected terminalCleanupDelay mutual-exclusion error, got: %v", err)
+		}
+	})
+
+	t.Run("TerminalCleanupDelay 0 with AutoCleanupTerminal=false passes", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Lifecycle.AutoCleanupTerminal = false
+		cfg.Lifecycle.TerminalCleanupDelay = 0
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected validation to pass when delay=0 and auto-cleanup disabled: %v", err)
+		}
+	})
+
+	t.Run("BinaryDetectionThreshold zero fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Policy.BinaryDetectionThreshold = 0
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "binaryDetectionThreshold") {
+			t.Errorf("expected binaryDetectionThreshold error, got: %v", err)
+		}
+	})
+
+	t.Run("empty CommitMessageTemplate fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Policy.CommitMessageTemplate = ""
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "commitMessageTemplate") {
+			t.Errorf("expected commitMessageTemplate error, got: %v", err)
+		}
+	})
+
+	t.Run("DefaultMemoryLimit above MaxMemoryLimit fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Execution.DefaultResourceLimits.MemoryLimitMB = 32768
+		cfg.Execution.MaxResourceLimits.MemoryLimitMB = 16384
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "memoryLimitMB") {
+			t.Errorf("expected memoryLimitMB ordering error, got: %v", err)
+		}
+	})
+
+	t.Run("DefaultCPUTimeSec above MaxCPUTimeSec fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Execution.DefaultResourceLimits.CPUTimeSec = 7200
+		cfg.Execution.MaxResourceLimits.CPUTimeSec = 3600
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "cpuTimeSec") {
+			t.Errorf("expected cpuTimeSec ordering error, got: %v", err)
+		}
+	})
+
+	t.Run("empty DefaultIsolationProfile fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Execution.DefaultIsolationProfile = ""
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "defaultIsolationProfile") {
+			t.Errorf("expected defaultIsolationProfile error, got: %v", err)
+		}
+	})
+
+	t.Run("AgentManagerSyncEnabled with empty URL passes (discovery fallback)", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Integration.AgentManagerSyncEnabled = true
+		cfg.Integration.AgentManagerURL = ""
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected validation to pass — discovery fills URL at request time, got: %v", err)
+		}
+	})
+
+	t.Run("negative AgentManagerSyncTimeout fails", func(t *testing.T) {
+		cfg := Default()
+		cfg.Server.Port = "8080"
+		cfg.Integration.AgentManagerSyncTimeout = -1 * time.Second
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "agentManagerSyncTimeout") {
+			t.Errorf("expected agentManagerSyncTimeout error, got: %v", err)
 		}
 	})
 }
@@ -699,4 +842,40 @@ func TestRequireEnv(t *testing.T) {
 			t.Errorf("expected error for whitespace-only value")
 		}
 	})
+}
+
+func TestStoragePathsIgnoreApplicationEnvironment(t *testing.T) {
+	base, err := ResolveStoragePaths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", "SANDBOX_BASE_DIR"} {
+		t.Setenv(key, filepath.Join(t.TempDir(), "must-not-be-used"))
+	}
+	got, err := ResolveStoragePaths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != base {
+		t.Fatalf("storage paths changed after prohibited environment overrides: before=%+v after=%+v", base, got)
+	}
+}
+
+func TestPrepareStoragePathsRejectsFileAndUsesNoFallback(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	paths := StoragePaths{PersistentData: file, Transient: filepath.Join(t.TempDir(), "transient"), Runtime: filepath.Join(t.TempDir(), "runtime")}
+	err := PrepareStoragePaths(paths)
+	var failure *PathFailure
+	if !errors.As(err, &failure) {
+		t.Fatalf("expected PathFailure, got %T: %v", err, err)
+	}
+	if failure.Code != "PATH_CREATE_FAILED" || failure.Path != file {
+		t.Fatalf("failure=%+v, want create failure for authoritative file", failure)
+	}
+	if _, statErr := os.Stat(paths.Transient); !os.IsNotExist(statErr) {
+		t.Fatalf("fallback path was attempted: stat=%v", statErr)
+	}
 }

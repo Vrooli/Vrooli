@@ -1,0 +1,116 @@
+{
+  "metadata": {
+    "name": "a230-desktop-compact-duration",
+    "description": "Require the reference work title to remain hidden and its compact duration to remain visible without overflow on a desktop Today viewport; capture the rendered desktop state without business writes.",
+    "requirement": "OT-P1-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "a230-mobile-title-visibility",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "open-today",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Today under the routed reference-scale lease"
+        }
+      }
+    },
+    {
+      "id": "wait-today",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for Today"
+        }
+      }
+    },
+    {
+      "id": "wait-reference-block",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": ".day-plan .time-block[data-full-title^=\"P1 Reference work \"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for the seeded reference work timeline block"
+        }
+      }
+    },
+    {
+      "id": "assert-rendered-state",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const visible=e=>{if(!e?.isConnected)return false;const s=getComputedStyle(e),r=e.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)!==0&&r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth}; const block=[...document.querySelectorAll('.day-plan .time-block.compact')].find(e=>e.dataset.fullTitle?.startsWith('P1 Reference work ')&&visible(e)); if(!block) throw new Error('Reference work compact block is not visible on desktop'); const title=block.querySelector('.time-block-title'),duration=block.querySelector('.time-block-duration'); if(!title||!new RegExp('^P1 Reference work [0-9]{4}$').test(title.textContent.trim())) throw new Error('Desktop compact title content is unavailable'); if(visible(title)) throw new Error('Desktop compact title should stay hidden'); if(!duration||!visible(duration)||!new RegExp('^[0-9]+m$').test(duration.textContent.trim())) throw new Error('Desktop compact duration is not visibly rendered'); const dr=duration.getBoundingClientRect(),br=block.getBoundingClientRect(); if(dr.left<br.left-1||dr.right>br.right+1) throw new Error('Desktop compact duration extends beyond its block bounds'); return {viewport:{width:innerWidth,height:innerHeight},title:title.textContent.trim(),title_visible:false,duration:duration.textContent.trim(),duration_visible:true,duration_rect:(()=>{const r=duration.getBoundingClientRect();return {left:r.left,right:r.right}})(),block_rect:(()=>{const r=block.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()}; })()",
+          "store_result": "a230_a230-desktop-compact-duration_rendered_state"
+        },
+        "metadata": {
+          "label": "Require the expected rendered block state"
+        }
+      }
+    },
+    {
+      "id": "capture-rendered-state",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture a230-desktop-compact-duration Today block rendering"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-today",
+      "target": "wait-today",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-today",
+      "target": "wait-reference-block",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-reference-block",
+      "target": "assert-rendered-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-rendered-state",
+      "target": "capture-rendered-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

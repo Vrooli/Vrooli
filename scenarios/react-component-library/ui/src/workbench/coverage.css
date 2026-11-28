@@ -1,0 +1,151 @@
+/* ── Coverage ─────────────────────────────────────────────────────────────── */
+
+.wb-coverage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.wb-matrix-scroll {
+  max-height: 380px;
+  overflow: auto;
+}
+
+.wb-matrix {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.wb-matrix-row {
+  display: grid;
+  grid-template-columns: 120px repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  align-items: center;
+}
+
+.wb-matrix-head {
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.wb-matrix-label {
+  overflow: hidden;
+  color: var(--wb-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-matrix-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border-radius: 6px;
+  background: #1a1f2b;
+  color: var(--wb-muted);
+  font: 10px/1 var(--wb-mono);
+}
+
+.wb-matrix-cell.is-0 {
+  background: #141821;
+  color: var(--wb-muted-2);
+}
+
+.wb-matrix-cell.is-1 {
+  background: #2b2027;
+  color: #ffb8b8;
+}
+
+.wb-matrix-cell.is-2 {
+  background: #1c2230;
+  color: #aebbd2;
+}
+
+.wb-matrix-cell.is-3 {
+  background: #2a2b4a;
+  color: #c9c4ff;
+}
+
+.wb-matrix-cell.is-4 {
+  background: #4b3f86;
+  color: #efeaff;
+}
+
+.wb-matrix-cell.is-5 {
+  background: var(--wb-signal);
+  color: var(--wb-signal-ink);
+  font-weight: 700;
+}
+
+.wb-readiness {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.wb-readiness-row {
+  display: flex;
+  gap: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.wb-readiness-row b {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  place-items: center;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--wb-muted-2);
+  font: 9px/1 var(--wb-mono);
+}
+
+.wb-nextwork {
+  display: grid;
+}
+
+.wb-nextwork-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--wb-line);
+  font-size: 12px;
+}
+
+.wb-nextwork-row:last-child {
+  border-bottom: 0;
+}
+
+.wb-nextwork-row b {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-nextwork-row small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--wb-muted-2);
+  font: 9px/1.4 var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wb-nextwork-rank {
+  width: 20px;
+  color: var(--wb-muted-2);
+  font: 9px/1 var(--wb-mono);
+}

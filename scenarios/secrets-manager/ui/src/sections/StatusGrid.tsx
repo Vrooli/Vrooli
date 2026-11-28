@@ -2,33 +2,33 @@ import { Activity, Database, TerminalSquare, ShieldCheck } from "lucide-react";
 import { StatusTile } from "../components/ui/StatusTile";
 import { LoadingStatusTile } from "../components/ui/LoadingStates";
 import { formatTimestamp } from "../lib/formatters";
-import type { HealthResponse, VaultSecretsStatus, ComplianceResponse, VulnerabilityResponse } from "../lib/api";
+import type { HealthResponse, CredentialCoverageStatus, ComplianceResponse, VulnerabilityResponse } from "../lib/api";
 
 interface StatusGridProps {
   healthData?: HealthResponse;
-  vaultData?: VaultSecretsStatus;
+  credentialData?: CredentialCoverageStatus;
   complianceData?: ComplianceResponse;
   vulnerabilityData?: VulnerabilityResponse;
   isHealthLoading: boolean;
-  isVaultLoading: boolean;
+  isCredentialLoading: boolean;
   isComplianceLoading: boolean;
   isVulnerabilityLoading: boolean;
 }
 
 export const StatusGrid = ({
   healthData,
-  vaultData,
+  credentialData,
   complianceData,
   vulnerabilityData,
   isHealthLoading,
-  isVaultLoading,
+  isCredentialLoading,
   isComplianceLoading,
   isVulnerabilityLoading
 }: StatusGridProps) => {
-  const missingSecrets = vaultData?.missing_secrets ?? [];
+  const missingSecrets = credentialData?.missing_secrets ?? [];
 
   const databaseConnected = healthData?.dependencies?.database?.connected ?? false;
-  const lastScanTimestamp = complianceData?.last_updated ?? vaultData?.last_updated;
+  const lastScanTimestamp = complianceData?.last_updated ?? credentialData?.last_updated;
   const riskScore = vulnerabilityData?.risk_score;
 
   const tiles: Array<{
@@ -59,12 +59,12 @@ export const StatusGrid = ({
       }
     },
     {
-      key: "vault",
-      loading: isVaultLoading,
+      key: "credentials",
+      loading: isCredentialLoading,
       props: {
         icon: ShieldCheck,
-        label: "Vault Coverage",
-        value: `${vaultData?.configured_resources ?? 0}/${vaultData?.total_resources ?? 0}`,
+        label: "Credential Coverage",
+        value: `${credentialData?.configured_resources ?? 0}/${credentialData?.total_resources ?? 0}`,
         meta: `${missingSecrets.length} missing`,
         intent: missingSecrets.length > 0 ? "warn" : "good"
       }

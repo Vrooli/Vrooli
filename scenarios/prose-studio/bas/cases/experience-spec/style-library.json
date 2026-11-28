@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "name": "experience-style-library-spec-smoke",
+    "description": "Observer smoke for the operator style library.",
+    "requirement": "OT-P0-002",
+    "version": "1",
+    "labels": { "reset": "none", "spec_entry_id": "style-library", "surface": "experience-style-library" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 800 },
+  "nodes": [
+    {
+      "id": "navigate-styles",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prose-studio",
+          "scenario_path": "/styles",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Style Library" }
+      }
+    },
+    {
+      "id": "wait-styles-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/pages.styles", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Style Library visible" }
+      }
+    }
+  ]
+}

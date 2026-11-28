@@ -23,15 +23,6 @@
       "status": "pending"
     },
     {
-      "id": "TM-FF-003",
-      "title": "code-smell deep integration",
-      "prd_ref": "OT-P2-003",
-      "description": "Call code-smell scenario for pattern-based analysis beyond structural issues",
-      "validation": [],
-      "notes": "Combine structural (tidiness) + pattern (code-smell) analysis",
-      "status": "pending"
-    },
-    {
       "id": "TM-FF-004",
       "title": "Remediation automation",
       "prd_ref": "OT-P2-004",

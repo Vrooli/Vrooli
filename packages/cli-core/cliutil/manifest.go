@@ -1,0 +1,636 @@
+package cliutil
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
+
+	"github.com/vrooli/cli-core/buildinfo"
+)
+
+// freshnessManifestVersion is the on-disk schema version of FreshnessManifest.
+// Bump only on incompatible layout changes; a version mismatch is treated as
+// "no usable manifest" (stale-once, self-healing) by EvaluateFreshness callers.
+const freshnessManifestVersion = 1
+
+// FreshnessManifestVersion exposes the persisted format for compatibility
+// inventories without exposing the implementation's version constant.
+func FreshnessManifestVersion() int { return freshnessManifestVersion }
+
+// FileManifestEntry records one input file's fingerprint at the time the
+// artifact was built. mtime is stored (as Unix nanoseconds) so the stat-cache
+// can skip re-hashing files whose (size, mtime) are unchanged.
+type FileManifestEntry struct {
+	Rel      string `json:"rel"`
+	Size     int64  `json:"size"`
+	MTimeNS  int64  `json:"mtime_ns"`
+	Hash     string `json:"sha256"`
+	Explicit bool   `json:"explicit,omitempty"`
+}
+
+// FreshnessManifest is the recorded freshness stamp written next to a build
+// artifact at setup success. Staleness becomes a manifest comparison (stat-cache
+// + selective re-hash) rather than a full mtime tree walk. The aggregate Digest
+// keys both file content AND non-file build inputs (toolchain version, NODE_ENV)
+// so a byte-identical source tree built under a different toolchain/env still
+// reads as stale — closing the false-negative hole that pure content hashing
+// would open.
+type FreshnessManifest struct {
+	Version     int    `json:"version"`
+	CheckType   string `json:"check_type"`
+	WrittenAtNS int64  `json:"written_at_ns"`
+	// Digest is the aggregate fingerprint over file content + KeyInputs. It is a
+	// debug/identity field surfaced in the stamped manifest (and `--json` reads),
+	// NOT the freshness decision input: EvaluateFreshness compares KeyInputs and
+	// per-file entries directly (so it can name the precise offender), never the
+	// aggregate. Retained as a single human-legible "what was this build" handle.
+	Digest    string            `json:"digest"`
+	Inputs    []string          `json:"inputs,omitempty"`
+	KeyInputs map[string]string `json:"key_inputs,omitempty"`
+	// Watch lets a warm check prove the input set and content unchanged from
+	// metadata alone, without re-enumerating. Absent when the enumeration was
+	// not fully observable; checks then enumerate. It is encoded before Files
+	// so a reader that needs only the watch can stop before the file list.
+	// WatchRecorded distinguishes that case from a manifest written before
+	// watches existed, which is worth restamping once.
+	Watch         *FreshnessWatch     `json:"watch,omitempty"`
+	WatchRecorded bool                `json:"watch_recorded,omitempty"`
+	Files         []FileManifestEntry `json:"files"`
+	// EnvSwitches lists the environment variable names the build's sources
+	// read as switches, so a pre-deploy report can name the switches a newer
+	// tree adds. It is a record of the build, never a freshness input.
+	// EnvSwitchesRecorded distinguishes "none" from a manifest written before
+	// the field existed.
+	EnvSwitches         []string `json:"env_switches,omitempty"`
+	EnvSwitchesRecorded bool     `json:"env_switches_recorded,omitempty"`
+}
+
+// FreshnessVerdict is the result of comparing the live input set against a
+// recorded manifest.
+type FreshnessVerdict struct {
+	Stale  bool
+	Reason string // human-facing "what changed" (e.g. "content changed")
+	File   string // offending input (rel path) or key-input name, when applicable
+}
+
+func staleVerdict(reason, file string) FreshnessVerdict {
+	return FreshnessVerdict{Stale: true, Reason: reason, File: file}
+}
+
+// ComputeFreshnessManifest builds a manifest from a freshness spec plus the
+// non-file keyed inputs (toolchain version, NODE_ENV, …). writtenAtNS stamps the
+// write time used by the racy-index re-hash rule; callers pass a real clock
+// value (time.Now().UnixNano()).
+//
+// The manifest carries a FreshnessWatch over everything the enumeration read.
+// The Go replace-closure derivation is observed as well, so a checker holding
+// the unexpanded input list can also skip that derivation (see
+// FreshnessWatch.ExpansionStable).
+func ComputeFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs map[string]string, writtenAtNS int64) (FreshnessManifest, error) {
+	observer := newFreshnessObserver(spec)
+	observed := spec
+	observed.observer = observer
+	expansionStable := slices.Equal(WithGoReplaceFreshnessInputs(observed).Inputs, spec.Inputs)
+	entries, err := collectFreshnessEntries(observed)
+	if err != nil {
+		return FreshnessManifest{}, err
+	}
+	return newFreshnessManifest(spec, checkType, keyInputs, writtenAtNS, entries, observer.watch(spec, expansionStable)), nil
+}
+
+func newFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs map[string]string, writtenAtNS int64, entries []FileManifestEntry, watch *FreshnessWatch) FreshnessManifest {
+	return FreshnessManifest{
+		Version:       freshnessManifestVersion,
+		CheckType:     strings.TrimSpace(checkType),
+		WrittenAtNS:   writtenAtNS,
+		Digest:        aggregateManifestDigest(entries, keyInputs),
+		Inputs:        append([]string(nil), spec.Inputs...),
+		KeyInputs:     copyStringMap(keyInputs),
+		Files:         entries,
+		Watch:         watch,
+		WatchRecorded: true,
+	}
+}
+
+// EvaluateFreshness compares the current input set against the recorded manifest
+// using a stat-cache: a file whose (size, mtime) match the manifest AND whose
+// mtime is strictly older than the manifest's own write time is trusted without
+// re-hashing. Any file whose mtime changed, or whose mtime is at/after the
+// manifest write time (Git's racy-index rule, defending coarse-granularity
+// filesystems), is re-hashed and compared. A key-input change, an added or
+// removed input, or a content change all yield a stale verdict naming the cause.
+//
+// A manifest with the wrong version is reported stale so callers bootstrap a
+// fresh stamp. Callers must verify the recorded check type against their own.
+//
+// When the manifest's watch still holds for this exact spec, the input set and
+// every file are proven unchanged from metadata alone and no enumeration runs.
+func EvaluateFreshness(spec FreshnessSpec, manifest FreshnessManifest, keyInputs map[string]string) (FreshnessVerdict, error) {
+	if manifest.Version != freshnessManifestVersion {
+		return staleVerdict("manifest version mismatch", ""), nil
+	}
+	if v := compareKeyInputs(manifest.KeyInputs, keyInputs); v.Stale {
+		return v, nil
+	}
+	if manifest.Watch.Holds(spec, manifest.WrittenAtNS) {
+		return FreshnessVerdict{Stale: false}, nil
+	}
+
+	current, err := statFreshnessInputs(spec)
+	if err != nil {
+		return FreshnessVerdict{}, err
+	}
+
+	// On a case-insensitive volume the OS may report a different casing for the
+	// same file across builds, so fold comparison keys to avoid spurious
+	// new/removed-input verdicts. The reported offender keeps its live casing.
+	foldKey := func(rel string) string { return rel }
+	if spec.CaseInsensitive {
+		foldKey = strings.ToLower
+	}
+
+	recorded := make(map[string]FileManifestEntry, len(manifest.Files))
+	for _, e := range manifest.Files {
+		recorded[foldKey(e.Rel)] = e
+	}
+
+	// Stable iteration order so the named offender is deterministic.
+	rels := make([]string, 0, len(current))
+	for rel := range current {
+		rels = append(rels, rel)
+	}
+	sort.Strings(rels)
+
+	for _, rel := range rels {
+		st := current[rel]
+		rec, ok := recorded[foldKey(rel)]
+		if !ok {
+			return staleVerdict("new input file", rel), nil
+		}
+		if st.size != rec.Size {
+			return staleVerdict("size changed", rel), nil
+		}
+		// Racy-index rule: trust the recorded hash only when the mtime is
+		// unchanged AND strictly older than the manifest write time. Otherwise
+		// re-hash to confirm.
+		if st.mtimeNS != rec.MTimeNS || st.mtimeNS >= manifest.WrittenAtNS {
+			hash, err := hashFileContent(st.abs)
+			if err != nil {
+				return FreshnessVerdict{}, err
+			}
+			if hash != rec.Hash {
+				return staleVerdict("content changed", rel), nil
+			}
+		}
+	}
+
+	currentKeys := make(map[string]struct{}, len(current))
+	for rel := range current {
+		currentKeys[foldKey(rel)] = struct{}{}
+	}
+	for rel := range recorded {
+		if _, ok := currentKeys[rel]; ok {
+			continue
+		}
+		// A manifest written before build outputs were excluded still lists them.
+		// Treating that as a removed input would declare every pre-existing
+		// manifest stale at once, so ignore entries the current rules exclude.
+		if isBuildOutput(rel) && !recorded[rel].Explicit {
+			continue
+		}
+		return staleVerdict("input file removed", rel), nil
+	}
+
+	return FreshnessVerdict{Stale: false}, nil
+}
+
+func compareKeyInputs(recorded, current map[string]string) FreshnessVerdict {
+	// Union of keys so both an added and a removed key are detected.
+	seen := make(map[string]struct{}, len(recorded)+len(current))
+	keys := make([]string, 0, len(recorded)+len(current))
+	for k := range recorded {
+		if _, ok := seen[k]; !ok {
+			seen[k] = struct{}{}
+			keys = append(keys, k)
+		}
+	}
+	for k := range current {
+		if _, ok := seen[k]; !ok {
+			seen[k] = struct{}{}
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if recorded[k] != current[k] {
+			// Reason is the generic cause and File carries the offending key,
+			// mirroring the file-offender verdicts ("content changed" + path) so
+			// callers that render "(reason: file)" don't double-print the key.
+			return staleVerdict("build input changed", k)
+		}
+	}
+	return FreshnessVerdict{}
+}
+
+type statEntry struct {
+	size    int64
+	mtimeNS int64
+	abs     string
+}
+
+// statFreshnessInputs enumerates the spec's input files and records (size,
+// mtime) without hashing. It applies the identical skip-dir / skip-file /
+// compiled-binary exclusions as the manifest collector so the live set and the
+// recorded set are directly comparable. The compiled-binary check peeks only the
+// first bytes, keeping the steady-state sweep stat-(plus-tiny-read)-only.
+func statFreshnessInputs(spec FreshnessSpec) (map[string]statEntry, error) {
+	var err error
+	spec, err = withEmbeddedFreshnessInputs(spec)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]statEntry{}
+	explicit := explicitFreshnessFiles(spec)
+	visit := func(root, abs string, info fs.FileInfo) {
+		rel, err := filepath.Rel(root, abs)
+		if err != nil {
+			return
+		}
+		out[filepath.ToSlash(rel)] = statEntry{size: info.Size(), mtimeNS: info.ModTime().UnixNano(), abs: abs}
+	}
+	return out, walkFreshnessInputs(spec, func(root, abs string, info fs.FileInfo, isCompiled func() bool) error {
+		if isCompiled() && !explicit[filepath.Clean(abs)] {
+			return nil
+		}
+		visit(root, abs, info)
+		return nil
+	})
+}
+
+func collectFreshnessEntries(spec FreshnessSpec) ([]FileManifestEntry, error) {
+	var err error
+	spec, err = withEmbeddedFreshnessInputs(spec)
+	if err != nil {
+		return nil, err
+	}
+	var entries []FileManifestEntry
+	seen := make(map[string]bool)
+	explicit := explicitFreshnessFiles(spec)
+	err = walkFreshnessInputs(spec, func(root, abs string, info fs.FileInfo, _ func() bool) error {
+		content, readErr := os.ReadFile(abs)
+		if readErr != nil {
+			return readErr
+		}
+		if buildinfo.IsCompiledBinary(content) && !explicit[filepath.Clean(abs)] {
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, abs)
+		if relErr != nil {
+			return relErr
+		}
+		if seen[filepath.ToSlash(rel)] {
+			return nil
+		}
+		seen[filepath.ToSlash(rel)] = true
+		sum := sha256.Sum256(content)
+		entries = append(entries, FileManifestEntry{
+			Rel:      filepath.ToSlash(rel),
+			Size:     info.Size(),
+			MTimeNS:  info.ModTime().UnixNano(),
+			Hash:     fmt.Sprintf("%x", sum),
+			Explicit: explicit[filepath.Clean(abs)],
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Rel < entries[j].Rel })
+	return entries, nil
+}
+
+// walkFreshnessInputs is the single traversal shared by the manifest collector
+// (which hashes) and the stat-cache enumerator (which does not). The visit
+// callback receives the traversal root used for rel-path computation, the
+// absolute file path, its FileInfo, and a lazy isCompiled() predicate (reads
+// only the leading magic bytes) so the caller decides whether to exclude
+// compiled artifacts without an unconditional full read.
+func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info fs.FileInfo, isCompiled func() bool) error) error {
+	sourceRoot := filepath.Clean(strings.TrimSpace(spec.SourceRoot))
+	if sourceRoot == "" {
+		return fmt.Errorf("freshness source root must not be empty")
+	}
+	skip := append([]string(nil), spec.SkipFiles...)
+	skipSuffixes := append([]string(nil), spec.SkipSuffixes...)
+	inputs := trimNonEmpty(spec.Inputs)
+	if len(inputs) == 0 {
+		// Git's index and ignore rules decide this set; a watch cannot see them.
+		spec.observer.markUnwatchable()
+		files, _, err := EnumerateInputs(sourceRoot, []string{"."}, EnumerateDeps{})
+		if err != nil {
+			return err
+		}
+		for _, rel := range files {
+			match := filepath.Join(sourceRoot, filepath.FromSlash(rel))
+			info, err := os.Stat(match)
+			if err != nil {
+				return err
+			}
+			if buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) {
+				continue
+			}
+			if err := visit(sourceRoot, match, info, magicPeek(match)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	contextRoot := filepath.Clean(strings.TrimSpace(spec.ContextRoot))
+	if contextRoot == "" {
+		contextRoot = sourceRoot
+	}
+	type declaredInput struct {
+		value   string
+		literal bool
+	}
+	declared := make([]declaredInput, 0, len(inputs)+len(spec.literalInputs))
+	for _, input := range inputs {
+		declared = append(declared, declaredInput{value: input})
+	}
+	for _, input := range spec.literalInputs {
+		declared = append(declared, declaredInput{value: input, literal: true})
+	}
+	explicit := explicitFreshnessFiles(spec)
+	for _, input := range declared {
+		var matches []string
+		var err error
+		if input.literal {
+			matches = []string{filepath.Join(contextRoot, filepath.FromSlash(input.value))}
+		} else {
+			matches, err = expandDeclaredInputPaths(contextRoot, input.value)
+			if hasGlobPattern(input.value) {
+				spec.observer.globbed(filepath.Join(contextRoot, filepath.FromSlash(input.value)))
+			}
+		}
+		if err != nil {
+			return err
+		}
+		for _, match := range matches {
+			spec.observer.probed(match)
+			linkInfo, linkErr := os.Lstat(match)
+			if linkErr != nil {
+				if os.IsNotExist(linkErr) {
+					continue
+				}
+				return linkErr
+			}
+			if linkInfo.Mode()&os.ModeSymlink != 0 {
+				// Symlinks are references, not source files. In particular, a
+				// broken fixture link must not make an otherwise valid artifact
+				// impossible to stamp.
+				continue
+			}
+			info, err := os.Stat(match)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return err
+			}
+			if info.IsDir() {
+				if err := walkTreeInputs(contextRoot, match, skip, skipSuffixes, spec.observer, visit); err != nil {
+					return err
+				}
+				continue
+			}
+			if !info.Mode().IsRegular() {
+				// Sockets, devices, FIFOs, and other runtime artifacts are not
+				// build inputs and may not be readable as file content.
+				continue
+			}
+			rel, err := filepath.Rel(contextRoot, match)
+			if err != nil {
+				return err
+			}
+			relSlash := filepath.ToSlash(rel)
+			if (buildinfoSkipFile(relSlash, skip) && !explicit[filepath.Clean(match)]) || hasSkippedSuffix(relSlash, skipSuffixes) || explicitlySkippedFile(relSlash, skip) {
+				continue
+			}
+			if err := visit(contextRoot, match, info, magicPeek(match)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func explicitFreshnessFiles(spec FreshnessSpec) map[string]bool {
+	root := strings.TrimSpace(spec.ContextRoot)
+	if root == "" {
+		root = spec.SourceRoot
+	}
+	out := make(map[string]bool)
+	for _, input := range trimNonEmpty(spec.Inputs) {
+		if !hasGlobPattern(input) {
+			out[filepath.Clean(filepath.Join(root, filepath.FromSlash(input)))] = true
+		}
+	}
+	for _, input := range spec.literalInputs {
+		out[filepath.Clean(filepath.Join(root, filepath.FromSlash(input)))] = true
+	}
+	return out
+}
+
+func explicitlySkippedFile(rel string, skips []string) bool {
+	for _, skip := range skips {
+		if buildinfo.PathHasComponent(rel, skip) {
+			return true
+		}
+	}
+	return false
+}
+
+func walkTreeInputs(root, start string, skip, skipSuffixes []string, observer *freshnessObserver, visit func(root, abs string, info fs.FileInfo, isCompiled func() bool) error) error {
+	return filepath.WalkDir(start, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if rel != "." && buildinfoSkipDir(root, rel) && d.IsDir() {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			observer.listed(path)
+			return nil
+		}
+		if rel == "." || buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) {
+			return nil
+		}
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return infoErr
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		// Record metadata before the visitor reads content: a write between the
+		// two then shows as changed metadata instead of hiding behind the hash.
+		observer.read(path, info)
+		return visit(root, path, info, magicPeek(path))
+	})
+}
+
+// BuildOutputSkipNames and BuildOutputSkipSuffixes name files that a build or
+// test run *produces*, never files it consumes. They are applied unconditionally
+// inside the freshness walk so every caller — the manifest writer, the stat-cache
+// evaluator, and the preflight staleness checker — shares one definition and
+// cannot drift apart.
+//
+// This exists because these outputs were being recorded as build inputs: a
+// `go test -coverprofile` run rewrote coverage.out, which made the binary look
+// stale, which (under any auto-rebuild policy) would rebuild it, which the next
+// test run would invalidate again. Compiled artifacts are already excluded by
+// the magic-number check; these are the text outputs it cannot see.
+var (
+	BuildOutputSkipNames = []string{
+		"coverage.out", "cov.out", "cover.out",
+		".vrooli-closure-go_module.json",
+		// jscpd writes its duplication report into the api tree, so a scan run
+		// would otherwise stale the binary that never consumed it.
+		"jscpd-report.json",
+	}
+
+	BuildOutputSkipSuffixes = []string{".log", ".test", ".tmp"}
+)
+
+// isBuildOutput reports whether rel names a build/test product.
+func isBuildOutput(rel string) bool {
+	base := path.Base(rel)
+	if isFreshnessManifestOutput(base) {
+		return true
+	}
+	for _, name := range BuildOutputSkipNames {
+		if base == name {
+			return true
+		}
+	}
+	for _, suffix := range BuildOutputSkipSuffixes {
+		if strings.HasSuffix(base, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+// The atomic writer's reserved sidecar namespace is generated metadata, not
+// authored input. Its current temporary names end in a numeric random suffix;
+// do not hide similarly named authored files such as .tmp-template.go.
+func isFreshnessManifestOutput(base string) bool {
+	if strings.HasSuffix(base, FreshnessManifestSuffix) {
+		return true
+	}
+	const temporaryMarker = FreshnessManifestSuffix + ".tmp-"
+	index := strings.LastIndex(base, temporaryMarker)
+	if index < 0 {
+		return false
+	}
+	suffix := base[index+len(temporaryMarker):]
+	if suffix == "" {
+		return false
+	}
+	for _, char := range suffix {
+		if char < '0' || char > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// BuildOutputSkipSuffixesFor returns output suffixes for the target platform.
+// Windows executables are excluded only when the caller's executable probe
+// says .exe is meaningful; a source file named *.exe on Unix is an input.
+func BuildOutputSkipSuffixesFor(executableSuffix string) []string {
+	suffixes := append([]string(nil), BuildOutputSkipSuffixes...)
+	if strings.TrimSpace(executableSuffix) != "" {
+		suffixes = append(suffixes, executableSuffix)
+	}
+	return suffixes
+}
+
+func hasSkippedSuffix(rel string, suffixes []string) bool {
+	for _, s := range suffixes {
+		s = strings.TrimSpace(s)
+		if s != "" && strings.HasSuffix(rel, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// magicPeek returns a predicate that reports whether the file at path begins
+// with a compiled-executable magic number, reading only the leading bytes.
+func magicPeek(path string) func() bool {
+	return func() bool {
+		f, err := os.Open(path)
+		if err != nil {
+			return false
+		}
+		defer f.Close()
+		var buf [4]byte
+		n, _ := f.Read(buf[:])
+		return buildinfo.IsCompiledBinary(buf[:n])
+	}
+}
+
+func hashFileContent(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(content)
+	return fmt.Sprintf("%x", sum), nil
+}
+
+func aggregateManifestDigest(entries []FileManifestEntry, keyInputs map[string]string) string {
+	hasher := sha256.New()
+	for _, e := range entries {
+		fmt.Fprintf(hasher, "%s|%d|%s\n", e.Rel, e.Size, e.Hash)
+	}
+	for _, k := range sortedKeys(keyInputs) {
+		fmt.Fprintf(hasher, "@%s=%s\n", k, keyInputs[k])
+	}
+	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func copyStringMap(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}

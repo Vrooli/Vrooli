@@ -1,0 +1,31 @@
+{
+  "coverage": "IN-REACH",
+  "description": "Producer-owned Business Digest reading.",
+  "format": "integer",
+  "id": "credits_purchased_30d",
+  "kind": "scalar",
+  "label": "Credits purchased · 30 days",
+  "sample": {
+    "basis": "hand-authored zero baseline; production validation pending",
+    "series": [
+      0
+    ],
+    "value": 0
+  },
+  "shape": "series",
+  "source": {
+    "binding": "scenario:landing-page-business-suite",
+    "contractVersion": "business-digest.v1",
+    "expectedUnit": "count",
+    "featureId": "digest_purchased",
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "read": "/landing_page_business_suite.v1.BusinessDigestService/GetBusinessDigest?windowDays=30",
+    "select": "digest_purchased",
+    "selector": "digest_purchased",
+    "sourceTimePolicy": "producer_required",
+    "team": "monetization",
+    "ttlSeconds": 300
+  },
+  "unit": "count"
+}

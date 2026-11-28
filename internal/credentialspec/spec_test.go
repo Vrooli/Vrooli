@@ -1,0 +1,270 @@
+package credentialspec
+
+import (
+	"strings"
+	"testing"
+)
+
+// ResolvedField has one job that matters: every caller must agree. A
+// descriptor that resolved to "value" in the resolver and "" in the CLI would
+// read and write two different store keys for one declaration, which is the
+// shape of bug that loses a credential without any error.
+func TestResolvedFieldIsTotal(t *testing.T) {
+	for _, testCase := range []struct {
+		name  string
+		field string
+		want  string
+	}{
+		{name: "explicit field", field: "api-key", want: "api-key"},
+		{name: "omitted field", field: "", want: DefaultField},
+		{name: "whitespace-only field", field: "   ", want: DefaultField},
+		{name: "padded field", field: "  api-key  ", want: "api-key"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := (Descriptor{Field: testCase.field}).ResolvedField(); got != testCase.want {
+				t.Fatalf("ResolvedField() = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+// Injectable decides whether a value enters a process environment at all, so
+// whitespace must not be mistaken for a variable name.
+func TestInjectableRequiresARealVariableName(t *testing.T) {
+	if (Descriptor{Env: "  "}).Injectable() {
+		t.Fatal("a whitespace-only env must not count as an injection target")
+	}
+	if !(Descriptor{Env: "OPENROUTER_API_KEY"}).Injectable() {
+		t.Fatal("a named env must count as an injection target")
+	}
+}
+
+func TestValidateRejectsOnlyWhatAnOperatorCannotFixAtRuntime(t *testing.T) {
+	for _, testCase := range []struct {
+		name        string
+		descriptors []Descriptor
+		wantErr     string
+	}{
+		{
+			name:        "no logical id",
+			descriptors: []Descriptor{{Field: "api-key"}},
+			wantErr:     "no logical_id",
+		},
+		{
+			name:        "field carrying a path separator",
+			descriptors: []Descriptor{{LogicalID: "vrooli/openrouter", Field: "a/b"}},
+			wantErr:     "path separator",
+		},
+		{
+			name: "two descriptors over one env",
+			descriptors: []Descriptor{
+				{LogicalID: "vrooli/openrouter", Field: "api-key", Env: "KEY"},
+				{LogicalID: "vrooli/other", Field: "api-key", Env: "KEY"},
+			},
+			wantErr: "twice",
+		},
+		{
+			// Reachable only because env is optional: with no env to collide
+			// on, the store key is the last thing left that can conflict.
+			name: "two descriptors over one store key",
+			descriptors: []Descriptor{
+				{LogicalID: "vrooli/openrouter", Field: "api-key"},
+				{LogicalID: "vrooli/openrouter", Field: "api-key"},
+			},
+			wantErr: "twice",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := Declaration{Descriptors: testCase.descriptors}.Validate("resource openrouter")
+			if err == nil {
+				t.Fatalf("Validate() = nil, want an error mentioning %q", testCase.wantErr)
+			}
+			if !strings.Contains(err.Error(), testCase.wantErr) {
+				t.Fatalf("error = %v, want it to mention %q", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
+// The default field is applied before the duplicate check, so an omitted field
+// and an explicit "value" are the same store key and must collide.
+func TestValidateTreatsAnOmittedFieldAsTheDefaultWhenDeduplicating(t *testing.T) {
+	err := Declaration{Descriptors: []Descriptor{
+		{LogicalID: "vrooli/openrouter"},
+		{LogicalID: "vrooli/openrouter", Field: DefaultField},
+	}}.Validate("resource openrouter")
+	if err == nil {
+		t.Fatal("an omitted field and an explicit default address one key and must collide")
+	}
+}
+
+func TestValidateAcceptsAMixOfInjectedAndDirectlyResolvedCredentials(t *testing.T) {
+	declaration := Declaration{Descriptors: []Descriptor{
+		{LogicalID: "vrooli/postgres", Field: "password", Env: "POSTGRES_PASSWORD"},
+		{LogicalID: "vrooli/tunnel-manager", Field: "cloudflare-api-token"},
+	}}
+	if err := declaration.Validate("scenario tunnel-manager"); err != nil {
+		t.Fatalf("Validate() = %v, want a mixed declaration to be legal", err)
+	}
+	if injectable := declaration.Injectable(); len(injectable) != 1 || injectable[0].Env != "POSTGRES_PASSWORD" {
+		t.Fatalf("Injectable() = %+v, want only the descriptor naming a variable", injectable)
+	}
+	if all := declaration.All(); len(all) != 2 {
+		t.Fatalf("All() = %+v, want both descriptors — a directly resolved credential is still declared", all)
+	}
+}
+
+func TestDescriptorProvisioningValidation(t *testing.T) {
+	valid := Descriptor{LogicalID: "vrooli/test", Field: "derived", Provisioning: "derived", DerivedFrom: "token"}
+	if err := (Declaration{Descriptors: []Descriptor{valid}}).Validate("test"); err != nil {
+		t.Fatalf("derived descriptor rejected: %v", err)
+	}
+	for _, descriptor := range []Descriptor{
+		{LogicalID: "vrooli/test", Field: "derived", Provisioning: "unknown"},
+		{LogicalID: "vrooli/test", Field: "derived", Provisioning: "derived"},
+	} {
+		if err := (Declaration{Descriptors: []Descriptor{descriptor}}).Validate("test"); err == nil {
+			t.Fatalf("descriptor %+v unexpectedly validated", descriptor)
+		}
+	}
+}
+
+func TestDescriptorTierScopeValidation(t *testing.T) {
+	valid := Descriptor{LogicalID: "vrooli/test", Field: "token", Tiers: []string{"tier-1-local", "tier-2-desktop"}}
+	if err := (Declaration{Descriptors: []Descriptor{valid}}).Validate("test"); err != nil {
+		t.Fatalf("tier-scoped descriptor rejected: %v", err)
+	}
+	for _, tiers := range [][]string{{"desktop"}, {"tier-1-local", "tier-1-local"}} {
+		descriptor := Descriptor{LogicalID: "vrooli/test", Field: "token", Tiers: tiers}
+		if err := (Declaration{Descriptors: []Descriptor{descriptor}}).Validate("test"); err == nil {
+			t.Fatalf("tiers %v unexpectedly validated", tiers)
+		}
+	}
+}
+
+func TestDeclarationValidatesExplicitRuntimeConsumers(t *testing.T) {
+	declaration := Declaration{
+		Descriptors: []Descriptor{{LogicalID: "vrooli/test", Field: "token"}},
+		Consumers:   []Consumer{{LogicalID: "vrooli/test", Field: "token", Kind: "dynamic", Consumer: "runtime session", SourceRef: "api/session.go:42", Tiers: []string{"tier-1-local"}}},
+	}
+	if err := declaration.Validate("scenario test"); err != nil {
+		t.Fatalf("dynamic consumer rejected: %v", err)
+	}
+	for _, consumer := range []Consumer{
+		{LogicalID: "vrooli/test", Kind: "unknown", Consumer: "runtime", SourceRef: "api/main.go:1"},
+		{LogicalID: "vrooli/test", Kind: "authority", SourceRef: "api/main.go:1"},
+		{LogicalID: "vrooli/test", Kind: "authority", Consumer: "runtime"},
+	} {
+		if err := (Declaration{Consumers: []Consumer{consumer}}).Validate("scenario test"); err == nil {
+			t.Fatalf("consumer %+v unexpectedly validated", consumer)
+		}
+	}
+}
+
+func TestDeclarationRequiresOneConsumerAddressForm(t *testing.T) {
+	for _, consumer := range []Consumer{
+		{Kind: "backup", Consumer: "kopia", SourceRef: "api/kopia.go:1"},
+		{LogicalID: "vrooli/test", AddressPattern: "vrooli/test/{name}:value", Kind: "backup", Consumer: "kopia", SourceRef: "api/kopia.go:1"},
+	} {
+		if err := (Declaration{Consumers: []Consumer{consumer}}).Validate("scenario test"); err == nil {
+			t.Fatalf("consumer %+v unexpectedly validated", consumer)
+		}
+	}
+	pattern := Consumer{AddressPattern: "vrooli/test/{name}:value", Kind: "backup", Consumer: "kopia", SourceRef: "api/kopia.go:1"}
+	if err := (Declaration{Consumers: []Consumer{pattern}}).Validate("scenario test"); err != nil {
+		t.Fatalf("address-pattern consumer rejected: %v", err)
+	}
+}
+
+func TestDescriptorMetadataSupportsOwnerActionsAndApplicability(t *testing.T) {
+	descriptor := Descriptor{
+		Version: DescriptorVersion, LogicalID: "vrooli/delivery", Field: "secret", Owner: "landing-page-business-suite",
+		Kind: KindSecret, Provider: "aws-s3", RequirementGroup: "delivery.s3.authentication",
+		ConsumerRefs: []string{"delivery.publish"}, CompanionSettings: []string{"delivery.bucket"}, CompanionCredentials: []string{"delivery/id"},
+		AcquisitionRef: "delivery.s3.connect", VerificationRef: "delivery.s3.verify", RecoveryRef: "delivery.s3.recover", HelpRef: "delivery-s3-access", EvidencePolicy: "release-required",
+		AppliesWhen: &Applicability{All: []ApplicabilityRule{{Eq: &ApplicabilityMatch{Setting: "delivery.authMethod", Value: "access-key"}}}},
+	}
+	if err := (Declaration{Descriptors: []Descriptor{descriptor}}).Validate("scenario delivery"); err != nil {
+		t.Fatalf("provider-neutral descriptor rejected: %v", err)
+	}
+	if got := descriptor.EffectiveKind(); got != KindSecret {
+		t.Fatalf("EffectiveKind() = %q, want %q", got, KindSecret)
+	}
+	for _, invalid := range []Descriptor{
+		{LogicalID: "vrooli/test", Version: "credential-descriptor/v2"},
+		{LogicalID: "vrooli/test", Kind: "unsupported"},
+		{LogicalID: "vrooli/test", AppliesWhen: &Applicability{All: []ApplicabilityRule{{Eq: &ApplicabilityMatch{Context: "a", Setting: "b", Value: "c"}}}}},
+		{LogicalID: "vrooli/test", AppliesWhen: &Applicability{All: []ApplicabilityRule{{}}}},
+	} {
+		if err := (Declaration{Descriptors: []Descriptor{invalid}}).Validate("scenario test"); err == nil {
+			t.Fatalf("invalid metadata descriptor %+v was accepted", invalid)
+		}
+	}
+}
+
+func TestEnvironmentNamesAreValidatedBeforeRuntimeInjection(t *testing.T) {
+	for _, name := range []string{"OPENROUTER_API_KEY", "_VROOLI", "ApiKey2"} {
+		if err := ValidateEnvironmentName(name); err != nil {
+			t.Fatalf("ValidateEnvironmentName(%q) = %v", name, err)
+		}
+	}
+	for _, name := range []string{"", "9INVALID", "A=B", "A-B", "A B", "A/ B"} {
+		if err := ValidateEnvironmentName(name); err == nil {
+			t.Fatalf("ValidateEnvironmentName(%q) unexpectedly succeeded", name)
+		}
+	}
+
+	for _, env := range []string{"A=B", "A-B"} {
+		err := (Declaration{Descriptors: []Descriptor{{LogicalID: "vrooli/test", Env: env}}}).Validate("test")
+		if err == nil || !strings.Contains(err.Error(), "environment name") {
+			t.Fatalf("descriptor env %q validation = %v, want environment-name error", env, err)
+		}
+	}
+}
+
+func TestMigrationDiagnosticsAreNonFatalAndValueFree(t *testing.T) {
+	diagnostics := (Declaration{Descriptors: []Descriptor{{LogicalID: "vrooli/test", Field: "token", Required: true}}}).MigrationDiagnostics()
+	if len(diagnostics) < 6 {
+		t.Fatalf("MigrationDiagnostics() = %+v, want the missing metadata guidance", diagnostics)
+	}
+	for _, diagnostic := range diagnostics {
+		if diagnostic.Address != "vrooli/test:token" || strings.Contains(strings.ToLower(diagnostic.Message), "value") {
+			t.Fatalf("diagnostic exposes the wrong information: %+v", diagnostic)
+		}
+	}
+	complete := Descriptor{Version: DescriptorVersion, LogicalID: "vrooli/test", Field: "token", Owner: "test-owner", Kind: KindSecret, ObtainURL: "https://example.test/token", AcquisitionRef: "test.acquire", VerificationRef: "test.verify", RecoveryRef: "test.recover"}
+	if diagnostics := (Declaration{Descriptors: []Descriptor{complete}}).MigrationDiagnostics(); len(diagnostics) != 0 {
+		t.Fatalf("complete descriptor still has migration diagnostics: %+v", diagnostics)
+	}
+}
+
+// [REQ] A signing secret has no external issuer, so the vocabulary has to be
+// able to say "the component mints this" without pretending it derives from
+// another credential.
+func TestGeneratedProvisioningIsValidAndRejectsADerivedSource(t *testing.T) {
+	valid := Descriptor{LogicalID: "vrooli/test", Field: "jwt-secret", Provisioning: ProvisioningGenerated}
+	if err := (Declaration{Descriptors: []Descriptor{valid}}).Validate("test"); err != nil {
+		t.Fatalf("generated descriptor rejected: %v", err)
+	}
+	withSource := Descriptor{LogicalID: "vrooli/test", Field: "jwt-secret", Provisioning: ProvisioningGenerated, DerivedFrom: "other"}
+	if err := (Declaration{Descriptors: []Descriptor{withSource}}).Validate("test"); err == nil {
+		t.Fatal("generated descriptor with derived_from was accepted")
+	}
+}
+
+// OperatorSupplied is the one predicate every surface uses to decide whether to
+// prompt for a value and whether its absence is the operator's problem.
+func TestOperatorSuppliedSeparatesWhatAPersonCanProvide(t *testing.T) {
+	cases := map[string]bool{
+		"":                    true,
+		ProvisioningOperator:  true,
+		ProvisioningDerived:   false,
+		ProvisioningGenerated: false,
+	}
+	for provisioning, want := range cases {
+		got := Descriptor{Provisioning: provisioning}.OperatorSupplied()
+		if got != want {
+			t.Fatalf("OperatorSupplied(%q) = %t, want %t", provisioning, got, want)
+		}
+	}
+}

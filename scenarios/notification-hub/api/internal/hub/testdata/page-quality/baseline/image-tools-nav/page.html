@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose Image Tools phone navigation</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: var(--hub-font, system-ui, sans-serif); }
+  h1 { margin-bottom: .4rem; }
+  .intro { font-size: 1.05rem; }
+  .recommend { border-left: .3rem solid var(--hub-primary); padding-left: 1rem; }
+  .options { display: grid; gap: 1rem; }
+  .choice { padding: 1rem; border: 1px solid var(--hub-border); border-radius: var(--hub-radius, 1rem); background: var(--hub-surface); }
+  .choice h2 { margin: 0 0 .4rem; }
+  .choice p { margin: .5rem 0; }
+  .choice img { display: block; width: 100%; height: auto; border-radius: .75rem; }
+  .evidence { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .65rem; }
+  .evidence button, .choose { min-height: 44px; padding: .65rem .9rem; border: 1px solid var(--hub-border); border-radius: .7rem; color: var(--hub-fg); background: var(--hub-surface-muted); font: inherit; }
+  .choose { width: 100%; margin-top: .75rem; border: 0; color: var(--hub-on-primary); background: var(--hub-primary); font-weight: 700; }
+  .is-recommended { border-color: var(--hub-primary); }
+  .small { color: var(--hub-muted); font-size: .92rem; }
+  .where { margin-top: 1rem; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .compare figure { margin: 0; }
+  .compare figcaption { color: var(--hub-muted); font-size: .85rem; }
+  @media (max-width: 360px) { .compare { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <p class="hub-chip is-primary">A phone layout choice</p>
+  <h1>How should Image Tools navigation work on phones?</h1>
+  <p class="intro"><strong>Choose four tabs, a menu only, or keep all eight tabs.</strong></p>
+  <p class="recommend"><strong>Recommended: four tabs.</strong> Home, Workspace, Library, and Activity stay one tap away with readable names, while all eight places remain available.</p>
+  <p>Tap <strong>Choose this</strong> under an option, then send your answer.</p>
+</header>
+<section class="hub-callout is-warning" aria-label="Current impact">
+  <strong>Today:</strong> eight places compete for the phone's bottom bar, cutting every tab name down to two or three letters. Desktop is unaffected.
+</section>
+<main class="options">
+  <article class="choice is-recommended">
+    <p class="hub-chip is-success">Recommended</p>
+    <h2>Four tabs + menu</h2>
+    <p><strong>Next:</strong> Keep Home, Workspace, Library, and Activity in the bottom bar; put Select, Compare, Models, and Settings in the top-left menu.</p>
+    <p class="small">Editing stays one tap away with readable names; the other four places take two taps.</p>
+    <figure class="hub-figure">
+      <img src="four-tabs-light.webp" alt="Image Tools with four readable bottom tabs: Home, Workspace, Library, and Activity">
+      <figcaption>Proposed phone view at 390 px. Tap the picture to open it larger.</figcaption>
+    </figure>
+    <div class="evidence">
+      <button type="button" data-hub-open="four-tabs-menu-open-light.webp">See all eight places in the open menu</button>
+      <button type="button" data-hub-open="four-tabs-tabbar-320.webp">See the tab bar at 320 px</button>
+      <button type="button" data-hub-open="four-tabs-dark.webp">See the dark view</button>
+    </div>
+    <button class="choose" type="button" data-answer="four">Choose four tabs + menu</button>
+  </article>
+  <article class="choice">
+    <h2>Menu only</h2>
+    <p><strong>Next:</strong> Remove the bottom bar and put all eight places in the top-left menu.</p>
+    <p class="small">This gives the image more room; every place takes two taps to reach.</p>
+    <figure class="hub-figure">
+      <img src="menu-only-light.webp" alt="Image Tools phone view with no bottom navigation bar, leaving more room for the image">
+      <figcaption>Proposed phone view at 390 px. The menu provides navigation.</figcaption>
+    </figure>
+    <div class="evidence">
+      <button type="button" data-hub-open="menu-only-dark.webp">See the dark view</button>
+    </div>
+    <button class="choose" type="button" data-answer="menu">Choose menu only</button>
+  </article>
+  <article class="choice">
+    <h2>Keep all eight tabs</h2>
+    <p><strong>Next:</strong> Leave the current phone navigation as it is.</p>
+    <p class="small">Every place stays one tap away, but the labels remain cut off at two or three letters.</p>
+    <figure class="hub-figure">
+      <img src="today-light.webp" alt="Current Image Tools phone view with eight narrow bottom tabs and truncated labels">
+      <figcaption>Current phone view at 390 px.</figcaption>
+    </figure>
+    <div class="evidence">
+      <button type="button" data-hub-open="today-tabbar-320.webp">See the tab bar at 320 px</button>
+      <button type="button" data-hub-open="today-dark.webp">See the dark view</button>
+    </div>
+    <button class="choose" type="button" data-answer="keep">Keep all eight tabs</button>
+  </article>
+</main>
+<section class="hub-callout is-success">
+  <strong>What approval does:</strong> The experience agent updates the phone layout you choose and sends you a capture. Choosing “keep” records the current layout without changing it.
+</section>
+<p><strong>If you do not answer:</strong> the current eight-tab bar stays as it is; no layout change is made.</p>
+<p class="small">These are real phone captures of the current app and the three finished layout options.</p>
+<details class="where">
+  <summary>Where these pictures come from</summary>
+  <p class="small">The captures show Image Tools at 390 px wide, plus close views of the bottom bar at 320 px. They include light and dark appearances. The page uses only attached captures.</p>
+</details>
+<script>
+  document.querySelectorAll("[data-answer]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      if (window.hub && window.hub.prefill) window.hub.prefill("answer", button.dataset.answer);
+    });
+  });
+</script>
+</body>
+</html>

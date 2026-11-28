@@ -1,0 +1,22 @@
+{
+  "attempts": [
+    {
+      "id": "53ff86ad-827a-4ab8-93b6-abf5b49d5871",
+      "execution_id": "1fc31e69-d05b-4b1a-8e73-6de751738366",
+      "node_id": "research",
+      "ordinal": 1,
+      "strategy": "fresh_run",
+      "status": "completed",
+      "idempotency_key": "workflow/1fc31e69-d05b-4b1a-8e73-6de751738366/node/research/attempt/1",
+      "run_id": "578a7ddd-b91b-45e6-80b7-34173cd62564",
+      "conversation_id": "eea60f0d-4197-4540-968f-ab9dcdf74d65",
+      "version": "3",
+      "created_at": "2026-09-05T05:43:13.946106139Z",
+      "updated_at": "2026-09-05T05:43:56.079297046Z",
+      "completed_at": "2026-09-05T05:43:56.079297046Z",
+      "profile_identity": "role:code.default",
+      "input_snapshot_digest": "sha256:e7f7311e03b7bc6f0666e033516eb4b5e4d93c526d95c3dc387f563e5ce8b379",
+      "input_snapshot_size_bytes": "257"
+    }
+  ]
+}

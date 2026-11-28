@@ -1,0 +1,96 @@
+{
+  "colors": {
+    "app-background": "var(--color-background)",
+    "app-shell": "var(--color-shell)",
+    "app-surface": "var(--color-surface)",
+    "app-surface-muted": "var(--color-surface-muted)",
+    "app-surface-raised": "var(--color-surface-raised)",
+    "app-foreground": "var(--color-foreground)",
+    "app-muted-foreground": "var(--color-muted-foreground)",
+    "app-border": "var(--color-border)",
+    "app-primary": "var(--color-primary)",
+    "app-primary-foreground": "var(--color-primary-foreground)",
+    "app-accent": "var(--color-accent)",
+    "app-success": "var(--color-success)",
+    "app-danger": "var(--color-danger)",
+    "app-warning": "var(--color-warning)",
+    "app-info": "var(--color-info)",
+    "app-focus": "var(--color-focus)"
+  },
+  "borderRadius": {
+    "control": "var(--radius-control)",
+    "panel": "var(--radius-panel)",
+    "sheet": "var(--radius-sheet)",
+    "pill": "var(--radius-pill)"
+  },
+  "boxShadow": {
+    "flat": "var(--elev-flat)",
+    "raised": "var(--elev-raised)",
+    "overlay": "var(--elev-overlay)",
+    "modal": "var(--elev-modal)"
+  },
+  "fontSize": {
+    "display": ["var(--text-display-size)", {"lineHeight": "var(--text-display-line)", "fontWeight": "650", "letterSpacing": "-0.02em"}],
+    "title": ["var(--text-title-size)", {"lineHeight": "var(--text-title-line)", "fontWeight": "650", "letterSpacing": "-0.015em"}],
+    "heading": ["var(--text-heading-size)", {"lineHeight": "var(--text-heading-line)", "fontWeight": "600", "letterSpacing": "-0.01em"}],
+    "subheading": ["var(--text-subheading-size)", {"lineHeight": "var(--text-subheading-line)", "fontWeight": "600"}],
+    "body": ["var(--text-body-size)", {"lineHeight": "var(--text-body-line)", "fontWeight": "400"}],
+    "body-sm": ["var(--text-body-sm-size)", {"lineHeight": "var(--text-body-sm-line)", "fontWeight": "400"}],
+    "label": ["var(--text-label-size)", {"lineHeight": "var(--text-label-line)", "fontWeight": "500", "letterSpacing": "0.005em"}],
+    "caption": ["var(--text-caption-size)", {"lineHeight": "var(--text-caption-line)", "fontWeight": "600", "letterSpacing": "0.06em"}]
+  },
+  "fontFamily": {
+    "sans": "var(--font-sans)",
+    "mono": "var(--font-mono)"
+  },
+  "spacing": {
+    "space-3xs": "var(--space-3xs)",
+    "space-2xs": "var(--space-2xs)",
+    "space-xs": "var(--space-xs)",
+    "space-sm": "var(--space-sm)",
+    "space-md": "var(--space-md)",
+    "space-lg": "var(--space-lg)",
+    "space-xl": "var(--space-xl)",
+    "space-2xl": "var(--space-2xl)",
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-width)"
+  },
+  "zIndex": {
+    "base": "var(--layer-base)",
+    "sticky": "var(--layer-sticky)",
+    "dropdown": "var(--layer-dropdown)",
+    "overlay": "var(--layer-overlay)",
+    "modal": "var(--layer-modal)",
+    "toast": "var(--layer-toast)",
+    "tooltip": "var(--layer-tooltip)"
+  },
+  "borderWidth": {
+    "hairline": "var(--border-hairline)",
+    "strong": "var(--border-strong)"
+  },
+  "opacity": {
+    "disabled": "var(--opacity-disabled)",
+    "muted": "var(--opacity-muted)",
+    "scrim": "var(--opacity-scrim)"
+  },
+  "transitionDuration": {
+    "instant": "var(--dur-instant)",
+    "quick": "var(--dur-quick)",
+    "moderate": "var(--dur-moderate)",
+    "deliberate": "var(--dur-deliberate)"
+  },
+  "transitionTimingFunction": {
+    "standard": "var(--ease-standard)",
+    "enter": "var(--ease-enter)",
+    "exit": "var(--ease-exit)",
+    "spring-subtle": "var(--spring-subtle)",
+    "spring-expressive": "var(--spring-expressive)"
+  },
+  "minWidth": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-min-width)"
+  },
+  "maxWidth": {
+    "sidebar": "var(--sidebar-max-width)"
+  }
+}

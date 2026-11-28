@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Button } from '@vrooli/react-component-library/Button/2.2.14';
 import {
   captureIssue,
   fetchAssistantStatus,
@@ -314,9 +315,9 @@ function App(): JSX.Element {
           {assistantStatus.status}
         </span>
       ) : (
-        <button type="button" className="pill-button" onClick={() => void refreshStatus()}>
+        <Button type="button" className="pill-button" size="sm" onClick={() => void refreshStatus()}>
           {statusError ? 'Retry' : 'Check status'}
-        </button>
+        </Button>
       )}
       {statusError && !statusLoading && <span className="status-summary-hint">{statusError}</span>}
     </div>

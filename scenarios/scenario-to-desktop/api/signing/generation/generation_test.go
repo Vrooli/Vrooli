@@ -1,6 +1,9 @@
 package generation
 
 import (
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -111,6 +114,20 @@ func TestGenerateWindowsConfig_EmptyPasswordEnv(t *testing.T) {
 	got := generateWindowsConfig(cfg, nil)
 	if got.CertificatePassword != "" {
 		t.Errorf("CertificatePassword = %q, want empty when env not set", got.CertificatePassword)
+	}
+}
+
+func TestDefaultGenerator_RejectsUnsupportedWindowsCertificateSource(t *testing.T) {
+	for _, source := range []string{types.CertSourceAzureKeyVault, types.CertSourceAWSKMS} {
+		t.Run(source, func(t *testing.T) {
+			_, err := NewGenerator(nil).GenerateElectronBuilder(&types.SigningConfig{
+				Enabled: true,
+				Windows: &types.WindowsSigningConfig{CertificateSource: source},
+			})
+			if err == nil {
+				t.Fatalf("expected unsupported certificate source %q to be rejected", source)
+			}
+		})
 	}
 }
 
@@ -266,6 +283,128 @@ func TestGenerateElectronBuilderJSON_MacWithNotarization(t *testing.T) {
 	}
 	if got["afterSign"] != opts.NotarizeScriptPath {
 		t.Errorf("afterSign = %v, want %q", got["afterSign"], opts.NotarizeScriptPath)
+	}
+}
+
+func TestGenerateElectronBuilderJSON_LinuxUsesArtifactSigningHook(t *testing.T) {
+	cfg := &types.SigningConfig{Enabled: true, Linux: &types.LinuxSigningConfig{GPGKeyID: "ABC123"}}
+	got, err := GenerateElectronBuilderJSON(cfg, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["afterAllArtifactBuild"] != DefaultOptions().LinuxArtifactSignerPath {
+		t.Fatalf("afterAllArtifactBuild = %v", got["afterAllArtifactBuild"])
+	}
+}
+
+func TestGenerateLinuxArtifactSigner_BindsDigestsAndDoesNotEmbedPassphrase(t *testing.T) {
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{GPGKeyID: "ABC123", GPGPassphraseEnv: "GPG_SECRET", GPGHomedir: "/secure/gnupg"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	text := string(content)
+	for _, expected := range []string{"linux-update-metadata.json", "sha512", "architecture", "VROOLI_UPDATE_CHANNEL", "GPG_SECRET", "gpg"} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("generated hook does not contain %q", expected)
+		}
+	}
+	if strings.Contains(text, "secret-value") {
+		t.Fatal("generated hook embedded credential material")
+	}
+}
+
+func TestGenerateLinuxArtifactSignerRequiresKey(t *testing.T) {
+	if _, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{}); err == nil {
+		t.Fatal("expected missing GPG key to fail")
+	}
+}
+
+func TestGenerateLinuxArtifactSignerManagedKeyUsesAuthorityEnv(t *testing.T) {
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{
+		GPGKeyID:   "ABC123",
+		ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	text := string(content)
+	for _, expected := range []string{"VROOLI_GPG_PASSPHRASE_FILE", "process.env.VROOLI_GPG_HOMEDIR", "PASSPHRASE_IS_FILE = true", "await fs.readFile(passphraseValue, 'utf8')", "'--passphrase-fd', '0'"} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("managed-key hook does not contain %q", expected)
+		}
+	}
+	if strings.Contains(text, "generated-passphrase") || strings.Contains(text, "VROOLI_GPG_PASSPHRASE'") {
+		t.Fatal("managed-key hook exposes passphrase material or legacy secret environment contract")
+	}
+}
+
+func TestManagedLinuxSignerReadsPassphraseFileAndStreamsToGPG(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	dir := t.TempDir()
+	binDir := dir + "/bin"
+	if err := os.Mkdir(binDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{
+		GPGKeyID: "ABC123", ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hookPath := dir + "/sign.js"
+	if err := os.WriteFile(hookPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	artifact := dir + "/demo-x64.AppImage"
+	if err := os.WriteFile(artifact, []byte("artifact"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	passphraseFile := dir + "/passphrase"
+	if err := os.WriteFile(passphraseFile, []byte("managed-secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	capturePath := dir + "/gpg-stdin"
+	gpgScript := "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"--output\" ]; then output=$2; shift 2; else shift; fi\ndone\ncat > \"$CAPTURE_GPG_STDIN\"\nprintf 'signature' > \"$output\"\n"
+	if err := os.WriteFile(binDir+"/gpg", []byte(gpgScript), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := dir + "/runner.js"
+	runnerSource := "const hook = require(" + strconv.Quote(hookPath) + ");\nhook({ artifactPaths: [" + strconv.Quote(artifact) + "], outDir: " + strconv.Quote(dir) + ", configuration: { version: '0.0.1' } }).catch((e) => { console.error(e); process.exit(1); });\n"
+	if err := os.WriteFile(runner, []byte(runnerSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, runner)
+	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"), "VROOLI_GPG_PASSPHRASE_FILE="+passphraseFile, "VROOLI_GPG_HOMEDIR="+dir, "CAPTURE_GPG_STDIN="+capturePath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("managed signing hook failed: %v: %s", err, output)
+	}
+	stdin, err := os.ReadFile(capturePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(stdin) != "managed-secret\n" {
+		t.Fatalf("gpg stdin = %q, want passphrase followed by newline", stdin)
+	}
+}
+
+func TestGenerateLinuxArtifactSignerIsValidNodeModule(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{GPGKeyID: "ABC123"})
+	if err != nil {
+		t.Fatalf("generate hook: %v", err)
+	}
+	path := t.TempDir() + "/sign-linux-artifacts.js"
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write hook: %v", err)
+	}
+	if output, err := exec.Command(node, "--check", path).CombinedOutput(); err != nil {
+		t.Fatalf("generated hook is not valid Node.js: %v\n%s", err, output)
 	}
 }
 

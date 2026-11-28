@@ -34,6 +34,7 @@ import clsx from 'clsx';
 import type { Screenshot, LogEntry, Execution } from '@/domains/executions';
 import type { ArtifactSubType } from './types';
 import { DEFAULT_ARTIFACT_SUBTYPE } from './types';
+import { selectors } from '@constants/selectors';
 
 // ============================================================================
 // Types
@@ -214,7 +215,7 @@ function ScreenshotsView({
 
   if (screenshots.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 text-center">
+      <div data-testid={selectors.executions.viewer.screenshots} className="flex-1 flex items-center justify-center p-6 text-center">
         <div>
           {isLoading ? (
             <>
@@ -236,7 +237,7 @@ function ScreenshotsView({
 
   return (
     <>
-      <div className="flex-1 p-3 overflow-auto">
+      <div data-testid={selectors.executions.viewer.screenshots} className="flex-1 p-3 overflow-auto">
         {selectedScreenshot && (
           <div className="rounded-xl border border-gray-700 overflow-hidden bg-gray-900">
             <div className="bg-gray-800/80 px-3 py-2 flex items-center justify-between text-xs border-b border-gray-700">
@@ -245,7 +246,7 @@ function ScreenshotsView({
                 {format(selectedScreenshot.timestamp, 'HH:mm:ss.SSS')}
               </span>
             </div>
-            <img src={selectedScreenshot.url} alt={selectedScreenshot.stepName} className="block w-full" loading="lazy" />
+            <img data-testid={selectors.executions.viewer.screenshot} src={selectedScreenshot.url} alt={selectedScreenshot.stepName} className="block w-full" loading="lazy" />
           </div>
         )}
       </div>

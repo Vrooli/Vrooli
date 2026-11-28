@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "commerce.reservation.api",
+  "domain": "commerce",
+  "description": "Account reservation lifecycle; exact API replays perform no lifecycle mutation.",
+  "model": {
+    "module": "ReservationLifecycle",
+    "seed": "2026110101",
+    "maxSteps": 6,
+    "traceCount": 12,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "pending",
+      "quint": "Pending",
+      "initial": true
+    },
+    {
+      "id": "finalized",
+      "quint": "Finalized",
+      "terminal": true
+    },
+    {
+      "id": "overrun",
+      "quint": "Overrun",
+      "terminal": true
+    },
+    {
+      "id": "released",
+      "quint": "Released",
+      "terminal": true
+    },
+    {
+      "id": "expired",
+      "quint": "Expired",
+      "terminal": true
+    }
+  ],
+  "events": [
+    {
+      "id": "finalize",
+      "quint": "Finalize"
+    },
+    {
+      "id": "finalize_overrun",
+      "quint": "FinalizeOverrun"
+    },
+    {
+      "id": "release",
+      "quint": "Release"
+    },
+    {
+      "id": "expire",
+      "quint": "Expire"
+    },
+    {
+      "id": "retain",
+      "quint": "Retain"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": true
+    },
+    "terminal": {
+      "to": "self",
+      "wantError": true
+    }
+  },
+  "transitions": [
+    {
+      "from": "pending",
+      "event": "finalize",
+      "to": "finalized"
+    },
+    {
+      "from": "pending",
+      "event": "finalize_overrun",
+      "to": "overrun"
+    },
+    {
+      "from": "pending",
+      "event": "release",
+      "to": "released"
+    },
+    {
+      "from": "pending",
+      "event": "expire",
+      "to": "expired"
+    },
+    {
+      "from": "pending",
+      "event": "retain",
+      "to": "pending"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "States and events remain inside the declared lifecycle vocabulary."
+    },
+    {
+      "id": "terminal_closure",
+      "quint": "TerminalClosure",
+      "description": "Terminal outcomes cannot change status."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Rejected lifecycle events preserve the current status."
+    }
+  ],
+  "traces": [
+    {
+      "name": "settle_once",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "release_hold",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "release",
+          "want": "released",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "overrun_remains_terminal",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": false
+        },
+        {
+          "event": "finalize_overrun",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "release",
+          "want": "overrun",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "overrun",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "expire_hold",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "retain_then_settle",
+      "initial": "pending",
+      "steps": [
+        {
+          "event": "retain",
+          "want": "pending",
+          "wantError": false
+        },
+        {
+          "event": "finalize",
+          "want": "finalized",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "ReservationStatus",
+      "eventType": "ReservationEvent",
+      "constantPrefix": "Reservation"
+    },
+    "sideEffects": [
+      "Commerce owns reservation SQL; each mutation uses the generated target status and a pending-status SQL predicate.",
+      "Exact finalized replays return before attempting a second lifecycle transition or allocation."
+    ]
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionReservation",
+      "stateType": "ReservationState",
+      "statusField": "Status"
+    }
+  }
+}

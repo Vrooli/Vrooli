@@ -1,0 +1,219 @@
+syntax = "proto3";
+
+package vrooli.typescript_code_graph.v1.graph;
+
+import "common/v1/code_graph.proto";
+import "typescript-code-graph/v1/rewrite/rewrite.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph;graph_v1";
+
+// =============================================================================
+// TYPESCRIPT-CODE-GRAPH SERVICE — Extract + Rewrite{Plan,Apply}
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain graph + rewrite
+// @stability stable
+//
+// One Connect-RPC service so consumer scenarios (architecture-cartographer,
+// react-component-library, future TS migration agents) hold one client
+// and route all three RPCs through it. The graph and rewrite domains
+// are split at the internal/<domain>/ + handlers/<domain>/ layer, not
+// at the service layer. Mirrors GoCodeGraphService's shape exactly.
+//
+// All RPCs operate on a single TS project (single tsconfig.json).
+// Workspaces (pnpm-workspace.yaml) and ambient multi-project setups
+// are rejected with Unimplemented per OT-P0-005.
+//
+// Implementation routes through a Node sidecar that hosts `ts-morph`;
+// consumers never see Node or `ts-morph` over the wire.
+// =============================================================================
+
+service TypeScriptCodeGraphService {
+  // Extract produces a deterministic graph for a TS project.
+  rpc Extract(ExtractRequest) returns (ExtractResponse) {}
+
+  // RewritePlan validates and normalizes a list of operations and
+  // returns a plan_id. No filesystem changes.
+  rpc RewritePlan(RewritePlanRequest) returns (RewritePlanResponse) {}
+
+  // RewriteApply executes a previously-planned set of operations
+  // against the filesystem via the Node sidecar's `ts-morph` Project
+  // API. Caller must set apply=true; apply=false is rejected with
+  // InvalidArgument so dry-run callers do not accidentally mutate.
+  // Dry-run callers set the X-Dry-Run: true header instead — the
+  // service short-circuits before invoking the sidecar.
+  rpc RewriteApply(RewriteApplyRequest) returns (RewriteApplyResponse) {}
+
+  // ListFixtures enumerates the golden determinism fixtures shipped with the
+  // scenario (bas/fixtures/<name>/). The browser cannot read these files
+  // directly, so the server lists them for the Fixture Validator UI.
+  rpc ListFixtures(ListFixturesRequest) returns (ListFixturesResponse) {}
+
+  // ValidateFixture re-runs Extract against a named fixture server-side
+  // (through the sidecar) and byte-compares the canonical JSON against the
+  // fixture's expected-graph.json. Promotes the determinism integration test
+  // to an RPC so humans can run it from the UI without faking the comparison
+  // client-side.
+  rpc ValidateFixture(ValidateFixtureRequest) returns (ValidateFixtureResponse) {}
+}
+
+// -----------------------------------------------------------------------------
+// TS-specific kinds — convey via CodeGraphNode.attributes["kind"]
+// -----------------------------------------------------------------------------
+
+// TypeScript-specific NodeKind values. Tag numbers live in the common
+// envelope's reserved 200..299 range. Producers attach the typed kind
+// via CodeGraphNode.attributes["kind"] = "<TsNodeKind>" on nodes whose
+// primary NodeKind is FILE, PACKAGE, or MODULE — the typed-kind enum
+// lives here so consumers can validate the value without parsing
+// strings.
+//
+// Usage-fact values remain generic TypeScript evidence. They are not
+// endpoint, proto-health, or Vrooli policy facts.
+enum TsNodeKind {
+  TS_NODE_KIND_UNSPECIFIED = 0;
+  // A TS source module (one .ts/.tsx file's namespace).
+  TS_NODE_KIND_MODULE = 200;
+  // A React component: function/arrow/class whose name begins with an
+  // uppercase letter and returns JSX, or carries @vrooliComponent in
+  // leading_comments.
+  TS_NODE_KIND_COMPONENT = 201;
+  // A React hook: function whose name matches /^use[A-Z]/.
+  TS_NODE_KIND_HOOK = 202;
+  // A `class` declaration.
+  TS_NODE_KIND_CLASS = 203;
+  // An `interface` declaration.
+  TS_NODE_KIND_INTERFACE = 204;
+  // A `type` alias declaration.
+  TS_NODE_KIND_TYPE = 205;
+  // A `function` declaration (top-level, not a component or hook).
+  TS_NODE_KIND_FUNCTION = 206;
+  // A `var` declaration.
+  TS_NODE_KIND_VAR = 207;
+  // A `const` declaration.
+  TS_NODE_KIND_CONST = 208;
+  // A re-export site (`export * from`, `export { X } from`).
+  TS_NODE_KIND_RE_EXPORT = 209;
+  // One import binding from an import declaration.
+  TS_NODE_KIND_IMPORT_BINDING = 210;
+  // One identifier reference with enclosing declaration context.
+  TS_NODE_KIND_REFERENCE = 211;
+  // One call expression.
+  TS_NODE_KIND_CALL = 212;
+  // One JSX component/tag usage.
+  TS_NODE_KIND_JSX_USAGE = 213;
+  // One exported declaration or re-export summary entry.
+  TS_NODE_KIND_EXPORT = 214;
+  // One statically recognizable TypeScript framework route registration.
+  TS_NODE_KIND_ROUTE_REGISTRATION = 215;
+}
+
+// -----------------------------------------------------------------------------
+// Extract
+// -----------------------------------------------------------------------------
+
+message ExtractRequest {
+  // Absolute path to a TS project root directory or to a concrete
+  // tsconfig.json file. Directory inputs must contain exactly one
+  // tsconfig.json; explicit file inputs select that project directly.
+  string project_path = 1;
+}
+
+message ExtractResponse {
+  // The graph in the shared envelope.
+  common.v1.CodeGraph graph = 1;
+  // Partial-extraction warnings (parse errors on individual files,
+  // unresolved imports, ...). Catastrophic project errors (no
+  // tsconfig.json, multiple tsconfig.json, workspace, unreadable
+  // path) are surfaced as Connect errors, not warnings.
+  repeated common.v1.CodeGraphWarning warnings = 2;
+  // End-to-end extraction time in milliseconds, including the sidecar
+  // IPC round-trip. Wall-clock measured on the API side.
+  int64 extraction_ms = 3;
+  // Hex sha256 of the normalized JSON serialization of `graph`.
+  // Consumers use this for cache-hit detection without re-diffing.
+  // REQ-P1-005.
+  string graph_hash = 4;
+  // The sidecar's request_id for this extraction; useful for
+  // correlating client errors with sidecar-side logs.
+  string sidecar_request_id = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Rewrite
+// -----------------------------------------------------------------------------
+
+message RewritePlanRequest {
+  // Absolute path to a TS project root directory or to a concrete
+  // tsconfig.json file. The value scopes the stored rewrite plan.
+  string project_path = 1;
+  repeated vrooli.typescript_code_graph.v1.rewrite.Operation operations = 2;
+}
+
+message RewritePlanResponse {
+  // sha256 hex of the marshaled, normalized operations list. Stable
+  // across identical inputs.
+  string plan_id = 1;
+  // Operations after normalization (dedup, canonical ordering, path
+  // canonicalization). Caller persists this if it wants to display
+  // the plan back; the service does not require it on apply.
+  repeated vrooli.typescript_code_graph.v1.rewrite.Operation normalized_operations = 2;
+}
+
+message RewriteApplyRequest {
+  // Absolute path to the same TS project root directory or tsconfig.json
+  // file used when the plan was authored.
+  string project_path = 1;
+  string plan_id = 2;
+  // Must be true. False is rejected with InvalidArgument so dry-run
+  // callers never accidentally mutate the working tree. Dry-run is
+  // signaled via the X-Dry-Run: true header instead.
+  bool apply = 3;
+}
+
+message RewriteApplyResponse {
+  string plan_id = 1;
+  repeated vrooli.typescript_code_graph.v1.rewrite.OperationResult results = 2;
+  // True when the request rode in with X-Dry-Run: true. The response
+  // mirrors what an apply would have produced but no sidecar mutation
+  // occurred.
+  bool dry_run = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Fixture validation
+// -----------------------------------------------------------------------------
+
+message ListFixturesRequest {}
+
+// FixtureInfo describes one golden fixture directory under bas/fixtures/.
+message FixtureInfo {
+  // Directory name, e.g. "ts-junk-drawer". Used as the ValidateFixture key.
+  string name = 1;
+  // Scenario-relative path, e.g. "bas/fixtures/ts-junk-drawer".
+  string path = 2;
+  // True when an expected-graph.json baseline exists for byte comparison.
+  bool has_expected = 3;
+}
+
+message ListFixturesResponse {
+  // Fixtures in stable name-sorted order.
+  repeated FixtureInfo fixtures = 1;
+}
+
+message ValidateFixtureRequest {
+  // Fixture directory name as returned by ListFixtures.
+  string name = 1;
+}
+
+message ValidateFixtureResponse {
+  // True when the canonical JSON is byte-identical to expected-graph.json.
+  bool passed = 1;
+  // Unified line diff (expected vs actual) when passed=false; empty on pass.
+  string diff = 2;
+  int64 expected_bytes = 3;
+  int64 actual_bytes = 4;
+  // Hex sha256 of the extracted graph (matches ExtractResponse.graph_hash).
+  string graph_hash = 5;
+}

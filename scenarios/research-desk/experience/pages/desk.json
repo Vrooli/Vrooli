@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "desk",
+    "title": "Desk",
+    "routes": [
+      "/desk"
+    ],
+    "purpose": "Which optional scenarios are reachable, what reads unknown because of them, Web Console access in plain words, the courier's real state, automatic launch availability, the confirmed launch and courier self-tests, and the theme.",
+    "prd_refs": [
+      "OT-P0-010",
+      "OT-P0-011"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Capabilities and sources with their status."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down; the values it feeds are listed."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "empty",
+      "description": "No optional scenario is configured: each source reads not configured and the desk still works from files."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

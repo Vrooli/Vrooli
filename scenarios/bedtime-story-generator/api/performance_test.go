@@ -1,10 +1,12 @@
 package main
 
 import (
+	"net/http"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -145,146 +147,96 @@ func TestCacheConcurrency(t *testing.T) {
 	})
 }
 
-// TestHandlerPerformance tests handler response times
-func TestHandlerPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping performance test in short mode")
+// Benchmarks retain comparable performance data without machine-specific pass/fail limits.
+func BenchmarkHealthHandler(b *testing.B) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		b.Fatal(err)
 	}
-
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("HealthCheckLatency", func(t *testing.T) {
-		const iterations = 1000
-
-		start := time.Now()
-
-		for i := 0; i < iterations; i++ {
-			w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
-				Method: "GET",
-				Path:   "/health",
-			})
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			healthHandler(w, httpReq)
-
-			if w.Code != 200 {
-				t.Errorf("Expected status 200, got %d", w.Code)
-			}
+	defer db.Close()
+	handler := newHealthHandler(db)
+	request := HTTPTestRequest{Method: http.MethodGet, Path: "/health"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mock.ExpectPing()
+		w := serveRequest(b, handler, request)
+		if w.Code != http.StatusOK {
+			b.Fatalf("health status = %d, want %d", w.Code, http.StatusOK)
 		}
-
-		duration := time.Since(start)
-		avgLatency := duration / iterations
-
-		t.Logf("Average health check latency: %v", avgLatency)
-		t.Logf("Requests per second: %.2f", float64(iterations)/duration.Seconds())
-
-		// Assert reasonable performance (adjust threshold as needed)
-		assert.Less(t, avgLatency, 10*time.Millisecond, "Health check should be fast")
-	})
-
-	t.Run("CachedStoryRetrievalLatency", func(t *testing.T) {
-		story := setupTestStory(t, "Performance Story", "6-8")
-		defer story.Cleanup()
-
-		// Warm up cache
-		storyCache.Set(story.Story.ID, story.Story)
-
-		const iterations = 1000
-
-		start := time.Now()
-
-		for i := 0; i < iterations; i++ {
-			w, httpReq, err := makeHTTPRequest(HTTPTestRequest{
-				Method:  "GET",
-				Path:    "/api/v1/stories/" + story.Story.ID,
-				URLVars: map[string]string{"id": story.Story.ID},
-			})
-			if err != nil {
-				t.Fatalf("Failed to create request: %v", err)
-			}
-
-			getStoryHandler(w, httpReq)
-
-			if w.Code != 200 {
-				t.Errorf("Expected status 200, got %d", w.Code)
-			}
-		}
-
-		duration := time.Since(start)
-		avgLatency := duration / iterations
-
-		t.Logf("Average cached story retrieval latency: %v", avgLatency)
-		t.Logf("Requests per second: %.2f", float64(iterations)/duration.Seconds())
-
-		// Cached reads should be very fast
-		assert.Less(t, avgLatency, 5*time.Millisecond, "Cached story retrieval should be very fast")
-	})
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		b.Fatal(err)
+	}
 }
 
-// TestHelperFunctionPerformance tests performance of utility functions
-func TestHelperFunctionPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping performance test in short mode")
+func BenchmarkCachedStoryHandler(b *testing.B) {
+	story := &Story{ID: "benchmark-story", Title: "Benchmark Story", AgeGroup: "6-8"}
+	storyCache.Set(story.ID, story)
+	defer storyCache.Delete(story.ID)
+	handler := getStoryHandler
+	request := HTTPTestRequest{
+		Method:  http.MethodGet,
+		Path:    "/api/v1/stories/" + story.ID,
+		URLVars: map[string]string{"id": story.ID},
 	}
-
-	t.Run("calculatePageCountPerformance", func(t *testing.T) {
-		// Generate test content of varying sizes
-		testCases := []struct {
-			name    string
-			content string
-		}{
-			{"Small", "Once upon a time..."},
-			{"Medium", string(make([]byte, 1000))},
-			{"Large", string(make([]byte, 10000))},
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w := serveRequest(b, handler, request)
+		if w.Code != http.StatusOK {
+			b.Fatalf("cached story status = %d, want %d", w.Code, http.StatusOK)
 		}
+	}
+}
 
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				const iterations = 10000
-
-				start := time.Now()
-
-				for i := 0; i < iterations; i++ {
-					calculatePageCount(tc.content)
-				}
-
-				duration := time.Since(start)
-				avgLatency := duration / iterations
-
-				t.Logf("%s: Average calculatePageCount latency: %v", tc.name, avgLatency)
-				assert.Less(t, avgLatency, 100*time.Microsecond, "calculatePageCount should be fast")
-			})
-		}
-	})
-
-	t.Run("parseStoryResponsePerformance", func(t *testing.T) {
-		responses := []string{
-			"Title: The Magic Forest\n\nOnce upon a time in a magical forest...",
-			"A story without a title marker",
-			"Title: Adventure Time\n\n" + string(make([]byte, 5000)),
-		}
-
-		for i, response := range responses {
-			t.Run(string(rune('A'+i)), func(t *testing.T) {
-				const iterations = 10000
-
-				start := time.Now()
-
-				for j := 0; j < iterations; j++ {
-					parseStoryResponse(response)
-				}
-
-				duration := time.Since(start)
-				avgLatency := duration / iterations
-
-				t.Logf("Average parseStoryResponse latency: %v", avgLatency)
-				assert.Less(t, avgLatency, 100*time.Microsecond, "parseStoryResponse should be fast")
-			})
-		}
-	})
+// TestHelperFunctionPerformance duplicated these inputs with fixed 100µs ceilings.
+// Benchmarks preserve the workload variants while allowing comparison across hosts.
+func BenchmarkHelperFunctions(b *testing.B) {
+	for _, tc := range []struct {
+		name string
+		call func()
+	}{
+		{name: "validate-age-group", call: func() { validateAgeGroup("6-8") }},
+		{name: "age-description", call: func() { getAgeDescription("6-8") }},
+		{name: "reading-time", call: func() { calculateReadingTime("medium") }},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				tc.call()
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name string
+		text string
+	}{
+		{name: "page-count/small", text: "Once upon a time..."},
+		{name: "page-count/medium", text: string(make([]byte, 1000))},
+		{name: "page-count/large", text: string(make([]byte, 10000))},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				calculatePageCount(tc.text)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name     string
+		response string
+	}{
+		{name: "parse-response/title", response: "Title: The Magic Forest\n\nOnce upon a time in a magical forest..."},
+		{name: "parse-response/no-title", response: "A story without a title marker"},
+		{name: "parse-response/large", response: "Title: Adventure Time\n\n" + string(make([]byte, 5000))},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				parseStoryResponse(tc.response)
+			}
+		})
+	}
 }
 
 // BenchmarkStoryCache benchmarks cache operations
@@ -319,45 +271,6 @@ func BenchmarkStoryCache(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			cache.Set(story.ID, story)
 			cache.Delete(story.ID)
-		}
-	})
-}
-
-// BenchmarkHelperFunctions benchmarks utility functions
-func BenchmarkHelperFunctions(b *testing.B) {
-	b.Run("validateAgeGroup", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			validateAgeGroup("6-8")
-		}
-	})
-
-	b.Run("getAgeDescription", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			getAgeDescription("6-8")
-		}
-	})
-
-	b.Run("calculateReadingTime", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			calculateReadingTime("medium")
-		}
-	})
-
-	b.Run("calculatePageCount", func(b *testing.B) {
-		content := string(make([]byte, 1000))
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			calculatePageCount(content)
-		}
-	})
-
-	b.Run("parseStoryResponse", func(b *testing.B) {
-		response := "Title: Test Story\n\nOnce upon a time..."
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			parseStoryResponse(response)
 		}
 	})
 }

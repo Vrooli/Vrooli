@@ -96,7 +96,7 @@ Final validation pass to ensure all documentation is accurate, accessible, and a
 
 ### Recommendations for Next Actions
 
-**For Ecosystem-Manager (HIGHEST PRIORITY):**
+**For swarm-manager (HIGHEST PRIORITY):**
 Create improver tasks for target scenarios with direct example links:
 
 1. **scenario-improver-data-backup-manager** - HIGH PRIORITY
@@ -143,7 +143,7 @@ Create improver tasks for target scenarios with direct example links:
 - Clear adoption path with quantified benefits
 
 **Next Value Comes From:**
-- Ecosystem-manager creating improver tasks for target scenarios
+- swarm-manager creating improver tasks for target scenarios
 - Other scenarios copying the example code
 - Real-world adoption feedback driving P2 feature priorities
 
@@ -312,7 +312,7 @@ $ go run golang-integration.go
 
 ### Recommendations for Next Agents
 
-**For Ecosystem-Manager:**
+**For swarm-manager:**
 Same as Pass 11 - create improver tasks for target scenarios with direct links to examples:
 
 1. `scenario-improver-data-backup-manager` - HIGH PRIORITY
@@ -469,7 +469,7 @@ Instead of modifying other scenarios directly (collision-avoidance violation), c
 
 ### Recommendations for Next Agents
 
-**For Ecosystem-Manager:**
+**For swarm-manager:**
 Create separate improver tasks for:
 1. `scenario-improver-data-backup-manager` - HIGH PRIORITY
    - Task: Integrate file-tools for compression and checksums
@@ -1351,21 +1351,12 @@ Commands:
 
 **Result**: All 8 CLI tests now pass
 
+Supersedes the 2025-09-27 CLI-failure subsection. The current CLI groups
+are checked by `cli/app_test.go::TestReadmeCommandExamplesMatchRegisteredGroups`.
+
 ## 2025-09-27 Improvement Cycle
 
-### Problems Discovered
-
-#### 1. CLI Test Failures
-**Problem**: Several CLI test commands are failing:
-- Version command not displaying version correctly
-- Configure command not working properly
-- Health command not sending correct request
-
-**Status**: Not fixed - CLI implementation needs updates to match test expectations
-
-**Suggested Fix**: Update the CLI shell script to properly handle these commands and integrate with the API.
-
-#### 2. Resource Dependencies Not All Running
+#### 1. Resource Dependencies Not All Running
 **Problem**: PostgreSQL resource not installed/running, though the API connects to a shared instance successfully.
 
 **Status**: Working via shared vrooli-postgres-main container on port 5433

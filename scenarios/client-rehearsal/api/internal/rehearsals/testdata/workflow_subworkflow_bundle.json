@@ -1,0 +1,23 @@
+{
+  "entryWorkflowId": "main-flow",
+  "workflows": [
+    {
+      "id": "main-flow",
+      "name": "Parent workflow",
+      "nodes": [
+        {"id": "main-trigger", "name": "Manual", "type": "n8n-nodes-base.manualTrigger", "parameters": {}},
+        {"id": "call-child", "name": "Call child", "type": "n8n-nodes-base.executeWorkflow", "parameters": {"workflowId": {"value": "child-flow", "mode": "list"}}}
+      ],
+      "connections": {"Manual": {"main": [[{"node": "Call child", "type": "main", "index": 0}]]}}
+    },
+    {
+      "id": "child-flow",
+      "name": "Child workflow",
+      "nodes": [
+        {"id": "child-trigger", "name": "Called by parent", "type": "n8n-nodes-base.executeWorkflowTrigger", "parameters": {"inputSource": "passthrough"}},
+        {"id": "append", "name": "Append row", "type": "n8n-nodes-base.httpRequest", "parameters": {"method": "POST", "url": "https://sheets.synthetic.invalid/v1/rows"}}
+      ],
+      "connections": {"Called by parent": {"main": [[{"node": "Append row", "type": "main", "index": 0}]]}}
+    }
+  ]
+}

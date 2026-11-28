@@ -1,400 +1,244 @@
-// Package agentmanager provides an HTTP client for the agent-manager service.
-//
-// This package wraps the agent-manager REST API using proto-generated types,
-// enabling test-genie to delegate agent execution to agent-manager for test
-// generation tasks.
+// Package agentmanager adapts the shared Agent Manager transport to test-genie's API.
 package agentmanager
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/discovery"
+	agentmanagerclient "github.com/vrooli/vrooli/packages/agentmanager-client-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
-// Client is an HTTP client for the agent-manager API.
-type Client struct {
-	httpClient *http.Client
-	jsonOpts   protojson.MarshalOptions
-}
+// Client preserves test-genie's operation surface while sharing transport and
+// generated procedure construction with other scenarios.
+type Client struct{ shared *agentmanagerclient.Client }
 
-// NewClient creates a new agent-manager client.
+type resolverFunc func(context.Context) (string, error)
+
+func (f resolverFunc) ResolveBaseURL(ctx context.Context) (string, error) { return f(ctx) }
+
+// NewClient creates a client using standard Agent Manager scenario discovery.
 func NewClient(timeout time.Duration) *Client {
-	return &Client{
-		httpClient: &http.Client{
-			Timeout: timeout,
-		},
-		jsonOpts: protojson.MarshalOptions{
-			UseProtoNames: false, // lowerCamelCase to match agent-manager HTTP handlers
-		},
-	}
+	return &Client{shared: agentmanagerclient.New(timeout, agentmanagerclient.WithProto())}
 }
 
-// Health checks the agent-manager service health.
+// NewClientWithResolver injects target resolution for transport journeys.
+func NewClientWithResolver(timeout time.Duration, resolver func(context.Context) (string, error)) *Client {
+	return &Client{shared: agentmanagerclient.NewWithResolver(timeout, resolverFunc(resolver), agentmanagerclient.WithProto())}
+}
+
+func (c *Client) connectClient(ctx context.Context) (agentmanagerclient.Service, error) {
+	if c == nil || c.shared == nil {
+		return nil, fmt.Errorf("agent-manager client is not configured")
+	}
+	return c.shared.Connect(ctx)
+}
+
+func (c *Client) ResolveURL(ctx context.Context) (string, error) {
+	if c == nil || c.shared == nil {
+		return "", fmt.Errorf("agent-manager client is not configured")
+	}
+	return c.shared.ResolveURL(ctx)
+}
+
 func (c *Client) Health(ctx context.Context) (bool, error) {
-	resp, err := c.doRequest(ctx, "GET", "/health", nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode == http.StatusOK, nil
+	return s.Health(ctx)
 }
 
-// =============================================================================
-// PROFILES
-// =============================================================================
-
-// EnsureProfile resolves a profile by key, creating it with defaults if needed.
-func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/profiles/ensure", body)
+func (c *Client) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	result, err := s.ReconcileScenarioProfiles(ctx, scenario)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager reconcile scenario profiles: %w", err)
 	}
-
-	var result apipb.EnsureProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return result, nil
 }
 
-// GetProfile retrieves a profile by ID.
 func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.AgentProfile, error) {
-	resp, err := c.GetProfileResponse(ctx, profileID)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, nil
+	result, err := s.GetProfile(ctx, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get profile: %w", err)
 	}
-	return resp.Profile, nil
+	return result, nil
 }
 
-// GetProfileResponse retrieves a profile and any attached metadata.
 func (c *Client) GetProfileResponse(ctx context.Context, profileID string) (*apipb.GetProfileResponse, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/profiles/%s", profileID), nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
+	result, err := s.GetProfileResponse(ctx, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get profile: %w", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.GetProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return result, nil
 }
 
-// =============================================================================
-// TASKS
-// =============================================================================
+func (c *Client) GetRolePolicyCatalog(ctx context.Context) (*apipb.GetRolePolicyCatalogResponse, error) {
+	s, err := c.connectClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.GetRolePolicyCatalog(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get role policy catalog: %w", err)
+	}
+	return result, nil
+}
 
-// CreateTask creates a new task.
 func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
-	req := &apipb.CreateTaskRequest{Task: task}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/tasks", body)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	result, err := s.CreateTask(ctx, task)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager create task: %w", err)
 	}
-
-	var result apipb.CreateTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Task, nil
+	return result, nil
 }
 
-// =============================================================================
-// RUNS
-// =============================================================================
-
-// CreateRun starts a new run for a task.
-func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs", body)
+func (c *Client) CreateRun(ctx context.Context, request *apipb.CreateRunRequest) (*domainpb.Run, error) {
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	result, err := s.CreateRun(ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager create run: %w", err)
 	}
-
-	var result apipb.CreateRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return result, nil
 }
 
-// GetRun retrieves a run by ID.
 func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/%s", runID), nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
+	result, err := s.GetRun(ctx, runID)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run: %w", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return result, nil
 }
 
-// GetRunByTag retrieves a run by its tag.
 func (c *Client) GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/runs/tag/%s", url.PathEscape(tag)), nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
+	result, err := s.GetRunByTag(ctx, tag)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run by tag: %w", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
-	}
-
-	var result apipb.GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return result, nil
 }
 
 // ListRunsOptions contains optional filters for listing runs.
-type ListRunsOptions struct {
-	TagPrefix string
-	ProfileID string
-	Status    *domainpb.RunStatus
-	Limit     int
-}
+type ListRunsOptions = agentmanagerclient.ListRunsOptions
 
-// ListRuns lists runs with optional filtering by tag prefix, profile ID, and status.
-// Filters are passed as query parameters (agent-manager ignores JSON body on GET).
-func (c *Client) ListRuns(ctx context.Context, opts ListRunsOptions) ([]*domainpb.Run, error) {
-	// Build query parameters
-	query := url.Values{}
-	if opts.TagPrefix != "" {
-		query.Set("tagPrefix", opts.TagPrefix)
-	}
-	if opts.ProfileID != "" {
-		query.Set("profileId", opts.ProfileID)
-	}
-	if opts.Status != nil {
-		query.Set("status", opts.Status.String())
-	}
-	if opts.Limit > 0 {
-		query.Set("limit", fmt.Sprintf("%d", opts.Limit))
-	}
-
-	path := "/api/v1/runs"
-	if len(query) > 0 {
-		path = path + "?" + query.Encode()
-	}
-
-	resp, err := c.doRequest(ctx, "GET", path, nil)
+func (c *Client) ListRuns(ctx context.Context, options ListRunsOptions) ([]*domainpb.Run, error) {
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	result, err := s.ListRuns(ctx, options)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager list runs: %w", err)
 	}
-
-	var result apipb.ListRunsResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Runs, nil
+	return result, nil
 }
 
-// StopRun stops a running run.
 func (c *Client) StopRun(ctx context.Context, runID string) error {
-	resp, err := c.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/runs/%s/stop", runID), nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return c.parseError(resp)
+	if err := s.StopRun(ctx, runID); err != nil {
+		return fmt.Errorf("agent-manager stop run: %w", err)
 	}
 	return nil
 }
 
-// StopRunByTag stops a run by its tag.
 func (c *Client) StopRunByTag(ctx context.Context, tag string) error {
-	resp, err := c.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/runs/tag/%s/stop", url.PathEscape(tag)), nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return c.parseError(resp)
+	if err := s.StopRunByTag(ctx, tag); err != nil {
+		return fmt.Errorf("agent-manager stop run by tag: %w", err)
 	}
 	return nil
 }
 
-// StopAllRunsResult contains the result of stopping multiple runs.
 type StopAllRunsResult struct {
 	StoppedCount int
 	FailedCount  int
 	Errors       []string
 }
 
-// StopAllRuns stops all runs matching an optional tag prefix.
 func (c *Client) StopAllRuns(ctx context.Context, tagPrefix string) (*StopAllRunsResult, error) {
-	req := &apipb.StopAllRunsRequest{}
-	if tagPrefix != "" {
-		req.TagPrefix = &tagPrefix
-	}
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs/stop-all", body)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	response, err := s.StopAllRuns(ctx, tagPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager stop all runs: %w", err)
 	}
-
-	var result apipb.StopAllRunsResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-
-	stopResult := &StopAllRunsResult{}
-	if result.Result != nil {
-		stopResult.StoppedCount = int(result.Result.StoppedCount)
-		for _, f := range result.Result.Failures {
-			stopResult.Errors = append(stopResult.Errors, f.Error)
+	result := &StopAllRunsResult{}
+	if response.GetResult() != nil {
+		result.StoppedCount = int(response.Result.GetStoppedCount())
+		for _, failure := range response.Result.GetFailures() {
+			result.Errors = append(result.Errors, failure.GetError())
 		}
-		stopResult.FailedCount = len(result.Result.Failures)
+		result.FailedCount = len(response.Result.GetFailures())
 	}
-	return stopResult, nil
+	return result, nil
 }
 
-// =============================================================================
-// RUN EVENTS
-// =============================================================================
-
-// GetRunEvents retrieves events for a run.
 func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence int64) ([]*domainpb.RunEvent, error) {
-	path := fmt.Sprintf("/api/v1/runs/%s/events", runID)
-	if afterSequence > 0 {
-		path = fmt.Sprintf("%s?after_sequence=%d", path, afterSequence)
-	}
-
-	resp, err := c.doRequest(ctx, "GET", path, nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	result, err := s.GetRunEvents(ctx, runID, afterSequence)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run events: %w", err)
 	}
-
-	var result apipb.GetRunEventsResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Events, nil
+	return result, nil
 }
 
-// =============================================================================
-// RUNNERS
-// =============================================================================
-
-// GetRunnerStatus retrieves status of all runners.
 func (c *Client) GetRunnerStatus(ctx context.Context) ([]*domainpb.RunnerStatus, error) {
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/runners", nil)
+	s, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	result, err := s.GetRunnerStatus(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get runner status: %w", err)
 	}
-
-	var result apipb.GetRunnerStatusResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Runners, nil
+	return result, nil
 }
-
-// =============================================================================
-// HELPERS
-// =============================================================================
 
 // WaitForRun polls until a run reaches a terminal state.
 func (c *Client) WaitForRun(ctx context.Context, runID string, pollInterval time.Duration) (*domainpb.Run, error) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -407,7 +251,6 @@ func (c *Client) WaitForRun(ctx context.Context, runID string, pollInterval time
 			if run == nil {
 				return nil, fmt.Errorf("run %s not found", runID)
 			}
-
 			if IsTerminalStatus(run.Status) {
 				return run, nil
 			}
@@ -415,90 +258,13 @@ func (c *Client) WaitForRun(ctx context.Context, runID string, pollInterval time
 	}
 }
 
-// IsTerminalStatus returns true if the run status is terminal (no longer running).
 func IsTerminalStatus(status domainpb.RunStatus) bool {
 	switch status {
-	case domainpb.RunStatus_RUN_STATUS_COMPLETE,
-		domainpb.RunStatus_RUN_STATUS_FAILED,
-		domainpb.RunStatus_RUN_STATUS_CANCELLED:
+	case domainpb.RunStatus_RUN_STATUS_COMPLETE, domainpb.RunStatus_RUN_STATUS_FAILED, domainpb.RunStatus_RUN_STATUS_CANCELLED:
 		return true
 	default:
 		return false
 	}
 }
 
-// NewUUID generates a new UUID string.
-func NewUUID() string {
-	return uuid.New().String()
-}
-
-// =============================================================================
-// INTERNAL
-// =============================================================================
-
-func (c *Client) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
-	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
-	}
-
-	baseURL, err := c.resolveBaseURL(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, baseURL+path, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	req.Header.Set("Accept", "application/json")
-
-	return c.httpClient.Do(req)
-}
-
-func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
-	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
-	if err != nil {
-		return "", fmt.Errorf("resolve agent-manager url: %w", err)
-	}
-	return url, nil
-}
-
-// ResolveURL exposes the computed agent-manager base URL.
-func (c *Client) ResolveURL(ctx context.Context) (string, error) {
-	return c.resolveBaseURL(ctx)
-}
-
-func (c *Client) parseResponse(resp *http.Response, msg proto.Message) error {
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
-	if err := opts.Unmarshal(body, msg); err != nil {
-		return fmt.Errorf("unmarshal response: %w", err)
-	}
-	return nil
-}
-
-func (c *Client) parseError(resp *http.Response) error {
-	body, _ := io.ReadAll(resp.Body)
-	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal(body, &errResp); err == nil {
-		if errResp.Error != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Error)
-		}
-		if errResp.Message != "" {
-			return fmt.Errorf("agent-manager error: %s", errResp.Message)
-		}
-	}
-	return fmt.Errorf("agent-manager error: status %d, body: %s", resp.StatusCode, string(body))
-}
+func NewUUID() string { return uuid.New().String() }

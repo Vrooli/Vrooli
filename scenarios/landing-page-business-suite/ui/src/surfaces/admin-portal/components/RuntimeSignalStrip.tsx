@@ -22,16 +22,16 @@ interface RuntimeSignalStripProps {
 export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
   const [expanded, setExpanded] = useState(false);
   const { variant, config, loading, error, resolution, statusNote, lastUpdated, refresh } = useLandingVariant();
-  const { comingSoonEnabled, toggling, handleToggle } = useComingSoonToggle();
+  const { comingSoonEnabled, toggling, handleToggle, loading: brandingLoading, error: brandingError, reload: reloadBranding } = useComingSoonToggle();
 
-  const variantLabel = variant ? `${variant.name ?? variant.slug} (${variant.slug})` : 'Variant not resolved yet';
+  const variantLabel = variant ? variant.name ? `${variant.name} (${variant.slug})` : variant.slug : 'Variant not resolved yet';
   const resolutionLabel = getResolutionLabel(resolution);
 
   const fallbackActive = Boolean(config?.fallback);
   const configLabel = fallbackActive ? 'Fallback copy active' : 'Live API config';
   const configClass = fallbackActive ? 'bg-amber-500/20 text-amber-200 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30';
   const configDescription = fallbackActive
-    ? 'Serving baked config until landing-config API responds.'
+    ? 'The presentation owner reported a fallback resolution.'
     : 'Connected to landing-config API.';
 
   // Error state - same for both modes
@@ -61,7 +61,7 @@ export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
       <div className="mb-6" data-testid="runtime-signal-compact">
         <button
           type="button"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => { setExpanded(!expanded); }}
           className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium hover:bg-white/10 transition-colors"
           data-testid="runtime-signal-toggle"
         >
@@ -85,6 +85,8 @@ export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
 
         {expanded && (
           <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-4" data-testid="runtime-signal-expanded">
+            {brandingLoading && <p role="status" className="text-xs text-slate-400">Loading coming soon configuration…</p>}
+            {brandingError && <div role="alert" className="text-sm text-amber-200">{brandingError} <Button variant="ghost" size="sm" onClick={reloadBranding}>Reload coming soon configuration</Button></div>}
             {/* Coming soon toggle row */}
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -97,8 +99,8 @@ export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
               <ToggleSwitch
                 checked={comingSoonEnabled}
                 onToggle={() => void handleToggle()}
-                loading={toggling}
-                disabled={toggling}
+                loading={toggling || brandingLoading}
+                disabled={toggling || brandingLoading || !!brandingError}
                 aria-label="Toggle coming soon mode"
                 checkedClassName="bg-purple-500"
               />
@@ -153,15 +155,15 @@ export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
           <div>
             <span className="text-sm font-medium text-slate-200">Coming soon mode</span>
             <p className="text-xs text-slate-400">
-              {comingSoonEnabled ? 'Visitors see the coming soon page instead of the landing variant' : 'Landing variant is visible to visitors'}
+              {brandingLoading || brandingError ? 'Coming soon status has not been confirmed' : comingSoonEnabled ? 'Visitors see the coming soon page instead of the landing variant' : 'Landing variant is visible to visitors'}
             </p>
           </div>
         </div>
         <ToggleSwitch
           checked={comingSoonEnabled}
           onToggle={() => void handleToggle()}
-          loading={toggling}
-          disabled={toggling}
+          loading={toggling || brandingLoading}
+          disabled={toggling || brandingLoading || !!brandingError}
           aria-label="Toggle coming soon mode"
           checkedClassName="bg-purple-500"
         />

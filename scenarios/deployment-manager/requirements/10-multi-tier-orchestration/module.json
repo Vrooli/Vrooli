@@ -3,6 +3,12 @@
   "title": "Multi-Tier Deployment Orchestration",
   "priority": "P1",
   "description": "Simultaneous multi-tier deployments with independent status tracking",
-  "requirements": [],
+  "requirements": [
+    {"id":"DM-P1-015","title":"Multi-Tier Profile Support","status":"planned","prd_ref":"OT-P1-015","domain":"releases","description":"Allow one profile to target multiple tiers simultaneously","tags":["multi-tier"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-016","title":"Tier-Specific Settings UI","status":"planned","prd_ref":"OT-P1-016","domain":"profiles","description":"Show settings such as signing and bundle identifiers only for selected tiers","tags":["multi-tier","ui"],"validation":[{"type":"test","ref":"api/profiles/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-017","title":"Parallel Tier Orchestration","status":"planned","prd_ref":"OT-P1-017","domain":"releases","description":"Invoke scenario packagers concurrently for multi-tier releases","tags":["multi-tier","performance"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-018","title":"Per-Tier Status Tracking","status":"planned","prd_ref":"OT-P1-018","domain":"releases","description":"Track queued, deploying, deployed, and failed states independently per tier","tags":["multi-tier"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
+    {"id":"DM-P1-019","title":"Partial Failure Retry","status":"planned","prd_ref":"OT-P1-019","domain":"releases","description":"Retry failed tiers without redeploying successful tiers","tags":["multi-tier","reliability"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]}
+  ],
   "_metadata": {}
 }

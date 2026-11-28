@@ -1,0 +1,32 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.jobs;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/jobs;jobs_v1";
+
+service JobsService {
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+  rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
+  rpc TransitionJob(TransitionJobRequest) returns (TransitionJobResponse);
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+}
+
+message Job {
+  string id = 1;
+  string workspace_id = 2;
+  string type = 3;
+  string dedup_key = 4;
+  string state = 5;
+  repeated string input_revisions = 6;
+  int32 attempts = 7;
+  string provider = 8;
+  int32 budget_units = 9;
+  string result_reference = 10;
+  string error_code = 11;
+}
+message ListJobsRequest { string workspace_id = 1; }
+message ListJobsResponse { repeated Job jobs = 1; }
+message CreateJobRequest { string workspace_id = 1; string id = 2; string type = 3; string dedup_key = 4; repeated string input_revisions = 5; string provider = 6; int32 budget_units = 7; }
+message CreateJobResponse { Job job = 1; }
+message TransitionJobRequest { string workspace_id = 1; string id = 2; string next_state = 3; string provider = 4; int32 attempts = 5; string result_reference = 6; string error_code = 7; }
+message TransitionJobResponse { Job job = 1; }
+message CancelJobRequest { string workspace_id = 1; string id = 2; }
+message CancelJobResponse { Job job = 1; }

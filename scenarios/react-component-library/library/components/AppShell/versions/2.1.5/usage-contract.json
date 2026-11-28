@@ -1,0 +1,30 @@
+{
+  "componentId": "react-component-library:AppShell",
+  "version": "2.1.5",
+  "children": {
+    "typicalCount": 1,
+    "maximumCount": 1,
+    "allowedChildComponents": ["any-content-composition"]
+  },
+  "items": {
+    "property": "items",
+    "typicalCount": 4,
+    "maximumCount": 30,
+    "requiredFields": ["id", "label"],
+    "requiredFieldTypes": {
+      "id": "string",
+      "label": "string"
+    },
+    "stableIdField": "id",
+    "labelField": "label",
+    "primaryAction": "not-applicable",
+    "maximumLabelCharacters": 16,
+    "mobileMaximumCount": 5,
+    "mobileField": "mobile",
+    "phoneLabelField": "shortLabel"
+  },
+  "layout": {
+    "phoneVisibleCount": 4,
+    "overflowPolicy": "menu-tabs"
+  }
+}

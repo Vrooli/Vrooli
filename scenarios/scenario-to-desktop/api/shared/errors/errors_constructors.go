@@ -464,20 +464,6 @@ func ErrBuildDesktopPathMissing() *DomainError {
 		InDomain("build")
 }
 
-// ErrBuildStartFailed creates an error for build start failure.
-func ErrBuildStartFailed(cause error, platform string) *DomainError {
-	return Wrap(CodeBuildFailed, cause, "build failed to start").
-		WithDetail("platform", platform).
-		WithRecovery(RecoveryRetry, "Check build configuration and retry").
-		WithRetryStrategy(RetryDefault).
-		WithManualSteps([]string{
-			"Verify electron-builder is installed",
-			"Check platform-specific build tools are available",
-			"Review build service logs for details",
-		}).
-		InDomain("build")
-}
-
 // ErrBuildTimedOut creates an error for build timeout.
 func ErrBuildTimedOut(buildID string, duration string) *DomainError {
 	return New(CodeTimeout, "build timed out").

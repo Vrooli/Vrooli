@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.banner",
+    "name": "Banner",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The page- or application-level notice with priority ordering, persistence policy, actions, responsive layout, and deterministic stacking when several apply at once.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.alert",
+        "reason": "Tone, structure, and non-colour treatment are shared."
+      },
+      {
+        "asset": "services.chrome-theme",
+        "reason": "The notice on top owns the OS status bar, and that is two platform mechanisms one surface must not write separately."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "chrome-pinned",
+    "safe-area-respected"
+  ]
+}

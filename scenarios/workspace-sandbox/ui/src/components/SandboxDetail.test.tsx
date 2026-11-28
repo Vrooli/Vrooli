@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
 import { SandboxDetail } from "./SandboxDetail";
 import type { Sandbox } from "../lib/api";
@@ -67,7 +68,7 @@ const defaultProps = {
 describe("SandboxDetail", () => {
   describe("R9: MetadataRow font selection", () => {
     it("renders without font-mono by default for non-path metadata", () => {
-      render(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
+      renderWithProviders(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
 
       const rows = screen.getAllByTestId("metadata-row");
       // Owner row should NOT have font-mono (it's a formatted label, not a raw path)
@@ -77,7 +78,7 @@ describe("SandboxDetail", () => {
     });
 
     it("renders font-mono for path metadata (Reserved)", () => {
-      render(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
+      renderWithProviders(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
 
       const rows = screen.getAllByTestId("metadata-row");
       const reservedRow = rows.find((r) => r.textContent?.includes("Reserved"));
@@ -88,7 +89,7 @@ describe("SandboxDetail", () => {
 
   describe("R4: Show more toggle", () => {
     it("hides secondary metadata by default", () => {
-      render(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
+      renderWithProviders(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
 
       expect(screen.queryByTestId("secondary-metadata")).not.toBeInTheDocument();
       expect(screen.getByTestId("show-more-toggle")).toHaveTextContent("Show more");
@@ -96,7 +97,7 @@ describe("SandboxDetail", () => {
 
     it("reveals secondary metadata when Show more is clicked", async () => {
       const user = userEvent.setup();
-      render(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
+      renderWithProviders(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
 
       await user.click(screen.getByTestId("show-more-toggle"));
 
@@ -106,7 +107,7 @@ describe("SandboxDetail", () => {
 
     it("hides secondary metadata when Show less is clicked", async () => {
       const user = userEvent.setup();
-      render(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
+      renderWithProviders(<SandboxDetail sandbox={makeSandbox()} {...defaultProps} />);
 
       await user.click(screen.getByTestId("show-more-toggle"));
       expect(screen.getByTestId("secondary-metadata")).toBeInTheDocument();
@@ -118,7 +119,7 @@ describe("SandboxDetail", () => {
 
   describe("R1: Action button grouping", () => {
     it("renders a visual divider between lifecycle and review buttons for active sandbox", () => {
-      render(
+      renderWithProviders(
         <SandboxDetail
           sandbox={makeSandbox({ status: "active" })}
           {...defaultProps}
@@ -131,7 +132,7 @@ describe("SandboxDetail", () => {
     });
 
     it("does not render divider when only review buttons exist (stopped sandbox, no launch)", () => {
-      render(
+      renderWithProviders(
         <SandboxDetail
           sandbox={makeSandbox({ status: "stopped" })}
           {...defaultProps}
@@ -144,7 +145,7 @@ describe("SandboxDetail", () => {
     });
 
     it("renders all expected action buttons for an active sandbox (desktop)", () => {
-      render(
+      renderWithProviders(
         <SandboxDetail
           sandbox={makeSandbox({ status: "active" })}
           {...defaultProps}
@@ -163,7 +164,7 @@ describe("SandboxDetail", () => {
     });
 
     it("hides review toggle and divider on mobile (hideDiffViewer=true)", () => {
-      render(
+      renderWithProviders(
         <SandboxDetail
           sandbox={makeSandbox({ status: "active" })}
           {...defaultProps}
@@ -179,7 +180,7 @@ describe("SandboxDetail", () => {
 
   describe("R6: Formatted owner display", () => {
     it("shows shortened UUID owner with type prefix", () => {
-      render(
+      renderWithProviders(
         <SandboxDetail
           sandbox={makeSandbox({ owner: "d3f6f295-55ac-4b1a-9876-abcdef123456", ownerType: "agent" })}
           {...defaultProps}

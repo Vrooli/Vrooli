@@ -1,0 +1,34 @@
+{
+  "createdAt": "2026-11-13T00:00:00Z",
+  "description": "Blindly implement one synthetic coding bounty in a disposable preimage checkout without access to the winning reference.",
+  "entry": "SKILL.md",
+  "id": "bounty-replay-solver",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "contract"
+  ],
+  "name": "bounty-replay-solver",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "agent-manager workflow"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "agent-manager",
+      "workspace-sandbox"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "agent-manager",
+    "bounty-replay",
+    "prompt-contract"
+  ],
+  "updatedAt": "2026-11-13T00:00:00Z"
+}

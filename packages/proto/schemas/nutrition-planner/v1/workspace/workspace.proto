@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package vrooli.nutrition_planner.v1.workspace;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace;workspace_v1";
+
+service WorkspaceService {
+  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
+  rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
+}
+
+message Workspace {
+  string id = 1;
+  string name = 2;
+  string owner_subject = 3;
+  int64 revision = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+message ListWorkspacesRequest {}
+message ListWorkspacesResponse { repeated Workspace workspaces = 1; }
+message CreateWorkspaceRequest { string name = 1; string idempotency_key = 2; }
+message CreateWorkspaceResponse { Workspace workspace = 1; }
+message GetWorkspaceRequest { string id = 1; }
+message GetWorkspaceResponse { Workspace workspace = 1; }

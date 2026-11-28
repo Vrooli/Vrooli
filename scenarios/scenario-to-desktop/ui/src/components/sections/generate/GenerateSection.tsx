@@ -25,6 +25,11 @@ import {
 import { Button } from "../../ui/button";
 import { ValidationErrors, type ValidationError } from "../../generator";
 import { formatStageName } from "../../../lib/status-display";
+import { selectors } from "../../../consts/selectors";
+import {
+  StageName,
+  StageStatus,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 interface GenerateSectionProps {
   scenarioName: string;
@@ -61,10 +66,10 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
       isUpdateMode = false,
       onSubmit,
     },
-    ref
+    ref,
   ) => {
     const generateResult = usePipelineStore((s) => s.generateResult);
-    const stageStatus = usePipelineStore(selectStageStatus("generate"));
+    const stageStatus = usePipelineStore(selectStageStatus(StageName.GENERATE));
     const errorInfo = usePipelineStore(selectErrorInfo);
     const clearError = usePipelineStore((s) => s.clearError);
     const resetForRetry = usePipelineStore((s) => s.resetForRetry);
@@ -74,9 +79,12 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
     const progress = usePipelineStore(selectProgress);
 
     const hasResult = Boolean(generateResult);
-    const desktopPath = generateResult?.desktop_path;
-    const buildId = generateResult?.build_id;
-    const statusDisplay = getStatusDisplay(stageStatus, { completed: "Generated", running: "Generating" });
+    const desktopPath = generateResult?.desktopPath;
+    const pipelineId = generateResult?.pipelineId;
+    const statusDisplay = getStatusDisplay(stageStatus, {
+      [StageStatus.COMPLETED]: "Generated",
+      [StageStatus.RUNNING]: "Generating",
+    });
     const progressPercent = Math.round(progress * 100);
 
     // Handle form submission - either via form attribute or direct callback
@@ -120,14 +128,20 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-blue-400 flex items-center gap-1.5">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      {currentStage ? `Running ${formatStageName(currentStage)} stage...` : "Starting pipeline..."}
+                      {currentStage
+                        ? `Running ${formatStageName(currentStage)} stage...`
+                        : "Starting pipeline..."}
                     </span>
-                    <span className="text-slate-400">{progressPercent}%</span>
+                    <span className="text-slate-400">
+                      {String(progressPercent)}%
+                    </span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
                     <div
                       className="h-full bg-blue-500 transition-all duration-500 ease-out rounded-full"
-                      style={{ width: `${Math.max(progressPercent, 2)}%` }}
+                      style={{
+                        width: `${String(Math.max(progressPercent, 2))}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -150,15 +164,18 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
                 onClick={onSubmit ? handleSubmitClick : undefined}
                 className="w-full"
                 disabled={isPending || validationErrors.length > 0}
+                data-testid={selectors.generator.generateSubmit}
               >
                 {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Starting...
                   </>
-                ) : isUpdateMode
-                  ? "Update Desktop Application"
-                  : "Generate Desktop Application"}
+                ) : isUpdateMode ? (
+                  "Update Desktop Application"
+                ) : (
+                  "Generate Desktop Application"
+                )}
               </Button>
             )}
 
@@ -167,7 +184,8 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
                 <div>
                   <strong>Error:</strong>{" "}
-                  {errorMessage || "Generation failed. Check the Configuration section for missing fields, or try again."}
+                  {errorMessage ||
+                    "Generation failed. Check the Configuration section for missing fields, or try again."}
                 </div>
               </div>
             )}
@@ -177,31 +195,40 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
         <StageAbout title="About generation">
           <p>
             The generate stage creates an Electron project scaffold stored in{" "}
-            <code className="font-mono text-slate-200">platforms/electron</code>.
+            <code className="font-mono text-slate-200">platforms/electron</code>
+            .
           </p>
         </StageAbout>
 
         <StageStatusOverview
           icon={Wand2}
           title="Generate Status"
-          description={hasResult ? `Electron wrapper generated${buildId ? ` (Build: ${buildId.slice(0, 8)}...)` : ""}` : "Wrapper not yet generated"}
+          description={
+            hasResult
+              ? `Electron wrapper generated${pipelineId ? ` (Pipeline: ${pipelineId.slice(0, 8)}...)` : ""}`
+              : "Wrapper not yet generated"
+          }
           statusDisplay={statusDisplay}
         />
 
         {hasResult && desktopPath && (
           <StageDetailCard icon={FolderOpen} label="Desktop Application Path">
-            <code className="text-xs text-slate-300 font-mono break-all">{desktopPath}</code>
+            <code className="text-xs text-slate-300 font-mono break-all">
+              {desktopPath}
+            </code>
           </StageDetailCard>
         )}
 
-        {!hasResult && stageStatus === "pending" && !showSubmitButton && (
-          <StagePlaceholder
-            scenarioName={scenarioName}
-            withScenarioText="Complete configuration and click the Generate button above to start."
-          />
-        )}
+        {!hasResult &&
+          stageStatus === StageStatus.PENDING &&
+          !showSubmitButton && (
+            <StagePlaceholder
+              scenarioName={scenarioName}
+              withScenarioText="Complete configuration and click the Generate button above to start."
+            />
+          )}
 
-        {stageStatus === "failed" && (
+        {stageStatus === StageStatus.FAILED && (
           <StageError
             stageName="Generate"
             errorInfo={errorInfo}
@@ -214,7 +241,7 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
         )}
       </SectionCard>
     );
-  }
+  },
 );
 
 GenerateSection.displayName = "GenerateSection";

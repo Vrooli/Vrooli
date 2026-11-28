@@ -68,12 +68,10 @@ interface DeploymentReadinessPanelProps {
 const suggestedScenarios = [
   "secrets-manager",
   "deployment-manager",
-  "ecosystem-manager",
   "scenario-auditor",
   "scenario-authenticator",
   "scenario-dependency-analyzer",
   "system-monitor",
-  "app-issue-tracker",
   "brand-manager"
 ];
 

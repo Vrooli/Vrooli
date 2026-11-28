@@ -3,6 +3,8 @@ package smoketest_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"scenario-to-desktop-api/smoketest"
@@ -483,7 +485,7 @@ func TestService_PerformSmokeTest_HeadlessWrapper(t *testing.T) {
 	if call.Command != "xvfb-run" {
 		t.Errorf("Expected command 'xvfb-run', got %q", call.Command)
 	}
-	expectedArgs := []string{"-a", "/path/to/artifact.AppImage", "--smoke-test"}
+	expectedArgs := []string{"-a", "/path/to/artifact.AppImage", "--smoke-test", "--user-data-dir=" + filepath.Join(os.TempDir(), "s2d-test-123")}
 	if len(call.Args) != len(expectedArgs) {
 		t.Errorf("Expected args %v, got %v", expectedArgs, call.Args)
 	}

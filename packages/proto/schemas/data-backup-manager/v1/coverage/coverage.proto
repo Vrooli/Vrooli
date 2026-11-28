@@ -1,0 +1,349 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.coverage;
+
+import "data-backup-manager/v1/sources/sources.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage;coverage_v1";
+
+// =============================================================================
+// COVERAGE DOMAIN — first-real-backup readiness model
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain coverage
+// @imports sources
+// @stability stable
+//
+// Wire contract for CoverageService. The five-noun product (Target ×
+// Destination × Plan → Run → Restore) plus Discovery leaves a gap: discovery
+// SUGGESTS durable state worth protecting, but only REGISTERED targets are
+// eligible for plans and runs. A fresh install therefore lets an operator build
+// a plan that looks protective while it backs up only one self-registered
+// target.
+//
+// Coverage closes that gap. It composes the existing discovery, targets, plans,
+// runs and restores seams (it owns no scanner logic of its own) into one
+// decision-oriented report and one bulk action:
+//
+//   - GetCoverageReport: what is registered, recommended-but-unregistered,
+//     sensitive, planned, backed-up and verified — derived live, never stored.
+//   - AcceptDefaultTargets: bulk-register non-sensitive discovered durable
+//     targets. Sensitive credential/token suggestions always require the
+//     verified Notification Hub review; include_sensitive is a legacy field
+//     and is rejected when true. dry_run reports without mutating anything.
+//
+// Coverage never reads file contents and never auto-registers on startup —
+// every registration is a deliberate operator action.
+//
+// Consumed by:
+//   - API: handlers/coverage/connect_handler.go implements CoverageServiceHandler.
+//   - CLI: cli (data-backup-manager coverage report|accept-defaults).
+//   - UI:  ui/src/features/coverage/ (Overview banner, Targets bulk register).
+// =============================================================================
+
+service CoverageService {
+  rpc GetCoverageReport(GetCoverageReportRequest) returns (GetCoverageReportResponse);
+  rpc AcceptDefaultTargets(AcceptDefaultTargetsRequest) returns (AcceptDefaultTargetsResponse);
+  // Raise one verified-human review for the current sensitive suggestions.
+  rpc RequestSensitiveReview(RequestSensitiveReviewRequest) returns (RequestSensitiveReviewResponse);
+  // Show the standing rule for places that hold secrets: whether it is on, who
+  // consented and when, what it added, and what it keeps out.
+  rpc GetSensitivePolicy(GetSensitivePolicyRequest) returns (GetSensitivePolicyResponse);
+  // Turn the standing rule off. Items it already added stay backed up; new
+  // places that hold secrets wait for a decision again.
+  rpc RevokeSensitivePolicy(RevokeSensitivePolicyRequest) returns (RevokeSensitivePolicyResponse);
+  // Keep one item out of the standing rule.
+  rpc ExcludeSensitiveTarget(ExcludeSensitiveTargetRequest) returns (ExcludeSensitiveTargetResponse);
+  // Record the operator's free-text answer on a sensitive coverage decision as
+  // the standing consent, and apply it. The answer is confirmed with the Hub: it
+  // must be this scenario's decision, answered by a verified human in their own
+  // words. Nothing is raised at the Hub.
+  rpc AdoptSensitiveConsent(AdoptSensitiveConsentRequest) returns (AdoptSensitiveConsentResponse);
+}
+
+message RequestSensitiveReviewRequest {}
+message RequestSensitiveReviewResponse {
+  // Empty when a standing rule already covers the candidates and nothing needed asking.
+  string ask_id = 1;
+  // With a pending ask: the places it asks about. With the standing rule: the places it just added.
+  int32 candidate_count = 2;
+  bool pending = 3;
+}
+
+// SensitivePolicyAddition is one place the standing rule backed up on its own.
+message SensitivePolicyAddition {
+  string owner = 1;
+  string name = 2;
+  string group = 3;
+  int64 approx_bytes = 4;
+  google.protobuf.Timestamp added_at = 5;
+}
+
+// SensitivePolicyExclusion is one item kept out of the standing rule.
+message SensitivePolicyExclusion {
+  string owner = 1;
+  string name = 2;
+  string reason = 3;
+  string excluded_by = 4;
+  google.protobuf.Timestamp excluded_at = 5;
+}
+
+// SensitivePolicyEvent is one entry of the rule's history.
+message SensitivePolicyEvent {
+  google.protobuf.Timestamp at = 1;
+  // granted, revoked, excluded, added or noted.
+  string kind = 2;
+  string by = 3;
+  string detail = 4;
+}
+
+// SensitivePolicy is the standing rule: the operator's recorded consent to back
+// up anything that holds secrets from now on.
+message SensitivePolicy {
+  bool active = 1;
+  // The Hub decision whose verified answer is the consent.
+  string grant_ask_id = 2;
+  string granted_by = 3;
+  string granted_by_identity_kind = 4;
+  string granted_by_identity_source = 5;
+  google.protobuf.Timestamp granted_at = 6;
+  string revoked_by = 7;
+  google.protobuf.Timestamp revoked_at = 8;
+  repeated SensitivePolicyExclusion excluded = 9;
+  // Added since the last weekly note.
+  repeated SensitivePolicyAddition unreported = 10;
+  int32 added_total = 11;
+  google.protobuf.Timestamp last_note_at = 12;
+  google.protobuf.Timestamp last_sweep_at = 13;
+  repeated SensitivePolicyEvent history = 14;
+  // "option" for a button answer that offered the rule; "free_text" for the
+  // operator's own words taken as the instruction.
+  string grant_basis = 15;
+  // The operator's words, verbatim, when grant_basis is free_text.
+  string grant_text = 16;
+}
+
+message GetSensitivePolicyRequest {}
+message GetSensitivePolicyResponse {
+  SensitivePolicy policy = 1;
+}
+
+message RevokeSensitivePolicyRequest {
+  // Who is turning the rule off, for the record. Defaults to the local API caller.
+  string revoked_by = 1;
+}
+message RevokeSensitivePolicyResponse {
+  SensitivePolicy policy = 1;
+}
+
+message ExcludeSensitiveTargetRequest {
+  string owner = 1;
+  string name = 2;
+  string reason = 3;
+  string excluded_by = 4;
+}
+message ExcludeSensitiveTargetResponse {
+  SensitivePolicy policy = 1;
+}
+
+// RegisteredTarget is a target already in the catalog, annotated with the
+// coverage states an operator needs to judge whether it is actually protected.
+message RegisteredTarget {
+  string id = 1;
+  string owner = 2;
+  string name = 3;
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 4;
+  string locator = 5;
+  // True when this target is bound to at least one plan (so a run can cover it).
+  bool planned = 6;
+  // Oldest successful backup among the currently enabled destination copies.
+  // Absent when no enabled copies exist or any configured copy has never run.
+  google.protobuf.Timestamp last_success_at = 7;
+  // Oldest successful scratch restore among currently enabled destination
+  // copies. Absent when no enabled copies exist or any copy is unverified.
+  google.protobuf.Timestamp last_verified_at = 8;
+  // True when this target is approved for critical-only protection tiers.
+  bool critical = 9;
+  // Owner declares this registered source can be reconstructed; informational
+  // only until an explicit target decision changes its protection plan.
+  bool reacquirable = 10;
+  string reacquisition_command = 11;
+  string reacquisition_evidence = 12;
+  bool reacquisition_needs_operator = 13;
+  string reacquisition_auth_reason = 14;
+  repeated TargetDestinationStatus destinations = 15;
+  bool all_destinations_backed_up = 16;
+  bool all_destinations_verified = 17;
+  // Deprecated: device-graduated protection is reported by protection_level.
+  // Host-level failure-domain independence is a stronger, separately proven
+  // claim and is never inferred from a backend name or URL.
+  bool physical_independence_proven = 18 [deprecated = true];
+  repeated string independence_warnings = 19;
+  // Device-graduated protection verdict: "multi_device" (two or more distinct
+  // storage devices hold a successful copy — protected), "single_copy" (one
+  // device — a warning, not a failure), "unprotected" (no successful copy),
+  // or "identity_unknown" (a copy exists but its device identity is not proven).
+  // Consumers must render this instead of re-deriving protection.
+  string protection_level = 20;
+  // Number of distinct storage devices holding a successful copy. Separate
+  // drives on one host count; off-host placement is a stronger, separate level.
+  int32 protection_device_count = 21;
+}
+
+message TargetDestinationStatus {
+  string destination_id = 1;
+  google.protobuf.Timestamp last_success_at = 2;
+  google.protobuf.Timestamp last_verified_at = 3;
+}
+
+// SuggestedTarget is a discovered durable source not yet registered. Mirrors a
+// discovery TargetSuggestion: non-sensitive ones are default recommendations;
+// sensitive ones (credentials/tokens) are review-only and never auto-accepted.
+message SuggestedTarget {
+  // Stable discovery suggestion id (also the dismissal key).
+  string id = 1;
+  string owner = 2;
+  string name = 3;
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 4;
+  string locator = 5;
+  // Human-facing reason this is worth protecting.
+  string rationale = 6;
+  // Best-effort size estimate in bytes; 0 = unknown.
+  int64 approx_bytes = 7;
+  // True for credential/token suggestions surfaced for review only.
+  bool sensitive = 8;
+  // Operator-facing warning for sensitive suggestions; empty otherwise.
+  string warning = 9;
+  // True when this source is part of the minimal critical recovery inventory.
+  bool critical = 10;
+  // Owner declaration that this data can be regenerated; informational only.
+  // Reacquirable targets are never included in the default acceptance set.
+  bool reacquirable = 11;
+  string budget_max_bytes = 12;
+  string budget_max_age = 13;
+  string retention = 14;
+  // Owner-declared command for reacquisition; informational, not authority.
+  string reacquisition_command = 15;
+  // Owner-declared evidence source for reacquisition; informational.
+  string reacquisition_evidence = 16;
+  // True when the owner says reacquisition still needs operator authorization.
+  bool reacquisition_needs_operator = 17;
+  // Owner-provided reason for the additional authorization gate.
+  string reacquisition_auth_reason = 18;
+}
+
+// CoverageSummary is the at-a-glance scorecard the report leads with.
+message CoverageSummary {
+  int32 registered_count = 1;
+  // Non-sensitive discovered targets not yet registered.
+  int32 recommended_count = 2;
+  // Sensitive discovered targets awaiting deliberate review.
+  int32 sensitive_count = 3;
+  // Registered targets bound to at least one plan.
+  int32 planned_count = 4;
+  // Registered targets with a successful backup at every enabled destination.
+  int32 backed_up_count = 5;
+  // Registered targets with a verified scratch restore at every enabled destination.
+  int32 verified_count = 6;
+  // True when no non-sensitive recommendation remains unregistered.
+  bool default_coverage_complete = 7;
+  // True when sensitive suggestions remain unreviewed.
+  bool has_sensitive_unreviewed = 8;
+  // True when a registered target is bound to no plan.
+  bool has_unplanned_registered_targets = 9;
+  // True when a registered target has never been verified.
+  bool has_unverified_targets = 10;
+  // Number of configured target × destination copies with a successful backup.
+  int32 destination_copy_count = 11;
+  // Targets with every configured destination backed up successfully.
+  int32 all_destination_backed_up_count = 12;
+  // Targets with every configured destination verified by a scratch restore.
+  int32 all_destination_verified_count = 13;
+  // Targets bound to two or more currently enabled destinations; this count
+  // is not protection: two destinations on one drive are still one copy.
+  int32 multi_destination_target_count = 14;
+  // Deprecated: superseded by protected_target_count, which counts distinct
+  // storage devices rather than inferred host independence.
+  int32 physically_independent_target_count = 15 [deprecated = true];
+  // Protection breakdown by distinct storage device. Protected is the only
+  // state that claims drive-loss safety; a single copy is a warning; no
+  // successful copy is the issue.
+  int32 protected_target_count = 16;
+  int32 single_copy_target_count = 17;
+  int32 unprotected_target_count = 18;
+  int32 identity_unknown_target_count = 19;
+}
+
+// CoverageReport is the full first-backup-readiness picture, derived live.
+message CoverageReport {
+  CoverageSummary summary = 1;
+  repeated RegisteredTarget registered_targets = 2;
+  // Non-sensitive suggestions — the default coverage set AcceptDefaultTargets
+  // registers.
+  repeated SuggestedTarget recommended_targets = 3;
+  // Sensitive suggestions — review-only; require include_sensitive to accept.
+  repeated SuggestedTarget sensitive_targets = 4;
+  // Existing owner-declared regenerable data, surfaced for capacity planning.
+  repeated SuggestedTarget reacquirable_targets = 5;
+}
+
+message GetCoverageReportRequest {}
+
+message GetCoverageReportResponse {
+  CoverageReport report = 1;
+}
+
+// AcceptedTarget is one suggestion the bulk accept registered (or, under
+// dry_run, would register). target_id is empty for dry_run.
+message AcceptedTarget {
+  string target_id = 1;
+  string suggestion_id = 2;
+  string owner = 3;
+  string name = 4;
+  vrooli.data_backup_manager.v1.sources.SourceKind source_kind = 5;
+  string locator = 6;
+  bool sensitive = 7;
+  bool critical = 8;
+}
+
+// AcceptError reports a per-item registration failure so partial failures are
+// never swallowed.
+message AcceptError {
+  string suggestion_id = 1;
+  string owner = 2;
+  string name = 3;
+  string message = 4;
+}
+
+message AcceptDefaultTargetsRequest {
+  // Legacy field. True is rejected; sensitive targets require a verified
+  // Notification Hub decision callback.
+  bool include_sensitive = 1;
+  // When true, register nothing — only report what would be registered.
+  bool dry_run = 2;
+}
+
+message AcceptDefaultTargetsResponse {
+  // Targets registered (or, under dry_run, that would be registered).
+  repeated AcceptedTarget accepted = 1;
+  // Sensitive suggestions skipped because include_sensitive was false.
+  repeated SuggestedTarget skipped_sensitive = 2;
+  // Per-item failures (never swallowed).
+  repeated AcceptError failed = 3;
+  // Echoes the request so callers can confirm nothing was mutated.
+  bool dry_run = 4;
+}
+
+message AdoptSensitiveConsentRequest {
+  // The Hub ask whose answer is the consent.
+  string hub_ask_id = 1;
+}
+message AdoptSensitiveConsentResponse {
+  SensitivePolicy policy = 1;
+  // Places the rule registered when it was applied.
+  int32 registered_count = 2;
+  // Places it could not register; the next sweep retries them.
+  int32 failed_count = 3;
+}

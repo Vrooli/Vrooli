@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { Stepper, type Step } from '../../../../shared/ui/stepper';
 import { Callout } from '../Callout';
-import { useStorageWizard, type WizardStep } from '../../hooks/useStorageWizard';
+import { useStorageWizard } from '../../hooks/useStorageWizard';
 import { StepProvider } from './StepProvider';
 import { StepConfiguration } from './StepConfiguration';
 import { StepCredentials } from './StepCredentials';
@@ -31,7 +31,7 @@ export function StorageWizard({ onComplete }: StorageWizardProps) {
   }, [loadExistingSettings]);
 
   const renderStep = () => {
-    switch (wizard.currentStepId as WizardStep) {
+    switch (wizard.currentStepId) {
       case 'provider':
         return (
           <StepProvider

@@ -1,0 +1,7 @@
+[
+  {
+    "path": "internal/app/runtime/lighting_commands_test.go",
+    "before": "d5c423fbaecade30f639aad261e1d89368c2fb054519f8b51368ad3bafcb5ff3",
+    "after": "88bd0e173aa066316cc89205cca813be9cdd07e04926fa80eb673731514c8900"
+  }
+]

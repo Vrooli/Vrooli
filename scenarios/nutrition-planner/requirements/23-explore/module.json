@@ -1,0 +1,129 @@
+{
+  "_metadata": {
+    "description": "Explore suggestions that fit: eligibility-first ranking shared with the planner, structured reasons, explicit slot context, and idempotent save and plan actions.",
+    "module": "explore",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "EXPL-001",
+      "title": "Explore filters by required rules before ranking",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "service",
+      "criticality": "P0",
+      "description": "Explore shall draw candidates from the curated catalog and user-approved recipes through the planning engine's eligibility filter and ranking, applying hard constraints before preferences, with no separate recommendation path that applies weaker restrictions.",
+      "tags": [
+        "explore",
+        "eligibility",
+        "ranking"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: with soy excluded, soy-containing or inadequately evidenced candidates are never recommended as compliant (AT-019)."
+        }
+      ]
+    },
+    {
+      "id": "EXPL-002",
+      "title": "Sections show structured, truthful reasons",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Explore shall show only sections with meaningful results, such as For your week, Use what you have, Quick meals, Something different, Cook once eat twice, and Affordable additions, each with reasons rendered from structured evaluated facts that never claim enough stock, affordability, or nutrition the data does not support, and collapse empty sections into useful guidance.",
+      "tags": [
+        "explore",
+        "reasons",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a Uses your spinach reason is produced from a dated stock assertion without implying sufficient quantity, and a section with no candidates is not rendered (R11.2)."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: dismissals change ranking conservatively and the learned effect is inspectable and resettable (R11.2)."
+        }
+      ]
+    },
+    {
+      "id": "EXPL-003",
+      "title": "Slot context is explicit and never replaces silently",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "When Explore opens from a slot, the scenario shall show a banner such as Planning Wednesday dinner, label the primary action Add to Wednesday for an empty slot or Replace Wednesday dinner with an impact preview for an occupied one, revalidate stale context before applying, and treat dismissing the banner as returning to general discovery without deleting an occurrence.",
+      "tags": [
+        "explore",
+        "context",
+        "planning"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: Explore opened from Wednesday dinner shows the context and Add or Replace affects only that slot; a concurrent plan change produces a refreshed choice, not an overwrite (AT-020)."
+        }
+      ]
+    },
+    {
+      "id": "EXPL-004",
+      "title": "Saving and planning from Explore are idempotent",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "Saving a catalog meal shall create or link one private saved record with a pinned revision and repeat safely, adding a meal to the week shall preserve an accessible recipe snapshot and create the occurrence in one operation, Adapt shall fork a draft, and Favorite shall stay personal metadata separate from saving.",
+      "tags": [
+        "explore",
+        "save",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: saving the same catalog meal twice through a retry produces one saved recipe (AT-021); adding an Explore meal to the week preserves both the snapshot and the occurrence (AT-022)."
+        }
+      ]
+    },
+    {
+      "id": "EXPL-005",
+      "title": "Curated catalog entries carry evidence and rights",
+      "status": "planned",
+      "prd_ref": "OT-P0-018",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "Curated catalog recipes shall carry review status, rights and provenance, and sufficient ingredient and method evidence before they are recommended, private recipes shall never enter a shared catalog without a separate explicit publishing flow, and Create a meal idea shall be an optional labeled AI draft workflow separate from image generation.",
+      "tags": [
+        "explore",
+        "catalog",
+        "rights",
+        "ai-draft"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a catalog entry without rights or method evidence is excluded from recommendations, and an AI-drafted idea is labeled AI draft until reviewed (R11.1)."
+        }
+      ]
+    }
+  ]
+}

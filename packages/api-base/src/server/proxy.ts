@@ -9,9 +9,43 @@ import * as http from 'node:http'
 import * as net from 'node:net'
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import { HOP_BY_HOP_HEADERS, DEFAULT_PROXY_TIMEOUT, LOOPBACK_HOST } from '../shared/constants.js'
-import type { ProxyOptions } from '../shared/types.js'
+import type { ProxyOptions, WebSocketProxyOptions } from '../shared/types.js'
 import { parsePort } from '../shared/utils.js'
 import { resolveProxyAgent } from './agent.js'
+import { BROWSER_CONTEXT_HEADERS, isCorsResponseHeader, refuseUpgrade, SAME_ORIGIN_POLICY } from './origin-policy.js'
+
+function mergeVary(res: Response, upstream: string | string[]): void {
+  const current = res.getHeader('Vary')
+  const split = (value: unknown) => (Array.isArray(value) ? value.join(',') : String(value ?? ''))
+    .split(',').map((item) => item.trim()).filter(Boolean)
+  const merged: string[] = []
+  for (const item of [...split(current), ...split(upstream)]) {
+    if (!merged.some((existing) => existing.toLowerCase() === item.toLowerCase())) merged.push(item)
+  }
+  if (merged.length > 0) res.setHeader('Vary', merged.includes('*') ? '*' : merged.join(', '))
+}
+
+/**
+ * Content types of calls that stay open, and quiet, for as long as their work
+ * runs: Connect and gRPC streams, server-sent events, newline-delimited JSON. A
+ * long job watch sends one frame, then nothing for minutes.
+ */
+const STREAMING_CONTENT_TYPE = /^(application\/connect\+|application\/grpc|text\/event-stream|application\/(x-)?ndjson|application\/jsonl)/i
+
+function firstValue(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value) ?? ''
+}
+
+/** True when the request itself says it opens a stream (Connect streaming body, or Accept: text/event-stream). */
+export function isStreamingRequest(headers: http.IncomingHttpHeaders): boolean {
+  return STREAMING_CONTENT_TYPE.test(firstValue(headers['content-type']).trim()) ||
+    firstValue(headers.accept).toLowerCase().includes('text/event-stream')
+}
+
+/** True when the upstream response marks itself as a stream. */
+export function isStreamingResponse(headers: http.IncomingHttpHeaders): boolean {
+  return STREAMING_CONTENT_TYPE.test(firstValue(headers['content-type']).trim())
+}
 
 /**
  * Proxy a request to the API server
@@ -37,6 +71,13 @@ import { resolveProxyAgent } from './agent.js'
  * })
  * ```
  */
+/** Close a client response whose upstream failed after its headers were sent. */
+function endClientResponse(res: Response, err: Error): void {
+  if (!res.destroyed && typeof res.destroy === 'function') {
+    res.destroy(err)
+  }
+}
+
 // DOC: docs/api/server.md#proxytoapi
 export async function proxyToApi(
   req: Request,
@@ -52,6 +93,7 @@ export async function proxyToApi(
     verbose = false,
     keepAlive = true,
     agent,
+    crossOriginRelay = false,
   } = options
 
   // Parse port
@@ -70,10 +112,12 @@ export async function proxyToApi(
   // Build headers
   const proxyHeaders: http.OutgoingHttpHeaders = {}
 
-  // Copy request headers, filtering hop-by-hop headers
+  // Copy request headers, filtering hop-by-hop headers. A relay to another
+  // origin also drops the browser context: its own origin policy admitted the
+  // request, and the upstream would otherwise judge the relay's origin.
   for (const [key, value] of Object.entries(req.headers)) {
     const lowerKey = key.toLowerCase()
-    if (HOP_BY_HOP_HEADERS.has(lowerKey)) {
+    if (HOP_BY_HOP_HEADERS.has(lowerKey) || (crossOriginRelay && BROWSER_CONTEXT_HEADERS.has(lowerKey))) {
       continue
     }
     proxyHeaders[key] = value
@@ -85,6 +129,14 @@ export async function proxyToApi(
   // Add any additional headers
   Object.assign(proxyHeaders, additionalHeaders)
 
+  // Retain the routed browser authority before Host becomes the loopback
+  // upstream. Derive it here, rather than trusting a caller's forwarding hint.
+  if (req.headers.host) {
+    proxyHeaders['x-forwarded-host'] = req.headers.host
+  } else {
+    delete proxyHeaders['x-forwarded-host']
+  }
+
   // Ensure accept header
   if (!proxyHeaders.accept) {
     proxyHeaders.accept = 'application/json'
@@ -95,6 +147,10 @@ export async function proxyToApi(
   }
 
   const resolvedAgent = resolveProxyAgent({ agent, keepAlive })
+  // The timeout is the longest the upstream may stay silent. A stream is silent
+  // between its frames for as long as its work takes, so it gets no limit; unary
+  // calls keep theirs, and a stream that dies is still ended (below).
+  const requestTimeout = isStreamingRequest(req.headers) ? 0 : timeout
 
   return new Promise<void>((resolve) => {
     const proxyReq = http.request(
@@ -104,7 +160,7 @@ export async function proxyToApi(
         path: targetPath,
         method: req.method,
         headers: proxyHeaders,
-        timeout,
+        timeout: requestTimeout,
         agent: resolvedAgent,
       },
       (proxyRes: http.IncomingMessage) => {
@@ -113,19 +169,39 @@ export async function proxyToApi(
         // Diagnostic marker for request path visibility in clients/logs.
         res.setHeader('X-Vrooli-Proxy-Hop', 'ui-proxy')
 
-        // Copy response headers, filtering hop-by-hop headers
+        // Copy response headers, filtering hop-by-hop headers. CORS headers
+        // belong to the browser-facing server's origin policy, which has
+        // already written them; an upstream's own CORS answer (often `*`)
+        // must not widen it. Vary is merged so the policy's Origin survives.
         for (const [key, value] of Object.entries(proxyRes.headers)) {
           const lowerKey = key.toLowerCase()
-          if (HOP_BY_HOP_HEADERS.has(lowerKey)) {
+          if (HOP_BY_HOP_HEADERS.has(lowerKey) || isCorsResponseHeader(lowerKey)) {
             continue
           }
-          if (value !== undefined && value !== null) {
-            res.setHeader(key, value)
+          if (value === undefined || value === null) {
+            continue
           }
+          if (lowerKey === 'vary') {
+            mergeVary(res, value)
+            continue
+          }
+          res.setHeader(key, value)
+        }
+
+        if (isStreamingResponse(proxyRes.headers)) {
+          proxyReq.setTimeout(0)
         }
 
         // Stream response body
         proxyRes.pipe(res)
+
+        // An upstream that dies mid-body must end the client's response, not leave
+        // it open: the client then sees a closed stream instead of waiting forever.
+        proxyRes.on('close', () => {
+          if (!proxyRes.complete) {
+            endClientResponse(res, new Error('API closed the response before it finished'))
+          }
+        })
 
         proxyRes.on('end', () => {
           resolve()
@@ -146,9 +222,20 @@ export async function proxyToApi(
           details: err.message,
           target: `http://${apiHost}:${portNumber}${targetPath}`,
         })
+      } else {
+        // The status line is already out, so a 502 is impossible: close the stream.
+        endClientResponse(res, err)
       }
 
       resolve()
+    })
+
+    // A client that goes away takes its stream with it: stop the upstream work
+    // the proxy would otherwise keep reading for nobody.
+    res.on?.('close', () => {
+      if (!res.writableFinished) {
+        proxyReq.destroy()
+      }
     })
 
     // Handle timeout
@@ -253,14 +340,27 @@ export function proxyWebSocketUpgrade(
   req: http.IncomingMessage,
   clientSocket: any,
   head: Buffer,
-  options: ProxyOptions
+  options: WebSocketProxyOptions
 ): void {
   const {
     apiPort,
     apiHost = LOOPBACK_HOST,
     headers: additionalHeaders = {},
     verbose = false,
+    crossOriginRelay = false,
+    originPolicy = SAME_ORIGIN_POLICY,
   } = options
+
+  // Browsers do not apply CORS to WebSockets: any page can open one and read
+  // every frame. Refuse cross-origin handshakes before contacting upstream.
+  const decision = originPolicy.evaluateUpgrade(req)
+  if (decision.verdict === 'refused') {
+    if (verbose) {
+      console.warn(`[ws-proxy] Refused upgrade ${req.url}: ${decision.reason}`)
+    }
+    refuseUpgrade(clientSocket, decision.reason ?? 'Cross-origin WebSocket handshake refused')
+    return
+  }
 
   const port = parsePort(apiPort)
   if (!port) {
@@ -306,7 +406,7 @@ export function proxyWebSocketUpgrade(
     // For WebSocket upgrades, we must preserve ALL headers including WebSocket-specific ones
     const headers: Record<string, string | string[]> = {}
     for (const [key, value] of Object.entries(req.headers)) {
-      if (value !== undefined) {
+      if (value !== undefined && !(crossOriginRelay && BROWSER_CONTEXT_HEADERS.has(key.toLowerCase()))) {
         headers[key] = value as string | string[]
       }
     }
@@ -328,7 +428,15 @@ export function proxyWebSocketUpgrade(
     Object.assign(headers, additionalHeaders)
 
     // Override critical headers for proxying
-    headers.host = `${apiHost}:${portNumber}`
+    // Preserve the browser-facing authority before replacing Host. Consumers
+    // validate WebSocket Origin against this value behind the local gateway;
+    // derive it from the routed request, never a client-supplied forwarding hint.
+    if (req.headers.host) {
+      headers['x-forwarded-host'] = req.headers.host
+    } else {
+      delete headers['x-forwarded-host']
+    }
+    headers.host = `${net.isIPv6(apiHost) ? `[${apiHost}]` : apiHost}:${portNumber}`
     if (!headers.connection) {
       headers.connection = 'Upgrade'
     }

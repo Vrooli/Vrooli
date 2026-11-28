@@ -25,7 +25,7 @@ go test -tags=testing -v -run "Test.*Handler"
 | File | Purpose | Test Count |
 |------|---------|------------|
 | `test_helpers.go` | Reusable test utilities | N/A |
-| `test_patterns.go` | Systematic error patterns | N/A |
+| `test_patterns.go` | Pagination boundary cases | N/A |
 | `main_test.go` | HTTP handler tests | 31 |
 | `structures_test.go` | Data structure tests | 13 |
 
@@ -117,26 +117,9 @@ func TestMyNewHandler(t *testing.T) {
 }
 ```
 
-### Using Test Patterns
+### Testing Error Cases
 
-```go
-func TestMyHandlerErrorCases(t *testing.T) {
-    scenarios := NewTestScenarioBuilder().
-        AddInvalidUUID("/api/v1/patterns/{id}").
-        AddNonExistentPattern("/api/v1/patterns/{id}").
-        AddInvalidJSON("/api/v1/patterns", "POST").
-        Build()
-
-    for _, scenario := range scenarios {
-        t.Run(scenario.Name, func(t *testing.T) {
-            w := makeHTTPRequest(myHandler, scenario.Request)
-            if w.Code != scenario.ExpectedStatus {
-                t.Errorf("Expected %d, got %d", scenario.ExpectedStatus, w.Code)
-            }
-        })
-    }
-}
-```
+Write each error case at the owning handler boundary with explicit request input and response expectations. This keeps database setup and the expected error contract visible in the test.
 
 ### Testing with Seeded Data
 

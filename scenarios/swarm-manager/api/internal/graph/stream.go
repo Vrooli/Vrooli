@@ -46,7 +46,9 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) 
 	h.broker.AddClient(conn)
 	defer func() {
 		h.broker.RemoveClient(conn)
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			slog.Debug("graph: close stream conn failed", "err", closeErr)
+		}
 	}()
 
 	// Read loop — keeps connection alive and detects client disconnect.

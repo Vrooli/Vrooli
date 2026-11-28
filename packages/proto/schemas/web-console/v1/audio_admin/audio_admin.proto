@@ -1,0 +1,358 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.audio_admin;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "web-console/v1/audio_common/audio_common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/audio_admin;audio_admin_v1";
+
+// =============================================================================
+// AUDIO ADMIN DOMAIN — web-console's audio-configuration surface.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audio_admin
+// @imports web-console/v1/audio_common
+// @stability stable
+//
+// Web-console owns this surface. The UI talks to its own scenario API
+// only; web-console's API translates these calls into audioports server-
+// to-server Connect-RPCs against audio-tools. The wire shape mirrors
+// audio-tools' STTAdminService + TTSService config + SummarizeService
+// config, but the types are web-console-owned so no UI code imports
+// `@vrooli/proto-types/audio-tools/*`.
+//
+// USAGE CONTEXTS:
+//   - UI:  ui/src/audio-integration/api/voice.ts + api/tts.ts (same-origin
+//          Connect-Web client).
+//   - API: handlers/audio_admin/connect_handler.go delegates to
+//          internal/audioports/*.
+//   - CLI: cli/domains/audio/... (Connect-Go client).
+// =============================================================================
+
+service AudioAdminService {
+  // --- Stream config (STT pipeline tuning) ---
+  rpc GetStreamConfig(GetStreamConfigRequest) returns (GetStreamConfigResponse);
+  rpc UpdateStreamConfig(UpdateStreamConfigRequest) returns (UpdateStreamConfigResponse);
+
+  // --- Wake word ---
+  rpc GetWakeWordConfig(GetWakeWordConfigRequest) returns (GetWakeWordConfigResponse);
+  rpc UpdateWakeWordTemplate(UpdateWakeWordTemplateRequest) returns (UpdateWakeWordTemplateResponse);
+  rpc DeleteWakeWordTemplate(DeleteWakeWordTemplateRequest) returns (DeleteWakeWordTemplateResponse);
+
+  // --- Speaker verification config + lifecycle ---
+  rpc GetSpeakerConfig(GetSpeakerConfigRequest) returns (GetSpeakerConfigResponse);
+  rpc UpdateSpeakerConfig(UpdateSpeakerConfigRequest) returns (UpdateSpeakerConfigResponse);
+  rpc GetSpeakerStatus(GetSpeakerStatusRequest) returns (GetSpeakerStatusResponse);
+  rpc ListSpeakerProfiles(ListSpeakerProfilesRequest) returns (ListSpeakerProfilesResponse);
+  rpc EnrollSpeakerProfile(EnrollSpeakerProfileRequest) returns (EnrollSpeakerProfileResponse);
+  // ClearSpeakerProfileBinding clears all active profile bindings; the
+  // profiles themselves remain in the audio-tools speaker store.
+  rpc ClearSpeakerProfileBinding(ClearSpeakerProfileBindingRequest) returns (ClearSpeakerProfileBindingResponse);
+  // UnbindSpeakerProfile removes one profile from the active bindings
+  // without deleting it from the speaker store.
+  rpc UnbindSpeakerProfile(UnbindSpeakerProfileRequest) returns (UnbindSpeakerProfileResponse);
+  // DeleteSpeakerProfile permanently removes the profile from the
+  // audio-tools speaker store and unbinds it.
+  rpc DeleteSpeakerProfile(DeleteSpeakerProfileRequest) returns (DeleteSpeakerProfileResponse);
+
+  // --- TTS default config ---
+  rpc GetTTSConfig(GetTTSConfigRequest) returns (GetTTSConfigResponse);
+  rpc UpdateTTSConfig(UpdateTTSConfigRequest) returns (UpdateTTSConfigResponse);
+
+  // --- Summarize config (TTS pre-processing) ---
+  rpc GetSummarizeConfig(GetSummarizeConfigRequest) returns (GetSummarizeConfigResponse);
+  rpc UpdateSummarizeConfig(UpdateSummarizeConfigRequest) returns (UpdateSummarizeConfigResponse);
+  rpc ListSummarizeModels(ListSummarizeModelsRequest) returns (ListSummarizeModelsResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Stream config
+// -----------------------------------------------------------------------------
+
+message StreamConfig {
+  int32 flush_interval_ms = 1;
+  int32 min_delta_bytes = 2;
+  int32 overlap_bytes = 3;
+  bool persistent_mode = 4;
+  bool wake_word_enabled = 5;
+  double wake_word_threshold = 6;
+  int32 segment_silence_ms = 7;
+  vrooli.web_console.v1.audio_common.StreamingMode streaming_mode = 8;
+  vrooli.web_console.v1.audio_common.StrategyPreference strategy_preference = 9;
+  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 3000
+  }];
+  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5000
+  }];
+  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 4
+  }];
+}
+
+message GetStreamConfigRequest {}
+
+message GetStreamConfigResponse {
+  StreamConfig config = 1;
+}
+
+message UpdateStreamConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  StreamConfig config = 2;
+}
+
+message UpdateStreamConfigResponse {
+  StreamConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Wake word
+// -----------------------------------------------------------------------------
+
+message WakeWordSample {
+  bytes audio = 1;
+  vrooli.web_console.v1.audio_common.AudioFormat format = 2;
+  int32 sample_rate_hz = 3;
+}
+
+message WakeWordTemplate {
+  string label = 1;
+  double threshold = 2;
+  repeated WakeWordSample samples = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message WakeWordConfig {
+  bool configured = 1;
+  WakeWordTemplate template = 2;
+}
+
+message GetWakeWordConfigRequest {}
+
+message GetWakeWordConfigResponse {
+  WakeWordConfig config = 1;
+}
+
+message UpdateWakeWordTemplateRequest {
+  WakeWordTemplate template = 1;
+}
+
+message UpdateWakeWordTemplateResponse {
+  WakeWordConfig config = 1;
+}
+
+message DeleteWakeWordTemplateRequest {}
+
+message DeleteWakeWordTemplateResponse {
+  WakeWordConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Speaker verification
+// -----------------------------------------------------------------------------
+
+message SpeakerConfig {
+  bool enabled = 1;
+  repeated string profile_ids = 2;
+  double threshold = 3 [(buf.validate.field).double = {
+    gte: 0.0
+    lte: 1.0
+  }];
+  vrooli.web_console.v1.audio_common.SpeakerMode mode = 4;
+  vrooli.web_console.v1.audio_common.RejectBehavior reject_behavior = 5;
+  bool fallback_without_verification = 6;
+  bool extraction_enabled = 7;
+}
+
+message GetSpeakerConfigRequest {}
+
+message GetSpeakerConfigResponse {
+  SpeakerConfig config = 1;
+}
+
+message UpdateSpeakerConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  SpeakerConfig config = 2;
+}
+
+message UpdateSpeakerConfigResponse {
+  SpeakerConfig config = 1;
+}
+
+message SpeakerProfile {
+  string id = 1;
+  string display_name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  string model_name = 5;
+  int32 embedding_dim = 6;
+  int32 sample_rate = 7;
+  double enrollment_audio_seconds = 8;
+  string notes = 9;
+}
+
+message SpeakerResourceInfo {
+  string backend = 1;
+  string model = 2;
+  string device = 3;
+  int32 sample_rate = 4;
+  string version = 5;
+  int32 embedding_dim = 6;
+}
+
+message SpeakerStatus {
+  SpeakerConfig config = 1;
+  vrooli.web_console.v1.audio_common.SpeakerCapability capability = 2;
+  string capability_label = 3;
+  bool resource_ready = 4;
+  bool profile_configured = 5;
+  bool profile_exists = 6;
+  int32 profile_count = 7;
+  repeated SpeakerProfile profiles = 8;
+  SpeakerResourceInfo info = 9;
+  google.protobuf.Timestamp checked_at = 10;
+}
+
+message GetSpeakerStatusRequest {}
+
+message GetSpeakerStatusResponse {
+  SpeakerStatus status = 1;
+}
+
+message ListSpeakerProfilesRequest {}
+
+message ListSpeakerProfilesResponse {
+  repeated SpeakerProfile profiles = 1;
+  int32 count = 2;
+}
+
+message SpeakerEnrollment {
+  string profile_id = 1;
+  string display_name = 2;
+  int32 embedding_dim = 3;
+  int32 sample_rate = 4;
+  double enrollment_audio_seconds = 5;
+  string model_name = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message EnrollSpeakerProfileRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.web_console.v1.audio_common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  string profile_id = 3;
+  string display_name = 4 [(buf.validate.field).string.min_len = 1];
+  string notes = 5;
+  optional bool add_to_active = 6;
+  optional bool enable = 7;
+}
+
+message EnrollSpeakerProfileResponse {
+  SpeakerEnrollment enrollment = 1;
+  SpeakerConfig config = 2;
+}
+
+message ClearSpeakerProfileBindingRequest {}
+
+message ClearSpeakerProfileBindingResponse {
+  SpeakerConfig config = 1;
+}
+
+message UnbindSpeakerProfileRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message UnbindSpeakerProfileResponse {
+  SpeakerConfig config = 1;
+}
+
+message DeleteSpeakerProfileRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteSpeakerProfileResponse {
+  SpeakerConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// TTS default config
+// -----------------------------------------------------------------------------
+
+message TTSConfig {
+  bool auto_enabled = 1;
+  string default_voice = 2;
+  double default_speed = 3;
+  vrooli.web_console.v1.audio_common.ResponseFormat default_response_format = 4;
+}
+
+message GetTTSConfigRequest {}
+
+message GetTTSConfigResponse {
+  TTSConfig config = 1;
+}
+
+message UpdateTTSConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  TTSConfig config = 2;
+}
+
+message UpdateTTSConfigResponse {
+  TTSConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Summarize config
+// -----------------------------------------------------------------------------
+
+message SummarizeConfig {
+  bool enabled = 1;
+  int32 char_threshold = 2;
+  vrooli.web_console.v1.audio_common.SummarizeLevel level = 3;
+  string model = 4;
+  int32 timeout_seconds = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 600
+  }];
+}
+
+message GetSummarizeConfigRequest {}
+
+message GetSummarizeConfigResponse {
+  SummarizeConfig config = 1;
+}
+
+message UpdateSummarizeConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  SummarizeConfig config = 2;
+}
+
+message UpdateSummarizeConfigResponse {
+  SummarizeConfig config = 1;
+}
+
+message ListSummarizeModelsRequest {}
+
+message SummarizeModel {
+  string id = 1;
+  string display_name = 2;
+  bool installed = 3;
+  bool recommended = 4;
+  bool default_eligible = 5;
+  bool reasoning = 6;
+  string status_label = 7;
+  string pull_command = 8;
+  int64 size_bytes = 9;
+  string parameter_size = 10;
+  string source_url = 11;
+  string notes = 12;
+}
+
+message ListSummarizeModelsResponse {
+  repeated SummarizeModel models = 1;
+}

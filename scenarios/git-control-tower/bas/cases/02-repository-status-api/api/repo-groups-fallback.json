@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "name": "Repository Change Groups Fallback",
+    "description": "Validates groups remain a read-only response surface for contract-free repositories",
+    "tags": ["e2e", "api", "groups", "fallback"],
+    "requirements": [
+      "GCT-OT-P0-002B"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_repository": "false",
+      "requirements_json": "[\"GCT-OT-P0-002B\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "groups-fallback",
+      "type": "http_request",
+      "data": {
+        "label": "POST RepoService/GetRepoGroups (fallback-safe)",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.repo.RepoService/GetRepoGroups",
+        "body": {},
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.groups"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

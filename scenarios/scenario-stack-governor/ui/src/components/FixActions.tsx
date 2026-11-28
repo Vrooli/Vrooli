@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export function FixActions({
@@ -54,7 +54,7 @@ export function FixActions({
         </label>
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
           disabled={isPending}
           onClick={handleClick}
         >

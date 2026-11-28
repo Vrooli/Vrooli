@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "rcl-prompt-manager-ux-design-coordinator",
+  "displayName": "rcl-prompt-manager-ux-design-coordinator",
+  "description": "Finite coordinator for the React Component Library and Prompt Manager UX design campaign; coordinate bounded design work and preserve durable handoffs.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "finite-effort",
+    "ux-design",
+    "react-component-library",
+    "prompt-manager"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-09-14T05:12:48Z",
+  "updatedAt": "2026-09-14T05:12:48Z"
+}

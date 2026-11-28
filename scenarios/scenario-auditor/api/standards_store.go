@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // StandardsStore provides persistent storage for standards violations
@@ -26,55 +25,27 @@ type StandardsData struct {
 	LastUpdate time.Time                       `json:"last_update"`
 }
 
-var standardsStore = initStandardsStore()
+var standardsStore = newStandardsStore()
 
-func initStandardsStore() *StandardsStore {
-	fmt.Fprintf(os.Stderr, "[INIT] Initializing standards store...\n")
-	store := &StandardsStore{
+func newStandardsStore() *StandardsStore {
+	return &StandardsStore{
 		violations: make(map[string][]StandardsViolation),
 		lastCheck:  make(map[string]time.Time),
 	}
-
-	// Try to enable persistence, but don't fail if we can't
-	fmt.Fprintf(os.Stderr, "[INIT] Enabling standards store persistence...\n")
-	store.enablePersistence()
-	fmt.Fprintf(os.Stderr, "[INIT] Standards store initialized\n")
-
-	return store
 }
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
-
-	// Get Vrooli root directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = os.Getenv("HOME") + "/Vrooli"
+	if ss.filePath != "" {
+		return
 	}
-
-	// Create data directory if it doesn't exist
-	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
-
-	// Check if parent directory exists first
-	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		// Try to create parent directory structure
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
-			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
-			logger.Info("Standards store will operate in memory-only mode (no persistence)")
-			return
-		}
-	}
-
-	// Now create our specific directory
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
+	path, err := resolveScenarioAuditorStoragePath(storage.ClassCache, "standards-violations.json")
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor standards cache path", err)
 		logger.Info("Standards store will operate in memory-only mode (no persistence)")
 		return
 	}
-
-	// Set the file path
-	ss.filePath = filepath.Join(dataDir, "standards-violations.json")
+	ss.filePath = path
 
 	// Try to load existing data
 	if err := ss.loadFromFile(); err != nil {
@@ -298,61 +269,26 @@ func (ss *StandardsStore) GetStats() map[string]any {
 
 // saveToFile persists the current data to disk
 func (ss *StandardsStore) saveToFile() error {
-	// Skip persistence if no file path (in-memory mode)
-	if ss.filePath == "" {
-		return nil
-	}
-
-	data := StandardsData{
+	return saveJSONStore(ss.filePath, "standards", StandardsData{
 		Violations: ss.violations,
 		LastCheck:  ss.lastCheck,
 		LastUpdate: time.Now(),
-	}
-
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal standards data: %w", err)
-	}
-
-	if err := os.WriteFile(ss.filePath, jsonData, 0644); err != nil {
-		return fmt.Errorf("failed to write standards data to %s: %w", ss.filePath, err)
-	}
-
-	return nil
+	})
 }
 
 // loadFromFile loads persisted data from disk
 func (ss *StandardsStore) loadFromFile() error {
-	// Skip loading if no file path (in-memory mode)
-	if ss.filePath == "" {
-		return nil
-	}
-
-	data, err := os.ReadFile(ss.filePath)
+	data, err := loadJSONStore[StandardsData](ss.filePath, "standards")
 	if err != nil {
-		if os.IsNotExist(err) {
-			// File doesn't exist yet, that's okay
-			return nil
-		}
-		return fmt.Errorf("failed to read standards data from %s: %w", ss.filePath, err)
+		return err
 	}
-
-	var standardsData StandardsData
-	if err := json.Unmarshal(data, &standardsData); err != nil {
-		return fmt.Errorf("failed to unmarshal standards data from %s: %w", ss.filePath, err)
-	}
-
-	// Load the data
-	ss.violations = standardsData.Violations
-	ss.lastCheck = standardsData.LastCheck
-
-	// Initialize maps if they're nil
+	ss.violations = data.Violations
+	ss.lastCheck = data.LastCheck
 	if ss.violations == nil {
 		ss.violations = make(map[string][]StandardsViolation)
 	}
 	if ss.lastCheck == nil {
 		ss.lastCheck = make(map[string]time.Time)
 	}
-
 	return nil
 }

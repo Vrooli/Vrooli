@@ -1,0 +1,35 @@
+@media (orientation: portrait), (max-width: 760px) {
+  .cc-shell .cc-controls {
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    overflow: visible;
+    padding: var(--space-2);
+  }
+
+  .cc-shell .cc-control {
+    flex: 0 0 3rem;
+  }
+
+  .cc-shell .cc-control-select {
+    flex-basis: 4.5rem;
+    padding-inline: 0.25rem;
+  }
+
+  .cc-shell .cc-control-select select {
+    width: 4rem;
+  }
+
+  .cc-shell .cc-room-dots {
+    justify-content: center;
+  }
+
+  .cc-shell .cc-figure-layer {
+    padding-bottom: calc(15rem + env(safe-area-inset-bottom));
+  }
+
+  .cc-shell .cc-legend,
+  .cc-shell .cc-mode-stamp {
+    bottom: calc(10.25rem + env(safe-area-inset-bottom));
+  }
+}

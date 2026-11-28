@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "name": "hello-mobile-keyboard-visible",
+    "description": "Focus the mobile fixture input with a real click so the Android IME remains visible for the Device Control frame capture.",
+    "requirement": "HELLO-MOBILE-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "flow_id": "hello-mobile-keyboard-visible",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 412, "viewport_height": 915},
+  "nodes": [
+    {"id":"open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"hello-mobile","scenario_path":"/","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open Hello Mobile"}}},
+    {"id":"wait-title","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/helloMobile.title","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for fixture title"}}},
+    {"id":"focus-input","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/helloMobile.input","scroll_into_view":true},"metadata":{"label":"Focus input and open Android keyboard"}}}
+  ],
+  "edges": [
+    {"id":"edge-open-title","source":"open","target":"wait-title","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"edge-title-input","source":"wait-title","target":"focus-input","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

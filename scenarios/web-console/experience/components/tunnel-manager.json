@@ -1,0 +1,14 @@
+{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "tunnel-manager",
+    "title": "Tunnel Manager awareness",
+    "purpose": "Draft reference for the Tunnel Manager-owned remote-access awareness case. This scenario currently renders no canonical surface or machine claim for it.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.1/story.json"
+  },
+  "states": [{ "id": "deferred", "example": "idle", "description": "Coverage remains deferred until the owning Tunnel Manager capability is rendered here." }],
+  "elements": [],
+  "claims": [],
+  "bindings": { "elements": {} }
+}

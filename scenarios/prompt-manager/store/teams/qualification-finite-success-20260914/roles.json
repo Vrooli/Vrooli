@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "qualification-finite-success-20260914",
+  "roles": [
+    {
+      "id": "qualification-coordinator-success-20260914",
+      "name": "qualification-coordinator-success-20260914",
+      "description": "Disposable coordinator for finite owner-run qualification"
+    }
+  ]
+}

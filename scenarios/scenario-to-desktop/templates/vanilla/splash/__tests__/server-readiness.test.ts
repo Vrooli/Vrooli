@@ -25,8 +25,9 @@ function createMockTimer(initialTime: number = 0): ITimer & { advance: (ms: numb
             return currentTime;
         },
         now: () => currentTime,
-        sleep: async (ms: number) => {
+        sleep: (ms: number) => {
             currentTime += ms;
+            return Promise.resolve();
         },
         advance: (ms: number) => {
             currentTime += ms;
@@ -44,14 +45,14 @@ function createMockHttpClient(
         get callCount() {
             return callIndex;
         },
-        get: async (_url: string, _timeoutMs: number) => {
+        get: (_url: string, _timeoutMs: number) => {
             const response = responses[callIndex] ?? responses[responses.length - 1] ?? fallbackResponse;
             callIndex++;
 
             if (response instanceof Error) {
-                throw response;
+                return Promise.reject(response);
             }
-            return response;
+            return Promise.resolve(response);
         },
     };
 }
@@ -60,50 +61,33 @@ describe("isAcceptableStatus", () => {
     describe("with acceptAny2xx: true", () => {
         const config = { acceptAny2xx: true, acceptableStatusCodes: [200] };
 
-        it("accepts 200", () => {
-            expect(isAcceptableStatus(200, config)).toBe(true);
-        });
-
-        it("accepts 201", () => {
-            expect(isAcceptableStatus(201, config)).toBe(true);
-        });
-
-        it("accepts 204", () => {
-            expect(isAcceptableStatus(204, config)).toBe(true);
-        });
-
-        it("accepts 299", () => {
-            expect(isAcceptableStatus(299, config)).toBe(true);
-        });
-
-        it("rejects 300", () => {
-            expect(isAcceptableStatus(300, config)).toBe(false);
-        });
-
-        it("rejects 404", () => {
-            expect(isAcceptableStatus(404, config)).toBe(false);
-        });
-
-        it("rejects 500", () => {
-            expect(isAcceptableStatus(500, config)).toBe(false);
-        });
-
-        it("rejects 503", () => {
-            expect(isAcceptableStatus(503, config)).toBe(false);
+        it.each([
+            { status: 200, acceptable: true },
+            { status: 201, acceptable: true },
+            { status: 204, acceptable: true },
+            { status: 299, acceptable: true },
+            { status: 300, acceptable: false },
+            { status: 302, acceptable: false },
+            { status: 404, acceptable: false },
+            { status: 500, acceptable: false },
+            { status: 503, acceptable: false },
+        ])("accepts $status: $acceptable", ({ status, acceptable }) => {
+            expect(isAcceptableStatus(status, config)).toBe(acceptable);
         });
     });
 
     describe("with acceptAny2xx: false", () => {
-        const config = { acceptAny2xx: false, acceptableStatusCodes: [200, 204] };
+        const config = { acceptAny2xx: false, acceptableStatusCodes: [200, 204, 401] };
 
-        it("accepts status codes in the list", () => {
-            expect(isAcceptableStatus(200, config)).toBe(true);
-            expect(isAcceptableStatus(204, config)).toBe(true);
-        });
-
-        it("rejects status codes not in the list", () => {
-            expect(isAcceptableStatus(201, config)).toBe(false);
-            expect(isAcceptableStatus(202, config)).toBe(false);
+        it.each([
+            { status: 200, acceptable: true },
+            { status: 204, acceptable: true },
+            { status: 401, acceptable: true },
+            { status: 201, acceptable: false },
+            { status: 202, acceptable: false },
+            { status: 403, acceptable: false },
+        ])("accepts $status: $acceptable", ({ status, acceptable }) => {
+            expect(isAcceptableStatus(status, config)).toBe(acceptable);
         });
     });
 });
@@ -292,28 +276,5 @@ describe("checkServerReadiness", () => {
 
             expect(result.durationMs).toBeGreaterThanOrEqual(0);
         });
-    });
-});
-
-describe("regression: 404 responses should not be considered ready", () => {
-    /**
-     * This test documents the bug that was fixed:
-     * Previously, ANY HTTP response (including 404) was considered "ready"
-     * because the old checkServerReady only checked for a response, not the status code.
-     */
-    it("rejects 404 even though the server responded", async () => {
-        const httpClient = createMockHttpClient([{ statusCode: 404, body: "Not Found" }]);
-        const timer = createMockTimer();
-
-        const result = await checkServerReadiness(httpClient, {
-            ...DEFAULT_READINESS_CONFIG,
-            url: "http://localhost:8080",
-            timeoutMs: 50,
-        }, timer);
-
-        // This is the key assertion: 404 is NOT ready, even though the server responded
-        expect(result.ready).toBe(false);
-        expect(result.statusCode).toBe(404);
-        expect(result.error).toContain("404");
     });
 });

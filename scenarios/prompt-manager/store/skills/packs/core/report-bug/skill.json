@@ -1,0 +1,46 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "report-bug",
+  "name": "Report Bug",
+  "description": "Universal writer skill for filing a bug observation against any scenario, skill, member, or CLI command. Writes a bug-inbox/\u003csignal-type\u003e/\u003cslug\u003e entry on the scenario-qa team for the bug-investigator to drain.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "observability",
+    "bug-report",
+    "writer-skill"
+  ],
+  "icon": "bug",
+  "status": "active",
+  "entry": "SKILL.md",
+  "requires": {
+    "scenarios": [
+      "prompt-manager",
+      "vrooli"
+    ],
+    "commands": [
+      "prompt-manager team",
+      "vrooli scenario",
+      "prompt-manager team heartbeat-trigger",
+      "python3"
+    ]
+  },
+  "origin": {
+    "kind": "authored",
+    "sourceUrl": "",
+    "commit": "",
+    "license": "",
+    "checksum": "",
+    "importedBy": "",
+    "importedAt": "",
+    "review": {
+      "verdict": ""
+    }
+  },
+  "revision": 6,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-11-21T09:00:00Z"
+}

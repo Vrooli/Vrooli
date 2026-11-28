@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "name": "seed-owner",
+    "description": "Checks that the Hub answers as the routed test owner and refuses to do anything otherwise, then (unless the profile is 'keep') resets that owner to a known baseline through the Hub's own API: no devices, quiet hours or escalation order, or the 'reach' profile with two devices, their channels and an email-then-push escalation order.",
+    "execution_mode": "mutating",
+    "labels": {
+      "fixture_id": "seed-owner",
+      "parameters_json": "[{\"name\": \"profile\", \"type\": \"string\", \"required\": true, \"default\": \"empty\", \"description\": \"'empty', 'reach', or 'keep' (guard only)\"}]",
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
+    }
+  },
+  "nodes": [
+    {
+      "id": "seed-owner",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async()=>{\nconst profile='${@params/profile}';\nconst call=async(method,body)=>{const r=await fetch('/vrooli.notification_hub.v1.recipients.RecipientsService/'+method,{method:'POST',headers:{'content-type':'application/json','X-Vrooli-Test-Mode':'1','X-Vrooli-Browser-Session':'1'},credentials:'same-origin',body:JSON.stringify(body)});if(!r.ok)throw new Error(method+' failed '+r.status);return r.json();};\nconst me=await call('GetRecipient',{});\nif(me.subject!=='e1-fixture@notification-hub.invalid')throw new Error('refusing to touch anything: this is not the routed test owner ('+me.subject+')');\nif(profile==='keep')return {profile,routedTestOwner:true};\nconst {devices=[]}=await call('ListDevices',{});\nfor(const d of devices)await call('RemoveDevice',{id:d.id});\nconst {windows=[]}=await call('ListQuietWindows',{});\nfor(const w of windows)await call('DeleteQuietWindow',{id:w.id});\nawait call('SetEscalationChain',{channels:[]});\nif(profile==='reach'){\nawait call('UpsertDevice',{id:'settings-test-laptop',name:'Work laptop',machineId:'settings-test-machine'});\nawait call('UpsertChannelAddress',{id:'settings-test-laptop-email',deviceId:'settings-test-laptop',channel:'email',address:'owner@example.test',approvedLabels:['public','private']});\nawait call('UpsertChannelAddress',{id:'settings-test-laptop-web-push',deviceId:'settings-test-laptop',channel:'web_push',address:'https://push.example.test/work-laptop',approvedLabels:['public','private']});\nawait call('UpsertDevice',{id:'settings-test-tablet',name:'Spare tablet',machineId:''});\nawait call('UpsertChannelAddress',{id:'settings-test-tablet-web-push',deviceId:'settings-test-tablet',channel:'web_push',address:'https://push.example.test/spare-tablet',approvedLabels:['public']});\nawait call('SetEscalationChain',{channels:['email','web_push']});\n}\nreturn {profile};\n})()"
+        },
+        "metadata": {
+          "label": "Reset the routed test owner through the Hub API"
+        }
+      }
+    }
+  ],
+  "edges": []
+}

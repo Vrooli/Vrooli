@@ -43,11 +43,10 @@ func TestCompileWorkflowWithSubflowByID(t *testing.T) {
 	require.Len(t, plan.Steps, 1)
 
 	step := plan.Steps[0]
-	assert.Equal(t, StepSubflow, step.Type)
+	assertCompiledStepType(t, step, StepSubflow)
 	assert.Equal(t, "subflow-node", step.NodeID)
 
-	// Verify workflow_id is extracted to params
-	assert.Equal(t, childWorkflowID, step.Params["workflow_id"])
+	assert.Equal(t, childWorkflowID, step.Action.GetSubflow().GetWorkflowId())
 }
 
 func TestCompileWorkflowWithSubflowByPath(t *testing.T) {
@@ -79,10 +78,9 @@ func TestCompileWorkflowWithSubflowByPath(t *testing.T) {
 	require.Len(t, plan.Steps, 1)
 
 	step := plan.Steps[0]
-	assert.Equal(t, StepSubflow, step.Type)
+	assertCompiledStepType(t, step, StepSubflow)
 
-	// Verify workflow_path is extracted to params
-	assert.Equal(t, "actions/login.json", step.Params["workflow_path"])
+	assert.Equal(t, "actions/login.json", step.Action.GetSubflow().GetWorkflowPath())
 }
 
 func TestCompileWorkflowWithSubflowVersioned(t *testing.T) {
@@ -118,14 +116,10 @@ func TestCompileWorkflowWithSubflowVersioned(t *testing.T) {
 	require.Len(t, plan.Steps, 1)
 
 	step := plan.Steps[0]
-	assert.Equal(t, StepSubflow, step.Type)
-	assert.Equal(t, childWorkflowID, step.Params["workflow_id"])
+	assertCompiledStepType(t, step, StepSubflow)
+	assert.Equal(t, childWorkflowID, step.Action.GetSubflow().GetWorkflowId())
 
-	// Verify workflow_version is extracted to params
-	// The exact param name depends on how extractV2Params handles it
-	if wv, ok := step.Params["workflow_version"]; ok {
-		assert.EqualValues(t, 3, wv)
-	}
+	assert.EqualValues(t, 3, step.Action.GetSubflow().GetWorkflowVersion())
 }
 
 func TestCompileWorkflowWithSubflowArgs(t *testing.T) {
@@ -163,13 +157,10 @@ func TestCompileWorkflowWithSubflowArgs(t *testing.T) {
 	require.Len(t, plan.Steps, 1)
 
 	step := plan.Steps[0]
-	assert.Equal(t, StepSubflow, step.Type)
-	assert.Equal(t, childWorkflowID, step.Params["workflow_id"])
+	assertCompiledStepType(t, step, StepSubflow)
+	assert.Equal(t, childWorkflowID, step.Action.GetSubflow().GetWorkflowId())
 
-	// Verify args are extracted to params
-	if args, ok := step.Params["args"].(map[string]any); ok {
-		assert.NotEmpty(t, args)
-	}
+	assert.NotEmpty(t, step.Action.GetSubflow().GetArgs())
 }
 
 func TestCompileWorkflowWithSubflowInSequence(t *testing.T) {
@@ -222,14 +213,14 @@ func TestCompileWorkflowWithSubflowInSequence(t *testing.T) {
 	require.Len(t, plan.Steps, 3)
 
 	// Verify order: navigate -> subflow -> screenshot
-	assert.Equal(t, StepNavigate, plan.Steps[0].Type)
+	assertCompiledStepType(t, plan.Steps[0], StepNavigate)
 	assert.Equal(t, "navigate-node", plan.Steps[0].NodeID)
 
-	assert.Equal(t, StepSubflow, plan.Steps[1].Type)
+	assertCompiledStepType(t, plan.Steps[1], StepSubflow)
 	assert.Equal(t, "subflow-node", plan.Steps[1].NodeID)
-	assert.Equal(t, childWorkflowID, plan.Steps[1].Params["workflow_id"])
+	assert.Equal(t, childWorkflowID, plan.Steps[1].Action.GetSubflow().GetWorkflowId())
 
-	assert.Equal(t, StepScreenshot, plan.Steps[2].Type)
+	assertCompiledStepType(t, plan.Steps[2], StepScreenshot)
 	assert.Equal(t, "screenshot-node", plan.Steps[2].NodeID)
 
 	// Verify edges are preserved
@@ -297,11 +288,11 @@ func TestCompileWorkflowWithMultipleSubflows(t *testing.T) {
 	require.Len(t, plan.Steps, 3)
 
 	// Verify order and types
-	assert.Equal(t, StepSubflow, plan.Steps[0].Type)
-	assert.Equal(t, loginWorkflowID, plan.Steps[0].Params["workflow_id"])
+	assertCompiledStepType(t, plan.Steps[0], StepSubflow)
+	assert.Equal(t, loginWorkflowID, plan.Steps[0].Action.GetSubflow().GetWorkflowId())
 
-	assert.Equal(t, StepClick, plan.Steps[1].Type)
+	assertCompiledStepType(t, plan.Steps[1], StepClick)
 
-	assert.Equal(t, StepSubflow, plan.Steps[2].Type)
-	assert.Equal(t, logoutWorkflowID, plan.Steps[2].Params["workflow_id"])
+	assertCompiledStepType(t, plan.Steps[2], StepSubflow)
+	assert.Equal(t, logoutWorkflowID, plan.Steps[2].Action.GetSubflow().GetWorkflowId())
 }

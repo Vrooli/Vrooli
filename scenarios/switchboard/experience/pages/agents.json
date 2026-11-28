@@ -1,0 +1,249 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "agents",
+    "title": "Agents",
+    "routes": [
+      "/agents"
+    ],
+    "purpose": "The roster of every agent this install operates, each showing where it is reachable and what it is allowed to do. Scannable enough that the right agent is found by shape rather than by reading names.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-017",
+      "OT-P1-007"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which agents exist and which are live right now"
+    },
+    {
+      "statement": "Where each one is reachable, across every channel"
+    },
+    {
+      "statement": "Which ones hold a grant that can reach the terminal"
+    },
+    {
+      "statement": "How to create another one"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One or more agents render as a scannable roster."
+    },
+    {
+      "id": "loading",
+      "description": "The roster is resolving."
+    },
+    {
+      "id": "empty",
+      "description": "No agent exists; the empty state offers the one action that creates one."
+    },
+    {
+      "id": "partial",
+      "description": "An agent's profile could not be read from prompt-manager; the row states that rather than hiding it."
+    },
+    {
+      "id": "stale",
+      "description": "The roster is cached; its age is stated."
+    },
+    {
+      "id": "request-error",
+      "description": "The roster read failed; a retry is offered."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not list agents."
+    }
+  ],
+  "elements": [
+    {
+      "id": "roster",
+      "role": "list",
+      "name": "Agents"
+    },
+    {
+      "id": "agent-card",
+      "role": "listitem",
+      "name": "Agent"
+    },
+    {
+      "id": "agent-avatar",
+      "role": "img",
+      "name": "Agent avatar"
+    },
+    {
+      "id": "agent-channels",
+      "role": "group",
+      "name": "Reachable at"
+    },
+    {
+      "id": "grant-summary",
+      "role": "status",
+      "name": "Capability grant"
+    },
+    {
+      "id": "live-indicator",
+      "role": "status",
+      "name": "Live"
+    },
+    {
+      "id": "create-action",
+      "role": "button",
+      "name": "New agent"
+    },
+    {
+      "id": "empty-cta",
+      "role": "button",
+      "name": "Create your first agent"
+    }
+  ],
+  "claims": [
+    {
+      "id": "scannable-by-shape",
+      "type": "custom",
+      "statement": "Each agent is identifiable by its avatar alone, rendered from the colour triple its descriptor already carries.",
+      "tier": "manual",
+      "elements": [
+        "agent-avatar"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The appearance triple exists in prompt-manager today. Using it makes a roster scannable without reading."
+    },
+    {
+      "id": "reach-is-on-the-card",
+      "type": "element-present",
+      "statement": "Every agent card states every channel the agent is reachable on, without opening the agent.",
+      "tier": "aspirational",
+      "elements": [
+        "agent-card",
+        "agent-channels"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "terminal-grant-is-conspicuous",
+      "type": "state-distinct",
+      "statement": "An agent holding a terminal-capable grant is perceivably distinct from one that does not.",
+      "tier": "aspirational",
+      "elements": [
+        "grant-summary"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The most consequential fact about an agent should not require opening it."
+    },
+    {
+      "id": "unreadable-profile-is-stated",
+      "type": "element-present",
+      "statement": "An agent whose profile cannot be read is shown with the reason rather than omitted from the roster.",
+      "tier": "aspirational",
+      "elements": [
+        "agent-card"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "OT-P0-008 holds profiles by reference, so a broken reference must be visible, not silently filtered."
+    },
+    {
+      "id": "one-create-action",
+      "type": "single-dominant-action",
+      "statement": "Exactly one action on the page creates an agent.",
+      "tier": "aspirational",
+      "elements": [
+        "create-action"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "empty-offers-the-action",
+      "type": "element-present",
+      "statement": "The empty state offers the create action rather than describing the concept.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-cta"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "keyboard-roster",
+      "type": "keyboard-reachable",
+      "statement": "Every agent card is reachable and openable from the keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "agent-card"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Avatar colour triples and the live indicator stay distinguishable in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "roster-region",
+      "purpose": "The agent roster read from prompt-manager by reference.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "roster": {
+        "testid": "agents-roster"
+      },
+      "agent-card": {
+        "testid": "agents-card"
+      },
+      "agent-avatar": {
+        "testid": "agents-avatar"
+      },
+      "agent-channels": {
+        "testid": "agents-channels"
+      },
+      "grant-summary": {
+        "testid": "agents-grant"
+      },
+      "live-indicator": {
+        "testid": "agents-live"
+      },
+      "create-action": {
+        "testid": "agents-create"
+      },
+      "empty-cta": {
+        "testid": "agents-empty-cta"
+      }
+    },
+    "regions": {
+      "roster-region": {
+        "testid": "agents-roster-region"
+      }
+    }
+  }
+}

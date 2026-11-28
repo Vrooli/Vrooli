@@ -1,70 +1,77 @@
 # Glossary
 
 ## Collection
-A Qdrant collection that stores knowledge vectors. Default is `knowledge_chunks_v1`.
-[CODE: api/knowledge_schema.go]
+A named Qdrant vector set used for a corpus, such as `vrooli-docs` or
+`knowledge_chunks_v1`. Knowledge Observatory can inspect and maintain
+collections; source systems own their indexed inputs.
+[CODE: api/collections.go]
 
-## Namespace
-Logical owner or domain for a record (e.g., a scenario name). Required for ingestion.
-[CODE: api/ingest.go]
-[CODE: api/internal/services/ingest/service.go]
-
-## Record
-The atomic knowledge unit stored in Qdrant (vector + payload). Created via record upsert.
-[CODE: api/ingest.go]
+## Ingest Provenance
+Operational records of ingest attempts associated with a collection. The
+collection diagnostics surface reports these records when present; Knowledge
+Observatory does not expose generic record or document upsert routes.
+[CODE: api/internal/ingest/repository.go]
 
 ## Document
-A larger payload that is chunked into multiple records.
-[CODE: api/document_ingest.go]
-[CODE: api/internal/services/ingest/chunking.go]
+A scenario-owned documentation file indexed for search. The index is derived;
+the source repository remains authoritative.
+[CODE: api/internal/aisearch/indexer.go]
 
 ## Visibility
-Access scope for records: `private`, `shared`, or `global`.
+Access scope values used by knowledge search: `private`, `shared`, and
+`global`.
 [CODE: api/knowledge_schema.go]
 
 ## Tags
-Optional labels for filtering in search and graph queries.
-[CODE: api/search.go]
+Optional labels that can filter knowledge search and graph queries.
+[CODE: api/knowledge_schema.go]
 [CODE: api/graph.go]
 
 ## Quality Metrics
-Scores derived from sampled vectors: coherence, freshness, redundancy, coverage.
+Scores derived from sampled vectors: coherence, freshness, redundancy, and
+coverage. Samples and collection rollups are stored in the scenario database.
 [CODE: api/metrics.go]
-
-## Ingest Job
-An async document ingest request stored in Postgres and processed by a runner.
-[CODE: api/jobs.go]
-[CODE: api/internal/services/ingestjobs/runner.go]
+[CODE: api/internal/quality/sqlite.go]
 
 ## Graph Node / Edge
-Graph view nodes represent records; edges represent semantic similarity.
+Nodes represent indexed records; edges represent derived semantic similarity
+relationships.
 [CODE: api/internal/services/graph/service.go]
+[CODE: api/internal/graph/sqlite.go]
 
 ## Materializer
-Background loop (every 5 minutes) that samples vectors from each Qdrant collection and computes quality metrics (coherence, freshness, redundancy, coverage). Persists results and relationship edges into Postgres.
+Background work that samples Qdrant collections, calculates quality metrics,
+and stores the results and relationship edges.
 [CODE: api/metrics.go]
 
+## Documentation Index / Reindex
+The derived searchable view of scenario documentation and the operation that
+reconciles it with its source files. Reindex can plan changes, run in the
+background, report status, or cancel the current reconciliation.
+[CODE: api/search_surface.go]
+[CODE: api/internal/aisearch/indexer.go]
+
 ## Deep Search
-Agent-powered documentation search. Spawns an agent-manager run with the `documentation-search` skill, polls for results, and parses structured JSON output. Async — returns a job ID for polling.
+Agent-powered documentation search. It creates a job, tracks progress, and
+returns results for polling.
 [CODE: api/internal/services/deepsearch/service.go]
+[CODE: api/internal/deepsearch/sqlite.go]
 
 ## Doc Healing
-Agent-powered documentation repair. Spawns a sandboxed agent-manager run with the `documentation-health` skill. Produces a diff that must be approved or rejected before changes are applied to the filesystem.
+Agent-powered documentation repair. It produces a reviewable diff and requires
+approval or rejection before applying changes.
 [CODE: api/internal/services/dochealing/service.go]
+[CODE: api/internal/dochealing/sqlite.go]
 
-## Doc Health / Doc Schema
-Validation system that checks scenario documentation layout against 15 canonical doc types (README, PROBLEMS, SEAMS, ARCHITECTURE, etc.). Produces a health score (0-1), lists missing and misplaced docs, and generates auto-fix hints.
-[CODE: api/internal/docschema/types.go]
+## Doc Health / Documentation Contract
+Validation system that checks scenario documentation against the source
+manifest and reports missing, misplaced, or invalid documents.
+[CODE: api/internal/doccontract/manifest.go]
+[CODE: api/internal/docvalidation/validation.go]
 [CODE: api/internal/services/dochealth/service.go]
 
-## External ID Map
-Idempotency mechanism for ingestion. Maps a `(namespace, external_id)` pair to a `record_id`, preventing duplicate records from being created when the same content is ingested multiple times.
-[CODE: api/internal/adapters/metadatastore/postgres.go]
-
-## Skill
-A prompt template retrieved from prompt-manager that provides instructions for an agent-manager run. Knowledge Observatory uses two skills: `documentation-search` (deep search) and `documentation-health` (doc healing).
+## Search Skill / Agent Run
+Prompt Manager supplies task guidance; Agent Manager creates and tracks runs
+used by deep search and documentation healing.
 [CODE: api/internal/adapters/promptmanager/client.go]
-
-## Agent Run
-A sandboxed execution managed by agent-manager. Deep search and doc healing both create agent runs, poll their events for progress, and retrieve final output or diffs.
 [CODE: api/internal/adapters/agentmanager/client.go]

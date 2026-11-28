@@ -1,0 +1,160 @@
+{
+  "_metadata": {
+    "module": "autofix-completeness",
+    "description": "Requirements for FixClass metadata, honest autofix output, parse-not-grep config checks, and suppression governance.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "QH-FIX-001",
+      "title": "Declare one fix class per rule",
+      "status": "implemented",
+      "prd_ref": "OT-P0-006",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Each static-quality rule declares whether it is autofix-capable or detection-only, and contract output derives from that metadata.",
+      "tags": ["autofix", "contracts", "ssot"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/rules/rules_test.go::TestRegistryDeclaresFixClassEvaluatorAndFixers",
+          "notes": "[REQ:QH-FIX-001] Every rule declares metadata, fix class, evaluator, and matching fixer coverage for autofix-class rules."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/rules/rules_test.go::TestRegistryDerivesSurfaceAndScenarioApplicability",
+          "notes": "[REQ:QH-FIX-001] Surface and scenario applicability derive from the rule registry."
+        }
+      ]
+    },
+    {
+      "id": "QH-FIX-003",
+      "title": "Report only honest autofix availability",
+      "status": "implemented",
+      "prd_ref": "OT-P0-006",
+      "category": "api",
+      "criticality": "P0",
+      "description": "`autofix_available` is derived from the rule fix class and fixer capability, and is false when a fixer cannot preview a safe change.",
+      "tags": ["autofix", "honesty", "findings"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditAutofixHonestyForMissingTSConfig",
+          "notes": "[REQ:QH-FIX-003] Missing tsconfig findings do not expose a fake repair command."
+        }
+      ]
+    },
+    {
+      "id": "QH-FIX-002",
+      "title": "Round-trip every autofix-class config rule",
+      "status": "implemented",
+      "prd_ref": "OT-P0-006",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Each autofix-class static-quality rule can preview and apply a safe config repair for a representative broken fixture.",
+      "tags": ["autofix", "round-trip", "config"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/autofix/autofix_test.go::TestApplyRepairsAllAutofixClassConfigRules",
+          "notes": "[REQ:QH-FIX-002] TS config, ESLint safety/typed config, package build typecheck, Test Genie lint strictness, go.mod, golangci required linters, and Makefile gates preview and apply successfully."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/autofix/autofix_test.go::TestApplyCreatesMissingGoLintConfig",
+          "notes": "[REQ:QH-FIX-002] Missing golangci config previews and applies as the GO_LINT_CONFIG_PRESENT fixer."
+        }
+      ]
+    },
+    {
+      "id": "QH-FIX-004",
+      "title": "Surface aggregate autofixability",
+      "status": "implemented",
+      "prd_ref": "OT-P0-006",
+      "category": "output",
+      "criticality": "P0",
+      "description": "JSON, CLI human output, and Test Genie quality output expose the autofixable count and a repair command when any finding is fixable.",
+      "tags": ["cli", "test-genie", "json"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "passing",
+          "notes": "[REQ:QH-FIX-004] Test Genie parses Quality Health JSON and preserves next-step observations; validate with `cd scenarios/test-genie/api && GOWORK=off go test ./internal/orchestrator/phases -run Quality`."
+        }
+      ]
+    },
+    {
+      "id": "QH-SUP-001",
+      "title": "Govern suppression patterns",
+      "status": "implemented",
+      "prd_ref": "OT-P0-007",
+      "category": "audit",
+      "criticality": "P0",
+      "description": "Bare suppressions are findings; suppressions with written reasons are allowed so legitimate local exceptions stay explicit.",
+      "tags": ["suppression", "go", "typescript"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditReportsBareGoNolintSuppression",
+          "notes": "[REQ:QH-SUP-001] Bare Go nolint directives are warning findings."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditAllowsReasonedGoNolintSuppression",
+          "notes": "[REQ:QH-SUP-001] Reasoned Go nolint directives are allowed."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditReportsBareTSSuppression",
+          "notes": "[REQ:QH-SUP-001] Bare TypeScript suppressions are warning findings."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditAllowsReasonedTSSuppression",
+          "notes": "[REQ:QH-SUP-001] Reasoned TypeScript suppressions are allowed."
+        }
+      ]
+    },
+    {
+      "id": "QH-AUDIT-006",
+      "title": "Reject disabled or commented config evidence",
+      "status": "implemented",
+      "prd_ref": "OT-P0-002",
+      "category": "audit",
+      "criticality": "P0",
+      "description": "Config checks parse the effective config shape so disabled or commented entries do not satisfy quality contracts.",
+      "tags": ["parse-not-grep", "config", "contracts"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditFailsGoLinterDisabledNotJustMentioned",
+          "notes": "[REQ:QH-AUDIT-006] A disabled golangci linter still fails."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditFailsCommentedMakefileGate",
+          "notes": "[REQ:QH-AUDIT-006] Commented Makefile targets do not satisfy the gate."
+        },
+        {
+          "type": "unit",
+          "status": "passing",
+          "ref": "api/internal/audit/service_test.go::TestAuditFailsCommentedESLintTypedConfig",
+          "notes": "[REQ:QH-AUDIT-006] Commented ESLint typed config does not satisfy the gate."
+        }
+      ]
+    }
+  ]
+}

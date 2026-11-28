@@ -414,6 +414,40 @@ func TestInvestigation_SetDetails(t *testing.T) {
 	})
 }
 
+func TestInvestigationTransitionStatus(t *testing.T) {
+	valid := [][2]InvestigationStatus{
+		{InvestigationStatusPending, InvestigationStatusRunning},
+		{InvestigationStatusPending, InvestigationStatusCancelled},
+		{InvestigationStatusRunning, InvestigationStatusCompleted},
+		{InvestigationStatusRunning, InvestigationStatusFailed},
+		{InvestigationStatusRunning, InvestigationStatusCancelled},
+	}
+	for _, edge := range valid {
+		inv := &Investigation{Status: edge[0]}
+		if err := inv.TransitionStatus(edge[1]); err != nil {
+			t.Errorf("TransitionStatus(%q -> %q): %v", edge[0], edge[1], err)
+		}
+	}
+
+	invalid := [][2]InvestigationStatus{
+		{InvestigationStatusPending, InvestigationStatusCompleted},
+		{InvestigationStatusCompleted, InvestigationStatusRunning},
+		{InvestigationStatusFailed, InvestigationStatusCompleted},
+		{InvestigationStatusCancelled, InvestigationStatusRunning},
+		{"unknown", InvestigationStatusRunning},
+		{InvestigationStatusRunning, "unknown"},
+	}
+	for _, edge := range invalid {
+		inv := &Investigation{Status: edge[0]}
+		if err := inv.TransitionStatus(edge[1]); err == nil {
+			t.Errorf("TransitionStatus(%q -> %q) accepted invalid edge", edge[0], edge[1])
+		}
+		if inv.Status != edge[0] {
+			t.Errorf("invalid edge mutated status to %q", inv.Status)
+		}
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
 }

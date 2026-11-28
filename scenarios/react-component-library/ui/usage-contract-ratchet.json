@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "scenarios": 114,
+  "byContract": {
+    "AppShell": 1,
+    "Card": 1,
+    "ContextMenu": 1,
+    "ContextMenu.items": 2,
+    "DataTable.columns": 1,
+    "DataTable.rows": 16,
+    "ExperienceSurface": 2,
+    "FullPageDrawer": 4,
+    "Overlay": 32,
+    "PlanSummary.facts": 4,
+    "RadioGroup.options": 13,
+    "Select": 7,
+    "Select.options": 4,
+    "SettingsList": 3,
+    "Tabs": 4,
+    "Tabs.items": 3,
+    "Timeline.events": 2
+  }
+}

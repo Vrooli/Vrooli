@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "see-what-is-moving",
+    "title": "See what is moving and what changed since the last look",
+    "purpose": "The five-second glance from a phone: whether anything needs the operator, which supervisors are live, paused or limited and on which topics, what was written since the last look, and the evidence behind any value on tap.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-013",
+      "OT-P0-011"
+    ]
+  },
+  "steps": [
+    {
+      "page": "now",
+      "state": "default",
+      "intent": "Read one status line of live, paused and limited counts with the newest research write, the needs-you titles, and the supervisors with their topics.",
+      "via": "opening the desk"
+    },
+    {
+      "page": "now",
+      "state": "default",
+      "intent": "Choose a period and see the topics written in it; mark everything seen with one confirmed Caught up.",
+      "via": "Since period and Caught up"
+    },
+    {
+      "page": "topics",
+      "state": "default",
+      "intent": "Filter the topics and find the one written most recently, with written-while-paused flagged.",
+      "via": "Topics tab and filter box"
+    },
+    {
+      "page": "topic",
+      "state": "default",
+      "intent": "See that topic's research write, mission edit and last review apart, each with its file, and what changed since the last look.",
+      "via": "topic row"
+    },
+    {
+      "page": "commission",
+      "state": "default",
+      "intent": "Open the commission holding it and read each derived fact's source on tap, with changes since the last look and Mark as seen.",
+      "via": "commission row"
+    }
+  ]
+}

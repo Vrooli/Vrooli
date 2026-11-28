@@ -1,0 +1,30 @@
+package rewrite
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+// TestManifestCoversTypeScriptCodeGraphService asserts coverage of the whole
+// TypeScriptCodeGraphService from the rewrite-package vantage. See the
+// matching test under domains/graph/ for the rationale; either failing
+// surfaces drift between proto and CLI.
+func TestManifestCoversTypeScriptCodeGraphService(t *testing.T) {
+	manifest := readManifest(t)
+	cliapp.RequireProtoServiceCoverage(t, manifest, graphv1.File_typescript_code_graph_v1_graph_graph_proto, "TypeScriptCodeGraphService")
+}
+
+func readManifest(t *testing.T) []byte {
+	t.Helper()
+	path := filepath.Join("..", "..", "manifest.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return raw
+}
