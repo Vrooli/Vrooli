@@ -46,6 +46,8 @@ func TestRunsHandler_OperatorVerbsRequireOwner(t *testing.T) {
 
 	_, err := h.GetRun(ctx, connect.NewRequest(&runsv1.GetRunRequest{Id: "x"}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	_, err = h.GetLocalTargetReceipt(ctx, connect.NewRequest(&runsv1.GetLocalTargetReceiptRequest{Id: "x"}))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	_, err = h.ListRuns(ctx, connect.NewRequest(&runsv1.ListRunsRequest{}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	_, err = h.WaitRun(ctx, connect.NewRequest(&runsv1.WaitRunRequest{Id: "x"}))
@@ -114,6 +116,19 @@ func TestRunsHandler_DurableRunE2E(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, runsv1.RunStatus_RUN_STATUS_PASSED, getResp.Msg.Run.Status)
 	require.Len(t, getResp.Msg.Events, 3)
+
+	// The production read endpoint reconstructs the local receipt from the same
+	// durable repository and makes its non-eligibility explicit to consumers.
+	receiptResp, err := h.GetLocalTargetReceipt(ownerCtx(), connect.NewRequest(&runsv1.GetLocalTargetReceiptRequest{Id: run.ID}))
+	require.NoError(t, err)
+	require.Equal(t, "local-contract", receiptResp.Msg.Lane)
+	require.Equal(t, "local-fixture", receiptResp.Msg.TargetClass)
+	require.Equal(t, "local-fixture", receiptResp.Msg.Provenance)
+	require.Equal(t, run.ID, receiptResp.Msg.RunId)
+	require.Equal(t, "passed", receiptResp.Msg.Status)
+	require.Equal(t, int32(0), receiptResp.Msg.ExitCode)
+	require.False(t, receiptResp.Msg.LaneEligible)
+	require.Equal(t, []string{"bridge-run://" + run.ID}, receiptResp.Msg.EvidenceRefs)
 }
 
 // [REQ:BRG-P0-005] GetRun on an unknown id is a NotFound.

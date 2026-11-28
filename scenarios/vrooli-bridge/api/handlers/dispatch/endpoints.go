@@ -15,7 +15,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        dispatchconnect.DispatchServiceDispatchJobProcedure,
 		Method:      "POST",
 		Summary:     "Dispatch a typed job to a node",
-		Description: "Validates {scenario, verb, args} against the manifest allowlist + the node's granted scopes, then creates a durable run, audits the dispatch, and pushes the typed job to the node. An undeclared/out-of-scope verb is rejected (and audited) before any run is created. Honours X-Dry-Run. Owner-gated.",
+		Description: "Validates {scenario, verb, args} against the manifest allowlist + the node's granted scopes, then creates a durable run, audits the dispatch, and pushes the typed job to the node. Human owners may dispatch directly; configured service principals need the exact vrooli-bridge:dispatch scope. An undeclared/out-of-scope verb is rejected (and audited) before any run is created. Honours X-Dry-Run.",
 		Category:    "dispatch",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"node_id":         "string (required)",
@@ -30,7 +30,7 @@ var Endpoints = []module.EndpointDescriptor{
 		}},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing/empty verb"},
-			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 401, Code: "unauthenticated", Description: "Authenticated owner or configured dispatch service principal required"},
 			{Status: 403, Code: "permission_denied", Description: "Verb not allowlisted or out of the node's scopes"},
 			{Status: 404, Code: "not_found", Description: "Unknown node"},
 			{Status: 409, Code: "failed_precondition", Description: "Node revoked or offline"},

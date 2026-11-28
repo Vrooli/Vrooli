@@ -11,10 +11,10 @@ describe("SignInScreen", () => {
     cleanup();
   });
 
-  it("makes the first-run path obvious and keeps create-account one click away", () => {
+  it("makes the first-run path obvious and keeps create-account one click away", async () => {
     renderWithProviders(<SignInScreen />);
     // The first-time note orients a newcomer toward creating the owner account.
-    expect(screen.getByTestId(selectors.session.firstTimeNote)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.session.firstTimeNote)).toBeInTheDocument();
     // The Create-account tab is visible from the default view (one click).
     expect(screen.getByTestId(selectors.session.login.tabCreate)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.session.login.form)).toBeInTheDocument();

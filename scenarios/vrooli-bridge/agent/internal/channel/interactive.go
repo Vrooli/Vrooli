@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/platform-go/desktopowner"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	desktopv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop"
 	desktopconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop/desktopv1connect"
@@ -77,6 +80,7 @@ func (r presenceInteractiveReporter) ReportInteractiveSignalResponse(ctx context
 type localDeviceControlInteractiveAdapter struct {
 	httpClient  *http.Client
 	resolvePort func(context.Context, string) (int, error)
+	ownerSocket bool
 }
 
 func resolveDesktopCompanionPort(context.Context, string) (int, error) {
@@ -91,18 +95,41 @@ func resolveDesktopCompanionPort(context.Context, string) (int, error) {
 	return port, nil
 }
 
+// endpoint keeps all desktop RPCs on the same node-local owner transport.
+func (a localDeviceControlInteractiveAdapter) endpoint(ctx context.Context) (string, *http.Client, error) {
+	if a.ownerSocket && runtime.GOOS == "linux" {
+		return "http://desktop-owner", desktopOwnerClient, nil
+	}
+	if a.resolvePort == nil {
+		return "", nil, errors.New("local Device Control port resolver is unavailable")
+	}
+	port, err := a.resolvePort(ctx, "device-control-companion")
+	if err != nil {
+		return "", nil, err
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", port), a.httpClient, nil
+}
+
+func desktopOwnerOptedIn() bool {
+	return runtime.GOOS == "linux" && os.Getenv(desktopowner.OptInEnvironment) == "1"
+}
+
+var desktopOwnerClient = &http.Client{Transport: &http.Transport{
+	DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", desktopowner.SocketPath(os.Getuid()))
+	},
+	IdleConnTimeout: 30 * time.Second,
+}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
 func (a localDeviceControlInteractiveAdapter) HandleInteractiveSignal(ctx context.Context, signal *channelv1.InteractiveSignal) (*channelv1.InteractiveSignalResponse, error) {
 	if signal == nil || strings.TrimSpace(signal.GetSessionId()) == "" || strings.TrimSpace(signal.GetLeaseId()) == "" {
 		return nil, errors.New("interactive signal is missing the Device Control session binding")
 	}
-	if a.resolvePort == nil {
-		return nil, errors.New("local Device Control port resolver is unavailable")
-	}
-	port, err := a.resolvePort(ctx, "device-control-companion")
+	base, transport, err := a.endpoint(ctx)
 	if err != nil {
 		return nil, err
 	}
-	client := desktopconnect.NewDesktopSessionServiceClient(a.httpClient, fmt.Sprintf("http://127.0.0.1:%d", port))
+	client := desktopconnect.NewDesktopSessionServiceClient(transport, base)
 	response, err := client.Signal(ctx, connect.NewRequest(&desktopv1.DesktopSignalRequest{
 		Session: &commonv1.SessionRef{SessionId: signal.GetSessionId()}, LeaseId: signal.GetLeaseId(), LeaseEpoch: signal.GetLeaseEpoch(), Kind: desktopv1.DesktopSignalKind(signal.GetKind()), Generation: signal.GetGeneration(), Payload: append([]byte(nil), signal.GetPayload()...), IceServers: iceServers(signal.GetRoutes()),
 	}))
@@ -116,14 +143,11 @@ func (a localDeviceControlInteractiveAdapter) HandleInteractiveRevoke(ctx contex
 	if revoke == nil || strings.TrimSpace(revoke.GetSessionId()) == "" || strings.TrimSpace(revoke.GetLeaseId()) == "" || revoke.GetLeaseEpoch() == 0 {
 		return errors.New("interactive revoke is missing the Device Control session binding")
 	}
-	if a.resolvePort == nil {
-		return errors.New("local Device Control port resolver is unavailable")
-	}
-	port, err := a.resolvePort(ctx, "device-control-companion")
+	base, transport, err := a.endpoint(ctx)
 	if err != nil {
 		return err
 	}
-	client := desktopconnect.NewDesktopSessionServiceClient(a.httpClient, fmt.Sprintf("http://127.0.0.1:%d", port))
+	client := desktopconnect.NewDesktopSessionServiceClient(transport, base)
 	_, err = client.CloseSession(ctx, connect.NewRequest(&desktopv1.CloseSessionRequest{Session: &commonv1.SessionRef{SessionId: revoke.GetSessionId()}, Reason: revoke.GetReason()}))
 	return err
 }

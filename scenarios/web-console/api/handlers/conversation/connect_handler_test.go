@@ -34,6 +34,18 @@ func (f fakeConversationService) GetRange(context.Context, string, int64, int64)
 	return SessionState{SessionID: "s1", Cursor: Cursor{LastListenedSequence: 2}}, f.err
 }
 
+func (f fakeConversationService) Project(_ context.Context, _ string, query ProjectionQuery) (SessionState, error) {
+	work := &WorkSpan{FromSequence: 1, ToSequence: 3, ToolCalls: 2, ToolResults: 1, StartedAt: "2026-11-26T10:00:00Z", EndedAt: "2026-11-26T10:00:20Z"}
+	return SessionState{SessionID: "s1", Events: []Event{
+		{ID: "work:" + query.ThreadID + ":1", SessionID: "s1", Role: "assistant", Kind: "work", ThreadID: query.ThreadID, Sequence: 3, Work: work},
+		{ID: "e4", SessionID: "s1", Role: "assistant", Kind: "message", Author: "agent", ThreadID: query.ThreadID, Text: "done", Sequence: 4},
+	}, Threads: []Thread{{ThreadID: "01a217a4", Kind: "subagent", Label: "Hilbert", Description: "/root/sc9_owner", FirstSequence: 2, LastSequence: 9, MessageCount: 2, WorkCount: 5}}, OldestSequence: 1, NewestSequence: 4}, f.err
+}
+
+func (f fakeConversationService) WorkRange(_ context.Context, _ string, threadID string, from, _ int64) (SessionState, error) {
+	return SessionState{SessionID: "s1", Events: []Event{{ID: "t1", SessionID: "s1", Role: "assistant", Kind: "tool_call", Label: "Bash", ThreadID: threadID, Text: "[Tool call: Bash]", Sequence: from, TextTruncated: true}}}, f.err
+}
+
 func (f fakeConversationService) ResolveEvents(_ context.Context, _ string, ids []string) (ResolveEventsResult, error) {
 	return ResolveEventsResult{Events: []Event{{ID: "e1", SessionID: "s1", Role: "assistant", Text: "hello", Sequence: 2}}, MissingEventIDs: []string{"gone"}}, f.err
 }
@@ -122,6 +134,34 @@ func TestConnectHandlerConversationOperations(t *testing.T) {
 	}
 	if resp, err := h.SummarizeEvent(ctx, connect.NewRequest(&conversationv1.SummarizeEventRequest{SessionId: "s1", EventId: "e1"})); err != nil || !resp.Msg.Summarized {
 		t.Fatalf("summary: %#v %v", resp, err)
+	}
+}
+
+func TestConnectHandlerMessagesProjectionAndWork(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: fakeConversationService{}})
+	ctx := context.Background()
+	projected, err := h.Get(ctx, connect.NewRequest(&conversationv1.GetRequest{
+		SessionId: "s1", Limit: 50, Projection: conversationv1.ConversationProjection_CONVERSATION_PROJECTION_MESSAGES,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := projected.Msg.GetEvents()
+	if len(events) != 2 || events[0].GetKind() != "work" || events[0].GetWork().GetToolCalls() != 2 || events[0].GetWork().GetFromSequence() != 1 {
+		t.Fatalf("projection must carry the work row first: %#v", events)
+	}
+	if events[1].GetKind() != "message" || events[1].GetAuthor() != "agent" {
+		t.Fatalf("conversation row: %#v", events[1])
+	}
+	threads := projected.Msg.GetThreads()
+	if len(threads) != 1 || threads[0].GetLabel() != "Hilbert" || threads[0].GetMessageCount() != 2 || threads[0].GetFirstSequence() != 2 {
+		t.Fatalf("threads: %#v", threads)
+	}
+	work, err := h.GetRange(ctx, connect.NewRequest(&conversationv1.GetRangeRequest{
+		SessionId: "s1", FromSequence: 5, ToSequence: 9, ThreadId: "01a217a4", Projection: conversationv1.ConversationProjection_CONVERSATION_PROJECTION_WORK,
+	}))
+	if err != nil || len(work.Msg.GetEvents()) != 1 || work.Msg.GetEvents()[0].GetLabel() != "Bash" || !work.Msg.GetEvents()[0].GetTextTruncated() || work.Msg.GetEvents()[0].GetThreadId() != "01a217a4" {
+		t.Fatalf("work range: %#v %v", work, err)
 	}
 }
 

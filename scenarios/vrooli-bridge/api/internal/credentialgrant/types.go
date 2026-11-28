@@ -5,6 +5,8 @@ package credentialgrant
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -34,6 +36,7 @@ type Grant struct {
 	Class           Class
 	Retention       Retention
 	Generation      int64
+	Revision        int64
 	AckedGeneration int64
 	GrantedAt       time.Time
 	RevokedAt       time.Time
@@ -53,6 +56,46 @@ type CreateInput struct {
 	Class      Class
 	Retention  Retention
 	Generation int64
+}
+
+type MutationBinding struct {
+	RequestID            string
+	ActorID              string
+	NodeID               string
+	EnrollmentGeneration int64
+	Subject              string
+	ExpectedRevision     int64
+	PayloadDigest        string
+}
+
+type MutationReceipt struct {
+	RequestID            string
+	ActorID              string
+	NodeID               string
+	EnrollmentGeneration int64
+	Subject              string
+	ExpectedRevision     int64
+	ResultRevision       int64
+	PayloadDigest        string
+	GrantID              string
+	Outcome              string
+	DeliveryState        string
+	CreatedAt            time.Time
+	Replayed             bool
+}
+
+const (
+	CreateGrantSubject = "credential-grant.create"
+	RevokeGrantSubject = "credential-grant.revoke"
+)
+
+type MutationRepository interface {
+	CreateWithReceipt(context.Context, Grant, MutationBinding) (Grant, MutationReceipt, error)
+	RevokeWithReceipt(context.Context, string, MutationBinding) (Grant, MutationReceipt, error)
+}
+
+type MutationDeliveryRepository interface {
+	SetMutationDeliveryState(context.Context, string, string) error
 }
 
 type Repository interface {
@@ -91,6 +134,12 @@ type PurgeReceiptRepository interface {
 
 type NodeKindResolver interface {
 	NodeKind(context.Context, string) (string, error)
+}
+
+// NodeGenerationResolver binds metadata projections to Bridge's current node
+// enrollment. It is optional for older fakes but mandatory for metadata RPCs.
+type NodeGenerationResolver interface {
+	NodeGeneration(context.Context, string) (generation int64, revoked bool, err error)
 }
 
 type Service struct {
@@ -142,8 +191,106 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Grant, error) {
 	return s.repo.Create(ctx, Grant{NodeID: nodeID, LogicalID: logicalID, Field: field, Class: in.Class, Retention: in.Retention, Generation: generation, GrantedAt: s.now().UTC()})
 }
 
+func (s *Service) CreateWithReceipt(ctx context.Context, in CreateInput, binding MutationBinding) (Grant, MutationReceipt, error) {
+	nodeID, logicalID, field := strings.TrimSpace(in.NodeID), strings.TrimSpace(in.LogicalID), strings.TrimSpace(in.Field)
+	if nodeID == "" || logicalID == "" || field == "" || !validClass(in.Class) || in.Class == ClassPerInstallGenerated || (in.Retention != RetentionDurable && in.Retention != RetentionEphemeral) || (in.Retention == RetentionDurable && in.Class == ClassInfrastructure) {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("invalid credential grant request")
+	}
+	if binding.NodeID != nodeID || binding.ActorID == "" || binding.RequestID == "" || binding.EnrollmentGeneration <= 0 || binding.Subject != CreateGrantSubject || binding.ExpectedRevision != 0 || !validPayloadDigest(binding.PayloadDigest) {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("credential grant mutation binding is incomplete or invalid")
+	}
+	if s.nodes == nil {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("node kind resolver is not configured")
+	}
+	kind, err := s.nodes.NodeKind(ctx, nodeID)
+	if err != nil {
+		return Grant{}, MutationReceipt{}, err
+	}
+	if strings.TrimSpace(kind) == "control_plane" {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("control-plane node cannot receive credential grants")
+	}
+	resolver, ok := s.nodes.(NodeGenerationResolver)
+	if !ok {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("node enrollment-generation resolver is unavailable")
+	}
+	generation, revoked, err := resolver.NodeGeneration(ctx, nodeID)
+	if err != nil {
+		return Grant{}, MutationReceipt{}, err
+	}
+	if revoked || generation != binding.EnrollmentGeneration {
+		return Grant{}, MutationReceipt{}, ErrStaleNodeGeneration{NodeID: nodeID}
+	}
+	repository, ok := s.repo.(MutationRepository)
+	if !ok {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("durable credential mutation receipts are unavailable")
+	}
+	grant := Grant{NodeID: nodeID, LogicalID: logicalID, Field: field, Class: in.Class, Retention: in.Retention, Generation: in.Generation, GrantedAt: s.now().UTC(), Revision: 1}
+	if grant.Generation <= 0 {
+		grant.Generation = 1
+	}
+	return repository.CreateWithReceipt(ctx, grant, binding)
+}
+
 func (s *Service) List(ctx context.Context, nodeID string) ([]Grant, error) {
 	return s.repo.List(ctx, strings.TrimSpace(nodeID))
+}
+
+// ListMetadata returns only Bridge-owned grant status after checking the
+// caller's expected current enrollment generation. It performs no delivery,
+// presence, secret-resolution, or agent transport work.
+func (s *Service) ListMetadata(ctx context.Context, nodeID string, expectedGeneration int64) ([]Grant, error) {
+	nodeID = strings.TrimSpace(nodeID)
+	if nodeID == "" || expectedGeneration <= 0 {
+		return nil, fmt.Errorf("node_id and positive enrollment_generation are required")
+	}
+	resolver, ok := s.nodes.(NodeGenerationResolver)
+	if !ok {
+		return nil, fmt.Errorf("node enrollment-generation resolver is unavailable")
+	}
+	generation, revoked, err := resolver.NodeGeneration(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if revoked || generation <= 0 || generation != expectedGeneration {
+		return nil, ErrStaleNodeGeneration{NodeID: nodeID}
+	}
+	active, err := s.repo.List(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	var revokedGrants []Grant
+	if repository, ok := s.repo.(RevokedRepository); ok {
+		revokedGrants, err = repository.ListRevoked(ctx, nodeID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	grants := append(active, revokedGrants...)
+	for _, grant := range grants {
+		if grant.NodeID != nodeID {
+			return nil, fmt.Errorf("credential grant belongs to another node")
+		}
+	}
+	return grants, nil
+}
+
+type ErrStaleNodeGeneration struct{ NodeID string }
+
+func (e ErrStaleNodeGeneration) Error() string { return "credential grant target enrollment changed" }
+
+// MetadataVersion is a deterministic version of the allowlisted status fields.
+// It does not incorporate or expose any receipt reason or credential value.
+func MetadataVersion(g Grant) string {
+	if g.Revision > 0 {
+		return fmt.Sprintf("%d", g.Revision)
+	}
+	material := fmt.Sprintf("%s\x00%s\x00%s\x00%s\x00%s\x00%d\x00%d\x00%s\x00%t\x00%s\x00%s\x00%t", g.ID, g.NodeID, g.LogicalID, g.Field, g.Class, g.Generation, g.AckedGeneration, g.RevokedAt.UTC().Format(time.RFC3339Nano), g.ReceiptAccepted, g.PurgeState, g.PurgeReceiptAt.UTC().Format(time.RFC3339Nano), g.PurgeAccepted)
+	sum := sha256.Sum256([]byte(material))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+func validPayloadDigest(value string) bool {
+	return len(value) == 71 && strings.HasPrefix(value, "sha256:")
 }
 
 // Active returns the existing grant for an address on a node, when present.
@@ -306,6 +453,29 @@ func (s *Service) Revoke(ctx context.Context, id string) error {
 	return s.repo.Revoke(ctx, id)
 }
 
+func (s *Service) RevokeWithReceipt(ctx context.Context, id string, binding MutationBinding) (Grant, MutationReceipt, error) {
+	id = strings.TrimSpace(id)
+	if id == "" || binding.ActorID == "" || binding.RequestID == "" || binding.NodeID == "" || binding.EnrollmentGeneration <= 0 || binding.Subject != RevokeGrantSubject+":"+id || binding.ExpectedRevision <= 0 || !validPayloadDigest(binding.PayloadDigest) {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("credential revoke mutation binding is incomplete or invalid")
+	}
+	resolver, ok := s.nodes.(NodeGenerationResolver)
+	if !ok {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("node enrollment-generation resolver is unavailable")
+	}
+	generation, revoked, err := resolver.NodeGeneration(ctx, binding.NodeID)
+	if err != nil {
+		return Grant{}, MutationReceipt{}, err
+	}
+	if revoked || generation != binding.EnrollmentGeneration {
+		return Grant{}, MutationReceipt{}, ErrStaleNodeGeneration{NodeID: binding.NodeID}
+	}
+	repository, ok := s.repo.(MutationRepository)
+	if !ok {
+		return Grant{}, MutationReceipt{}, fmt.Errorf("durable credential mutation receipts are unavailable")
+	}
+	return repository.RevokeWithReceipt(ctx, id, binding)
+}
+
 func (s *Service) Ack(ctx context.Context, id string, generation int64) error {
 	if generation <= 0 {
 		return fmt.Errorf("generation must be positive")
@@ -336,6 +506,17 @@ func (s *Service) RecordPurgeReceipt(ctx context.Context, id, nodeID string, gen
 		return fmt.Errorf("purge receipt repository is unavailable")
 	}
 	return receipts.RecordPurgeReceipt(ctx, id, strings.TrimSpace(nodeID), generation, accepted, reason, s.now().UTC())
+}
+
+// SetMutationDeliveryState records queueing/retry progress on the same durable
+// owner mutation receipt. Target completion is recorded only by an
+// authenticated grant or purge receipt.
+func (s *Service) SetMutationDeliveryState(ctx context.Context, requestID, state string) error {
+	repo, ok := s.repo.(MutationDeliveryRepository)
+	if !ok {
+		return fmt.Errorf("durable credential mutation delivery state is unavailable")
+	}
+	return repo.SetMutationDeliveryState(ctx, strings.TrimSpace(requestID), state)
 }
 
 // RecordCredentialReceipt is the node-facing acknowledgement seam. It binds

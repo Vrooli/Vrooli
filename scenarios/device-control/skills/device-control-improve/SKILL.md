@@ -96,7 +96,7 @@ Take one attributable repair per cycle, ordered by the first applicable row.
 | Existing reusable flow fails | Inspect run, repair candidate, preserve assertions and expected version | failure-recurrence and replay |
 | Program compensates for identity/recovery/persistence defects | Work ladder for the durable owner operation; then delete workaround | Same outcome and effort cohort |
 | Missing governed sensor or operation | File/reuse its W1 or measures-adoption obligation on first read | Named missing surface |
-| External scenario owns the cause | report-bug with run and binding evidence | Owner repair and affected device task |
+| External scenario owns the cause | `vrooli-memory remember` with run and binding evidence | Owner repair and affected device task |
 
 No route executes an unrequested physical action. General validation uses fakes;
 a live benchmark names the device, action, initial state, and verification method.
@@ -116,7 +116,7 @@ Move stable capability into the scenario and simplify skills/programs afterward.
 Write one vrooli-memory journal note --scope device-control-usage --kind work-record
 per cycle with trigger, selected row, before/after readings, route, work reference
 and outcome. After three consecutive scenario_unreachable readings, append those
-references to docs/internal/PROBLEMS.md. File external defects through report-bug.
+references to docs/internal/PROBLEMS.md. Capture external defects with `vrooli-memory remember`.
 A filed obligation is not a completed repair.
 
 ## 8. Stop rules

@@ -27,10 +27,14 @@ import (
 // positional by the node-agent; `Args` are additional typed tokens. None is
 // ever joined into a shell string.
 type Job struct {
-	NodeID               string
-	Scenario             string
-	Verb                 string
-	Args                 []string
+	NodeID    string
+	Scenario  string
+	Verb      string
+	Args      []string
+	RequestID string
+	// DeploymentTier is optional for legacy callers; when present Bridge binds
+	// the request to the node's durable registry tier before admission.
+	DeploymentTier       string
 	TimeoutSeconds       int64
 	DeviceID             string
 	LeaseToken           string
@@ -50,6 +54,8 @@ func (j Job) trimmed() Job {
 	out.NodeID = strings.TrimSpace(j.NodeID)
 	out.Scenario = strings.TrimSpace(j.Scenario)
 	out.Verb = strings.TrimSpace(j.Verb)
+	out.RequestID = strings.TrimSpace(j.RequestID)
+	out.DeploymentTier = strings.TrimSpace(j.DeploymentTier)
 	out.DeviceID = strings.TrimSpace(j.DeviceID)
 	out.LeaseToken = strings.TrimSpace(j.LeaseToken)
 	out.CredentialInjections = append([]CredentialInjection(nil), j.CredentialInjections...)
@@ -61,27 +67,38 @@ func (j Job) trimmed() Job {
 // granted execution scopes that authorize what it may run, and whether it is
 // revoked. The handler adapter projects a registry node down to this.
 type TargetNode struct {
-	ID      string
-	Kind    string
-	OS      string
-	Arch    string
-	Scopes  []string
-	Revoked bool
+	ID             string
+	Kind           string
+	OS             string
+	Arch           string
+	Scopes         []string
+	Revoked        bool
+	DeploymentTier string
 }
 
 // Decision is the result of a dispatch: the created run id (empty on a dry-run),
 // whether it was a dry-run, and the validated job echoed back for confirmation.
 type Decision struct {
-	RunID  string
-	DryRun bool
-	Queued bool
-	Job    Job
+	RunID    string
+	DryRun   bool
+	Queued   bool
+	Replayed bool
+	Job      Job
 }
 
 type ErrUnsupportedNodeKind struct{ ID, Kind string }
 
 func (e ErrUnsupportedNodeKind) Error() string {
 	return fmt.Sprintf("node %q of kind %q cannot receive agent jobs", e.ID, e.Kind)
+}
+
+type ErrDeploymentTierMismatch struct{ ID, Requested, Registered string }
+
+func (e ErrDeploymentTierMismatch) Error() string {
+	if e.Registered == "" {
+		return fmt.Sprintf("node %q has no registry deployment tier", e.ID)
+	}
+	return fmt.Sprintf("node %q is registered in deployment tier %q, not %q", e.ID, e.Registered, e.Requested)
 }
 
 type ErrCredentialGrantRequired struct {
@@ -230,6 +247,14 @@ func (e ErrInvalidJob) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.
 
 // ErrDeliveryFailed — the job could not be pushed to the (briefly) reachable
 // node; the run is aborted and the dispatch fails.
+// ErrIdempotencyConflict means the same caller reused a request id for
+// different typed target or operation content.
+type ErrIdempotencyConflict struct{ RequestID string }
+
+func (e ErrIdempotencyConflict) Error() string {
+	return "request_id was already used for different dispatch content"
+}
+
 type ErrDeliveryFailed struct{ NodeID string }
 
 func (e ErrDeliveryFailed) Error() string {

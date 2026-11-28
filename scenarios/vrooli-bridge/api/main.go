@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	internalartifacts "vrooli-bridge/internal/artifacts"
 	internalaudit "vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/channelsign"
@@ -56,6 +57,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/retention"
+	"github.com/vrooli/api-core/retention/sqlitemaintenance"
 	"github.com/vrooli/api-core/scopecatalog"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -129,6 +131,14 @@ func (r registryNodeKindResolver) NodeKind(ctx context.Context, nodeID string) (
 		return "", err
 	}
 	return node.Kind, nil
+}
+
+func (r registryNodeKindResolver) NodeGeneration(ctx context.Context, nodeID string) (int64, bool, error) {
+	node, err := r.svc.Get(ctx, nodeID)
+	if err != nil {
+		return 0, false, err
+	}
+	return node.EnrollmentGeneration, !node.RevokedAt.IsZero(), nil
 }
 
 func (a registrarAdapter) RegisterNode(ctx context.Context, facts internalpairing.NodeFacts) (string, error) {
@@ -495,6 +505,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
+	if err := sqlitemaintenance.Initialize(context.Background(), db); err != nil {
+		_ = db.Close()
+		log.Fatalf("SQLite reclamation initialization failed: %v", err)
+	}
 
 	// Column-evolution migrations run BEFORE EnsureSchemas so an existing DB is at
 	// the declared shape before EnsureSchemas' drift check verifies it (adding a
@@ -520,6 +534,9 @@ func main() {
 	}
 	if err := internalrelay.Migrate(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("relay schema migration failed: %v", err)
+	}
+	if err := internalartifacts.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("artifacts schema migration failed: %v", err)
 	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
@@ -990,7 +1007,7 @@ func main() {
 		}
 		return firstErr
 	}
-	artifactsModule, artifactReceiptRecorder, artifactService := artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger,
+	artifactsModule, artifactReceiptRecorder, artifactService, closureShipmentService := artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger,
 		artifactsH.NewArtifactPlacementPusher(presenceHub, cpKeypair))
 	companionCommandPusher := queueH.NewCompanionCommandPusher(presenceHub, cpKeypair)
 	companionManager := internalcompanion.NewManager(func(nodeID string) bool {
@@ -1031,6 +1048,20 @@ func main() {
 			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
 			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc),
 			channelH.WithArtifactReceiptRecorder(artifactReceiptRecorder),
+			channelH.WithClosureShipmentReceiptRecorder(closureShipmentService),
+			channelH.WithClosureShipmentReceiptTargetValidator(func(ctx context.Context, receipt internalartifacts.ClosureNodeReceipt) error {
+				shipment, err := closureShipmentService.Get(ctx, receipt.ShipmentID)
+				if err != nil {
+					return err
+				}
+				if shipment.TargetID != receipt.TargetID || shipment.NodeID != receipt.NodeID || shipment.MachineID != receipt.MachineID || shipment.EnrollmentGeneration != receipt.EnrollmentGeneration {
+					return errors.New("closure receipt target generation does not match durable shipment binding")
+				}
+				if closureShipmentService.TargetPolicy == nil {
+					return errors.New("closure target policy is not configured")
+				}
+				return closureShipmentService.TargetPolicy(ctx, shipment)
+			}),
 			channelH.WithCompanionArtifactReceiptSink(companionManager),
 			channelH.WithInteractiveSignalSink(interactiveSignalBroker),
 			channelH.WithCompanionResponseSink(companionManager),

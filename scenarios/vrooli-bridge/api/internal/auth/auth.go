@@ -1,11 +1,9 @@
 // Package auth is the integration boundary over the scenario-authenticator
 // scenario. Vrooli Bridge does not own user identity, password storage, JWT
 // signing, OAuth, or 2FA — all of that stays in scenario-authenticator. This
-// package owns exactly one thing: Client, a Validator that verifies an owner's
-// bearer token LOCALLY against scenario-authenticator's RS256 public key
-// (published as a JWKS). It is the "Owner → control plane" authorization
-// boundary in SECURITY.md (only the owner can register/revoke nodes, dispatch
-// jobs, or provision).
+// package verifies owner bearer tokens locally and also recognizes one
+// dedicated service-principal audience for the dispatch-only route. Every
+// other owner operation remains human-owner gated.
 //
 // Token verification is OFFLINE. The control plane resolves the authenticator's
 // API URL at runtime *by name* via api-core/discovery (no env var, no hardcoded
@@ -54,9 +52,15 @@ const AuthScenarioSlug = "scenario-authenticator"
 // FROZEN cross-scenario contract with scenario-authenticator's default realm.
 const AuthExpectedAudience = "scenario-authenticator:default"
 
+// DispatchServiceAudience is the sole service-principal audience allowed to
+// reach the scoped durable-dispatch route.
+const DispatchServiceAudience = "scenario-authenticator:vrooli-bridge-dispatch"
+const DispatchServiceScope = "vrooli-bridge:dispatch"
+
 // Identity is the owner identity resolved from a validated authenticator token.
 type Identity struct {
 	OwnerID    string
+	Kind       identity.ActorKind
 	Email      string
 	Roles      []string
 	Scopes     []string
@@ -107,10 +111,11 @@ type URLResolver interface {
 // Client is the production Validator: it verifies owner JWTs locally against
 // scenario-authenticator's published RS256 key, fetched lazily and cached.
 type Client struct {
-	resolver       URLResolver
-	doer           httpc.Doer
-	authScenario   string
-	normalVerifier *authn.JWTVerifier
+	resolver         URLResolver
+	doer             httpc.Doer
+	authScenario     string
+	normalVerifier   *authn.JWTVerifier
+	dispatchVerifier *authn.JWTVerifier
 
 	now                func() time.Time
 	breakGlassPublic   ed25519.PublicKey
@@ -125,6 +130,7 @@ type ClientConfig struct {
 	Doer                httpc.Doer
 	AuthScenario        string
 	Audience            string
+	DispatchAudience    string
 	Now                 func() time.Time
 	MinRefetch          time.Duration
 	JWKSGrace           time.Duration
@@ -167,6 +173,10 @@ func NewClient(cfg ClientConfig) *Client {
 	if normalAudience == "" {
 		normalAudience = AuthExpectedAudience
 	}
+	dispatchAudience := strings.TrimSpace(cfg.DispatchAudience)
+	if dispatchAudience == "" {
+		dispatchAudience = DispatchServiceAudience
+	}
 	target := strings.TrimSpace(cfg.BreakGlassTarget)
 	if target == "" {
 		target, _ = os.Hostname()
@@ -191,6 +201,23 @@ func NewClient(cfg ClientConfig) *Client {
 		Issuer:     AuthScenarioSlug,
 		Audience:   normalAudience,
 		Kind:       identity.ActorHuman,
+		Doer:       doer,
+		Now:        now,
+		CacheTTL:   grace,
+		StaleGrace: grace,
+		ResolveJWKS: func(ctx context.Context) (string, error) {
+			base, err := client.baseURL(ctx)
+			if err != nil {
+				return "", err
+			}
+			return base + "/.well-known/jwks.json", nil
+		},
+	})
+	client.dispatchVerifier = authn.NewJWTVerifier(authn.JWTConfig{
+		Source:     identity.SourceScenarioAuthenticator,
+		Issuer:     AuthScenarioSlug,
+		Audience:   dispatchAudience,
+		Kind:       identity.ActorService,
 		Doer:       doer,
 		Now:        now,
 		CacheTTL:   grace,
@@ -230,7 +257,7 @@ func (c *Client) ValidateLocal(ctx context.Context, token string) (Identity, err
 	if err != nil || claims.EnrollmentReference != record.Reference || !sharedsession.ContainsAll(record.Scopes, claims.Scopes) {
 		return Identity{}, ErrUnauthenticated
 	}
-	return Identity{OwnerID: claims.OperatorID, Scopes: append([]string(nil), claims.Scopes...), ExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(), AuthMethod: AuthMethodEnrolled}, nil
+	return Identity{OwnerID: claims.OperatorID, Kind: identity.ActorHuman, Scopes: append([]string(nil), claims.Scopes...), ExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(), AuthMethod: AuthMethodEnrolled}, nil
 }
 
 func decodeLocalReference(encoded string) (sharedsession.LocalSession, error) {
@@ -253,14 +280,20 @@ func (c *Client) Validate(ctx context.Context, bearerToken string) (Identity, er
 	if token == "" || c == nil || c.normalVerifier == nil {
 		return Identity{}, ErrUnauthenticated
 	}
-	principal, err := c.normalVerifier.Verify(ctx, token)
-	if err != nil {
+	principal, humanErr := c.normalVerifier.Verify(ctx, token)
+	if humanErr == nil {
+		return Identity{OwnerID: principal.Subject, Kind: identity.ActorHuman, Email: principal.Email, Roles: append([]string(nil), principal.Roles...), Scopes: append([]string(nil), principal.Scopes...), ExpiresAt: principal.ExpiresAt, AuthMethod: AuthMethodNormal}, nil
+	}
+	service, serviceErr := c.dispatchVerifier.Verify(ctx, token)
+	if serviceErr == nil {
+		return Identity{OwnerID: service.Subject, Kind: identity.ActorService, Email: service.Email, Roles: append([]string(nil), service.Roles...), Scopes: append([]string(nil), service.Scopes...), ExpiresAt: service.ExpiresAt, AuthMethod: AuthMethodNormal}, nil
+	}
+	for _, err := range []error{humanErr, serviceErr} {
 		if failure, ok := identity.FailureFromError(err); ok && failure.Class == identity.FailureUnavailable {
 			return Identity{}, ErrAuthUnavailable
 		}
-		return Identity{}, ErrUnauthenticated
 	}
-	return Identity{OwnerID: principal.Subject, Email: principal.Email, Roles: append([]string(nil), principal.Roles...), Scopes: append([]string(nil), principal.Scopes...), ExpiresAt: principal.ExpiresAt, AuthMethod: AuthMethodNormal}, nil
+	return Identity{}, ErrUnauthenticated
 }
 
 // ValidateBreakGlass verifies the pre-provisioned credential entirely
@@ -279,6 +312,7 @@ func (c *Client) ValidateBreakGlass(_ context.Context, token string) (Identity, 
 	}
 	return Identity{
 		OwnerID:    claims.Subject,
+		Kind:       identity.ActorHuman,
 		Scopes:     append([]string(nil), claims.Scopes...),
 		ExpiresAt:  time.Unix(claims.ExpiresAt, 0).UTC(),
 		AuthMethod: AuthMethodBreakGlass,

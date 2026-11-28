@@ -46,7 +46,7 @@ describe("BrowserHubPane", () => {
     };
     render(<BrowserHubPane session={session} onClose={() => undefined} />);
     expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", "revoked");
-    expect(screen.getByText(/controller lease was revoked/i)).toBeInTheDocument();
+    expect(screen.getByText(/browser owner revoked this stream/i)).toBeInTheDocument();
     expect(FakeWebSocket.created).toHaveLength(0);
   });
 
@@ -172,11 +172,12 @@ describe("BrowserHubPane", () => {
     render(<BrowserHubPane session={{ ...session, state: "viewer", controller: false, controlReceipt: undefined, sessionEpoch: undefined }} onControlReturned={returnRun} />);
     await waitFor(() => expect(FakeWebSocket.created).toHaveLength(1));
     const observer = FakeWebSocket.created[0]!;
-    expect(observer.url).toContain("/api/v1/browser/sessions/bas-session-17/stream");
+    expect(observer.url).toContain("/api/v1/browser/stream");
+    expect(observer.url).not.toContain("bas-session-17");
     expect(observer.url).not.toContain("receipt");
     act(()=>{observer.open();});
     expect(observer.sent.map((value) => JSON.parse(value))).toEqual([
-      { type: "attach", role: "observe" },
+      { type: "attach", role: "observe", pane_handle: "bas-session-17" },
       { type: "subscribe_recording", session_id: "bas-session-17" },
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Take control" }));
@@ -184,7 +185,7 @@ describe("BrowserHubPane", () => {
     const socket = FakeWebSocket.created[1]!;
     act(()=>{socket.open();});
     expect(socket.sent.map((value) => JSON.parse(value))).toEqual([
-      { type: "attach", role: "control" },
+      { type: "attach", role: "control", pane_handle: "bas-session-17" },
       { type: "subscribe_recording", session_id: "bas-session-17" },
     ]);
     expect(socket.sent.join("\n")).not.toContain("opaque-controller-receipt");
@@ -192,13 +193,18 @@ describe("BrowserHubPane", () => {
     await screen.findByRole("button", { name: "Type text" });
     fireEvent.keyDown(screen.getByLabelText("Live browser surface"), { key: "a" });
     await waitFor(() => expect(socket.sent).toHaveLength(3));
-    expect(JSON.parse(socket.sent[2]!)).toEqual({ type: "recording_input", session_id: "bas-session-17", input: { type: "keyboard", key: "a", modifiers: [] } });
+    const sentInput = JSON.parse(socket.sent[2]!) as { input: { input_id?: string } };
+    expect(JSON.parse(socket.sent[2]!)).toMatchObject({ type: "recording_input", session_id: "bas-session-17", input: { type: "keyboard", key: "a", modifiers: [] } });
+    expect(sentInput.input.input_id).toMatch(/^wc-input-\d+$/);
+    act(() => socket.message(JSON.stringify({ type: "recording_input_applied", session_id: "bas-session-17", input_id: sentInput.input.input_id })));
+    act(() => socket.binaryMessage(frameFor("bas-session-17")));
+    await waitFor(() => expect(screen.getByLabelText("Browser viewer telemetry")).toHaveTextContent(/input to next painted frame .* \(1 samples\)/));
     act(()=>{socket.close();});
     await waitFor(() => expect(FakeWebSocket.created).toHaveLength(3));
     const recoveryObserver = FakeWebSocket.created[2]!;
     act(()=>{recoveryObserver.open();});
     expect(recoveryObserver.sent.map((value) => JSON.parse(value))).toEqual([
-      { type: "attach", role: "observe" },
+      { type: "attach", role: "observe", pane_handle: "bas-session-17" },
       { type: "subscribe_recording", session_id: "bas-session-17" },
     ]);
     const header = new TextEncoder().encode(JSON.stringify({ version: 1, session_id: "bas-session-17" }));
@@ -220,7 +226,7 @@ describe("BrowserHubPane", () => {
     const returned = FakeWebSocket.created[4]!;
     act(()=>{returned.open();});
     expect(returned.sent.map((value) => JSON.parse(value))).toEqual([
-      { type: "attach", role: "observe" },
+      { type: "attach", role: "observe", pane_handle: "bas-session-17" },
       { type: "subscribe_recording", session_id: "bas-session-17" },
     ]);
     expect(returnRun).toHaveBeenCalledTimes(1);
@@ -233,14 +239,58 @@ describe("BrowserHubPane", () => {
     vi.stubGlobal("WebSocket",FakeWebSocket);
     const session={sessionId:"opaque-pane-handle-1",mode:"managed" as const,state:"viewer" as const,controller:false,
       association:{source:"agent-run" as const,verified:true},capabilities:{observe:true,control:false,frames:true}};
-    render(<BrowserHubPane session={session}/>);
+    const onRevalidateOwner=vi.fn(async()=>true);
+    render(<BrowserHubPane session={session} onRevalidateOwner={onRevalidateOwner}/>);
     await waitFor(()=>expect(FakeWebSocket.created).toHaveLength(1));
     const first=FakeWebSocket.created[0]!; act(()=>{first.open(); first.close();});
+    await waitFor(()=>expect(onRevalidateOwner).toHaveBeenCalledOnce());
     const reconnect=await screen.findByRole("button",{name:"Reconnect"}); fireEvent.click(reconnect);
     await waitFor(()=>expect(FakeWebSocket.created).toHaveLength(2));
     const second=FakeWebSocket.created[1]!; act(()=>{second.open();});
-    expect(second.url).toContain("opaque-pane-handle-1");
-    expect(second.sent.map((value)=>JSON.parse(value))).toEqual([{type:"attach",role:"observe"},{type:"subscribe_recording",session_id:"opaque-pane-handle-1"}]);
+    expect(second.url).toContain("/api/v1/browser/stream");
+    expect(second.url).not.toContain("opaque-pane-handle-1");
+    expect(second.sent.map((value)=>JSON.parse(value))).toEqual([{type:"attach",role:"observe",pane_handle:"opaque-pane-handle-1"},{type:"subscribe_recording",session_id:"opaque-pane-handle-1"}]);
+  });
+
+  it("does not expose reconnect when the owner cannot revalidate the run", async()=>{
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const onRevalidateOwner=vi.fn(async()=>false);
+    const session={sessionId:"opaque-pane-handle-2",mode:"managed" as const,state:"viewer" as const,controller:false,
+      association:{source:"agent-run" as const,verified:true},capabilities:{observe:true,control:false,frames:true}};
+    render(<BrowserHubPane session={session} onRevalidateOwner={onRevalidateOwner}/>);
+    await waitFor(()=>expect(FakeWebSocket.created).toHaveLength(1));
+    act(()=>{FakeWebSocket.created[0]!.open(); FakeWebSocket.created[0]!.close();});
+    await waitFor(()=>expect(onRevalidateOwner).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button",{name:"Reconnect"})).not.toBeInTheDocument();
+  });
+
+  it("does not retry after BAS refuses a reconnect even if the run lookup succeeds", async()=>{
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const onRevalidateOwner=vi.fn(async()=>true);
+    const session={sessionId:"opaque-pane-handle-denied",mode:"managed" as const,state:"viewer" as const,controller:false,
+      association:{source:"agent-run" as const,verified:true},capabilities:{observe:true,control:false,frames:true}};
+    render(<BrowserHubPane session={session} onRevalidateOwner={onRevalidateOwner}/>);
+    await waitFor(()=>expect(FakeWebSocket.created).toHaveLength(1));
+    const socket=FakeWebSocket.created[0]!;
+    act(()=>{socket.open(); socket.message(JSON.stringify({type:"browser_stream_error"}));});
+    await waitFor(()=>expect(onRevalidateOwner).toHaveBeenCalledWith("owner-refused"));
+    expect(screen.queryByRole("button",{name:"Reconnect"})).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/refused or lost/i);
+  });
+
+  it("shows owner revocation as terminal and does not offer stale-handle reconnect", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const session = { sessionId: "opaque-pane-handle-ended", mode: "managed" as const, state: "viewer" as const, controller: false,
+      association: { source: "agent-run" as const, verified: true }, capabilities: { observe: true, control: false, frames: true } };
+    render(<BrowserHubPane session={session} />);
+    await waitFor(() => expect(FakeWebSocket.created).toHaveLength(1));
+    const socket = FakeWebSocket.created[0]!;
+    act(() => socket.open());
+    act(() => socket.message(JSON.stringify({ type: "session_access_revoked", session_id: session.sessionId })));
+    act(() => socket.close());
+    expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", "revoked");
+    expect(screen.getByText(/close and reopen the pane/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reconnect" })).not.toBeInTheDocument();
   });
 
   it("waits for observer confirmation before closing a controller pane", async () => {

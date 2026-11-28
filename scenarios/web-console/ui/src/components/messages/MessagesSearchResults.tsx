@@ -6,6 +6,9 @@ import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { eventTime } from "./speaker";
 import { assistantRoleLabelKey, statusGlyphFor, type NavigatorResult } from "../MessageJumpList.helpers";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
+import { isHumanMessage } from "../../lib/conversationRows";
+import { workKindLabel } from "./workSummary";
 
 interface MessagesSearchResultsProps {
   open: boolean;
@@ -205,9 +208,9 @@ export function MessagesSearchResults({
         <div role="status" aria-live="polite" className="space-y-2 p-3">
           {[0, 1, 2].map((row) => (
             <div key={row} className="rounded-lg border border-wc-default/50 p-3">
-              <div className="h-2 w-24 animate-pulse rounded bg-wc-surface-input" />
-              <div className="mt-2 h-2 w-full animate-pulse rounded bg-wc-surface-input" />
-              <div className="mt-1.5 h-2 w-4/5 animate-pulse rounded bg-wc-surface-input" />
+              <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2 w-24 rounded" />
+              <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none mt-2 h-2 w-full rounded" />
+              <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none mt-1.5 h-2 w-4/5 rounded" />
             </div>
           ))}
         </div>
@@ -229,7 +232,10 @@ export function MessagesSearchResults({
           {results.map((result, index) => {
             const { event } = result;
             const active = index === safeActive;
-            const isUser = event.role === "user";
+            // A hit inside work (searching tool calls and context) is named
+            // by what it is; otherwise by who wrote it.
+            const workLabel = workKindLabel(event.kind);
+            const isUser = workLabel == null && isHumanMessage(event);
             const clock = eventTime(event);
             const glyph = statusGlyphFor(event);
             return (
@@ -251,7 +257,7 @@ export function MessagesSearchResults({
                 <span className="flex w-full min-w-0 items-center gap-1.5 text-[11px]">
                   {!isUser && <StatusGlyph glyph={glyph.glyph} />}
                   <span className={cn("truncate font-medium", isUser ? "text-wc-text-primary" : "text-wc-text-secondary")}>
-                    {isUser ? t(strings.messageJumpList.roleYou) : t(assistantRoleLabelKey(event.source))}
+                    {workLabel ? t(workLabel as never) : isUser ? t(strings.messageJumpList.roleYou) : t(assistantRoleLabelKey(event.source))}
                   </span>
                   <span className="truncate text-wc-text-faint">· {clock.label ? `${clock.label} · ` : ""}{clock.timestamp}</span>
                   <span className="ms-auto shrink-0 font-mono text-[10px] text-wc-text-faint">#{String(event.sequence)}</span>

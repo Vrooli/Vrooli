@@ -83,6 +83,7 @@
     "strings:check": "node scripts/gen-strings.mjs --check",
     "strings:gen": "node scripts/gen-strings.mjs",
     "test": "vitest run",
+    "test:device-standin": "bash scripts/test-device-standin.sh",
     "test:coverage": "vitest run --coverage",
     "type-check": "pnpm run strings:check && tsc --noEmit"
   },

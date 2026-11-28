@@ -112,13 +112,19 @@ const (
 
 // Run is the durable, server-owned record of one dispatched job.
 type Run struct {
-	ID       string
-	NodeID   string
-	Scenario string
-	Verb     string
-	Args     []string
-	Status   RunStatus
-	ExitCode int32
+	ID string
+	// OwnerID and RequestID bind a caller retry to this durable run. They are
+	// empty for legacy jobs; IdempotentReplay is a response-only marker.
+	OwnerID            string
+	RequestID          string
+	RequestFingerprint string
+	IdempotentReplay   bool
+	NodeID             string
+	Scenario           string
+	Verb               string
+	Args               []string
+	Status             RunStatus
+	ExitCode           int32
 	// TimeoutSeconds is the wall-clock budget after which the node aborts.
 	TimeoutSeconds int64
 	CreatedAt      time.Time
@@ -164,11 +170,14 @@ type DeliveryAck struct {
 // has already validated the verb against the allowlist + node scopes; the runs
 // domain trusts the typed job and owns only the durable lifecycle.
 type CreateInput struct {
-	NodeID         string
-	Scenario       string
-	Verb           string
-	Args           []string
-	TimeoutSeconds int64
+	OwnerID            string
+	RequestID          string
+	RequestFingerprint string
+	NodeID             string
+	Scenario           string
+	Verb               string
+	Args               []string
+	TimeoutSeconds     int64
 }
 
 // ListFilter narrows ListRuns. Zero-value fields are not applied.
@@ -195,4 +204,12 @@ type ErrInvalidRun struct {
 
 func (e ErrInvalidRun) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
+}
+
+// ErrIdempotencyConflict means a caller reused a request id for different
+// target or operation content. The request is refused before another effect.
+type ErrIdempotencyConflict struct{ OwnerID, RequestID string }
+
+func (e ErrIdempotencyConflict) Error() string {
+	return "request id was already used for different dispatch content"
 }

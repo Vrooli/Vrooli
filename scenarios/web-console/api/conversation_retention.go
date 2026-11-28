@@ -20,10 +20,12 @@ type conversationRetentionSweeper struct {
 	retentionDays func() int
 	maxPerSession func() int
 	ledger        continuity.Ledger
+	maintain      func(context.Context)
 	interval      time.Duration
-	stopCh        chan struct{}
-	stopOnce      sync.Once
-	wg            sync.WaitGroup
+	ctx           context.Context
+	cancel        context.CancelFunc
+	startOnce     sync.Once
+	done          chan struct{}
 }
 
 func newConversationRetentionSweeper(
@@ -36,13 +38,16 @@ func newConversationRetentionSweeper(
 	if len(ledgers) > 0 {
 		ledger = ledgers[0]
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	return &conversationRetentionSweeper{
 		pruner:        pruner,
 		retentionDays: retentionDays,
 		maxPerSession: maxPerSession,
 		ledger:        ledger,
 		interval:      conversationRetentionInterval,
-		stopCh:        make(chan struct{}),
+		ctx:           ctx,
+		cancel:        cancel,
+		done:          make(chan struct{}),
 	}
 }
 
@@ -50,28 +55,36 @@ func (s *conversationRetentionSweeper) Start() {
 	if s == nil || s.pruner == nil {
 		return
 	}
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		ticker := time.NewTicker(s.interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				s.sweep()
-			case <-s.stopCh:
-				return
+	s.startOnce.Do(func() {
+		go func() {
+			defer close(s.done)
+			ticker := time.NewTicker(s.interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					if s.ctx.Err() != nil {
+						return
+					}
+					s.sweep()
+					if s.maintain != nil && s.ctx.Err() == nil {
+						s.maintain(s.ctx)
+					}
+				case <-s.ctx.Done():
+					return
+				}
 			}
-		}
-	}()
+		}()
+	})
 }
 
 func (s *conversationRetentionSweeper) Stop() {
 	if s == nil {
 		return
 	}
-	s.stopOnce.Do(func() { close(s.stopCh) })
-	s.wg.Wait()
+	s.cancel()
+	s.startOnce.Do(func() { close(s.done) })
+	<-s.done
 }
 
 func (s *conversationRetentionSweeper) sweep() int64 {

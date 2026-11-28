@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getBusinessAccountUsage, getBusinessAccounts, type BusinessAccount, type BusinessAccountUsageSummary } from "../../api/monetization";
 
 /** The accounts a metered Vrooli-credits launch may bill, and the chosen one's remaining credits. */
-export function useBillingAccount(enabled: boolean, accountId: string, setAccountId: (id: string) => void) {
+export function useBillingAccount(enabled: boolean, accountId: string, setAccountId: (id: string) => void, ownerDefaultMaxCredits?: number) {
   const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountsFailed, setAccountsFailed] = useState(false);
@@ -10,6 +10,12 @@ export function useBillingAccount(enabled: boolean, accountId: string, setAccoun
   const [usage, setUsage] = useState<BusinessAccountUsageSummary | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageFailed, setUsageFailed] = useState(false);
+
+  useEffect(() => {
+    if (enabled && typeof ownerDefaultMaxCredits === "number" && Number.isFinite(ownerDefaultMaxCredits) && ownerDefaultMaxCredits > 0) {
+      setMaxCredits(ownerDefaultMaxCredits);
+    }
+  }, [enabled, ownerDefaultMaxCredits]);
 
   useEffect(() => {
     setAccounts([]);

@@ -35,7 +35,7 @@ registerBrowserVoiceTransport({
 // process-wide one, so per-file overrides win.
 beforeEach(async () => {
   window.localStorage.clear();
-  useFilePreviewStore.setState({ request: null, width: 440 });
+  useFilePreviewStore.setState({ request: null, width: 440, recent: [] });
   await i18n.changeLanguage("cimode");
 });
 

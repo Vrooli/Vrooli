@@ -49,6 +49,35 @@
   },
   "storage": {
     "entries": {
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "vrooli-bridge.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "sqlite_maintenance": {
+          "mode": "incremental",
+          "owner": "scenarios/vrooli-bridge/api/main.go",
+          "rationale": "Operational retention expires old relay records and maintenance history."
+        }
+      },
+      "database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "vrooli-bridge.db-wal",
+        "regenerable": false,
+        "agent_removal": "deny"
+      },
+      "database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "vrooli-bridge.db-shm",
+        "regenerable": false,
+        "agent_removal": "deny"
+      },
       "data": {
         "rung": "owned",
         "kind": "dir",

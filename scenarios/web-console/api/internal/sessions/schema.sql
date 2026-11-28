@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     provider_version TEXT NOT NULL DEFAULT '',
     native_thread_id TEXT NOT NULL DEFAULT '',
     last_verified_turn_id TEXT NOT NULL DEFAULT '',
+    native_turn_activity TEXT NOT NULL DEFAULT '',
     forked_from_native_session TEXT NOT NULL DEFAULT '',
     launch_descriptor_json TEXT NOT NULL DEFAULT '',
     create_fingerprint TEXT NOT NULL DEFAULT '',
@@ -85,12 +86,36 @@ CREATE TABLE IF NOT EXISTS conversation_events (
     tts_state TEXT NOT NULL,
     consumption_state TEXT NOT NULL,
     native_provenance_json TEXT,
+    -- What the row is and who wrote it (agenttranscript.Classification):
+    -- kind is message|attachment|notice|context|tool_call|tool_result|reasoning,
+    -- author is human|agent|harness|automation|peer, label is the tool name or
+    -- the recogniser's reason, and thread_id is the agent thread ('' = main).
+    kind TEXT NOT NULL DEFAULT 'message',
+    author TEXT NOT NULL DEFAULT '',
+    author_name TEXT NOT NULL DEFAULT '',
+    label TEXT NOT NULL DEFAULT '',
+    thread_id TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (session_id) REFERENCES conversation_sessions(session_id) ON DELETE CASCADE,
     UNIQUE(session_id, sequence)
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence
     ON conversation_events(session_id, sequence);
+
+-- The agents whose traffic forms a thread inside a session: Codex subagents
+-- and approval reviews, Claude subagents and teammates. Rows reference a
+-- thread by conversation_events.thread_id; summaries are aggregated on read.
+CREATE TABLE IF NOT EXISTS conversation_threads (
+    session_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'subagent',
+    label TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    parent_thread_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (session_id, thread_id),
+    FOREIGN KEY (session_id) REFERENCES conversation_sessions(session_id) ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS conversation_control_receipts (
     operation_id TEXT PRIMARY KEY,

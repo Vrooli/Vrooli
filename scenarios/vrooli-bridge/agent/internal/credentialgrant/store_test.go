@@ -31,6 +31,50 @@ func TestMemoryStoreDoesNotDowngradeGenerationOnReplay(t *testing.T) {
 	require.Equal(t, current.Generation, got.Generation)
 }
 
+func TestGenerationBoundRevocationTombstoneSurvivesReplayAndAllowsNewerGrant(t *testing.T) {
+	s := NewMemoryStore()
+	revoked := Grant{ID: "g1", NodeID: "n1", LogicalID: "service/api", Field: "token", Generation: 4}
+	require.NoError(t, s.RevokeGrant(revoked))
+	got := s.List()
+	require.Len(t, got, 1)
+	require.True(t, got[0].Revoked)
+	require.False(t, func() bool { _, ok := s.Lookup("service/api", "token"); return ok }())
+
+	// Delayed metadata for the revoked generation must not resurrect consent.
+	require.NoError(t, s.Put(Grant{ID: "g1", NodeID: "n1", LogicalID: "service/api", Field: "token", Class: ClassUserPrompt, Retention: RetentionEphemeral, Generation: 4}))
+	got = s.List()
+	require.Len(t, got, 1)
+	require.True(t, got[0].Revoked)
+
+	// An older revoke cannot cancel a newer grant.
+	require.NoError(t, s.Put(Grant{ID: "g2", NodeID: "n1", LogicalID: "service/api", Field: "token", Class: ClassUserPrompt, Retention: RetentionEphemeral, Generation: 5}))
+	require.NoError(t, s.RevokeGrant(revoked))
+	active, ok := s.Lookup("service/api", "token")
+	require.True(t, ok)
+	require.Equal(t, "g2", active.ID)
+	require.Equal(t, int64(5), active.Generation)
+}
+
+func TestFileStorePersistsRevocationTombstoneAcrossRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "grants.json")
+	first, err := LoadFile(path)
+	require.NoError(t, err)
+	require.NoError(t, first.RevokeGrant(Grant{ID: "g1", NodeID: "n1", LogicalID: "service/api", Field: "token", Generation: 4}))
+
+	restarted, err := LoadFile(path)
+	require.NoError(t, err)
+	grants := restarted.List()
+	require.Len(t, grants, 1)
+	require.True(t, grants[0].Revoked)
+	require.Equal(t, int64(4), grants[0].Generation)
+	require.False(t, func() bool { _, ok := restarted.Lookup("service/api", "token"); return ok }())
+	// Replay after restart leaves the tombstone intact.
+	require.NoError(t, restarted.Put(Grant{ID: "g1", NodeID: "n1", LogicalID: "service/api", Field: "token", Class: ClassUserPrompt, Retention: RetentionEphemeral, Generation: 4}))
+	replayed := restarted.List()
+	require.Len(t, replayed, 1)
+	require.True(t, replayed[0].Revoked)
+}
+
 func TestFileStorePersistsMetadataOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "grants.json")
 	s, err := LoadFile(path)

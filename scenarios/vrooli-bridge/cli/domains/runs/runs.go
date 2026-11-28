@@ -20,6 +20,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"RunsService.GetRun":          h.get,
+		"RunsService.GetLocalTargetReceipt": h.localReceipt,
 		"RunsService.ListRuns":        h.list,
 		"RunsService.WaitRun":         h.wait,
 		"RunsService.AbortRun":        h.abort,

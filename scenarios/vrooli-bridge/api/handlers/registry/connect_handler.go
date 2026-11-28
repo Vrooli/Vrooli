@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Presence is the read seam the registry handler uses to overlay live
@@ -113,15 +115,16 @@ func (h *connectHandler) RegisterNode(ctx context.Context, req *connect.Request[
 		return nil, auth.ToConnectError(err)
 	}
 	node, err := h.deps.Service.Register(ctx, registry.RegisterInput{
-		Name:         req.Msg.Name,
-		Kind:         kindString(req.Msg.Kind),
-		OS:           req.Msg.Os,
-		Arch:         req.Msg.Arch,
-		MachineArch:  req.Msg.MachineArch,
-		BinaryArch:   req.Msg.BinaryArch,
-		Endpoint:     req.Msg.Endpoint,
-		Capabilities: req.Msg.Capabilities,
-		Scopes:       req.Msg.Scopes,
+		Name:           req.Msg.Name,
+		Kind:           kindString(req.Msg.Kind),
+		OS:             req.Msg.Os,
+		Arch:           req.Msg.Arch,
+		MachineArch:    req.Msg.MachineArch,
+		BinaryArch:     req.Msg.BinaryArch,
+		DeploymentTier: req.Msg.DeploymentTier,
+		Endpoint:       req.Msg.Endpoint,
+		Capabilities:   req.Msg.Capabilities,
+		Scopes:         req.Msg.Scopes,
 	})
 	if err != nil {
 		connectErr := registry.ToConnectError(err)
@@ -184,18 +187,26 @@ func (h *connectHandler) GetNode(ctx context.Context, req *connect.Request[regis
 }
 
 func (h *connectHandler) UpdateNode(ctx context.Context, req *connect.Request[registryv1.UpdateNodeRequest]) (*connect.Response[registryv1.UpdateNodeResponse], error) {
-	if _, err := auth.RequireOwner(ctx); err != nil {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
 		return nil, auth.ToConnectError(err)
 	}
-	node, err := h.deps.Service.Update(ctx, registry.UpdateInput{
-		ID:           req.Msg.Id,
-		Name:         req.Msg.Name,
-		Endpoint:     req.Msg.Endpoint,
-		Capabilities: req.Msg.Capabilities,
-		Scopes:       req.Msg.Scopes,
-		Revision:     req.Msg.Revision,
-		Kind:         kindString(req.Msg.Kind),
-	})
+	if owner.OwnerID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated owner identity missing"))
+	}
+	if req.Msg.ExpectedRevision == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("expected_revision: required"))
+	}
+	result, err := h.deps.Service.UpdateCAS(ctx, registry.UpdateCASInput{ActorID: owner.OwnerID, RequestID: req.Msg.RequestId, ExpectedRevision: req.Msg.GetExpectedRevision(), Update: registry.UpdateInput{
+		ID:             req.Msg.Id,
+		Name:           req.Msg.Name,
+		Endpoint:       req.Msg.Endpoint,
+		Capabilities:   req.Msg.Capabilities,
+		Scopes:         req.Msg.Scopes,
+		Revision:       req.Msg.Revision,
+		Kind:           kindString(req.Msg.Kind),
+		DeploymentTier: req.Msg.DeploymentTier,
+	}})
 	if err != nil {
 		connectErr := registry.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -204,7 +215,8 @@ func (h *connectHandler) UpdateNode(ctx context.Context, req *connect.Request[re
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.UpdateNodeResponse{
-		Node: h.nodeProto(node),
+		Node:    h.nodeProto(result.Node),
+		Receipt: &registryv1.NodeUpdateReceipt{RequestId: result.Receipt.RequestID, ActorId: result.Receipt.ActorID, TargetId: result.Receipt.TargetID, Subject: result.Receipt.Subject, ExpectedRevision: result.Receipt.ExpectedRevision, NewRevision: result.Receipt.NewRevision, PayloadDigest: result.Receipt.PayloadDigest, CreatedAt: timestamppb.New(result.Receipt.CreatedAt)},
 	}), nil
 }
 

@@ -43,6 +43,41 @@ func TestRoleModelChoicesArePolicyDeclaredButAvailabilityUnknown(t *testing.T) {
 	}
 }
 
+func TestModelChoicesCarryOnlyOwnerDeclaredRouteAndLimitMetadata(t *testing.T) {
+	useRepoPolicy(t, "opencode", nil)
+	got := (&Server{}).GetRoleModelChoices(t.Context(), "opencode", "local", "")
+	want := map[string]struct {
+		kind  modelselection.RouteKind
+		limit modelselection.LimitKind
+	}{
+		"ollama":      {modelselection.RouteKindLocal, modelselection.LimitKindNoMonetarySpend},
+		"openrouter":  {modelselection.RouteKindOwnKey, modelselection.LimitKindNotReported},
+		"opencode-go": {modelselection.RouteKindHosted, modelselection.LimitKindNotReported},
+	}
+	for source, expected := range want {
+		found := false
+		for _, choice := range got.Choices {
+			if choice.Source != source {
+				continue
+			}
+			found = true
+			if choice.RouteKind != expected.kind || choice.ApplicableLimit.Kind != expected.limit {
+				t.Fatalf("source %q metadata = %q/%q, want %q/%q", source, choice.RouteKind, choice.ApplicableLimit.Kind, expected.kind, expected.limit)
+			}
+			if expected.limit == modelselection.LimitKindNotReported && !choice.Metered && source == "openrouter" {
+				t.Fatal("metered own-key route lost its metered declaration")
+			}
+		}
+		if !found {
+			t.Fatalf("resource-owned source %q missing from choices", source)
+		}
+	}
+	unknownKind, unknownLimit := modelRouteMetadata(nil, "opaque-provider-id")
+	if unknownKind != "" || unknownLimit.Kind != modelselection.LimitKindNotReported {
+		t.Fatalf("unknown source metadata was inferred: %q/%+v", unknownKind, unknownLimit)
+	}
+}
+
 func TestQualifiedPaidCodingChoiceIsApplicationOwnedAndFixed(t *testing.T) {
 	root := t.TempDir()
 	policyDir := filepath.Join(root, "resources", "opencode")
@@ -66,6 +101,9 @@ func TestQualifiedPaidCodingChoiceIsApplicationOwnedAndFixed(t *testing.T) {
 			}
 			if choice.ContextWindowTokens != 0 || choice.ContextWindowSource != "" || len(choice.ContextLimitTokens) != 0 {
 				t.Fatalf("an authority window without a reader provenance must remain unknown: %+v", choice)
+			}
+			if choice.RouteKind != modelselection.RouteKindVrooliCredit || choice.ApplicableLimit.Kind != modelselection.LimitKindSelectableCredits || choice.ApplicableLimit.MaxValue != 10000 || choice.ApplicableLimit.DefaultValue != 5000 || !slices.Equal(choice.ApplicableLimit.Options, []int64{1000, 5000, 10000}) {
+				t.Fatalf("LPBS route and enforced cap options must be explicit: %+v", choice)
 			}
 			return
 		}

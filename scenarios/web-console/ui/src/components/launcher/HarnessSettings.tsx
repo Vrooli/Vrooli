@@ -10,7 +10,7 @@ import { Card } from "@vrooli/react-component-library/Card";
 import { Progress } from "@vrooli/react-component-library/Progress/1";
 import { Switch } from "@vrooli/react-component-library/Switch";
 import { Select } from "@vrooli/react-component-library/Select";
-import type { RoleModelChoice } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
+import { LimitKind, RouteKind, type RoleModelChoice } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
 import { TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -19,6 +19,7 @@ import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { formatClockTime, formatLongDuration, formatTokens } from "../../lib/localeFormat";
 import { slugify } from "../../lib/slugify";
+import { LANDING_PAGE_URL } from "../../shared/upgradeDestination";
 import type { AgentCard } from "./agentGrid";
 import { FOCUS_RING, SELECT_TEXT } from "./controls";
 import type { AgentActionRun } from "./useAgentUpdates";
@@ -29,6 +30,30 @@ import { choiceBlocked, limitOptions, modelLabel, roleChoiceKey, type ModelPolic
 const LOWERED_VALUE = "__launcher_lowered__";
 const HINT = "text-xs leading-[18px] text-wc-text-muted";
 const FIELD_GRID = "grid grid-cols-[4.75rem_minmax(0,1fr)] items-center gap-x-2";
+
+function routeKindLabel(kind: RouteKind, t: (key: string) => string): string {
+  switch (kind) {
+    case RouteKind.LOCAL: return t(strings.terminalLauncher.routeKindLocal);
+    case RouteKind.OWN_KEY: return t(strings.terminalLauncher.routeKindOwnKey);
+    case RouteKind.VROOLI_CREDITS: return t(strings.terminalLauncher.routeKindCredits);
+    case RouteKind.HOSTED: return t(strings.terminalLauncher.routeKindHosted);
+    default: return t(strings.terminalLauncher.routeKindUnknown);
+  }
+}
+
+function routeLimitDisclosure(choice: RoleModelChoice, t: (key: string, options?: Record<string, unknown>) => string, locale?: string): string {
+  const limit = choice.applicableLimit;
+  if (limit?.kind === LimitKind.NO_MONETARY_SPEND) return t(strings.terminalLauncher.routeLimitNoSpend);
+  if (limit?.kind === LimitKind.SELECTABLE_CREDITS_CAP) {
+    const maximum = new Intl.NumberFormat(locale).format(limit.maxValue);
+    return t(strings.terminalLauncher.routeLimitCreditsCap, { maximum });
+  }
+  if (limit?.kind === LimitKind.OWNER_ENFORCED_VALUE) {
+    return t(strings.terminalLauncher.routeLimitOwnerValue, { maximum: new Intl.NumberFormat(locale).format(limit.maxValue), unit: limit.unit });
+  }
+  if (choice.routeKind === RouteKind.HOSTED) return t(strings.terminalLauncher.routeLimitQuotaUnknown);
+  return t(strings.terminalLauncher.routeLimitNotReported);
+}
 
 function Row({ children, testId }: { children: ReactNode; testId?: string }) {
   return <div data-testid={testId} className="grid gap-2 border-b border-wc-default px-3 py-2.5 last:border-b-0">{children}</div>;
@@ -48,10 +73,11 @@ const Value = ({ children, testId }: { children: ReactNode; testId?: string }) =
   <span data-testid={testId} className="block min-h-11 truncate text-end text-[13px] leading-[44px] text-wc-text-muted">{children}</span>
 );
 
-function ModelRows({ card, model, canChoose, saveAgent, fullPower, onFullPower, onOpenDetail, refresh }: {
+function ModelRows({ card, model, effectiveChoice, canChoose, saveAgent, fullPower, onFullPower, onOpenDetail, refresh }: {
   refresh: CatalogRefresh;
   card: AgentCard;
   model: ModelPolicyController;
+  effectiveChoice?: RoleModelChoice;
   canChoose: boolean;
   saveAgent?: UsageModeAgent;
   fullPower: boolean;
@@ -103,7 +129,8 @@ function ModelRows({ card, model, canChoose, saveAgent, fullPower, onFullPower, 
   const offerFullPower = !explicitChoice && !model.literal && saveAgent?.model && saveAgent.fullPowerArgs;
   const refreshRun = refresh.run;
   const refreshing = refreshRun?.phase === "running";
-  const providerSource = explicitChoice?.source ?? defaultChoice?.source ?? "";
+  const providerChoice = effectiveChoice;
+  const providerSource = providerChoice?.source ?? "";
 
   return (
     <>
@@ -120,21 +147,32 @@ function ModelRows({ card, model, canChoose, saveAgent, fullPower, onFullPower, 
         </div>
       )}
       {refreshRun?.phase === "failed" && <p role="alert" data-testid="launcher-catalog-refresh-error" className="break-words border-b border-wc-default px-3 py-2 text-xs leading-[18px] text-wc-error-text">{refreshRun.message || t(strings.launcher.actionFailed)}</p>}
-      {selectable && !fullPower && sources.length > 1 && (
+      {providerChoice && (
         <Row>
           <Field label={t(strings.terminalLauncher.modelSource)}>
-            <Select className={SELECT_TEXT} aria-label={t(strings.terminalLauncher.modelSource)} data-testid="launcher-model-source" value={providerSource}
-              options={sources.map((source) => {
-                const inSource = choices.filter((choice) => choice.source === source);
-                return { value: source, label: inSource[0]?.sourceLabel || source, disabled: inSource.every((choice) => choiceBlocked(choice, stale)) };
-              })}
-              onValueChange={(value) => {
-                if (value === defaultChoice?.source) { model.choose(null); return; }
-                const next = choices.find((choice) => choice.source === value && !choiceBlocked(choice, stale));
-                if (next) model.choose(roleChoiceKey(next));
-              }} />
+            {selectable && !fullPower && sources.length > 1 ? (
+              <Select className={SELECT_TEXT} aria-label={t(strings.terminalLauncher.modelSource)} data-testid="launcher-model-source" value={providerSource}
+                options={sources.map((source) => {
+                  const inSource = choices.filter((choice) => choice.source === source);
+                  return { value: source, label: inSource[0]?.sourceLabel || source, disabled: inSource.every((choice) => choiceBlocked(choice, stale)) };
+                })}
+                onValueChange={(value) => {
+                  if (value === defaultChoice?.source) { model.choose(null); return; }
+                  const next = choices.find((choice) => choice.source === value && !choiceBlocked(choice, stale));
+                  if (next) model.choose(roleChoiceKey(next));
+                }} />
+            ) : (
+              <Value testId="launcher-model-source">{providerChoice.sourceLabel || providerChoice.source}</Value>
+            )}
           </Field>
         </Row>
+      )}
+      {providerChoice && (
+        <div className="border-b border-wc-default px-3 py-2 text-xs leading-[18px] text-wc-text-muted">
+          <p data-testid="launcher-route-kind" className="m-0 font-medium text-wc-text-secondary">{routeKindLabel(providerChoice.routeKind, t)}</p>
+          <p data-testid="launcher-applicable-limit" className="m-0">{routeLimitDisclosure(providerChoice, t, i18n.resolvedLanguage)}</p>
+          {(providerChoice.routeKind === RouteKind.UNSPECIFIED || (providerChoice.metered && choiceBlocked(providerChoice, stale))) && <p className="m-0 text-wc-warning">{t(strings.terminalLauncher.routeLimitMissingBlocksMetered)}</p>}
+        </div>
       )}
       <Row testId="launcher-model-selection">
         <Field label={t(strings.terminalLauncher.modelChoice)}>{control}</Field>
@@ -264,10 +302,10 @@ function SaveUsageRow({ card, agent, model, mode, canControl, busy, error, onSta
   );
 }
 
-function BillingRow({ billing, harness, model, onBackup }: { billing: BillingAccountController; harness: string; model: string; onBackup: () => void }) {
+function BillingRow({ billing, harness, model, creditLimit, onBackup }: { billing: BillingAccountController; harness: string; model: string; creditLimit?: RoleModelChoice["applicableLimit"]; onBackup: () => void }) {
   const { t, i18n } = useTranslation();
   const label = t(strings.terminalLauncher.billingAccount);
-  const credits = (value: number | undefined) => {
+  const credits = (value: number | bigint | undefined) => {
     if (value === undefined) return t(strings.terminalLauncher.creditsUnknown);
     if (value < 0) return t(strings.terminalLauncher.creditsUnlimited);
     return new Intl.NumberFormat(i18n.resolvedLanguage).format(value);
@@ -283,13 +321,22 @@ function BillingRow({ billing, harness, model, onBackup }: { billing: BillingAcc
           ) : null}
       </Field>
       <Field label="Session spending cap">
-        <Select className={SELECT_TEXT} aria-label="Session spending cap" value={String(billing.maxCredits)}
-          options={[1000, 5000, 10000].map((value) => ({ value: String(value), label: `${credits(value)} credits` }))}
-          onValueChange={(value) => { billing.setMaxCredits(Number(value)); }} />
+        {creditLimit?.kind === LimitKind.SELECTABLE_CREDITS_CAP && creditLimit.options.length > 0 ? (
+          <Select className={SELECT_TEXT} aria-label="Session spending cap" value={String(billing.maxCredits)}
+            options={creditLimit.options.map((value) => ({ value: String(value), label: `${credits(value)} credits` }))}
+            onValueChange={(value) => { billing.setMaxCredits(Number(value)); }} />
+        ) : <Value testId="launcher-credit-limit-unknown">{t(strings.terminalLauncher.routeLimitNotReported)}</Value>}
       </Field>
       {!billing.blocked && <BackupApproval harness={harness} account={billing.accountId} model={model} cap={billing.maxCredits} onApproved={onBackup} />}
       {billing.accountsFailed && <span role="alert" data-testid="launcher-business-account-error" className="text-xs text-wc-error-text">{t(strings.terminalLauncher.billingUnavailable)}</span>}
-      {!billing.accountsLoading && !billing.accountsFailed && billing.accounts.length === 0 && <span role="status" data-testid="launcher-business-account-empty" className={HINT}>{t(strings.terminalLauncher.billingEmpty)}</span>}
+      {!billing.accountsLoading && !billing.accountsFailed && billing.accounts.length === 0 && (
+        <span role="status" data-testid="launcher-business-account-empty" className={HINT}>
+          {t(strings.terminalLauncher.billingEmpty)}{" "}
+          <a data-testid="launcher-business-account-upgrade" href={new URL("/pricing", LANDING_PAGE_URL).toString()} target="_blank" rel="noopener noreferrer" className="font-semibold text-wc-accent underline underline-offset-2">
+            {t(strings.terminalLauncher.billingUpgrade)}
+          </a>
+        </span>
+      )}
       {usable && (billing.usageLoading
         ? <span role="status" data-testid="launcher-business-account-usage-loading" className={HINT}>{t(strings.terminalLauncher.billingUsageLoading)}</span>
         : billing.usageFailed || !billing.usage
@@ -337,8 +384,8 @@ export function HarnessSettings({ card, harness, harnessKnown, model, effectiveC
   const showSave = Boolean(saveAgent) && (!harnessKnown || Boolean(harness?.supportsUsageMode));
   return (
     <Card aria-label={card.label} role="group" data-testid="launcher-settings" className="overflow-hidden">
-      <ModelRows card={card} model={model} canChoose={!harnessKnown || Boolean(harness?.supportsModelSelection)} saveAgent={saveAgent} fullPower={fullPower} onFullPower={onFullPower} onOpenDetail={onOpenDetail} refresh={refresh} />
-      {model.usesVrooliCredits && <BillingRow billing={billing} harness={card.agentID} model={effectiveChoice?.model ?? ""} onBackup={() => model.choose(null)} />}
+      <ModelRows card={card} model={model} effectiveChoice={effectiveChoice} canChoose={!harnessKnown || Boolean(harness?.supportsModelSelection)} saveAgent={saveAgent} fullPower={fullPower} onFullPower={onFullPower} onOpenDetail={onOpenDetail} refresh={refresh} />
+      {model.usesVrooliCredits && <BillingRow billing={billing} harness={card.agentID} model={effectiveChoice?.model ?? ""} creditLimit={effectiveChoice?.applicableLimit} onBackup={() => model.choose(null)} />}
       {showLimit && <CompactRow card={card} choice={effectiveChoice} modelName={effectiveModelName} limit={limit} onLimit={onLimit} saveAgent={fullPower || model.explicitChoice ? undefined : saveAgent} />}
       {showSave && saveAgent && <SaveUsageRow card={card} agent={saveAgent} model={model} mode={saveMode} canControl={canControlUsage} busy={usageBusy} error={usageError} onStart={onStartSave} onEnd={onEndSave} />}
     </Card>

@@ -39,7 +39,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 // node's scopes, then (unless a dry-run) creates a durable run, audits the
 // dispatch, and pushes the typed job to the node. Owner-gated.
 func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[dispatchv1.DispatchJobRequest]) (*connect.Response[dispatchv1.DispatchJobResponse], error) {
-	owner, err := auth.RequireOwner(ctx)
+	owner, err := auth.RequireDispatchCaller(ctx)
 	if err != nil {
 		return nil, auth.ToConnectError(err)
 	}
@@ -62,6 +62,8 @@ func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[d
 			Scenario:             req.Msg.Scenario,
 			Verb:                 req.Msg.Verb,
 			Args:                 req.Msg.Args,
+			RequestID:            req.Msg.GetRequestId(),
+			DeploymentTier:       req.Msg.GetDeploymentTier(),
 			TimeoutSeconds:       req.Msg.TimeoutSeconds,
 			DeviceID:             req.Msg.DeviceId,
 			LeaseToken:           req.Msg.LeaseToken,
@@ -86,6 +88,7 @@ func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[d
 		Verb:     decision.Job.Verb,
 		Args:     decision.Job.Args,
 		Queued:   decision.Queued,
+		Replayed: decision.Replayed,
 	}), nil
 }
 

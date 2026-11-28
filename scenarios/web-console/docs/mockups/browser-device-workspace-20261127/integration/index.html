@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A walkthrough of Browser & devices in the Aquila Messages workspace.">
+  <title>Browser & devices in Aquila</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --paper: #f5f7f3;
+      --surface: #fcfdf9;
+      --ink: #162720;
+      --muted: #4f6359;
+      --line: #d0dad0;
+      --accent: #175a45;
+      --on-accent: #fff;
+      --accent-hint: #e3eee5;
+      --stage: #e0e9df;
+      --stage-glow: #f3f8ef;
+      --screen-edge: #85998a;
+      --current: #735331;
+      --current-hint: #f2ebdd;
+      --agent: #68458a;
+      --agent-hint: #eee6f4;
+      --shadow: 0 18px 36px #142c2429, 0 4px 8px #142c2420;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #131c19;
+        --surface: #1b2722;
+        --ink: #eff5e9;
+        --muted: #b5c6b8;
+        --line: #384c41;
+        --accent: #bae6c9;
+        --on-accent: #142e22;
+        --accent-hint: #293e33;
+        --stage: #23352d;
+        --stage-glow: #384e40;
+        --screen-edge: #687e6f;
+        --current: #efd0ab;
+        --current-hint: #3b3024;
+        --agent: #e3c8f5;
+        --agent-hint: #392c43;
+        --shadow: 0 18px 36px #030b0770, 0 4px 8px #030b0760;
+      }
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.52 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-underline-offset: .23em; }
+    a:hover { text-decoration-thickness: 2px; }
+    a:focus-visible, button:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 4px;
+    }
+    button { font: inherit; }
+    h1, h2, h3, p, figure, dl, dd { margin: 0; }
+    strong { font-weight: 675; }
+    .wrap { width: min(1272px, calc(100% - 100px)); margin-inline: auto; }
+    .masthead, .brand, .masthead nav, .actions, .cta {
+      display: flex;
+      align-items: center;
+    }
+    .masthead {
+      min-height: 72px;
+      justify-content: space-between;
+      gap: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { gap: 10px; font-size: 17px; font-weight: 730; letter-spacing: -.035em; }
+    .brand img {
+      display: block;
+      width: 33px;
+      height: 33px;
+      padding: 3px;
+      border-radius: 8px;
+      background: #183d34;
+    }
+    .masthead nav { gap: clamp(18px, 3vw, 44px); }
+    .masthead nav a {
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      font-weight: 625;
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .masthead nav a:hover { color: var(--accent); text-decoration: underline; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, .88fr) minmax(0, 1.35fr);
+      align-items: center;
+      gap: clamp(32px, 5vw, 75px);
+      padding-block: clamp(38px, 5vw, 80px);
+      border-bottom: 1px solid var(--line);
+    }
+    h1, h2 {
+      line-height: .995;
+      letter-spacing: -.069em;
+      font-weight: 735;
+      text-wrap: balance;
+    }
+    h1 { font-size: clamp(44px, 4.03vw, 58px); }
+    h1 span { display: block; color: var(--accent); }
+    .intro {
+      max-width: 39ch;
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: clamp(16px, 1.35vw, 19px);
+      line-height: 1.52;
+    }
+    .actions { flex-wrap: wrap; gap: 4px 18px; margin-top: 23px; }
+    .cta {
+      gap: 10px;
+      justify-content: center;
+      min-height: 47px;
+      padding: 9px 15px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .cta:hover { background: var(--surface); color: var(--accent); }
+    .actions > a:not(.cta) {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      font-size: 14px;
+      font-weight: 625;
+    }
+    .stage {
+      padding: clamp(10px, 1.45vw, 22px);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: radial-gradient(ellipse at 24% 0%, var(--stage-glow), transparent 85%), var(--stage);
+    }
+    .screen {
+      display: block;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid var(--screen-edge);
+      background: #151b28;
+      box-shadow: var(--shadow);
+      cursor: zoom-in;
+    }
+    .screen picture, .screen img { display: block; width: 100%; }
+    .screen img { height: auto; aspect-ratio: 1440 / 900; }
+    .hero .screen { position: relative; }
+    /* The center of the globe button in the displayed Messages capture. */
+    .hero .screen::after {
+      content: "";
+      position: absolute;
+      inset: 2.72% auto auto 96.46%;
+      box-sizing: border-box;
+      width: min(2.85%, 19px);
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%);
+      border: 2px solid #ffe295;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .hero-caption, .caption-heading {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px 11px;
+    }
+    .hero-caption { margin-bottom: 11px; font-size: 13px; color: var(--muted); }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      min-height: 23px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: var(--accent-hint);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .012em;
+    }
+    .tag.captured { color: var(--current); background: var(--current-hint); }
+    .chapter {
+      padding-block: clamp(32px, 4.85vw, 72px);
+      border-bottom: 1px solid var(--line);
+    }
+    .chapter-head {
+      display: grid;
+      grid-template-columns: minmax(0, .91fr) minmax(0, 1.09fr);
+      align-items: end;
+      gap: 12px 7%;
+      margin-bottom: 25px;
+    }
+    h2 { font-size: clamp(38px, 4.3vw, 61px); }
+    .chapter-head p {
+      max-width: 64ch;
+      color: var(--muted);
+      font-size: clamp(15px, 1.3vw, 18px);
+    }
+    .chapter-head strong, .figure-desc strong { color: var(--ink); }
+    .chapter-head .aux-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      font-size: 13px;
+      font-weight: 625;
+    }
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; }
+    .pair figure {
+      padding: clamp(14px, 1.5vw, 22px);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      display: grid;
+      grid-template-rows: subgrid;
+      grid-row: span 2;
+    }
+    h3 { font-size: clamp(19px, 2vw, 26px); line-height: 1.15; letter-spacing: -.038em; }
+    figcaption .figure-desc {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.48;
+    }
+    .figure-image { align-self: start; }
+    .switch { display: none; }
+    .driver-states {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+      margin-bottom: 22px;
+    }
+    .driver-states > div {
+      min-width: 0;
+      padding: 10px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .driver-states dt { font-size: 14px; font-weight: 710; line-height: 1.32; }
+    .driver-states dd { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .driver-states .human { background: var(--accent-hint); color: var(--accent); }
+    .driver-states .agent { background: var(--agent-hint); color: var(--agent); }
+    .page-foot {
+      padding-block: 22px 30px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .foot-links { display: flex; gap: 2px 24px; flex-wrap: wrap; }
+    .foot-links a { display: inline-flex; min-height: 44px; align-items: center; font-weight: 625; }
+    .sources { margin-top: 4px; max-width: 74ch; }
+    .sources summary { min-height: 44px; align-content: center; cursor: pointer; }
+    .sources p { margin-top: 5px; }
+    @media (max-width: 1000px) {
+      .wrap { width: calc(100% - 52px); }
+      .hero { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 25px; }
+    }
+    @media (max-width: 720px) {
+      .wrap { width: calc(100% - 36px); }
+      .masthead { flex-wrap: wrap; row-gap: 1px; padding-top: 12px; }
+      .masthead nav { width: 100%; justify-content: space-between; gap: 8px; }
+      .masthead nav a { font-size: 12px; }
+      .hero { grid-template-columns: 1fr; gap: 22px; padding-block: 29px 32px; }
+      h1 { font-size: clamp(41px, 9.7vw, 61px); }
+      .intro { margin-top: 12px; }
+      .actions { margin-top: 13px; }
+      .chapter-head { display: block; margin-bottom: 15px; }
+      .chapter-head p { margin-top: 11px; }
+      .pair { gap: 12px; grid-template-columns: 1fr; }
+      .pair figure { grid-template-rows: auto auto; grid-row: auto; gap: 12px; }
+      .figure-desc { text-wrap: pretty; }
+      .driver-states { gap: 6px; margin-bottom: 13px; }
+      .driver-states > div { padding: 9px 7px; }
+      .driver-states dt { font-size: 12px; }
+      .driver-states dd { font-size: 12px; line-height: 1.32; }
+    }
+    @media (max-width: 565px) {
+      .hero .screen { max-width: 276px; margin-inline: auto; }
+      .hero .screen::after { inset: 7.94% auto auto 79.74%; width: 22px; }
+      .screen img { aspect-ratio: 390 / 844; }
+      .hero-caption { display: block; }
+      .hero-caption .tag { margin-right: 6px; }
+      .pair figure { background: var(--surface); }
+      .pair .screen { max-width: 390px; margin-inline: auto; }
+      .switch:not([hidden]) {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+        padding: 4px;
+        margin-bottom: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--stage);
+      }
+      .switch button {
+        min-height: 44px;
+        padding: 5px 8px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .switch button[aria-pressed="true"] {
+        border-color: var(--line);
+        background: var(--surface);
+        color: var(--ink);
+      }
+      [data-comparison][data-enhanced] figure[data-inactive] { display: none; }
+    }
+    @media (max-width: 350px) {
+      .wrap { width: calc(100% - 28px); }
+      .actions { gap: 3px 12px; }
+      .cta { padding-inline: 12px; }
+      .actions > a:not(.cta) { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead wrap">
+    <div class="brand">
+      <img src="../revision/aquila.svg" width="33" height="33" alt="">
+      Aquila
+    </div>
+    <nav aria-label="Walkthrough">
+      <a href="#entry">Where it opens</a>
+      <a href="#targets">Switch &amp; add</a>
+      <a href="#history">Control &amp; history</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <h1 id="title">Browser &amp; devices <span>inside Aquila</span></h1>
+        <p class="intro">Open a shared browser, emulator, or physical device from the Aquila workspace. See who’s driving and review their screenshots without taking over.</p>
+        <div class="actions">
+          <a class="cta" href="prototype.html">Open prototype <span aria-hidden="true">→</span></a>
+          <a href="#history">See the timeline</a>
+        </div>
+      </div>
+      <figure>
+        <figcaption class="hero-caption"><span class="tag">Rendered prototype</span> Start in Messages. Choose the highlighted globe beside Terminal.</figcaption>
+        <div class="stage">
+          <a class="screen" href="shell-desktop.webp" target="_blank" rel="noopener" aria-label="Open full-size screenshot of the Aquila Messages prototype in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="shell-phone.webp">
+              <img src="shell-desktop.webp" width="1440" height="900" alt="Aquila’s Messages view with its existing conversation toolbar and globe shortcut to Browser &amp; devices">
+            </picture>
+          </a>
+        </div>
+      </figure>
+    </section>
+
+    <section class="chapter" id="entry" aria-labelledby="entry-title" data-comparison>
+      <div class="chapter-head">
+        <h2 id="entry-title">Where it opens</h2>
+        <div>
+          <p>Choose <strong>Browser &amp; devices</strong> above Archive in the Sessions sidebar. On a phone, open the menu at top left to find it. The Messages globe opens this conversation’s target in the same viewer.</p>
+          <a class="aux-link" href="drawer-phone.webp" target="_blank" rel="noopener">See the phone Sessions drawer</a>
+        </div>
+      </div>
+      <div class="switch" role="group" aria-label="Entry screenshots" hidden>
+        <button type="button" aria-controls="screen-current" aria-pressed="false">Today</button>
+        <button type="button" aria-controls="screen-live" aria-pressed="true">Proposed</button>
+      </div>
+      <div class="pair">
+        <figure id="screen-current">
+          <figcaption>
+            <div class="caption-heading"><h3>Today</h3><span class="tag captured">Captured</span></div>
+            <p class="figure-desc">After the agent run ends, the browser pane offers <strong>Close</strong>.</p>
+          </figcaption>
+          <a class="screen figure-image" href="../current-desktop-dark.png" target="_blank" rel="noopener" aria-label="Open full-size screenshot of the current finished-run browser pane in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="../current-phone-dark.png">
+              <img src="../current-desktop-dark.png" width="1440" height="900" loading="lazy" alt="The served Aquila Browser pane reports that the agent run has finished and offers a Close button">
+            </picture>
+          </a>
+        </figure>
+        <figure id="screen-live">
+          <figcaption>
+            <div class="caption-heading"><h3>Shared browser</h3><span class="tag">Rendered prototype</span></div>
+            <p class="figure-desc">The global entry opens the last target, with a default browser on first use. <strong>Messages</strong> and <strong>Terminal</strong> are one tap away.</p>
+          </figcaption>
+          <a class="screen figure-image" href="live-desktop.webp" target="_blank" rel="noopener" aria-label="Open full-size screenshot of the shared browser live view in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="live-phone.webp">
+              <img src="live-desktop.webp" width="1440" height="900" loading="lazy" alt="Aquila’s shared browser viewer with a named target in the header, an input control status and a timeline under the screen">
+            </picture>
+          </a>
+        </figure>
+      </div>
+    </section>
+
+    <section class="chapter" id="targets" aria-labelledby="targets-title" data-comparison>
+      <div class="chapter-head">
+        <h2 id="targets-title">Switch or add a device</h2>
+        <p>Choose the <strong>target name and chevron</strong> at the top of the viewer, such as <strong>Studio browser</strong>. The picker lists browsers, emulators, and physical devices together.</p>
+      </div>
+      <div class="switch" role="group" aria-label="Target screenshots" hidden>
+        <button type="button" aria-controls="screen-picker" aria-pressed="true">Switch target</button>
+        <button type="button" aria-controls="screen-add" aria-pressed="false">Add or connect</button>
+      </div>
+      <div class="pair">
+        <figure id="screen-picker">
+          <figcaption>
+            <div class="caption-heading"><h3>Switch target</h3><span class="tag">Rendered prototype</span></div>
+            <p class="figure-desc">See which targets are ready, offline, or in use. Select one to open its screen and history.</p>
+          </figcaption>
+          <a class="screen figure-image" href="picker-desktop.webp" target="_blank" rel="noopener" aria-label="Open full-size screenshot of the target picker in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="picker-phone.webp">
+              <img src="picker-desktop.webp" width="1440" height="900" loading="lazy" alt="Browser &amp; devices picker showing browsers, emulators, physical devices and the Add or connect action">
+            </picture>
+          </a>
+        </figure>
+        <figure id="screen-add">
+          <figcaption>
+            <div class="caption-heading"><h3>Add or connect</h3><span class="tag">Rendered prototype</span></div>
+            <p class="figure-desc">Choose <strong>New browser</strong>, <strong>Start an emulator</strong>, or <strong>Connect a device</strong> from the same picker.</p>
+          </figcaption>
+          <a class="screen figure-image" href="add-desktop.webp" target="_blank" rel="noopener" aria-label="Open full-size screenshot of Add or connect in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="add-phone.webp">
+              <img src="add-desktop.webp" width="1440" height="900" loading="lazy" alt="Add or connect choices for a new browser, an emulator, or a physical device">
+            </picture>
+          </a>
+        </figure>
+      </div>
+    </section>
+
+    <section class="chapter" id="history" aria-labelledby="history-title" data-comparison>
+      <div class="chapter-head">
+        <h2 id="history-title">Control and history</h2>
+        <p>The header shows who can send input. As an agent works, Aquila captures meaningful changes in the timeline below the screen. Each target keeps its history across agent runs.</p>
+      </div>
+      <dl class="driver-states" aria-label="Live browser controls">
+        <div><dt>Ready</dt><dd>Use browser</dd></div>
+        <div class="human"><dt>You have control</dt><dd>Share</dd></div>
+        <div class="agent"><dt>Codex is driving</dt><dd>Take control</dd></div>
+      </dl>
+      <div class="switch" role="group" aria-label="Control and history screenshots" hidden>
+        <button type="button" aria-controls="screen-agent" aria-pressed="true">Agent driving</button>
+        <button type="button" aria-controls="screen-history" aria-pressed="false">Review history</button>
+      </div>
+      <div class="pair">
+        <figure id="screen-agent">
+          <figcaption>
+            <div class="caption-heading"><h3>Agent driving</h3><span class="tag">Rendered prototype</span></div>
+            <p class="figure-desc">Watch the live screen as Codex works. Choose <strong>Take control</strong> to drive and <strong>Return to Codex</strong> to hand the target back.</p>
+          </figcaption>
+          <a class="screen figure-image" href="agent-desktop.webp" target="_blank" rel="noopener" aria-label="Open full-size screenshot of the live viewer with Codex driving in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="agent-phone.webp">
+              <img src="agent-desktop.webp" width="1440" height="900" loading="lazy" alt="Aquila live browser with Codex is driving in the header, Take control, and agent screenshots below">
+            </picture>
+          </a>
+        </figure>
+        <figure id="screen-history">
+          <figcaption>
+            <div class="caption-heading"><h3>Review history</h3><span class="tag">Rendered prototype</span></div>
+            <p class="figure-desc">Select a thumbnail to see who did what and when. The screenshot is read-only and the live driver stays in control. Drag the scrubber all the way right or tap <strong>Live</strong> to restore the viewer controls.</p>
+          </figcaption>
+          <a class="screen figure-image" href="history-desktop.webp" target="_blank" rel="noopener" aria-label="Open full-size screenshot of selected history and the Live control in a new tab">
+            <picture>
+              <source media="(max-width: 565px)" srcset="history-phone.webp">
+              <img src="history-desktop.webp" width="1440" height="900" loading="lazy" alt="A selected past screenshot in the Aquila viewer, with chronological thumbnails below and Live at the far right">
+            </picture>
+          </a>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-foot wrap">
+    <div class="foot-links">
+      <a href="prototype.html">Open the interactive prototype</a>
+      <a href="INTEGRATION.md">Implementation handoff</a>
+      <a href="CURRENT.md">Current Aquila reference</a>
+    </div>
+    <details class="sources">
+      <summary>Where the screenshots come from</summary>
+      <p><strong>Captured</strong> shows the served Aquila build with a simulated finished-run response. <strong>Rendered prototype</strong> shows the proposed interaction with sample targets and agent activity. The screenshots show Aquila’s dark interface.</p>
+      <div class="foot-links">
+        <a href="messages-desktop-dark.png">Served Messages on desktop</a>
+        <a href="messages-phone-dark.png">Served Messages on phone</a>
+        <a href="../CAPTURE.md">Current browser capture notes</a>
+      </div>
+    </details>
+  </footer>
+
+  <script>
+    const phoneView = matchMedia('(max-width: 565px)');
+    const comparisons = document.querySelectorAll('[data-comparison]');
+
+    comparisons.forEach((comparison) => {
+      const group = comparison.querySelector('.switch');
+      const buttons = [...group.querySelectorAll('button')];
+      function select(selected) {
+        buttons.forEach((button) => {
+          button.setAttribute('aria-pressed', String(button === selected));
+          document.getElementById(button.getAttribute('aria-controls'))
+            .toggleAttribute('data-inactive', button !== selected);
+        });
+      }
+      buttons.forEach((button) => button.addEventListener('click', () => select(button)));
+      select(group.querySelector('[aria-pressed="true"]'));
+      comparison.dataset.enhanced = '';
+      group.hidden = false;
+    });
+
+    function setScreenshotLinks() {
+      document.querySelectorAll('.screen').forEach((link) => {
+        const picture = link.querySelector('picture');
+        link.href = phoneView.matches ? picture.querySelector('source').srcset : picture.querySelector('img').src;
+      });
+    }
+    phoneView.addEventListener('change', setScreenshotLinks);
+    setScreenshotLinks();
+  </script>
+</body>
+</html>

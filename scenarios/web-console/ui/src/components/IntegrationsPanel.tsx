@@ -20,7 +20,7 @@ import {
   testOpenRouterKey,
   type ManagedConnection,
 } from "../api/monetization";
-import { getWebAccessToken } from "../lib/auth";
+import { getAccessToken } from "../lib/auth";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   IntegrationsOverview,
@@ -276,16 +276,22 @@ export default function IntegrationsPanel({ open, header }: IntegrationsPanelPro
     staleTime: 30_000,
     retry: false,
   });
+  // Resolve auth through the existing owner when the tab opens. This also
+  // reacquires an in-memory-only web bearer after a full page reload.
+  const webAuth = useQuery({
+    queryKey: ["web-access-token"], queryFn: getAccessToken,
+    enabled: open, staleTime: 0, retry: false,
+  });
   const subscription = useQuery({
     queryKey: ["subscription-summary"], queryFn: getSubscriptionSummary,
-    enabled: open && Boolean(getWebAccessToken()), staleTime: 30_000, retry: false,
+    enabled: open && Boolean(webAuth.data), staleTime: 30_000, retry: false,
   });
   const caps = useMemo(() => capabilities.data?.capabilities ?? [], [capabilities.data]);
   const commercialCapabilityId = caps.find((cap) => cap.status === "unavailable")?.id ?? "";
   const commercial = useQuery({
     queryKey: ["commercial-context", "integrations", commercialCapabilityId],
     queryFn: () => getCommercialContext("integrations", commercialCapabilityId),
-    enabled: open && Boolean(getWebAccessToken()),
+    enabled: open && Boolean(webAuth.data),
     staleTime: 60_000,
     retry: false,
   });

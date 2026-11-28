@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, Folder, FolderPlus, FolderX, Palette, Pencil, Search, SquareSlash, Trash2 } from "lucide-react";
+import { Check, ChevronRight, Folder, FolderPlus, FolderX, Palette, Pencil, SquareSlash, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { SearchField } from "../SearchField";
 
 import { HEADER_COLORS } from "../../consts/config";
 import { strings } from "../../consts/strings";
@@ -343,24 +344,22 @@ export function GroupPickerOverlay({
     >
       <div className="flex h-full flex-col">
         <div className="flex shrink-0 items-center gap-2 border-b border-wc-default p-3">
-          <label className="relative block min-w-0 flex-1">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wc-text-faint" aria-hidden />
-            <input
-              data-testid="group-picker-filter"
-              autoFocus
-              value={query}
-              aria-label={t(strings.groupPicker.filterOrCreate)}
-              placeholder={t(strings.groupPicker.filterOrCreate)}
-              onChange={(event) => { setQuery(event.target.value); }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  submitCreate();
-                }
-              }}
-              className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input py-2 ps-9 pe-3 text-sm text-wc-text-primary outline-none transition placeholder:text-wc-text-faint focus:border-wc-accent"
-            />
-          </label>
+          <SearchField
+            testId="group-picker-filter"
+            groupTestId="group-picker-filter-group"
+            value={query}
+            onValueChange={setQuery}
+            placeholder={t(strings.groupPicker.filterOrCreate)}
+            label={t(strings.groupPicker.filterOrCreate)}
+            autoFocus
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submitCreate();
+              }
+            }}
+            className="min-w-0 flex-1"
+          />
           {groups.length > 0 && (
             <button
               type="button"

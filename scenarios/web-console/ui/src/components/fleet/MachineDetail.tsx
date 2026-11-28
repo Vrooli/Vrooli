@@ -73,7 +73,7 @@ export function MachineDetail({
       data-testid={`machine-detail-${machineTestID(machine.target.id)}`}
       aria-label={title}
     >
-      <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-5 pt-5">
+      <div className={tab === "desktop" ? "mx-auto flex w-full max-w-5xl items-center gap-2 px-2 pt-2 sm:px-4" : "mx-auto flex w-full max-w-3xl items-center gap-3 px-5 pt-5"}>
         <IconButton
           data-testid="machine-detail-back"
           onClick={onBack}
@@ -84,14 +84,14 @@ export function MachineDetail({
         </IconButton>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold text-wc-text-primary">{title}</h2>
-          <p className="truncate text-xs text-wc-text-faint">
+          <p className={tab === "desktop" ? "hidden" : "truncate text-xs text-wc-text-faint"}>
             {[machine.target.os, machine.target.arch].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <StatusBadge tone={badge.tone as StatusTone}>{badge.label}</StatusBadge>
+        {tab !== "desktop" && <StatusBadge tone={badge.tone as StatusTone}>{badge.label}</StatusBadge>}
       </div>
 
-      <div className="mx-auto mt-4 w-full max-w-3xl px-5">
+      <div className={tab === "desktop" ? "mx-auto mt-1 w-full max-w-5xl px-2 sm:px-4" : "mx-auto mt-4 w-full max-w-3xl px-5"}>
         <Tabs
           ariaLabel={title}
           active={tab}
@@ -108,7 +108,7 @@ export function MachineDetail({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-5 pb-5 pt-4">
+        <div className={tab === "desktop" ? "mx-auto w-full max-w-5xl px-2 pb-3 pt-2 sm:px-4" : "mx-auto w-full max-w-3xl px-5 pb-5 pt-4"}>
           {tab === "overview" && (
             <dl className="grid gap-3 sm:grid-cols-2" data-testid="machine-detail-overview">
               <Fact term={t(strings.machines.overviewPlatform)}>

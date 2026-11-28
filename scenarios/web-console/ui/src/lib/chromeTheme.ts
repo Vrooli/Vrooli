@@ -14,7 +14,8 @@ import { isHexColor } from "./paneColor";
  *   - the semantic `--wc-*` design tokens consumed by child surfaces.
  * The OS status bar is NOT owned here. That is two platform mechanisms that
  * must always agree — `<meta name="theme-color">` on Android, a painted
- * safe-area strip on iOS black-translucent — and the library's `ChromeTheme`
+ * safe-area strip on iOS (zero-height under the `default` status-bar style,
+ * where iOS extends the sticky top bar's colour instead) — and the library's `ChromeTheme`
  * service owns both. This controller registers the terminal-derived tint as
  * that service's *base*, so anything more urgent (a banner) outranks it without
  * either side knowing about the other.

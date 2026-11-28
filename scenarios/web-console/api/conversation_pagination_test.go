@@ -24,7 +24,7 @@ func TestSQLConversationRepositoryPagesAndSearchesWholeHistory(t *testing.T) {
 	const sessionID = "large-history"
 	seedConversationEvents(t, repo, sessionID, 2500)
 
-	page, more, err := repo.ListSessionPage(context.Background(), sessionID, 500, 0)
+	page, more, err := repo.ListSessionPage(context.Background(), sessionID, ConversationPageQuery{Limit: 500})
 	if err != nil || len(page.Events) != 500 || !more || page.Events[0].Sequence != 2001 || page.Events[499].Sequence != 2500 {
 		t.Fatalf("newest page = %d events [%d..%d], more=%v, err=%v", len(page.Events), page.Events[0].Sequence, page.Events[len(page.Events)-1].Sequence, more, err)
 	}
@@ -32,7 +32,7 @@ func TestSQLConversationRepositoryPagesAndSearchesWholeHistory(t *testing.T) {
 	seen := map[int64]bool{}
 	before := int64(0)
 	for {
-		current, hasMore, pageErr := repo.ListSessionPage(context.Background(), sessionID, 500, before)
+		current, hasMore, pageErr := repo.ListSessionPage(context.Background(), sessionID, ConversationPageQuery{Limit: 500, BeforeSequence: before})
 		if pageErr != nil {
 			t.Fatal(pageErr)
 		}

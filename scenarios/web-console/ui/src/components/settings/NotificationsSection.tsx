@@ -12,6 +12,7 @@ import {
 } from "../../api/notifications";
 import { useNotificationPreferences } from "@vrooli/api-base/notifications/react";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
 import { SettingsIntro } from "./primitives";
 import { AppNotificationSettings, type AppNotificationStrings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { NotificationPreferencesPanel } from "@vrooli/react-component-library/AppNotificationSettings/1";
@@ -32,16 +33,16 @@ function NotificationsSkeleton({ label }: { label: string }) {
         {[0, 1].map((group) => (
           <div key={group} className="grid gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-wc-surface-input" />
-              <div className="h-3 w-32 animate-pulse rounded bg-wc-surface-input" />
+              <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-9 w-9 shrink-0 rounded-full" />
+              <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-3 w-32 rounded" />
             </div>
             {[0, 1].map((row) => (
               <div key={row} className="flex items-center justify-between gap-4 pl-12">
                 <div className="grid flex-1 gap-2">
-                  <div className="h-2.5 w-40 animate-pulse rounded bg-wc-surface-input" />
-                  <div className="h-2 w-3/4 animate-pulse rounded bg-wc-surface-input" />
+                  <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2.5 w-40 rounded" />
+                  <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2 w-3/4 rounded" />
                 </div>
-                <div className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-wc-surface-input" />
+                <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-5 w-9 shrink-0 rounded-full" />
               </div>
             ))}
           </div>

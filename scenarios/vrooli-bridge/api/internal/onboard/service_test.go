@@ -624,47 +624,39 @@ func TestStart_Validation(t *testing.T) {
 }
 
 func TestStart_FailAtEachPhase(t *testing.T) {
-	t.Run("first-touch", func(t *testing.T) {
-		driver := &mocks.FakeSSHDriver{FirstTouchErr: errors.New("auth failed")}
-		svc := newTestService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{})
-		dec, err := svc.Start(context.Background(), validInput())
-		require.NoError(t, err)
-		op := waitTerminal(t, svc, dec.OpID)
-		require.Equal(t, onboard.StateFailed, op.State)
-		require.Equal(t, onboard.FailureSSHSetup, op.FailureReason)
-	})
-
-	t.Run("push-script", func(t *testing.T) {
-		driver := &mocks.FakeSSHDriver{PushScriptErr: errors.New("scp failed")}
-		svc := newTestService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{})
-		dec, err := svc.Start(context.Background(), validInput())
-		require.NoError(t, err)
-		op := waitTerminal(t, svc, dec.OpID)
-		require.Equal(t, onboard.StateFailed, op.State)
-		require.Equal(t, onboard.FailureScriptPush, op.FailureReason)
-	})
-
-	t.Run("code-issue", func(t *testing.T) {
-		driver := &mocks.FakeSSHDriver{}
-		issuer := &mocks.FakeCodeIssuer{Err: errors.New("mint failed")}
-		svc := newTestService(mocks.NewFakeRepository(), driver, issuer, &mocks.FakeOnlineConfirmer{})
-		dec, err := svc.Start(context.Background(), validInput())
-		require.NoError(t, err)
-		op := waitTerminal(t, svc, dec.OpID)
-		require.Equal(t, onboard.StateFailed, op.State)
-		require.Equal(t, onboard.FailurePairingIssue, op.FailureReason)
-	})
-
-	t.Run("verify-offline", func(t *testing.T) {
-		driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
-		confirmer := &mocks.FakeOnlineConfirmer{Online: false}
-		svc := newTestService(mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode}, confirmer)
-		dec, err := svc.Start(context.Background(), validInput())
-		require.NoError(t, err)
-		op := waitTerminal(t, svc, dec.OpID)
-		require.Equal(t, onboard.StateFailed, op.State)
-		require.Equal(t, onboard.FailureVerifyOnline, op.FailureReason)
-	})
+	cases := []struct {
+		name  string
+		setup func(*mocks.FakeSSHDriver, *mocks.FakeCodeIssuer, *mocks.FakeOnlineConfirmer)
+		want  onboard.FailureReason
+	}{
+		{"first-touch", func(driver *mocks.FakeSSHDriver, _ *mocks.FakeCodeIssuer, _ *mocks.FakeOnlineConfirmer) {
+			driver.FirstTouchErr = errors.New("auth failed")
+		}, onboard.FailureSSHSetup},
+		{"push-script", func(driver *mocks.FakeSSHDriver, _ *mocks.FakeCodeIssuer, _ *mocks.FakeOnlineConfirmer) {
+			driver.PushScriptErr = errors.New("scp failed")
+		}, onboard.FailureScriptPush},
+		{"code-issue", func(_ *mocks.FakeSSHDriver, issuer *mocks.FakeCodeIssuer, _ *mocks.FakeOnlineConfirmer) {
+			issuer.Err = errors.New("mint failed")
+		}, onboard.FailurePairingIssue},
+		{"verify-offline", func(driver *mocks.FakeSSHDriver, _ *mocks.FakeCodeIssuer, confirmer *mocks.FakeOnlineConfirmer) {
+			driver.RunBootstrapMarkers = successMarkers(testNodeID)
+			confirmer.Online = false
+		}, onboard.FailureVerifyOnline},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			driver := &mocks.FakeSSHDriver{}
+			issuer := &mocks.FakeCodeIssuer{Code: testCode}
+			confirmer := &mocks.FakeOnlineConfirmer{Online: true}
+			tc.setup(driver, issuer, confirmer)
+			svc := newTestService(mocks.NewFakeRepository(), driver, issuer, confirmer)
+			dec, err := svc.Start(context.Background(), validInput())
+			require.NoError(t, err)
+			op := waitTerminal(t, svc, dec.OpID)
+			require.Equal(t, onboard.StateFailed, op.State)
+			require.Equal(t, tc.want, op.FailureReason)
+		})
+	}
 
 	t.Run("bootstrap-ok-but-no-node-id", func(t *testing.T) {
 		// Bootstrap text is not identity evidence; an absent durable result fails.

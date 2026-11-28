@@ -1,9 +1,11 @@
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../../i18n";
 import { useTheme, type ThemeChoice } from "../../theme/ThemeProvider";
 import { OwnerSignIn } from "./OwnerSignIn";
+import { useSession } from "./sessionContext";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -33,6 +35,7 @@ function SignInUtility() {
  */
 export function SignInScreen() {
   const { t } = useTranslation();
+  const { restoreStatus, retryRestore } = useSession();
   return (
     <LibraryAppShell density="sidebar" mobileNav="tabs" mainMode="scroll"
       brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
@@ -48,13 +51,34 @@ export function SignInScreen() {
             <h1 className="text-2xl font-semibold">{t(strings.session.screenTitle)}</h1>
             <p className="text-sm text-app-muted-foreground">{t(strings.session.screenIntro)}</p>
           </div>
-          <p
-            data-testid={selectors.session.firstTimeNote}
-            className="rounded-panel border border-app-primary/30 bg-app-primary/10 p-3 text-sm text-app-foreground"
-          >
-            {t(strings.session.firstTimeNote)}
-          </p>
-          <OwnerSignIn />
+          {restoreStatus === "checking" ? (
+            <p data-testid={selectors.session.restore.status} role="status" className="text-sm text-app-muted-foreground">
+              {t(strings.session.restore.checking)}
+            </p>
+          ) : restoreStatus === "unavailable" ? (
+            <div className="flex flex-col gap-3" role="alert">
+              <p data-testid={selectors.session.restore.status} className="text-sm text-app-danger">
+                {t(strings.session.restore.unavailable)}
+              </p>
+              <Button
+                type="button"
+                data-testid={selectors.session.restore.retry}
+                onClick={() => void retryRestore()}
+              >
+                {t(strings.session.restore.retry)}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <p
+                data-testid={selectors.session.firstTimeNote}
+                className="rounded-panel border border-app-primary/30 bg-app-primary/10 p-3 text-sm text-app-foreground"
+              >
+                {t(strings.session.firstTimeNote)}
+              </p>
+              <OwnerSignIn />
+            </>
+          )}
         </div>
       </div>
     </LibraryAppShell>

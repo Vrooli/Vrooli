@@ -2,6 +2,7 @@ package continuity
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -13,8 +14,18 @@ func TestRegisterLoadsManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	group, err := Register(nil, manifest)
-	if err != nil || len(group.Subcommands) != 8 {
-		t.Fatalf("Register() = %#v, %v", group, err)
+	if err != nil {
+		t.Fatalf("Register() = %v", err)
+	}
+	names := make([]string, 0, len(group.Subcommands))
+	for _, command := range group.Subcommands {
+		if command.RunCtx == nil {
+			t.Fatalf("command %q has no handler", command.Name)
+		}
+		names = append(names, command.Name)
+	}
+	if want := []string{"integrity", "health", "reconcile", "catalog", "search", "inspect", "receipt", "rollback", "publish"}; !slices.Equal(names, want) {
+		t.Fatalf("continuity commands = %v, want %v", names, want)
 	}
 }
 

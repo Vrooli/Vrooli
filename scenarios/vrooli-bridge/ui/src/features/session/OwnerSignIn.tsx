@@ -8,8 +8,9 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { identityClient } from "../../api/identity";
-import { useSession } from "./SessionProvider";
+import { useSession } from "./sessionContext";
 import {
+  type BrowserEnrollment,
   generateBrowserKeyMaterial,
   mintBrowserSession,
   saveBrowserEnrollment,
@@ -40,6 +41,7 @@ export function OwnerSignIn() {
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
+  const [pendingEnrollment, setPendingEnrollment] = useState<{ enrollment: BrowserEnrollment; email: string } | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (): Promise<{ token: string; email: string }> => {
@@ -65,8 +67,17 @@ export function OwnerSignIn() {
           scopeCeiling: enrolled.scopeCeiling,
           privateKeyPkcs8: keyMaterial.privateKeyPkcs8,
         };
-        await saveBrowserEnrollment(enrollment);
-        return { token: await mintBrowserSession(enrollment), email: resp.email };
+        try {
+          saveBrowserEnrollment(enrollment);
+          return { token: await mintBrowserSession(enrollment), email: resp.email };
+        } catch {
+          // The remote enrollment already exists. Keep its private key only in
+          // this component's memory so the user can retry local completion
+          // without creating a second remote enrollment.
+          setPendingEnrollment({ enrollment, email: resp.email });
+          setPassword("");
+          throw new Error("browser session completion failed");
+        }
       } finally {
         clearEnrollmentBootstrapToken();
       }
@@ -74,6 +85,21 @@ export function OwnerSignIn() {
     onSuccess: (resp) => {
       setOwnerToken(resp.token, resp.email || email.trim() || null);
       // Drop the password the moment it is no longer needed; it never persists.
+      setPassword("");
+    },
+  });
+
+  const recovery = useMutation({
+    mutationFn: async () => {
+      if (!pendingEnrollment) throw new Error("no pending browser enrollment");
+      saveBrowserEnrollment(pendingEnrollment.enrollment);
+      return mintBrowserSession(pendingEnrollment.enrollment);
+    },
+    onSuccess: (token) => {
+      const email = pendingEnrollment?.email || null;
+      setPendingEnrollment(null);
+      mutation.reset();
+      setOwnerToken(token, email);
       setPassword("");
     },
   });
@@ -99,6 +125,7 @@ export function OwnerSignIn() {
   }
 
   const submit = () => {
+    if (pendingEnrollment) return;
     setLocalError(null);
     if (!email.trim() || !password) {
       setLocalError(t(strings.session.login.missingFields));
@@ -115,6 +142,11 @@ export function OwnerSignIn() {
 
   const errorText = (): string | null => {
     if (localError) return localError;
+    if (pendingEnrollment) {
+      return recovery.error
+        ? t(strings.session.login.enrollmentRecoveryRetry)
+        : t(strings.session.login.enrollmentRecovery);
+    }
     const err = mutation.error;
     if (!err) return null;
     if (err instanceof ConnectError) {
@@ -236,7 +268,7 @@ export function OwnerSignIn() {
             />
           </div>
         )}
-        <Button type="submit" data-testid={selectors.session.login.submit} disabled={mutation.isPending}>
+        <Button type="submit" data-testid={selectors.session.login.submit} disabled={mutation.isPending || pendingEnrollment !== null}>
           {submitLabel}
         </Button>
       </form>
@@ -245,6 +277,20 @@ export function OwnerSignIn() {
         <p data-testid={selectors.session.login.error} role="alert" className="mt-4 text-sm text-app-danger">
           {shownError}
         </p>
+      )}
+      {pendingEnrollment && (
+        <div className="mt-3">
+          <Button
+            type="button"
+            data-testid={selectors.session.login.retryEnrollmentSave}
+            disabled={recovery.isPending}
+            onClick={() => recovery.mutate()}
+          >
+            {recovery.isPending
+              ? t(strings.session.login.retryingEnrollmentSave)
+              : t(strings.session.login.retryEnrollmentSave)}
+          </Button>
+        </div>
       )}
     </section>
   );

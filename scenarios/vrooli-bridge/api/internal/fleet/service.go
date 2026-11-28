@@ -145,9 +145,9 @@ func (s *service) classifyAndDispatch(ctx context.Context, node NodeRef, in Roll
 }
 
 // resolveCandidates returns the nodes a roll targets: the explicit subset
-// (filtered to registered nodes, deduped, stable-sorted) or every registered
-// node. An unknown id in the subset is dropped silently (it is not in the
-// fleet); a roll over an empty/unknown subset yields no candidates.
+// (validated against registered nodes, deduped, stable-sorted) or every
+// registered node. Unknown explicit IDs are rejected before dispatch so an
+// unsupported target cannot be mistaken for a successful partial roll.
 func (s *service) resolveCandidates(ctx context.Context, subset []string) ([]NodeRef, error) {
 	all, err := s.nodes.ListNodes(ctx)
 	if err != nil {
@@ -167,6 +167,16 @@ func (s *service) resolveCandidates(ctx context.Context, subset []string) ([]Nod
 		if t := strings.TrimSpace(id); t != "" {
 			want[t] = struct{}{}
 		}
+	}
+	unknown := make([]string, 0)
+	for id := range want {
+		if _, ok := byID[id]; !ok {
+			unknown = append(unknown, id)
+		}
+	}
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		return nil, ErrInvalidRoll{Field: "node_ids", Reason: "not registered: " + strings.Join(unknown, ", ")}
 	}
 	out := make([]NodeRef, 0, len(want))
 	for id := range want {

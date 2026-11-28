@@ -18,10 +18,11 @@ import (
 // fields in the projection prevents a newly reported capability from silently
 // becoming permission to use it.
 type NodeSnapshot struct {
-	ID             string
-	Name           string
-	Capabilities   []string
-	ApprovedScopes []string
+	ID                   string
+	Name                 string
+	EnrollmentGeneration int64
+	Capabilities         []string
+	ApprovedScopes       []string
 	// ConfigurationState and ConfigurationUnmet are the outcome of the last
 	// configuration apply Bridge recorded for this node. They explain an
 	// unapplied profile; they never count as applying it.

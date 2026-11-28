@@ -12,13 +12,35 @@ const SPEAKER_BY_SOURCE: Readonly<Record<string, string>> = {
   opencode_api: strings.messagesPane.speaker.opencode,
 };
 
+type SpeakerShape = Pick<ConversationEvent, "role" | "source"> & Partial<Pick<ConversationEvent, "author" | "authorName">>;
+
 /**
- * The i18n key naming who wrote a message: the user is "You"; an assistant is
- * named by the harness whose capture recorded it, or "Agent" when unknown.
+ * The i18n key naming who wrote a message, from its author (the role is only
+ * the channel it arrived on): the person at the keyboard is "You"; the agent
+ * is named by the harness whose capture recorded it, or "Agent" when unknown;
+ * another agent, a program that launched the session, and the harness are
+ * named as themselves, never as "You". A row from a server that predates
+ * authors falls back to its role. Pair with {@link speakerParams}.
  */
-export function speakerKey(event: Pick<ConversationEvent, "role" | "source">): string {
-  if (event.role === "user") return strings.messagesPane.speaker.you;
-  return SPEAKER_BY_SOURCE[event.source] ?? strings.messagesPane.speaker.agent;
+export function speakerKey(event: SpeakerShape): string {
+  switch (event.author ?? (event.role === "user" ? "human" : "agent")) {
+    case "human":
+      return strings.messagesPane.speaker.you;
+    case "peer":
+      return event.authorName ? strings.messagesPane.speaker.peerNamed : strings.messagesPane.speaker.peer;
+    case "automation":
+      return event.authorName ? strings.messagesPane.speaker.automationNamed : strings.messagesPane.speaker.automation;
+    case "harness":
+      return strings.messagesPane.speaker.harness;
+    default:
+      return SPEAKER_BY_SOURCE[event.source] ?? strings.messagesPane.speaker.agent;
+  }
+}
+
+/** Interpolation for {@link speakerKey}: the author's name when the key names one. */
+export function speakerParams(event: SpeakerShape): { name: string } | undefined {
+  if ((event.author === "peer" || event.author === "automation") && event.authorName) return { name: event.authorName };
+  return undefined;
 }
 
 /**

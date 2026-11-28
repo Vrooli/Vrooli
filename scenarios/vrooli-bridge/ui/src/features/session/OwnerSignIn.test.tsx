@@ -24,11 +24,13 @@ vi.mock("./browser_session", () => ({
 
 import { identityClient } from "../../api/identity";
 import { OwnerSignIn } from "./OwnerSignIn";
+import { saveBrowserEnrollment } from "./browser_session";
 import { readOwnerToken } from "./store";
 
 const login = vi.mocked(identityClient.login);
 const register = vi.mocked(identityClient.register);
 const enrollOperatorSession = vi.mocked(identityClient.enrollOperatorSession);
+const saveEnrollment = vi.mocked(saveBrowserEnrollment);
 
 type LoginResult = Awaited<ReturnType<typeof identityClient.login>>;
 type RegisterResult = Awaited<ReturnType<typeof identityClient.register>>;
@@ -78,6 +80,52 @@ describe("OwnerSignIn", () => {
     expect(login).toHaveBeenCalledWith({ email: "owner@example.com", password: "pw" });
     expect(enrollOperatorSession).toHaveBeenCalled();
     expect(JSON.stringify(window.localStorage)).not.toContain("jwt-1");
+  });
+
+  it("recovers local storage loss without repeating remote enrollment", async () => {
+    const user = userEvent.setup();
+    login.mockResolvedValue({
+      token: "jwt-1",
+      refreshToken: "",
+      email: "owner@example.com",
+      userId: "u-1",
+    } as unknown as LoginResult);
+    saveEnrollment.mockImplementationOnce(() => {
+      throw new Error("storage quota exceeded");
+    });
+    saveEnrollment.mockImplementationOnce(() => {
+      throw new Error("storage remains unavailable");
+    });
+
+    renderWithProviders(<OwnerSignIn />);
+    await user.type(screen.getByTestId(selectors.session.login.emailInput), "owner@example.com");
+    await user.type(screen.getByTestId(selectors.session.login.passwordInput), "pw");
+    await user.click(screen.getByTestId(selectors.session.login.submit));
+
+    expect(await screen.findByTestId(selectors.session.login.retryEnrollmentSave)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.session.login.error)).toHaveTextContent(
+      strings.session.login.enrollmentRecovery,
+    );
+    expect(enrollOperatorSession).toHaveBeenCalledTimes(1);
+    expect(saveEnrollment).toHaveBeenCalledTimes(1);
+    expect(saveEnrollment.mock.calls[0]?.[0].privateKeyPkcs8).toBe("private");
+    expect(readOwnerToken()).toBeNull();
+
+    await user.click(screen.getByTestId(selectors.session.login.retryEnrollmentSave));
+
+    expect(await screen.findByTestId(selectors.session.login.error)).toHaveTextContent(
+      strings.session.login.enrollmentRecoveryRetry,
+    );
+    expect(enrollOperatorSession).toHaveBeenCalledTimes(1);
+    expect(saveEnrollment).toHaveBeenCalledTimes(2);
+    expect(saveEnrollment.mock.calls[1]?.[0].privateKeyPkcs8).toBe("private");
+
+    await user.click(screen.getByTestId(selectors.session.login.retryEnrollmentSave));
+
+    await waitFor(() => expect(screen.getByTestId(selectors.session.owner.status)).toBeInTheDocument());
+    expect(enrollOperatorSession).toHaveBeenCalledTimes(1);
+    expect(saveEnrollment).toHaveBeenCalledTimes(3);
+    expect(readOwnerToken()).toBe("OS1.local-session");
   });
 
   it("maps an unauthenticated Connect error to the invalid-credentials message", async () => {

@@ -3,6 +3,7 @@ package artifacts
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -34,6 +35,12 @@ func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
 type sqliteProducedRepository struct {
 	db    SQLExecutor
 	clock schedule.Clock
+}
+
+type sqliteClosureShipmentRepository struct{ db SQLExecutor }
+
+func NewSQLiteClosureShipmentRepository(db SQLExecutor) ClosureShipmentRepository {
+	return &sqliteClosureShipmentRepository{db: db}
 }
 
 // NewSQLiteProducedRepository constructs the bounded produced-artifact store.
@@ -230,4 +237,60 @@ func (s *sqliteProducedRepository) Get(ctx context.Context, runID, name string) 
 		return ProducedArtifact{}, fmt.Errorf("parse produced artifact created_at: %w", err)
 	}
 	return a, nil
+}
+
+func (s *sqliteClosureShipmentRepository) CreateShipment(ctx context.Context, x ClosureShipment) (ClosureShipment, error) {
+	actualFiles, err := json.Marshal(x.ActualFiles)
+	if err != nil {
+		return ClosureShipment{}, fmt.Errorf("encode closure shipment inventory receipt: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO closure_shipments
+(id,idempotency_key,target_id,source_ref,destination,closure_digest,inventory_digest,prior_revision,new_revision,stage_ref,state,actual_inventory_digest,active_revision,actual_files_json,selection_receipt_ref,selection_digest,deployment_id,machine_id,node_id,enrollment_generation,desired_revision,result,created_at,updated_at)
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, x.ID, x.IdempotencyKey, x.TargetID, x.SourceRef, x.Destination, x.ClosureDigest, x.InventoryDigest, x.PriorRevision, x.NewRevision, x.StageRef, string(x.State), x.ActualInventoryDigest, x.ActiveRevision, string(actualFiles), x.SelectionReceiptRef, x.SelectionDigest, x.DeploymentID, x.MachineID, x.NodeID, x.EnrollmentGeneration, x.DesiredRevision, x.Result, x.CreatedAt.Format(timeFormat), x.UpdatedAt.Format(timeFormat))
+	if err != nil {
+		return ClosureShipment{}, fmt.Errorf("persist closure shipment intent: %w", err)
+	}
+	return s.GetShipment(ctx, x.IdempotencyKey)
+}
+
+func (s *sqliteClosureShipmentRepository) GetShipment(ctx context.Context, id string) (ClosureShipment, error) {
+	var x ClosureShipment
+	var state, filesJSON, created, updated string
+	err := s.db.QueryRowContext(ctx, `SELECT id,idempotency_key,target_id,source_ref,destination,closure_digest,inventory_digest,prior_revision,new_revision,stage_ref,state,actual_inventory_digest,active_revision,actual_files_json,selection_receipt_ref,selection_digest,deployment_id,machine_id,node_id,enrollment_generation,desired_revision,result,created_at,updated_at FROM closure_shipments WHERE id=? OR idempotency_key=?`, id, id).Scan(&x.ID, &x.IdempotencyKey, &x.TargetID, &x.SourceRef, &x.Destination, &x.ClosureDigest, &x.InventoryDigest, &x.PriorRevision, &x.NewRevision, &x.StageRef, &state, &x.ActualInventoryDigest, &x.ActiveRevision, &filesJSON, &x.SelectionReceiptRef, &x.SelectionDigest, &x.DeploymentID, &x.MachineID, &x.NodeID, &x.EnrollmentGeneration, &x.DesiredRevision, &x.Result, &created, &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ClosureShipment{}, ErrDistributionNotFound{ID: id}
+	}
+	if err != nil {
+		return ClosureShipment{}, fmt.Errorf("read closure shipment %q: %w", id, err)
+	}
+	x.State = ClosureShipmentState(state)
+	if err := json.Unmarshal([]byte(filesJSON), &x.ActualFiles); err != nil {
+		return ClosureShipment{}, fmt.Errorf("decode closure shipment inventory receipt: %w", err)
+	}
+	if x.CreatedAt, err = time.Parse(timeFormat, created); err != nil {
+		return ClosureShipment{}, err
+	}
+	if x.UpdatedAt, err = time.Parse(timeFormat, updated); err != nil {
+		return ClosureShipment{}, err
+	}
+	return x, nil
+}
+
+func (s *sqliteClosureShipmentRepository) UpdateShipment(ctx context.Context, x ClosureShipment) error {
+	actualFiles, err := json.Marshal(x.ActualFiles)
+	if err != nil {
+		return fmt.Errorf("encode closure shipment inventory receipt: %w", err)
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE closure_shipments SET stage_ref=?,state=?,actual_inventory_digest=?,active_revision=?,actual_files_json=?,result=?,updated_at=? WHERE id=?`, x.StageRef, string(x.State), x.ActualInventoryDigest, x.ActiveRevision, string(actualFiles), x.Result, x.UpdatedAt.Format(timeFormat), x.ID)
+	if err != nil {
+		return fmt.Errorf("update closure shipment %q: %w", x.ID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrDistributionNotFound{ID: x.ID}
+	}
+	return nil
 }

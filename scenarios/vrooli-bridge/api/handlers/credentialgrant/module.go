@@ -2,6 +2,10 @@ package credentialgrant
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -151,6 +155,188 @@ func (h *handler) ListGrants(ctx context.Context, req *connect.Request[grantv1.L
 		}
 	}
 	return connect.NewResponse(response), nil
+}
+
+// ListGrantMetadata is the read-only owner projection used by permission
+// inventory. It never calls deliverGrant, reads credential values, or touches
+// the presence hub.
+func (h *handler) ListGrantMetadata(ctx context.Context, req *connect.Request[grantv1.ListGrantMetadataRequest]) (*connect.Response[grantv1.ListGrantMetadataResponse], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if owner.OwnerID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated owner identity missing"))
+	}
+	nodeID, generation := strings.TrimSpace(req.Msg.GetNodeId()), req.Msg.GetEnrollmentGeneration()
+	if nodeID == "" || generation <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("node_id and positive enrollment_generation are required"))
+	}
+	grants, err := h.service.ListMetadata(ctx, nodeID, generation)
+	if err != nil {
+		var stale internalgrant.ErrStaleNodeGeneration
+		if errors.As(err, &stale) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("target enrollment generation changed"))
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential grant metadata is unavailable"))
+	}
+	response := &grantv1.ListGrantMetadataResponse{NodeId: nodeID, EnrollmentGeneration: generation, Grants: make([]*grantv1.CredentialGrantMetadata, 0, len(grants))}
+	for _, grant := range grants {
+		response.Grants = append(response.Grants, toMetadataProto(grant))
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *handler) GetGrantMetadata(ctx context.Context, req *connect.Request[grantv1.GetGrantMetadataRequest]) (*connect.Response[grantv1.CredentialGrantMetadata], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if owner.OwnerID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated owner identity missing"))
+	}
+	id, nodeID, generation := strings.TrimSpace(req.Msg.GetId()), strings.TrimSpace(req.Msg.GetNodeId()), req.Msg.GetEnrollmentGeneration()
+	if id == "" || nodeID == "" || generation <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id, node_id, and positive enrollment_generation are required"))
+	}
+	grants, err := h.service.ListMetadata(ctx, nodeID, generation)
+	if err != nil {
+		var stale internalgrant.ErrStaleNodeGeneration
+		if errors.As(err, &stale) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("target enrollment generation changed"))
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential grant metadata is unavailable"))
+	}
+	for _, grant := range grants {
+		if grant.ID == id {
+			return connect.NewResponse(toMetadataProto(grant)), nil
+		}
+	}
+	return nil, connect.NewError(connect.CodeNotFound, errors.New("credential grant metadata not found"))
+}
+
+func (h *handler) CreateGrantWithReceipt(ctx context.Context, req *connect.Request[grantv1.CreateGrantWithReceiptRequest]) (*connect.Response[grantv1.CredentialGrantMutationReceipt], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if owner.OwnerID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated owner identity missing"))
+	}
+	m := req.Msg
+	if strings.TrimSpace(m.GetNodeId()) == "" || m.GetEnrollmentGeneration() <= 0 || strings.TrimSpace(m.GetRequestId()) == "" || m.GetExpectedRevision() != 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("node, enrollment generation, request ID, and expected revision 0 are required"))
+	}
+	digest := grantMutationDigest(struct {
+		Operation, NodeID, LogicalID, Field, Class, Retention string
+		EnrollmentGeneration, Generation, ExpectedRevision    int64
+	}{"create", m.GetNodeId(), m.GetLogicalId(), m.GetField(), m.GetClass(), m.GetRetention(), m.GetEnrollmentGeneration(), m.GetGeneration(), m.GetExpectedRevision()})
+	grant, receipt, err := h.service.CreateWithReceipt(ctx, internalgrant.CreateInput{NodeID: m.GetNodeId(), LogicalID: m.GetLogicalId(), Field: m.GetField(), Class: internalgrant.Class(m.GetClass()), Retention: internalgrant.Retention(m.GetRetention()), Generation: m.GetGeneration()}, internalgrant.MutationBinding{RequestID: m.GetRequestId(), ActorID: owner.OwnerID, NodeID: m.GetNodeId(), EnrollmentGeneration: m.GetEnrollmentGeneration(), Subject: internalgrant.CreateGrantSubject, ExpectedRevision: m.GetExpectedRevision(), PayloadDigest: digest})
+	if err != nil {
+		return nil, credentialMutationError(err)
+	}
+	// A durable mutation receipt proves that Bridge accepted the request, not
+	// that the target applied it. Replays therefore resume an unconfirmed
+	// delivery. The target deduplicates grant generations, and once Bridge has
+	// persisted the target receipt we avoid sending the same effect again.
+	if receipt.DeliveryState != "confirmed" && receipt.DeliveryState != "refused" {
+		receipt.DeliveryState = h.dispatchGrantMutation(ctx, receipt.RequestID, grant)
+	}
+	return connect.NewResponse(toMutationReceiptProto(receipt, grant)), nil
+}
+
+func (h *handler) RevokeGrantWithReceipt(ctx context.Context, req *connect.Request[grantv1.RevokeGrantWithReceiptRequest]) (*connect.Response[grantv1.CredentialGrantMutationReceipt], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if owner.OwnerID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authenticated owner identity missing"))
+	}
+	m := req.Msg
+	id, nodeID := strings.TrimSpace(m.GetId()), strings.TrimSpace(m.GetNodeId())
+	if id == "" || nodeID == "" || m.GetEnrollmentGeneration() <= 0 || m.GetExpectedRevision() <= 0 || strings.TrimSpace(m.GetRequestId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("grant, node, enrollment generation, expected revision, and request ID are required"))
+	}
+	digest := grantMutationDigest(struct {
+		Operation, ID, NodeID                  string
+		EnrollmentGeneration, ExpectedRevision int64
+	}{"revoke", id, nodeID, m.GetEnrollmentGeneration(), m.GetExpectedRevision()})
+	grant, receipt, err := h.service.RevokeWithReceipt(ctx, id, internalgrant.MutationBinding{RequestID: m.GetRequestId(), ActorID: owner.OwnerID, NodeID: nodeID, EnrollmentGeneration: m.GetEnrollmentGeneration(), Subject: internalgrant.RevokeGrantSubject + ":" + id, ExpectedRevision: m.GetExpectedRevision(), PayloadDigest: digest})
+	if err != nil {
+		return nil, credentialMutationError(err)
+	}
+	// Replayed revocations must retry a missing purge acknowledgement. Agent
+	// tombstones make repeated purges idempotent; a durable Bridge purge receipt
+	// is the point after which the effect is no longer dispatched.
+	if receipt.DeliveryState != "confirmed" && receipt.DeliveryState != "refused" {
+		receipt.DeliveryState = h.dispatchPurgeMutation(ctx, receipt.RequestID, grant)
+	}
+	return connect.NewResponse(toMutationReceiptProto(receipt, grant)), nil
+}
+
+func (h *handler) dispatchGrantMutation(ctx context.Context, requestID string, grant internalgrant.Grant) string {
+	if h.presence == nil || !h.presence.IsOnline(grant.NodeID) {
+		if err := h.service.SetMutationDeliveryState(ctx, requestID, "retryable"); err != nil {
+			h.logger.Printf("credential grant %q retry state deferred: %v", grant.ID, err)
+		}
+		return "retryable"
+	}
+	if err := h.service.SetMutationDeliveryState(ctx, requestID, "dispatched"); err != nil {
+		h.logger.Printf("credential grant %q dispatch state unavailable: %v", grant.ID, err)
+		return "retryable"
+	}
+	if err := h.deliverGrant(ctx, grant); err != nil {
+		if stateErr := h.service.SetMutationDeliveryState(ctx, requestID, "retryable"); stateErr != nil {
+			h.logger.Printf("credential grant %q retry state deferred: %v", grant.ID, stateErr)
+		}
+		h.logger.Printf("credential grant %q delivery deferred: %v", grant.ID, err)
+		return "retryable"
+	}
+	return "dispatched"
+}
+
+func (h *handler) dispatchPurgeMutation(ctx context.Context, requestID string, grant internalgrant.Grant) string {
+	if h.presence == nil || !h.presence.IsOnline(grant.NodeID) {
+		if err := h.service.SetMutationDeliveryState(ctx, requestID, "retryable"); err != nil {
+			h.logger.Printf("credential grant %q purge retry state deferred: %v", grant.ID, err)
+		}
+		return "retryable"
+	}
+	if err := h.service.SetMutationDeliveryState(ctx, requestID, "dispatched"); err != nil {
+		h.logger.Printf("credential grant %q purge dispatch state unavailable: %v", grant.ID, err)
+		return "retryable"
+	}
+	if err := h.deliverPurge(ctx, grant); err != nil {
+		if stateErr := h.service.SetMutationDeliveryState(ctx, requestID, "retryable"); stateErr != nil {
+			h.logger.Printf("credential grant %q purge retry state deferred: %v", grant.ID, stateErr)
+		}
+		h.logger.Printf("credential grant %q purge delivery deferred: %v", grant.ID, err)
+		return "retryable"
+	}
+	return "dispatched"
+}
+
+func credentialMutationError(err error) error {
+	var stale internalgrant.ErrStaleNodeGeneration
+	switch {
+	case errors.Is(err, internalgrant.ErrMutationConflict):
+		return connect.NewError(connect.CodeAlreadyExists, errors.New("credential grant request ID is bound to another mutation"))
+	case errors.Is(err, internalgrant.ErrGrantRevisionConflict):
+		return connect.NewError(connect.CodeAborted, errors.New("credential grant revision changed"))
+	case errors.As(err, &stale):
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("target enrollment generation changed"))
+	case errors.Is(err, sql.ErrNoRows):
+		return connect.NewError(connect.CodeNotFound, errors.New("credential grant not found for target"))
+	default:
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("credential grant mutation refused"))
+	}
+}
+
+func grantMutationDigest(value any) string {
+	encoded, _ := json.Marshal(value)
+	sum := sha256.Sum256(encoded)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 func (h *handler) RevokeGrant(ctx context.Context, req *connect.Request[grantv1.RevokeGrantRequest]) (*connect.Response[grantv1.CredentialGrant], error) {
@@ -349,6 +535,27 @@ func toProto(grant internalgrant.Grant) *grantv1.CredentialGrant {
 		out.PurgeReceiptAt = timestamppb.New(grant.PurgeReceiptAt)
 	}
 	return out
+}
+
+func toMetadataProto(grant internalgrant.Grant) *grantv1.CredentialGrantMetadata {
+	out := &grantv1.CredentialGrantMetadata{Id: grant.ID, NodeId: grant.NodeID, LogicalId: grant.LogicalID, Field: grant.Field, Class: string(grant.Class), Retention: string(grant.Retention), Generation: grant.Generation, AckedGeneration: grant.AckedGeneration, ReceiptAccepted: grant.ReceiptAccepted, PurgeState: grant.PurgeState, PurgeReceiptAccepted: grant.PurgeAccepted, Version: internalgrant.MetadataVersion(grant)}
+	if !grant.GrantedAt.IsZero() {
+		out.GrantedAt = timestamppb.New(grant.GrantedAt)
+	}
+	if !grant.RevokedAt.IsZero() {
+		out.RevokedAt = timestamppb.New(grant.RevokedAt)
+	}
+	if !grant.ReceiptAt.IsZero() {
+		out.ReceiptAt = timestamppb.New(grant.ReceiptAt)
+	}
+	if !grant.PurgeReceiptAt.IsZero() {
+		out.PurgeReceiptAt = timestamppb.New(grant.PurgeReceiptAt)
+	}
+	return out
+}
+
+func toMutationReceiptProto(receipt internalgrant.MutationReceipt, grant internalgrant.Grant) *grantv1.CredentialGrantMutationReceipt {
+	return &grantv1.CredentialGrantMutationReceipt{Id: "credential-grant-mutation:" + receipt.RequestID, Operation: strings.TrimSuffix(receipt.Subject, ":"+grant.ID), RequestId: receipt.RequestID, ActorId: receipt.ActorID, TargetNodeId: receipt.NodeID, EnrollmentGeneration: receipt.EnrollmentGeneration, Subject: receipt.Subject, ExpectedRevision: receipt.ExpectedRevision, ResultRevision: receipt.ResultRevision, PayloadDigest: receipt.PayloadDigest, Outcome: receipt.Outcome, CreatedAt: timestamppb.New(receipt.CreatedAt), Grant: toMetadataProto(grant), DeliveryState: receipt.DeliveryState}
 }
 
 var _ grantconnect.CredentialGrantServiceHandler = (*handler)(nil)

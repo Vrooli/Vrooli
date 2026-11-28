@@ -232,10 +232,6 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   display: block;
 }
 
-.wc-ios-tint-edge-top {
-  top: 0;
-}
-
 .wc-ios-tint-edge-bottom {
   bottom: 0;
 }
@@ -479,29 +475,46 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* Chromium's compatibility click in an isolated HTML frame can subtract the
- * frame offset twice after a touch. Keep its native hit targets at the viewport
- * origin on touch drawers and place the existing viewer controls underneath. */
+/* Chromium's touch compatibility click in an isolated HTML frame can subtract
+ * the frame offset twice, so the tap lands at the wrong point. That only
+ * affects Blink: WebKit and Gecko deliver the tap to the touched control even
+ * when the frame is offset. `lib/touchHtmlFrameOrigin.ts` sets this flag on
+ * coarse-pointer Blink, where the preview frame has to stay flush with the
+ * viewport origin. There, the drawer chrome moves below the preview — a
+ * deliberate bottom tray, not the shared viewer's normal chrome-on-top.
+ *
+ * Every other engine keeps the viewer layout: location row, HTML tool row and
+ * limitation note above the preview. */
 @media (pointer: coarse) {
-  .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) {
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) {
     top: 0;
     inset-inline: 0;
     bottom: var(--overlay-drawer-top-gap);
     border-radius: 0 0 var(--radius-sheet) var(--radius-sheet);
   }
 
-  .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) > .rcl-full-page-drawer__grabber {
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) > .rcl-full-page-drawer__grabber {
     position: relative;
     flex-shrink: 0;
   }
 
-  .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) > .rcl-full-page-drawer__content,
-  .rcl-full-page-drawer__content [data-testid="file-preview-html"] > :has(iframe) {
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) > .rcl-full-page-drawer__content,
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__content [data-testid="file-preview-html"] > :has(iframe) {
     order: -1;
   }
 
-  .rcl-full-page-drawer__content [data-wc-html-inspection-scale] {
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__content [data-wc-html-inspection-scale] {
     margin-left: 0;
+  }
+
+  /* The tray sits under the page: its divider belongs above the tool row, and
+     the header's own border separates the tray from the document. */
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__content [data-testid="file-preview-html"] > [role="toolbar"] {
+    border-block: 0;
+    border-block-start: 1px solid rgb(var(--fv-border-default));
+  }
+  html[data-wc-touch-html-frame-origin] .rcl-full-page-drawer__panel:has([data-testid="file-preview-html"] iframe) > header {
+    border-block-start: 1px solid rgb(var(--fv-border-default));
   }
 }
 

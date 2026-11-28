@@ -11,7 +11,8 @@ import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { writeText } from "../lib/clipboard";
-import { executeConversationControl, getAllConversationEvents, getConversationRange, preflightConversationControl, resolveConversationEvents, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
+import { CONVERSATION_SEARCH_KINDS, executeConversationControl, getAllConversationEvents, getConversationRange, preflightConversationControl, resolveConversationEvents, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch, type ConversationThreadSummary } from "../api/conversation";
+import { coversSequence, isAgentReply, isConversationRow, isEmptyWork, isWorkRow } from "../lib/conversationRows";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Button } from "@vrooli/react-component-library/Button/2";
@@ -49,7 +50,13 @@ import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
 import { MessageRow } from "./messages/MessageRow";
+import { NoticeRow } from "./messages/NoticeRow";
+import { ThreadGroupRow } from "./messages/ThreadGroupRow";
+import { ThreadView } from "./messages/ThreadView";
+import { WorkSpanRow } from "./messages/WorkSpanRow";
+import { threadAnchors } from "./messages/threadAnchors";
 import { MessagesReader } from "./messages/MessagesReader";
+import { replyIndices, replyPosition, seekReply } from "./messages/replyTrack";
 import type { MessageActionContext } from "./messages/messageActions";
 import type { ActionsOrigin } from "./messages/MessageActionList";
 import { usePressGesture } from "../hooks/usePressGesture";
@@ -123,6 +130,23 @@ interface PrependScrollAnchor {
 // ---------------------------------------------------------------------------
 
 const NO_ECHOES: readonly SentEcho[] = [];
+
+/** The Messages view searches its conversation unless the reader asks for tool calls and context too. */
+function serverSearchOptions(options: SearchOptionsState) {
+  const { includeWork, ...rest } = options;
+  return includeWork ? rest : { ...rest, kinds: CONVERSATION_SEARCH_KINDS };
+}
+
+/** When the nearest conversation row before (-1) or after (1) a list position was written. */
+function conversationTimeAt(list: readonly ConversationEvent[], index: number, direction: -1 | 1): string | undefined {
+  for (let position = index + direction; position >= 0 && position < list.length; position += direction) {
+    const row = list[position];
+    if (row && !isWorkRow(row)) return row.occurredAt || row.createdAt;
+  }
+  return undefined;
+}
+const NO_THREADS: readonly ConversationThreadSummary[] = [];
+const NO_THREAD_GROUPS: readonly ConversationThreadSummary[] = [];
 
 export default function MessagesPane({
   sessionId,
@@ -205,9 +229,30 @@ export default function MessagesPane({
   const filterActiveCount = activeMessageFilterCount(filters)
     + (searchOptions.mode !== "text" ? 1 : 0)
     + (searchOptions.caseSensitive ? 1 : 0)
-    + (searchOptions.wholeWord ? 1 : 0);
+    + (searchOptions.wholeWord ? 1 : 0)
+    + (searchOptions.includeWork ? 1 : 0);
   const sourceOptions = useMemo<SourceId[]>(() => availableSources(events), [events]);
-  const visibleEvents = useMemo(() => filterAndSortEvents(events, filters), [events, filters]);
+  // Agent threads (subagents, teammates) are groups placed at the work row
+  // that covers where each began; a work row of nothing but other threads'
+  // rows is kept only when it carries such a group.
+  const threads = useConversationStore((state) => state.sessions[sessionId]?.threads) ?? NO_THREADS;
+  const threadsByAnchor = useMemo(() => threadAnchors(events, threads), [events, threads]);
+  const visibleEvents = useMemo(
+    () => filterAndSortEvents(events, filters).filter((event) => !isWorkRow(event) || !isEmptyWork(event.work) || threadsByAnchor.has(event.id)),
+    [events, filters, threadsByAnchor],
+  );
+  // Work rows open in place; which are open survives the rows virtualising.
+  const [expandedWork, setExpandedWork] = useState<ReadonlySet<string>>(new Set());
+  const toggleWork = useCallback((eventId: string) => {
+    setExpandedWork((current) => {
+      const next = new Set(current);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, []);
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const openThread = openThreadId == null ? null : threads.find((thread) => thread.threadId === openThreadId) ?? null;
 
   // --- Render mode (markdown by default; ids in this set show plain text) ---
   const [plaintextIds, setPlaintextIds] = useState<Set<string>>(new Set());
@@ -373,9 +418,12 @@ export default function MessagesPane({
   const estimateMessageHeight = useCallback((index: number) => {
     const event = visibleEvents[index];
     if (!event) return 140;
+    const groups = (threadsByAnchor.get(event.id)?.length ?? 0) * 64;
+    if (isWorkRow(event)) return (isEmptyWork(event.work) ? 0 : 37) + groups;
+    if (!isConversationRow(event) || event.kind === "notice" || event.kind === "attachment") return 37;
     const lineEstimate = Math.ceil(event.text.length / 90);
     return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
-  }, [visibleEvents]);
+  }, [threadsByAnchor, visibleEvents]);
   const getMessageKey = useCallback((index: number) => visibleEvents[index]?.id ?? index, [visibleEvents]);
   const { itemRef, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex, anchorItem, listScrollTop } = useVirtualList({
     count: visibleEvents.length,
@@ -463,7 +511,7 @@ export default function MessagesPane({
     const requestId = ++searchRequestId.current;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void searchConversation(sessionId, query, searchOptions).then((response) => {
+      void searchConversation(sessionId, query, serverSearchOptions(searchOptions)).then((response) => {
         if (!cancelled && requestId === searchRequestId.current) {
           setServerSearchMatches(response.matches);
           setSearchTruncated(response.truncated);
@@ -495,7 +543,7 @@ export default function MessagesPane({
     setSearchContinueLoading(true);
     setSearchError(undefined);
     try {
-      const response = await searchConversation(sessionId, query, { ...searchOptions, afterSequence: searchNextAfterSequence });
+      const response = await searchConversation(sessionId, query, { ...serverSearchOptions(searchOptions), afterSequence: searchNextAfterSequence });
       if (requestId !== searchRequestId.current) return;
       setServerSearchMatches((previous) => {
         const known = new Set(previous.map((match) => match.eventId));
@@ -522,6 +570,18 @@ export default function MessagesPane({
     [serverSearchMatches],
   );
   const searchMatchSet = useMemo(() => new Set(searchMatchIds), [searchMatchIds]);
+  // Hits inside collapsed work (searching tool calls and context) mark the
+  // work row that holds them, and are highlighted when it opens.
+  const workHitSequences = useMemo(
+    () => new Set(serverSearchMatches.filter((match) => !match.threadId && match.kind != null && !isConversationRow({ role: match.role, kind: match.kind })).map((match) => match.sequence)),
+    [serverSearchMatches],
+  );
+  const isSearchHit = useCallback((event: ConversationEvent) => {
+    if (searchMatchSet.has(event.id)) return true;
+    if (!isWorkRow(event)) return false;
+    for (const sequence of workHitSequences) if (coversSequence(event, sequence)) return true;
+    return false;
+  }, [searchMatchSet, workHitSequences]);
 
   // The result dropdown reads exactly the filters the list reads. With a query
   // it lists the server's whole-history hits; with an empty query it offers the
@@ -637,8 +697,8 @@ export default function MessagesPane({
     lastEventIdRef.current = lastId;
     let appended = 0;
     if (previousLastId != null && lastId !== previousLastId) {
-      const previousIndex = eventIndexById.get(previousLastId);
-      appended = previousIndex == null ? 0 : events.length - 1 - previousIndex;
+      const previousIndex = allEventIndexById.get(previousLastId);
+      appended = previousIndex == null ? 0 : events.slice(previousIndex + 1).filter(isConversationRow).length;
     }
 
     const el = scrollContainerRef.current;
@@ -650,9 +710,10 @@ export default function MessagesPane({
     } else if (appended > 0) {
       setNewMessageCount((count) => count + appended);
     }
-  }, [events, eventIndexById, totalSize, stateSlotKey, echoes.length, runProgrammaticScroll]);
+  }, [events, allEventIndexById, totalSize, stateSlotKey, echoes.length, runProgrammaticScroll]);
 
-  const scrollToEvent = useCallback(async (eventId: string) => {
+  const scrollToEvent = useCallback(async (selectedEventId: string) => {
+    let eventId = selectedEventId;
     const fail = (message: string) => {
       setSearchError(message);
       setSearchOpen(true);
@@ -664,15 +725,33 @@ export default function MessagesPane({
         fail("That message is no longer in the search results. Search again to refresh them.");
         return;
       }
-      if (!await loadConversationPageContaining(sessionId, match.sequence)) {
+      // A hit in a subagent's conversation opens that conversation.
+      if (match.threadId) {
+        setSearchOpen(false);
+        setOpenThreadId(match.threadId);
+        return;
+      }
+      const holder = (list: readonly ConversationEvent[]) => list.find((event) => event.id === eventId || (isWorkRow(event) && coversSequence(event, match.sequence)));
+      const listed = () => {
+        const session = useConversationStore.getState().sessions[sessionId];
+        return holder(session?.events ?? []);
+      };
+      if (!listed() && !await loadConversationPageContaining(sessionId, match.sequence)) {
         fail("That message couldn't be loaded. Check the connection and try again.");
         return;
       }
-      index = visibleEvents.findIndex((event) => event.id === eventId);
-      if (index < 0) {
+      const target = listed();
+      // A hit inside collapsed work opens the work row that holds it.
+      if (target && isWorkRow(target)) {
+        setExpandedWork((current) => new Set(current).add(target.id));
+        setFocusedEventId(target.id);
+      }
+      index = target ? visibleEvents.findIndex((event) => event.id === target.id) : -1;
+      if (index < 0 || !target) {
         fail("The selected message is hidden by the active filters. Clear a filter and try again.");
         return;
       }
+      eventId = target.id;
     }
     setFollow(false);
     runProgrammaticScroll(() => { scrollToIndexRef.current(index!, "auto", "center"); });
@@ -729,8 +808,10 @@ export default function MessagesPane({
     const requestId = ++exportResolutionRequest.current;
     setExportResolutionError(undefined);
     void getConversationRange(sessionId, Math.min(anchorSequence, endSequence), Math.max(anchorSequence, endSequence))
-      .then((range) => {
+      .then((fullRange) => {
         if (requestId !== exportResolutionRequest.current) return;
+        // An export is of the conversation the view lists, not the tool rows between.
+        const range = { ...fullRange, events: fullRange.events.filter(isConversationRow) };
         const returnedIds = new Set(range.events.map((event) => event.id));
         if (!returnedIds.has(anchorEventId) || !returnedIds.has(eventId)) {
           setExportResolutionError(t(strings.messageExport.rangeLoadFailed));
@@ -911,32 +992,38 @@ export default function MessagesPane({
   // Replies past everything the reader has shown arrived while it was open.
   const newReplyCount = reader == null
     ? 0
-    : events.filter((candidate) => candidate.role !== "user" && candidate.sequence > reader.seenThrough).length;
+    : events.filter((candidate) => isAgentReply(candidate) && candidate.sequence > reader.seenThrough).length;
   // The reader steps between replies; the operator's own messages are skipped.
-  const replyNear = (from: number, direction: -1 | 1): string | null => {
-    for (let index = from + direction; index >= 0 && index < visibleEvents.length; index += direction) {
-      const candidate = visibleEvents[index];
-      if (candidate && candidate.role !== "user") return candidate.id;
-    }
-    return null;
-  };
-  const prevReplyId = readerIndex == null ? null : replyNear(readerIndex, -1);
-  const nextReplyId = readerIndex == null ? null : replyNear(readerIndex, 1);
+  const replies = useMemo(() => replyIndices(visibleEvents), [visibleEvents]);
+  const canPrevReply = readerIndex != null && seekReply(replies, readerIndex, -1).moved > 0;
+  const canNextReply = readerIndex != null && seekReply(replies, readerIndex, 1).moved > 0;
+  const readerPosition = readerIndex == null ? { ordinal: 0, total: replies.length } : replyPosition(replies, readerIndex);
   const readerFontSize = messagesFontSize;
   const openReader = useCallback((eventId: string) => {
     if (!eventIndexById.has(eventId)) return;
     setReader({ eventId, seenThrough: events[events.length - 1]?.sequence ?? 0 });
   }, [eventIndexById, events, setReader]);
-  const stepReader = (eventId: string) => {
-    const target = visibleEvents[eventIndexById.get(eventId) ?? -1];
-    if (!reader || !target) return;
-    setReader({ eventId, seenThrough: Math.max(reader.seenThrough, target.sequence) });
-  };
+  // A held scrub can step several times between renders, so a seek starts
+  // from the reader it last set, not from the one this render saw.
+  const seekState = useRef({ reader, replies, visibleEvents, eventIndexById });
+  seekState.current = { reader, replies, visibleEvents, eventIndexById };
+  const seekReader = useCallback((delta: number): number => {
+    const { reader: current, replies: track, visibleEvents: list, eventIndexById: indexById } = seekState.current;
+    const from = current == null ? undefined : indexById.get(current.eventId);
+    if (current == null || from == null) return 0;
+    const { index, moved } = seekReply(track, from, delta);
+    const target = index == null ? undefined : list[index];
+    if (!target || moved === 0) return 0;
+    const next = { eventId: target.id, seenThrough: Math.max(current.seenThrough, target.sequence) };
+    seekState.current = { ...seekState.current, reader: next };
+    setReader(next);
+    return moved;
+  }, [setReader]);
   // The list and its controls are out of reach while the reader covers them.
   const controlStripRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    for (const node of [controlStripRef.current, scrollContainerRef.current]) node?.toggleAttribute("inert", readerShown);
-  }, [readerShown]);
+    for (const node of [controlStripRef.current, scrollContainerRef.current]) node?.toggleAttribute("inert", readerShown || openThread != null);
+  }, [openThread, readerShown]);
   const closeReader = useCallback(() => {
     const eventId = readerEventId;
     setReader(null);
@@ -1006,7 +1093,12 @@ export default function MessagesPane({
     const from = fromId ? (eventIndexById.get(fromId) ?? -1) : -1;
     // With nothing focused yet, j lands on the top visible message itself.
     const step = keyEvent.key === "j" ? (focusedEventId ? 1 : 0) : -1;
-    const nextId = visibleEvents[Math.min(visibleEvents.length - 1, Math.max(0, from + step))]?.id;
+    // j/k move between conversation rows; the work lines between them are stepped over.
+    let next = Math.min(visibleEvents.length - 1, Math.max(0, from + step));
+    const direction = step === 0 ? 1 : step;
+    const isWorkAt = (position: number) => { const row = visibleEvents[position]; return row != null && isWorkRow(row); };
+    while (isWorkAt(next) && next + direction >= 0 && next + direction < visibleEvents.length) next += direction;
+    const nextId = visibleEvents[next]?.id;
     if (!nextId) return;
     keyEvent.preventDefault();
     focusAndScroll(nextId);
@@ -1227,27 +1319,49 @@ export default function MessagesPane({
                   className="absolute left-0 right-0"
                   style={{ top: `${String(start)}px` }}
                 >
-                  <MessageRow
-                    imageSessionId={sessionId}
-                    actionContext={actionContextFor(event)}
-                    fontSize={renderedMessagesFontSize}
-                    isFocused={focusedEventId === event.id}
-                    isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
-                    isDimmed={!!searchQuery && serverSearchReady && !searchMatchSet.has(event.id)}
-                    selectionMode={selectionMode}
-                    selected={exportSelectedIds.has(event.id)}
-                    onToggleSelected={toggleSelected}
-                    coarsePointer={coarsePointer}
-                    tapRevealed={coarsePointer && tapRevealedId === event.id}
-                    actionsOpen={actionsTarget?.eventId === event.id}
-                    actionsOrigin={actionsTarget?.eventId === event.id ? actionsTarget.origin : null}
-                    onOpenActions={openActions}
-                    onCloseActions={closeActions}
-                    getPressHandlers={getPressHandlers}
-                    onLinkClick={handleMarkdownLinkClick}
-                    onFileReferenceClick={handleInlineCodeFileClick}
-                    onMermaidOpen={handleMermaidOpen}
-                  />
+                  {isWorkRow(event) ? (
+                    <WorkSpanRow
+                      sessionId={sessionId}
+                      event={event}
+                      previousAt={conversationTimeAt(visibleEvents, index, -1)}
+                      nextAt={conversationTimeAt(visibleEvents, index, 1)}
+                      expanded={expandedWork.has(event.id)}
+                      onToggle={toggleWork}
+                      highlightSequences={workHitSequences}
+                    />
+                  ) : event.kind === "notice" || event.kind === "attachment" ? (
+                    <NoticeRow
+                      event={event}
+                      isDimmed={!!searchQuery && serverSearchReady && !isSearchHit(event)}
+                      isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
+                    />
+                  ) : (
+                    <MessageRow
+                      imageSessionId={sessionId}
+                      actionContext={actionContextFor(event)}
+                      fontSize={renderedMessagesFontSize}
+                      isFocused={focusedEventId === event.id}
+                      isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
+                      isDimmed={!!searchQuery && serverSearchReady && !isSearchHit(event)}
+                      selectionMode={selectionMode}
+                      selected={exportSelectedIds.has(event.id)}
+                      onToggleSelected={toggleSelected}
+                      coarsePointer={coarsePointer}
+                      tapRevealed={coarsePointer && tapRevealedId === event.id}
+                      actionsOpen={actionsTarget?.eventId === event.id}
+                      actionsOrigin={actionsTarget?.eventId === event.id ? actionsTarget.origin : null}
+                      onOpenActions={openActions}
+                      onCloseActions={closeActions}
+                      getPressHandlers={getPressHandlers}
+                      onLinkClick={handleMarkdownLinkClick}
+                      onFileReferenceClick={handleInlineCodeFileClick}
+                      onMermaidOpen={handleMermaidOpen}
+                    />
+                  )}
+                  {/* An agent thread that began inside this span is one group here. */}
+                  {(threadsByAnchor.get(event.id) ?? NO_THREAD_GROUPS).map((thread) => (
+                    <ThreadGroupRow key={thread.threadId} thread={thread} onOpen={setOpenThreadId} />
+                  ))}
                   {/* Suggestions render INSIDE the message's own block, so
                       offering one never moves the transcript the operator is
                       reading. */}
@@ -1439,14 +1553,28 @@ export default function MessagesPane({
           coarsePointer={coarsePointer}
           hideFooter={coarsePointer && keyboardOpen}
           onClose={closeReader}
-          onPrev={prevReplyId ? () => { stepReader(prevReplyId); } : undefined}
-          onNext={nextReplyId ? () => { stepReader(nextReplyId); } : undefined}
+          onSeek={seekReader}
+          canPrev={canPrevReply}
+          canNext={canNextReply}
+          position={readerPosition}
           newReplyCount={newReplyCount}
           onLinkClick={handleMarkdownLinkClick}
           onFileReferenceClick={handleInlineCodeFileClick}
           onMermaidOpen={handleMermaidOpen}
           pendingOutbox={pendingOutbox}
           onPressEnter={pendingOutbox ? handlePressEnter : undefined}
+        />
+      )}
+
+      {openThread && !readerEvent && (
+        <ThreadView
+          sessionId={sessionId}
+          thread={openThread}
+          fontSize={renderedMessagesFontSize}
+          onClose={() => { setOpenThreadId(null); }}
+          onLinkClick={handleMarkdownLinkClick}
+          onFileReferenceClick={handleInlineCodeFileClick}
+          onMermaidOpen={handleMermaidOpen}
         />
       )}
 

@@ -21,7 +21,10 @@ type Server struct {
 
 // Session is one entry from `GET /session`.
 type Session struct {
-	ID        string `json:"id"`
+	ID string `json:"id"`
+	// ParentID is set on a subagent (child) session. A child belongs to its
+	// parent's conversation, never to a terminal pane of its own.
+	ParentID  string `json:"parentID,omitempty"`
 	Directory string `json:"directory"`
 	Title     string `json:"title"`
 	Time      struct {

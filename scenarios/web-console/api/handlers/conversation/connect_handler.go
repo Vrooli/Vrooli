@@ -49,7 +49,16 @@ func (h *connectHandler) Get(ctx context.Context, req *connect.Request[conversat
 	if sessionID == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
 	}
-	state, err := h.deps.Service.Get(ctx, sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
+	var state SessionState
+	var err error
+	if req.Msg.GetProjection() == conversationv1.ConversationProjection_CONVERSATION_PROJECTION_MESSAGES {
+		state, err = h.deps.Service.Project(ctx, sessionID, ProjectionQuery{
+			ThreadID: strings.TrimSpace(req.Msg.GetThreadId()), Limit: int(req.Msg.GetLimit()),
+			BeforeSequence: req.Msg.GetBeforeSequence(), SinceSequence: req.Msg.GetSinceSequence(),
+		})
+	} else {
+		state, err = h.deps.Service.Get(ctx, sessionID, req.Msg.GetSinceSequence(), int(req.Msg.GetLimit()), req.Msg.GetBeforeSequence())
+	}
 	if err != nil {
 		return nil, h.classify(err, "conversation.Get")
 	}
@@ -69,7 +78,30 @@ func (h *connectHandler) Get(ctx context.Context, req *connect.Request[conversat
 		NewestSequence: state.NewestSequence,
 		TotalCount:     state.TotalCount,
 		Capture:        captureToProto(capture),
+		Threads:        threadsToProto(state.Threads),
 	}), nil
+}
+
+func threadsToProto(in []Thread) []*conversationv1.ConversationThread {
+	out := make([]*conversationv1.ConversationThread, 0, len(in))
+	for _, thread := range in {
+		out = append(out, &conversationv1.ConversationThread{
+			ThreadId: thread.ThreadID, Kind: thread.Kind, Label: thread.Label, Description: thread.Description,
+			ParentThreadId: thread.ParentThreadID, FirstSequence: thread.FirstSequence, LastSequence: thread.LastSequence,
+			MessageCount: int32(thread.MessageCount), WorkCount: int32(thread.WorkCount), StartedAt: thread.StartedAt, EndedAt: thread.EndedAt,
+		})
+	}
+	return out
+}
+
+func workToProto(work *WorkSpan) *conversationv1.ConversationWorkSpan {
+	if work == nil {
+		return nil
+	}
+	return &conversationv1.ConversationWorkSpan{
+		FromSequence: work.FromSequence, ToSequence: work.ToSequence, ToolCalls: int32(work.ToolCalls), ToolResults: int32(work.ToolResults),
+		Reasoning: int32(work.Reasoning), Context: int32(work.Context), StartedAt: work.StartedAt, EndedAt: work.EndedAt,
+	}
 }
 
 // captureStateToProto maps the transport-neutral capture state onto the wire
@@ -131,6 +163,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conver
 		Role:          req.Msg.GetRoleFilter(),
 		Limit:         int(req.Msg.GetLimit()),
 		AfterSequence: req.Msg.GetAfterSequence(),
+		Kinds:         req.Msg.GetKinds(),
 	})
 	if err != nil {
 		return nil, h.classify(err, "conversation.Search")
@@ -139,7 +172,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conver
 	for _, match := range result.Matches {
 		out = append(out, &conversationv1.SearchMatch{
 			EventId: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
-			Role: match.Role, CreatedAt: match.CreatedAt, OccurredAt: match.OccurredAt,
+			Role: match.Role, CreatedAt: match.CreatedAt, OccurredAt: match.OccurredAt, Kind: match.Kind, ThreadId: match.ThreadID,
 		})
 	}
 	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: result.Truncated, TotalMatches: result.TotalMatches, Error: result.Error, HasMore: result.HasMore, NextAfterSequence: result.NextAfterSequence}), nil
@@ -215,7 +248,14 @@ func (h *connectHandler) SearchNodeArchive(ctx context.Context, req *connect.Req
 }
 
 func (h *connectHandler) GetRange(ctx context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
-	state, err := h.deps.Service.GetRange(ctx, strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	var state SessionState
+	var err error
+	if req.Msg.GetProjection() == conversationv1.ConversationProjection_CONVERSATION_PROJECTION_WORK {
+		state, err = h.deps.Service.WorkRange(ctx, sessionID, strings.TrimSpace(req.Msg.GetThreadId()), req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+	} else {
+		state, err = h.deps.Service.GetRange(ctx, sessionID, req.Msg.GetFromSequence(), req.Msg.GetToSequence())
+	}
 	if err != nil {
 		return nil, h.classify(err, "conversation.GetRange")
 	}
@@ -309,6 +349,13 @@ func eventToProto(e Event) *conversationv1.ConversationEvent {
 			}
 			return &conversationv1.NativeProvenance{Provider: e.NativeProvenance.Provider, SessionId: e.NativeProvenance.SessionID, TurnId: e.NativeProvenance.TurnID, MessageId: e.NativeProvenance.MessageID, BoundaryId: e.NativeProvenance.BoundaryID, CompactionLineage: e.NativeProvenance.CompactionLineage}
 		}(),
+		Kind:          e.Kind,
+		Author:        e.Author,
+		AuthorName:    e.AuthorName,
+		Label:         e.Label,
+		ThreadId:      e.ThreadID,
+		Work:          workToProto(e.Work),
+		TextTruncated: e.TextTruncated,
 	}
 }
 

@@ -109,6 +109,24 @@ func TestConversationRetentionSweeperSkipsWhenUnbounded(t *testing.T) {
 	}
 }
 
+func TestConversationRetentionSweeperMaintainsFreePagesWithoutPruning(t *testing.T) {
+	sweeper := newConversationRetentionSweeper(new(retentionPrunerStub), nil, nil)
+	sweeper.interval = time.Millisecond
+	started := make(chan struct{})
+	sweeper.maintain = func(ctx context.Context) {
+		close(started)
+		<-ctx.Done()
+	}
+	sweeper.Start()
+	sweeper.Start()
+	t.Cleanup(sweeper.Stop)
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("database maintenance did not run without a conversation pruning policy")
+	}
+}
+
 func TestConversationRetentionSweeperRequiresDurableReceipt(t *testing.T) {
 	pruner := &retentionPrunerStub{removed: 7}
 	withoutLedger := newConversationRetentionSweeper(pruner, func() int { return 30 }, func() int { return 0 })

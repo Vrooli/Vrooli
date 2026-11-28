@@ -17,8 +17,9 @@ import (
 // knobs and atomic call counters. Used by service tests to drive the service
 // against a controllable persistence layer without sqlite.
 type FakeRepository struct {
-	mu    sync.Mutex
-	nodes map[string]registry.Node
+	mu       sync.Mutex
+	nodes    map[string]registry.Node
+	receipts map[string]registry.NodeUpdateReceipt
 
 	CreateErr        error
 	GetErr           error
@@ -40,7 +41,7 @@ type FakeRepository struct {
 
 // NewFakeRepository constructs an empty fake.
 func NewFakeRepository() *FakeRepository {
-	return &FakeRepository{nodes: make(map[string]registry.Node)}
+	return &FakeRepository{nodes: make(map[string]registry.Node), receipts: make(map[string]registry.NodeUpdateReceipt)}
 }
 
 var _ registry.Repository = (*FakeRepository)(nil)
@@ -67,6 +68,9 @@ func (f *FakeRepository) Create(_ context.Context, n registry.Node) (registry.No
 	}
 	if n.UpdatedAt.IsZero() {
 		n.UpdatedAt = n.CreatedAt
+	}
+	if n.OwnerRevision <= 0 {
+		n.OwnerRevision = 1
 	}
 	f.nodes[n.ID] = n
 	return n, nil
@@ -138,8 +142,43 @@ func (f *FakeRepository) Update(_ context.Context, n registry.Node) (registry.No
 	existing.Scopes = n.Scopes
 	existing.Revision = n.Revision
 	existing.UpdatedAt = f.now()
+	existing.OwnerRevision++
 	f.nodes[n.ID] = existing
 	return existing, nil
+}
+
+func (f *FakeRepository) UpdateCAS(_ context.Context, m registry.CASMutation) (registry.UpdateCASResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if prior, ok := f.receipts[m.RequestID]; ok {
+		if prior.ActorID == m.ActorID && prior.TargetID == m.TargetID && prior.Subject == m.Subject && prior.ExpectedRevision == m.ExpectedRevision && prior.PayloadDigest == m.PayloadDigest {
+			return registry.UpdateCASResult{Node: f.nodes[m.TargetID], Receipt: prior}, nil
+		}
+		return registry.UpdateCASResult{}, registry.ErrRequestIdentityConflict{RequestID: m.RequestID}
+	}
+	n, ok := f.nodes[m.TargetID]
+	if !ok {
+		return registry.UpdateCASResult{}, registry.ErrNodeNotFound{ID: m.TargetID}
+	}
+	if n.Revoked() {
+		return registry.UpdateCASResult{}, registry.ErrNodeRevoked{ID: m.TargetID}
+	}
+	if n.OwnerRevision != m.ExpectedRevision {
+		return registry.UpdateCASResult{}, registry.ErrRevisionConflict{ID: m.TargetID, Expected: m.ExpectedRevision, Current: n.OwnerRevision}
+	}
+	n.Name = m.Node.Name
+	n.Endpoint = m.Node.Endpoint
+	n.Capabilities = m.Node.Capabilities
+	n.Scopes = m.Node.Scopes
+	n.Revision = m.Node.Revision
+	n.Kind = m.Node.Kind
+	n.DeploymentTier = m.Node.DeploymentTier
+	n.OwnerRevision++
+	n.UpdatedAt = f.now()
+	f.nodes[m.TargetID] = n
+	r := registry.NodeUpdateReceipt{RequestID: m.RequestID, ActorID: m.ActorID, TargetID: m.TargetID, Subject: m.Subject, ExpectedRevision: m.ExpectedRevision, NewRevision: n.OwnerRevision, PayloadDigest: m.PayloadDigest, CreatedAt: f.now()}
+	f.receipts[m.RequestID] = r
+	return registry.UpdateCASResult{Node: n, Receipt: r}, nil
 }
 
 func (f *FakeRepository) Revoke(_ context.Context, id string) (registry.Node, error) {
@@ -212,6 +251,25 @@ func (f *FakeRepository) UpdateArchitecture(_ context.Context, id, machineArch, 
 	n.UpdatedAt = f.now()
 	f.nodes[id] = n
 	return nil
+}
+
+func (f *FakeRepository) SetEnrollmentGeneration(_ context.Context, id string, generation int64) (registry.Node, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n, ok := f.nodes[id]
+	if !ok {
+		return registry.Node{}, registry.ErrNodeNotFound{ID: id}
+	}
+	if generation <= 0 {
+		return registry.Node{}, registry.ErrInvalidNode{Field: "enrollment_generation", Reason: "must be positive"}
+	}
+	if generation < n.EnrollmentGeneration {
+		return registry.Node{}, registry.ErrEnrollmentGenerationConflict{ID: id, Current: n.EnrollmentGeneration, Attempted: generation}
+	}
+	n.EnrollmentGeneration = generation
+	n.UpdatedAt = f.now()
+	f.nodes[id] = n
+	return n, nil
 }
 
 // Seed inserts a node directly for test setup, bypassing Create's stamping.

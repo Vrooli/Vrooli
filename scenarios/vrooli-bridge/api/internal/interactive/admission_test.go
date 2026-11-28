@@ -10,7 +10,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestAdmissionSeparatesNodeTrustFromDesktopSemantics(t *testing.T) {
+// SOFTWARE SIMULATION: the in-memory admission owner validates a synthetic
+// desktop channel and revocation. It does not prove Bridge reach or WebRTC.
+func TestSoftwareSimulationBridgeAdmissionAndRevocation(t *testing.T) {
+	t.Log("SOFTWARE SIMULATION ONLY: in-memory Bridge admission and synthetic signals")
 	a := NewAdmission()
 	a.SetNode("node-1", true)
 	req := &interactivev1.OpenChannelRequest{NodeId: "node-1", SessionId: "s1", LeaseId: "l1", LeaseEpoch: 1, Protocol: interactivev1.ChannelProtocol_CHANNEL_PROTOCOL_WEBRTC_VP8, Role: interactivev1.ChannelRole_CHANNEL_ROLE_CONTROLLER, Surface: &commonv1.SurfaceRef{SurfaceId: "desktop", Target: &commonv1.TargetRef{ResourceId: "node-1"}}}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/platform-go/desktopowner"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/registry"
 	internal "vrooli-bridge/internal/scenario"
@@ -130,6 +131,13 @@ func newServiceWithCatalog(registrySvc registry.Service, presence internal.Prese
 }
 
 func admit(catalog scopecatalog.Catalog, catalogErr error, request internal.Request, node internal.TargetNode) error {
+	// Desktop browser procedures use the same authenticated owner and
+	// non-revoked connected-node boundary as InteractiveDesktopService.
+	// They are a dedicated surface, not agent-callable CLI operations.
+	if request.Scenario == deviceControlScenario && request.Service == desktopSessionService {
+		return admitDesktopProcedure(request, node)
+	}
+
 	if catalogErr != nil {
 		return fmt.Errorf("scenario proxy catalog unavailable: %w", catalogErr)
 	}
@@ -148,6 +156,17 @@ func admit(catalog scopecatalog.Catalog, catalogErr error, request internal.Requ
 		return nil
 	}
 	return fmt.Errorf("scenario procedure %s/%s is not governed", request.Service, request.Method)
+}
+
+// Admit only calls used by the desktop session UI. WebRTC signaling is
+// authorized separately by the interactive channel grant. The exact path
+// check prevents a governed method from being used to forward another RPC.
+func admitDesktopProcedure(request internal.Request, node internal.TargetNode) error {
+	if request.Actor != "owner" || node.Revoked || node.ID != request.NodeID ||
+		!desktopowner.AllowsRPC(request.Scenario, request.Service, request.Method, request.HTTPPath, request.HTTPMethod) {
+		return fmt.Errorf("desktop procedure is not authorized for this target")
+	}
+	return nil
 }
 
 func splitProcedure(path string) (service, method string, err error) {

@@ -15,6 +15,7 @@ authorized_target_ids = inputs.get("authorized_target_ids", [])
 authorization_ref = str(inputs.get("authorization_ref", "") or "").strip()
 phases = inputs.get("phases", ["business", "storage", "contracts"])
 evidence_cells = inputs.get("evidence_cells", [])
+input_local_run_ids = inputs.get("local_run_ids", [])
 plan_only = inputs.get("plan_only", False)
 
 
@@ -64,10 +65,46 @@ def step_validate():
         status = cell.get("status", "pending")
         if status not in allowed_statuses:
             return program.fail("failed", "invalid_input", "evidence cell status must be passed, failed, stale, unavailable, or pending", "validate")
-        cells.append({"cell_id": cell["cell_id"], "status": status, "evidence_ref": str(cell.get("evidence_ref", ""))[:256]})
+        cells.append({"cell_id": cell["cell_id"], "status": status, "evidence_ref": str(cell.get("evidence_ref", ""))[:256], "source": "caller_observation", "lane_eligible": False})
+    if not isinstance(input_local_run_ids, list) or len(input_local_run_ids) > 8:
+        return program.fail("failed", "invalid_input", "local_run_ids must contain at most 8 Bridge run ids", "validate")
+    if any(not isinstance(run_id, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", run_id) for run_id in input_local_run_ids):
+        return program.fail("failed", "invalid_input", "local_run_ids contain an invalid Bridge run identity", "validate")
+    local_run_ids = sorted(set(input_local_run_ids))
+    local_receipts = []
+    if local_run_ids:
+        for run_id in local_run_ids:
+            try:
+                rows = vrooli_bridge.runs.local_receipt(id=run_id).head(1)
+            except Exception as exc:
+                status, klass = program.classify(exc)
+                return program.fail("unavailable", klass, "Bridge local receipt read failed for " + run_id, "validate")
+            receipt = rows[0] if rows else None
+            if not isinstance(receipt, dict) or receipt.get("runId") != run_id:
+                return program.fail("failed", "binding_error", "Bridge local receipt read returned no matching persisted run", "validate")
+            if receipt.get("lane") != "local-contract" or receipt.get("targetClass") != "local-fixture" or receipt.get("provenance") != "local-fixture" or receipt.get("laneEligible") is not False:
+                return program.fail("failed", "binding_error", "Bridge receipt is not pinned to local-only provenance", "validate")
+            run_status = str(receipt.get("status", ""))
+            exit_code = receipt.get("exitCode")
+            if run_status not in {"passed", "failed", "aborted", "failed_delivery"}:
+                return program.fail("failed", "binding_error", "Bridge receipt is not terminal", "validate")
+            if run_status == "passed" and exit_code != 0:
+                return program.fail("failed", "binding_error", "Bridge passed receipt has a nonzero exit code", "validate")
+            if run_status == "failed" and exit_code == 0:
+                return program.fail("failed", "binding_error", "Bridge failed receipt has a zero exit code", "validate")
+            local_status = "local_pass_observed" if run_status == "passed" and exit_code == 0 else "local_failure_observed"
+            local_receipts.append({
+                "run_id": run_id, "target_id": str(receipt.get("targetId", "")),
+                "scenario": str(receipt.get("scenario", "")), "verb": str(receipt.get("verb", "")),
+                "status": local_status, "run_status": run_status, "exit_code": exit_code,
+                "evidence_refs": [str(ref)[:256] for ref in (receipt.get("evidenceRefs", []) or [])[:8]],
+                "lane": "local-contract", "target_class": "local-fixture", "provenance": "local-fixture",
+                "lane_eligible": False, "qualifies_remote_lane": False,
+            })
     envelope["signals"]["request"] = {"request_key": request_key, "candidate_digest": candidate_digest, "target_ids": requested, "phases": normalized_phases}
     envelope["signals"]["authority"] = {"authorized": True, "authorization_ref": authorization_ref, "target_count": len(requested)}
     envelope["signals"]["cells"] = cells
+    envelope["signals"]["local_receipts"] = local_receipts
     return "act"
 
 
@@ -91,6 +128,7 @@ def step_act():
     }
     envelope["signals"]["intent"] = {"idempotency_key": request_key, "candidate_digest": candidate_digest, "target_count": len(envelope["signals"]["request"]["target_ids"]), "phases": intent["phases"]}
     envelope["evidence"] = ["candidate:" + candidate_digest, "authorization:" + authorization_ref]
+    envelope["evidence"].extend("bridge-local-run:" + receipt["run_id"] for receipt in envelope["signals"].get("local_receipts", []))
     if plan_only:
         envelope["status"] = "ok"
         envelope["signals"]["outcome"] = "planned"

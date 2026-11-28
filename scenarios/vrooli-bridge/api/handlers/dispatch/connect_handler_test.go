@@ -19,6 +19,7 @@ import (
 	"vrooli-bridge/internal/runs"
 	runsmocks "vrooli-bridge/internal/runs/mocks"
 
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/scheduletest"
 
@@ -66,6 +67,22 @@ func TestDispatchHandler_DryRunHeader(t *testing.T) {
 	require.True(t, fake.gotInput.DryRun, "handler reads X-Dry-Run into the dispatch input")
 	require.True(t, resp.Msg.DryRun)
 	require.Equal(t, "owner-1", fake.gotInput.Actor)
+}
+
+func TestDispatchHandler_RequiresExactServicePrincipalScope(t *testing.T) {
+	fake := &fakeDispatch{}
+	h := NewConnectHandler(Deps{Service: fake})
+	req := connect.NewRequest(&dispatchv1.DispatchJobRequest{NodeId: "n1", Scenario: "web-search", Verb: "scenario test"})
+
+	withoutScope := auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "lpbs-dispatch", Kind: identity.ActorService})
+	_, err := h.DispatchJob(withoutScope, req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Empty(t, fake.gotInput.Actor, "rejected service identity must not enter the dispatch service")
+
+	withScope := auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "lpbs-dispatch", Kind: identity.ActorService, Scopes: []string{auth.DispatchServiceScope}})
+	_, err = h.DispatchJob(withScope, req)
+	require.NoError(t, err)
+	require.Equal(t, "lpbs-dispatch", fake.gotInput.Actor)
 }
 
 // [REQ:BRG-P0-004] An allowlist rejection maps to PermissionDenied.

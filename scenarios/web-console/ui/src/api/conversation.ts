@@ -1,8 +1,9 @@
 import { createClient } from "@connectrpc/connect";
-import { ConversationSearchMode, ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
+import { ConversationProjection, ConversationSearchMode, ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
 
 import { API_BASE_WITH_SUFFIX, transport } from "./client";
 import { decodeCaptureStatus, type MessageCaptureStatus } from "./messageCapture";
+import { decodeClassification } from "../lib/conversationRows";
 
 // The capture contract lives in ./messageCapture so the store can import its
 // runtime default without depending on this (heavily mocked) client module.
@@ -35,6 +36,60 @@ export interface ConversationEvent {
   ttsState: string;
   consumptionState: string;
   nativeProvenance?: NativeProvenance;
+  /** What the row is; absent on rows from a server that predates classification (read as "message"). */
+  kind?: ConversationKind;
+  /** Who wrote the text; role is only the channel it arrived on. */
+  author?: ConversationAuthor;
+  /** The author's name when it is not the human or this agent. */
+  authorName?: string;
+  /** The tool name for tool rows; the recogniser's reason for notices and injected rows. */
+  label?: string;
+  /** The agent thread the row belongs to; absent for the session's own thread. */
+  threadId?: string;
+  /** Set on "work" rows: what the hidden rows between two messages add up to. */
+  work?: ConversationWorkSpan;
+  /** Set when `text` is a preview (work rows fetched to expand a span). */
+  textTruncated?: boolean;
+}
+
+/**
+ * Row kinds. message, attachment and notice are the conversation the Messages
+ * view lists; the rest is work, collapsed between messages into one "work"
+ * row (a projection row the server synthesises; never stored).
+ */
+export type ConversationKind =
+  | "message" | "attachment" | "notice"
+  | "context" | "tool_call" | "tool_result" | "reasoning"
+  | "work";
+
+export type ConversationAuthor = "human" | "agent" | "harness" | "automation" | "peer";
+
+/** One thread's hidden rows between two conversation rows. */
+export interface ConversationWorkSpan {
+  /** First and last sequence the span covers (other threads' rows included, so paging stays contiguous). */
+  fromSequence: number;
+  toSequence: number;
+  toolCalls: number;
+  toolResults: number;
+  reasoning: number;
+  context: number;
+  startedAt?: string;
+  endedAt?: string;
+}
+
+/** An agent thread inside a session (a subagent, a teammate, the approval reviewer). */
+export interface ConversationThreadSummary {
+  threadId: string;
+  kind: "subagent" | "teammate" | "review";
+  label: string;
+  description: string;
+  parentThreadId: string;
+  firstSequence: number;
+  lastSequence: number;
+  messageCount: number;
+  workCount: number;
+  startedAt?: string;
+  endedAt?: string;
 }
 
 export interface NativeProvenance {
@@ -123,6 +178,8 @@ export interface ConversationSessionResponse {
   newestSequence?: number;
   totalCount?: number;
   capture: MessageCaptureStatus;
+  /** The session's agent threads (Messages projection of the main thread's newest page). */
+  threads?: ConversationThreadSummary[];
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +205,40 @@ interface ProtoConversationEvent {
   ttsState: string;
   consumptionState: string;
   nativeProvenance?: NativeProvenance;
+  // Optional for the same reason as occurredAt: an older installed descriptor
+  // decodes them as absent, which reads as an unclassified message.
+  kind?: string;
+  author?: string;
+  authorName?: string;
+  label?: string;
+  threadId?: string;
+  work?: ProtoWorkSpan;
+  textTruncated?: boolean;
+}
+
+interface ProtoWorkSpan {
+  fromSequence: bigint;
+  toSequence: bigint;
+  toolCalls: number;
+  toolResults: number;
+  reasoning: number;
+  context: number;
+  startedAt: string;
+  endedAt: string;
+}
+
+interface ProtoConversationThread {
+  threadId: string;
+  kind: string;
+  label: string;
+  description: string;
+  parentThreadId: string;
+  firstSequence: bigint;
+  lastSequence: bigint;
+  messageCount: number;
+  workCount: number;
+  startedAt: string;
+  endedAt: string;
 }
 
 interface ProtoConversationCursor {
@@ -172,6 +263,44 @@ function decodeConversationEvent(e: ProtoConversationEvent): ConversationEvent {
     ttsState: e.ttsState,
     consumptionState: e.consumptionState,
     ...(e.nativeProvenance ? { nativeProvenance: e.nativeProvenance } : {}),
+    ...decodeClassification(e),
+    ...(e.work ? { work: decodeWorkSpan(e.work) } : {}),
+    ...(e.textTruncated ? { textTruncated: true } : {}),
+  };
+}
+
+function decodeWorkSpan(w: ProtoWorkSpan): ConversationWorkSpan {
+  return {
+    fromSequence: Number(w.fromSequence),
+    toSequence: Number(w.toSequence),
+    toolCalls: w.toolCalls,
+    toolResults: w.toolResults,
+    reasoning: w.reasoning,
+    context: w.context,
+    ...(w.startedAt ? { startedAt: w.startedAt } : {}),
+    ...(w.endedAt ? { endedAt: w.endedAt } : {}),
+  };
+}
+
+const THREAD_KINDS: readonly string[] = ["subagent", "teammate", "review"] satisfies ConversationThreadSummary["kind"][];
+
+function isThreadKind(value: string): value is ConversationThreadSummary["kind"] {
+  return THREAD_KINDS.includes(value);
+}
+
+function decodeThread(t: ProtoConversationThread): ConversationThreadSummary {
+  return {
+    threadId: t.threadId,
+    kind: isThreadKind(t.kind) ? t.kind : "subagent",
+    label: t.label,
+    description: t.description,
+    parentThreadId: t.parentThreadId,
+    firstSequence: Number(t.firstSequence),
+    lastSequence: Number(t.lastSequence),
+    messageCount: t.messageCount,
+    workCount: t.workCount,
+    ...(t.startedAt ? { startedAt: t.startedAt } : {}),
+    ...(t.endedAt ? { endedAt: t.endedAt } : {}),
   };
 }
 
@@ -186,17 +315,36 @@ function decodeConversationCursor(c: ProtoConversationCursor | undefined): Conve
 // Typed wrappers
 // ---------------------------------------------------------------------------
 
+/**
+ * Which rows a read returns. "messages" is the Messages view: one thread's
+ * conversation rows with "work" rows summarising what happened between them
+ * (`limit` counts conversation rows). "all" is every stored row, in full.
+ */
+export type ConversationProjectionName = "messages" | "all";
+
+export interface ConversationPageOptions {
+  sinceSequence?: number;
+  limit?: number;
+  beforeSequence?: number;
+  projection?: ConversationProjectionName;
+  /** The agent thread to read (messages projection); omitted for the session's own. */
+  threadId?: string;
+}
+
 export async function getConversationSession(
   sessionId: string,
-  opts?: { sinceSequence?: number; limit?: number; beforeSequence?: number },
+  opts: ConversationPageOptions = {},
 ): Promise<ConversationSessionResponse> {
   const resp = await conversationClient.get({
     sessionId,
     sinceSequence:
-      opts?.sinceSequence && opts.sinceSequence > 0 ? BigInt(opts.sinceSequence) : 0n,
-    limit: opts?.limit ?? 0,
-    beforeSequence: opts?.beforeSequence && opts.beforeSequence > 0 ? BigInt(opts.beforeSequence) : 0n,
+      opts.sinceSequence && opts.sinceSequence > 0 ? BigInt(opts.sinceSequence) : 0n,
+    limit: opts.limit ?? 0,
+    beforeSequence: opts.beforeSequence && opts.beforeSequence > 0 ? BigInt(opts.beforeSequence) : 0n,
+    projection: opts.projection === "messages" ? ConversationProjection.MESSAGES : ConversationProjection.ALL,
+    threadId: opts.threadId ?? "",
   });
+  const threads = (resp as typeof resp & { threads?: ProtoConversationThread[] }).threads ?? [];
   return {
     sessionId: resp.sessionId,
     events: resp.events.map(decodeConversationEvent),
@@ -206,7 +354,23 @@ export async function getConversationSession(
     newestSequence: Number(resp.newestSequence),
     totalCount: Number(resp.totalCount),
     capture: decodeCaptureStatus(resp.capture),
+    ...(opts.projection === "messages" && (opts.threadId ?? "") === "" && opts.beforeSequence == null ? { threads: threads.map(decodeThread) } : {}),
   };
+}
+
+/**
+ * The work rows of one span (tool calls and results, reasoning, injected
+ * context), text cut to a preview, to expand a collapsed "work" row.
+ */
+export async function getConversationWork(sessionId: string, work: Pick<ConversationWorkSpan, "fromSequence" | "toSequence">, threadId = ""): Promise<ConversationEvent[]> {
+  const response = await conversationClient.getRange({
+    sessionId,
+    fromSequence: BigInt(work.fromSequence),
+    toSequence: BigInt(work.toSequence),
+    projection: ConversationProjection.WORK,
+    threadId,
+  });
+  return response.events.map(decodeConversationEvent);
 }
 
 export async function updateConversationCursor(
@@ -243,6 +407,9 @@ export interface ConversationSearchMatch {
   role: "user" | "assistant";
   createdAt: string;
   occurredAt?: string;
+  /** What the hit is, so a hit inside collapsed work or a subagent thread opens there. */
+  kind?: ConversationKind;
+  threadId?: string;
 }
 export interface ConversationSearchResponse {
   matches: ConversationSearchMatch[];
@@ -264,7 +431,12 @@ export interface ConversationSearchOptions {
   role?: "user" | "assistant";
   limit?: number;
   afterSequence?: number;
+  /** Row kinds to search; omitted searches every kind (tool calls and context too). */
+  kinds?: readonly ConversationKind[];
 }
+
+/** What the Messages view searches by default: the conversation it lists. */
+export const CONVERSATION_SEARCH_KINDS: readonly ConversationKind[] = ["message", "attachment", "notice"];
 
 const SEARCH_MODES: Readonly<Record<ConversationSearchModeName, ConversationSearchMode>> = {
   text: ConversationSearchMode.TEXT,
@@ -283,6 +455,7 @@ export async function searchConversation(sessionId: string, query: string, optio
     wholeWord: options.wholeWord ?? false,
     roleFilter: options.role ?? "",
     afterSequence: options.afterSequence ? BigInt(options.afterSequence) : 0n,
+    kinds: [...(options.kinds ?? [])],
   });
   return {
     matches: response.matches.map((match) => ({
@@ -295,6 +468,7 @@ export async function searchConversation(sessionId: string, query: string, optio
       ...((match as typeof match & { occurredAt?: string }).occurredAt
         ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
         : {}),
+      ...decodeClassification(match),
     })),
     truncated: response.truncated,
     totalMatches: Number(response.totalMatches),
@@ -525,13 +699,17 @@ export async function resolveConversationEvents(sessionId: string, eventIds: str
   return { events, missingEventIds };
 }
 
-/** Reads every page by the server's sequence cursor; gaps and large histories are supported. */
+/**
+ * Reads every conversation row (what the Messages view lists, without the
+ * work between them) by the server's sequence cursor; gaps and large
+ * histories are supported.
+ */
 export async function getAllConversationEvents(sessionId: string): Promise<ConversationEvent[]> {
   const events: ConversationEvent[] = [];
   let beforeSequence = 0;
   const seen = new Set<string>();
   for (;;) {
-    const page = await getConversationSession(sessionId, { limit: 500, ...(beforeSequence > 0 ? { beforeSequence } : {}) });
+    const page = await getConversationSession(sessionId, { limit: 500, projection: "messages", ...(beforeSequence > 0 ? { beforeSequence } : {}) });
     const fresh = page.events.filter((event) => !seen.has(event.id));
     if (fresh.length === 0) {
       if (page.hasMore) throw new Error("Conversation history stopped advancing while loading all messages.");
@@ -546,7 +724,7 @@ export async function getAllConversationEvents(sessionId: string): Promise<Conve
     }
     beforeSequence = nextBefore;
   }
-  return events.sort((left, right) => left.sequence - right.sequence);
+  return events.filter((event) => event.kind !== "work").sort((left, right) => left.sequence - right.sequence);
 }
 
 export interface SummarizeEventResponse {

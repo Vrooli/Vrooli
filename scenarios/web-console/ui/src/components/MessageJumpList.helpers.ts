@@ -1,6 +1,7 @@
 import type { ConversationEvent, ConversationSearchMatch, ConversationSearchModeName, SearchTextRange } from "../api/conversation";
 import { looksLikeFileReference } from "@vrooli/file-viewer/file-references";
 import { strings } from "../consts/strings";
+import { isConversationRow } from "../lib/conversationRows";
 
 export type StatusGlyph = "played" | "playing" | "unseen" | "failed";
 
@@ -343,6 +344,8 @@ export function buildResults(
   state: NavigatorState,
 ): NavigatorResult[] {  const filtered: NavigatorResult[] = [];
   for (const event of events) {
+    // The navigator lists the conversation; work rows are lines between it.
+    if (!isConversationRow(event)) continue;
     if (!matchesRole(event, state.role)) continue;
     if (!matchesStatus(event, state.status)) continue;
     const { badges, preview } = getDerived(event);
@@ -425,6 +428,8 @@ function eventFromHit(hit: ConversationSearchMatch, assistantSource: string): Co
     deliveryState: "received",
     ttsState: "idle",
     consumptionState: "seen",
+    ...(hit.kind ? { kind: hit.kind } : {}),
+    ...(hit.threadId ? { threadId: hit.threadId } : {}),
   };
 }
 

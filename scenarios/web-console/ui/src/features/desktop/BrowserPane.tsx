@@ -1,4 +1,4 @@
-import { cloneElement, useEffect, useRef, useState, type CanvasHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type WheelEvent as ReactWheelEvent } from "react";
+import { cloneElement, useEffect, useRef, useState, type CanvasHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactElement, type ReactNode, type WheelEvent as ReactWheelEvent } from "react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { projectRemoteSurfaceState, isWorkspaceNavigationKey, workspaceSurfaceTouchAction, WorkspacePaneToolbar, WorkspaceSurfacePane } from "./WorkspaceSurface";
 import { boundedClipboardText, boundedRemoteTextInput, mapSurfacePoint, OrderedLeaseInput, REMOTE_SURFACE_CLIPBOARD_LIMIT, REMOTE_SURFACE_TEXT_INPUT_LIMIT, type BrowserSurfaceInput, type RemoteSurfaceState, type SurfaceSize } from "./remoteSurface";
@@ -19,7 +19,17 @@ export interface BrowserPaneSession {
   viewport?: SurfaceSize;
   frameSize?: SurfaceSize;
   frameAgeMs?: number;
-  stats?: { frames: number; bytes: number; inputApplied?: number; attachToFirstFrameMs?: number };
+  stats?: {
+    frames: number;
+    bytes: number;
+    inputApplied?: number;
+    attachToFirstFrameMs?: number;
+    inputToPaintedFrameMs?: number;
+    inputToPaintedFrameSamples?: number;
+    reconnectCount?: number;
+    reconnectAttempts?: number;
+    reconnectMs?: number;
+  };
 }
 
 export interface BrowserPaneProps {
@@ -45,10 +55,11 @@ export interface BrowserPaneProps {
   onShowDownloads?: () => void;
   onShowConsole?: () => void;
   onSurfaceFocusChange?: (focused: boolean) => void;
+  headerActions?: ReactNode;
 }
 
 /** Web Console presentation adapter. Session creation, frames and input stay with BAS. */
-export function BrowserPane({ session, launchAssociation, frame, loading = false, error, onInput, onPasteToBrowser, onCopyFromBrowser, onOpen, onAttach, onTakeControl, onHandBack, onReconnect, onClose, closeLabel = "Close session", onSelectPage, onShowDownloads, onShowConsole, onSurfaceFocusChange }: BrowserPaneProps) {
+export function BrowserPane({ session, launchAssociation, frame, loading = false, error, onInput, onPasteToBrowser, onCopyFromBrowser, onOpen, onAttach, onTakeControl, onHandBack, onReconnect, onClose, closeLabel = "Close session", onSelectPage, onShowDownloads, onShowConsole, onSurfaceFocusChange, headerActions }: BrowserPaneProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const inputQueueRef = useRef(new OrderedLeaseInput());
   const heldPointerRef = useRef<{ id: number; point: { x: number; y: number }; button: "left" | "middle" | "right" }>();
@@ -72,7 +83,7 @@ export function BrowserPane({ session, launchAssociation, frame, loading = false
     ? `Browser session · ${session.mode} · ${associationLabel}${context?.threadId ? ` · Thread ${context.threadId}` : ""}${session.page?.url ? ` · ${session.page.url}` : ""}`
     : associationValid ? `${associationLabel} · Open through the owning browser session broker.` : "Select a verified agent run or Web Console conversation before opening a browser session.";
   const stats = session?.stats
-    ? `Frames ${session.stats.frames} · bytes ${session.stats.bytes}${session.stats.inputApplied === undefined ? "" : ` · inputs ${session.stats.inputApplied}`}${session.stats.attachToFirstFrameMs === undefined ? "" : ` · attach to first frame ${session.stats.attachToFirstFrameMs} ms`}${session.frameAgeMs === undefined ? "" : ` · frame age ${session.frameAgeMs} ms`}`
+    ? `Frames ${session.stats.frames} · payload bytes this viewer ${session.stats.bytes}${session.stats.inputApplied === undefined ? "" : ` · inputs applied ${session.stats.inputApplied}`}${session.stats.attachToFirstFrameMs === undefined ? "" : ` · attach to first frame ${session.stats.attachToFirstFrameMs} ms`}${session.stats.inputToPaintedFrameMs === undefined ? "" : ` · input to next painted frame ${session.stats.inputToPaintedFrameMs} ms (${session.stats.inputToPaintedFrameSamples ?? 0} samples)`}${session.frameAgeMs === undefined ? "" : ` · frame age ${session.frameAgeMs} ms`}${session.stats.reconnectAttempts ? ` · reconnects ${session.stats.reconnectCount ?? 0}/${session.stats.reconnectAttempts} attempts${session.stats.reconnectMs === undefined ? "" : `, last ${session.stats.reconnectMs} ms`}` : ""}`
     : undefined;
   const frameSize = session?.frameSize ?? session?.viewport;
   const frameAspectRatio = frameSize && frameSize.width > 0 && frameSize.height > 0
@@ -202,9 +213,9 @@ export function BrowserPane({ session, launchAssociation, frame, loading = false
     if (point) sendBrowserInput({ type: "wheel", ...point, deltaX: event.deltaX, deltaY: event.deltaY });
   };
 
-  return <WorkspaceSurfacePane label="Browser session" title="Browser" owner="bas" canControl={Boolean(session?.capabilities.control)} onFocusChange={onSurfaceFocusChange} state={paneState} summary={summary} stats={stats}>
+  return <WorkspaceSurfacePane label="Browser session" title="Browser" owner="bas" canControl={Boolean(session?.capabilities.control)} onFocusChange={onSurfaceFocusChange} state={paneState} summary={summary} stats={stats} statsLabel="Browser viewer telemetry">
     {(error || inputError) && <p role="alert" className="rounded border border-rose-400/30 bg-rose-400/10 p-2 text-xs text-rose-100">{error || inputError}</p>}
-    {state === "revoked" && <p role="status" className="text-sm">The browser controller lease was revoked. Close this session before reconnecting.</p>}
+    {state === "revoked" && <p aria-hidden="true" className="text-sm">The browser owner revoked this stream. Close and reopen the pane to check whether the run still has a browser.</p>}
     {state === "blocked" && <p role="status" className="text-sm">{!associationValid ? "This browser session is not associated with a verified agent run or conversation thread." : "This browser session does not grant observation."} Control is disabled.</p>}
     {state === "ready" && !session && associationValid && <div className="flex flex-1 flex-wrap items-center justify-center gap-2"><Button type="button" onClick={onOpen} disabled={!onOpen}>Open browser session</Button><Button type="button" variant="secondary" onClick={onAttach} disabled={!onAttach}>Attach an approved browser session</Button></div>}
     {session && <>
@@ -218,7 +229,7 @@ export function BrowserPane({ session, launchAssociation, frame, loading = false
         session.capabilities.console && "console",
         session.capabilities.clipboard && "clipboard",
       ].filter(Boolean).join(" · ") || "none"}{session.permissionProfile ? ` · permission profile ${session.permissionProfile}` : ""}</p>
-      <div ref={surfaceRef} role="group" aria-label="Live browser surface" aria-disabled={!canSendInput} tabIndex={canSendInput ? 0 : -1} onBlur={releaseHeldInput} onClickCapture={(event) => { event.preventDefault(); event.stopPropagation(); }} onPointerMoveCapture={(event) => pointerAction("move", event)} onPointerDownCapture={(event) => pointerAction("down", event)} onPointerUpCapture={(event) => pointerAction("up", event)} onPointerCancelCapture={(event) => pointerAction("up", event)} onKeyDownCapture={(event) => keyboardAction("down", event)} onKeyUpCapture={(event) => keyboardAction("up", event)} onWheelCapture={wheelAction} style={{ touchAction: workspaceSurfaceTouchAction(canSendInput), aspectRatio: frameAspectRatio, maxHeight: "70vh" }} className={`relative min-h-48 w-full flex-1 overflow-hidden rounded border border-app-border bg-black${canSendInput ? "" : " pointer-events-none"}`}>
+      <div ref={surfaceRef} role="group" aria-label="Live browser surface" aria-disabled={!canSendInput} tabIndex={canSendInput ? 0 : -1} onBlur={releaseHeldInput} onClickCapture={(event) => { event.preventDefault(); event.stopPropagation(); }} onPointerMoveCapture={(event) => pointerAction("move", event)} onPointerDownCapture={(event) => pointerAction("down", event)} onPointerUpCapture={(event) => pointerAction("up", event)} onPointerCancelCapture={(event) => pointerAction("up", event)} onKeyDownCapture={(event) => keyboardAction("down", event)} onKeyUpCapture={(event) => keyboardAction("up", event)} onWheelCapture={wheelAction} style={{ touchAction: workspaceSurfaceTouchAction(canSendInput), aspectRatio: frameAspectRatio, maxHeight: "70vh" }} className={`relative min-h-48 min-w-0 w-full flex-1 overflow-hidden rounded border border-app-border bg-black${canSendInput ? "" : " pointer-events-none"}`}>
       {session.capabilities.frames ? frame ? cloneElement(frame, {
         role: frame.props.role ?? "img",
         "aria-label": frame.props["aria-label"] ?? "Live browser frame",
@@ -227,6 +238,7 @@ export function BrowserPane({ session, launchAssociation, frame, loading = false
       }) : <div className="flex min-h-48 items-center justify-center p-4 text-center text-sm text-white">{state === "connecting" ? "Waiting for the browser owner’s first frame…" : "The browser owner has not provided a live frame."}</div> : <div className="flex min-h-48 items-center justify-center p-4 text-center text-sm text-white">This permission profile does not allow frame viewing.</div>}
       </div>
       <WorkspacePaneToolbar label="Browser session controls" state={paneState}>
+        {headerActions}
         {controller && onInput && <Button type="button" variant="secondary" size="md" onClick={() => { setTextComposerOpen((open) => !open); setTypedText(""); }}>{textComposerOpen ? "Hide typing controls" : "Type text"}</Button>}
         {session.capabilities.clipboard && <>
           <Button type="button" variant="secondary" size="md" onClick={() => { void pasteToBrowser(); }} disabled={!controller || !onPasteToBrowser || !navigator.clipboard?.readText}>Send text</Button>
@@ -236,7 +248,7 @@ export function BrowserPane({ session, launchAssociation, frame, loading = false
         {controller && <Button type="button" variant="secondary" size="md" onClick={onHandBack} disabled={!onHandBack}>Release control</Button>}
         {session.capabilities.downloads && <Button type="button" variant="secondary" size="md" onClick={onShowDownloads} disabled={!onShowDownloads}>Downloads</Button>}
         {session.capabilities.console && <Button type="button" variant="secondary" size="md" onClick={onShowConsole} disabled={!onShowConsole}>Console</Button>}
-        {(session.state === "disconnected" || session.state === "failed") && <Button type="button" variant="secondary" size="md" onClick={onReconnect} disabled={!onReconnect}>Reconnect</Button>}
+        {(session.state === "disconnected" || session.state === "failed") && onReconnect && <Button type="button" variant="secondary" size="md" onClick={onReconnect}>Reconnect</Button>}
         <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={!onClose}>{closeLabel}</Button>
       </WorkspacePaneToolbar>
       {textComposerOpen && controller && <form onSubmit={(event) => { event.preventDefault(); enterText(); }} className="flex flex-col gap-2">

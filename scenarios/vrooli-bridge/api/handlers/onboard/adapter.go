@@ -174,7 +174,15 @@ func (a machineLinkerAdapter) LinkCorrelatedNode(ctx context.Context, correlatio
 		}
 		return err
 	}
-	_, err = a.machines.LinkNode(ctx, attempt.MachineID, nodeID, correlationID)
+	machine, err := a.machines.LinkNode(ctx, attempt.MachineID, nodeID, correlationID)
+	if err != nil {
+		return err
+	}
+	// Registry carries the same authoritative lineage generation for reads
+	// used by Bridge lifecycle consumers. A crash between the two domain writes
+	// leaves a generation mismatch and therefore fails closed; saga replay is
+	// idempotent and repairs the Registry projection.
+	_, err = a.registry.SetEnrollmentGeneration(ctx, nodeID, machine.EnrollmentGeneration)
 	return err
 }
 

@@ -36,12 +36,15 @@ func TestValidCompanionCommandRejectsUnknownOperations(t *testing.T) {
 }
 
 func TestLocalCompanionAdapterNeverClaimsInstallReadyWithoutArtifact(t *testing.T) {
-	response, err := (localCompanionLifecycleAdapter{}).HandleCompanionCommand(nil, &companionv1.CompanionCommand{OperationId: "op-1", NodeId: "node-1", Kind: companionv1.CompanionOperationKind_COMPANION_OPERATION_KIND_INSTALL})
+	response, err := (localCompanionLifecycleAdapter{homeDir: t.TempDir()}).HandleCompanionCommand(context.Background(), &companionv1.CompanionCommand{OperationId: "op-1", NodeId: "node-1", Kind: companionv1.CompanionOperationKind_COMPANION_OPERATION_KIND_INSTALL})
 	expectedReason := "artifact_not_installed"
-	if runtime.GOOS != "darwin" {
+	expectedState := companionv1.CompanionState_COMPANION_STATE_FAILED
+	if runtime.GOOS == "linux" {
+		expectedState = companionv1.CompanionState_COMPANION_STATE_ABSENT
+	} else if runtime.GOOS != "darwin" {
 		expectedReason = "unsupported_platform"
 	}
-	if err != nil || response.GetState() != companionv1.CompanionState_COMPANION_STATE_FAILED || response.GetReasonCode() != expectedReason {
+	if err != nil || response.GetState() != expectedState || response.GetReasonCode() != expectedReason {
 		t.Fatalf("response=%+v err=%v", response, err)
 	}
 }

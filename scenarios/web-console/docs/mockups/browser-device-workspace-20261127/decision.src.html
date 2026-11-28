@@ -1,0 +1,249 @@
+<!doctype html>
+<!-- Based on the Experience Engineering present-ux-decisions starter. Build
+     with its build.py to inline images and preview in the Notification Hub frame. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Where should Aquila open Browser &amp; devices?</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: var(--hub-bg, #f7f9fa);
+      --panel: var(--hub-surface, #fff);
+      --soft: var(--hub-surface-muted, #edf2f5);
+      --ink: var(--hub-fg, #18252e);
+      --muted: var(--hub-muted, #4c5d69);
+      --line: var(--hub-border, #c9d4db);
+      --accent: var(--hub-primary, #215ca3);
+      --on-accent: var(--hub-on-primary, #fff);
+    }
+    :root[data-theme="dark"] { color-scheme: dark; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --page: var(--hub-bg, #111922);
+        --panel: var(--hub-surface, #18232e);
+        --soft: var(--hub-surface-muted, #202e3b);
+        --ink: var(--hub-fg, #eef4f8);
+        --muted: var(--hub-muted, #a9bbc8);
+        --line: var(--hub-border, #405163);
+        --accent: var(--hub-primary, #9cc9ff);
+        --on-accent: var(--hub-on-primary, #111922);
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { background: var(--page); color: var(--ink); }
+    body { max-width: 48rem; margin: auto; padding: 1.25rem 1rem 2rem; font: 400 0.9375rem/1.5 var(--hub-font, system-ui, sans-serif); }
+    h1, h2, h3 { margin: 0; line-height: 1.16; letter-spacing: -0.025em; text-wrap: balance; }
+    h1 { max-width: 25ch; margin-bottom: 0.65rem; font-size: clamp(1.625rem, 4vw, 2.5rem); }
+    h2 { margin-bottom: 0.55rem; font-size: 1.25rem; }
+    h3 { font-size: 1.0625rem; }
+    p { margin: 0 0 0.65rem; }
+    a { color: var(--accent); }
+    a:focus-visible, summary:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    code { overflow-wrap: anywhere; }
+    .eyebrow, .label, .caption, .meta { color: var(--muted); }
+    .eyebrow { margin-bottom: 0.5rem; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.075em; text-transform: uppercase; }
+    .how { margin: 0.8rem 0 1rem; font-size: 0.875rem; }
+    .section { margin-top: 1.7rem; }
+    #comparison { margin: 0; }
+    .shot, .compare { overflow: hidden; border: 1px solid var(--line); border-radius: 0.75rem; }
+    .shot { margin: 0.65rem 0 0; }
+    img { display: block; width: 100%; height: auto; border-radius: 0; }
+    .compare { margin: 0; }
+    .compare:not([data-hub-ready]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .compare:not([data-hub-ready]) > div + div { border-left: 1px solid var(--line); }
+    .compare:not([data-hub-ready]) .compare-label { display: block; }
+    .compare-label { display: none; padding: 0.4rem 0.5rem; background: var(--soft); color: var(--ink); font-size: 0.75rem; font-weight: 700; }
+    .compare[data-hub-ready] > .hub-compare__layer { padding-top: 2.4rem; background: var(--panel); color: var(--ink); }
+    .compare .hub-compare__tag { top: 0.35rem; }
+    .compare .hub-compare__tag.is-after { max-width: calc(100% - 7.25rem); }
+    .compare-actions button { min-height: 44px; padding: 0 0.75rem; font-size: 0.8125rem; }
+    :root.in-hub .compare-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .caption { margin: 0.5rem 0 0; font-size: 0.8125rem; }
+    .label { margin: 0.45rem 0 0; font-size: 0.8125rem; }
+    .fid, .recommended { display: inline-block; padding: 0.08rem 0.45rem; border: 1px solid currentColor; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; line-height: 1.35; vertical-align: 0.05em; }
+    .fid { color: var(--muted); }
+    .recommended { color: var(--accent); }
+    .option-grid { display: grid; gap: 0.65rem; }
+    .option { min-width: 0; padding: 0.85rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--panel); color: var(--ink); }
+    .option.recommended-option { border-color: var(--accent); }
+    .option h3 { margin-bottom: 0.45rem; }
+    .option .tradeoff { margin: 0; color: var(--muted); font-size: 0.875rem; }
+    .option figure { margin: 0.75rem 0 0; }
+    .option .shot { margin: 0; }
+    .option .phone-image img { max-height: 24rem; object-fit: cover; object-position: center top; }
+    .option button { width: 100%; margin-top: 0.75rem; }
+    button[data-pick] { min-height: 44px; padding: 0.55rem 0.8rem; border: 1px solid var(--accent); border-radius: 0.5rem; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 700; cursor: pointer; }
+    button[data-pick].is-quiet { background: var(--panel); color: var(--accent); }
+    .facts { padding: 0.85rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--soft); color: var(--ink); }
+    .facts p:last-child, .option p:last-child { margin-bottom: 0; }
+    details { margin: 1rem 0 0; }
+    summary { min-height: 44px; padding: 0.65rem 0; cursor: pointer; font-weight: 700; }
+    details figure { margin: 0.45rem 0 0.9rem; }
+    .meta { font-size: 0.8125rem; }
+    .meta p { margin-top: 0.4rem; }
+    .t-dark, .hub-only, [hidden] { display: none; }
+    :root[data-theme="dark"] .t-light { display: none; }
+    :root[data-theme="dark"] .t-dark { display: block; }
+    :root.in-hub .hub-only { display: block; }
+    :root.in-hub .local-only { display: none; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .t-light { display: none; }
+      :root:not([data-theme="light"]) .t-dark { display: block; }
+    }
+    @media (max-width: 34.99rem) {
+      .compare:not([data-hub-ready]) { grid-template-columns: minmax(0, 1fr); }
+      .compare:not([data-hub-ready]) > div + div { border-left: 0; border-top: 1px solid var(--line); }
+    }
+    @media (min-width: 35rem) {
+      .option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .compare[data-hub-ready] { max-width: 25rem; margin-inline: auto; }
+      .artboards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Aquila · Phone and desktop</p>
+    <h1>Where should Browser &amp; devices open?</h1>
+    <p>Today, the Browser pane needs an active agent run. After the run ends, the pane can’t reconnect and offers zero ways to open a browser.</p>
+    <p><strong>I’d start with A.</strong> One tap gets you back to your last target. On your first visit it opens the default browser, even when no agent is running.</p>
+    <p class="how local-only">Reply with <strong>A</strong>, <strong>B</strong>, <strong>C</strong>, or <strong>Keep it as it is</strong>.</p>
+    <p class="how hub-only">Tap Choose, then send.</p>
+
+    <figure id="comparison">
+      <div class="compare" data-hub-compare data-no-packet-swipe data-before-label="Today · captured" data-after-label="A · sketch" data-position="0">
+        <div>
+          <span class="compare-label" aria-hidden="true">Today · captured</span>
+          <img class="t-light" src="{{img:current-phone-light.png}}" alt="The current Aquila Browser pane says the agent run has finished and provides no way to launch a browser.">
+          <img class="t-dark" src="{{img:current-phone-dark.png}}" alt="The current Aquila Browser pane says the agent run has finished and provides no way to launch a browser.">
+        </div>
+        <div>
+          <span class="compare-label" aria-hidden="true">A · sketch</span>
+          <img class="t-light" src="{{img:a-phone-light.png}}" alt="Option A opens directly into the browser viewer with a target switcher and a visible control status.">
+          <img class="t-dark" src="{{img:a-phone-dark.png}}" alt="Option A opens directly into the browser viewer with a target switcher and a visible control status.">
+        </div>
+      </div>
+      <figcaption class="caption">
+        <span class="fid">captured</span> Today, with a test conversation. <span class="fid">sketch</span> A, from the prototype.
+        <div class="hub-only compare-actions" aria-label="Comparison views">
+          <button class="is-quiet" type="button" data-compare-view="100">Show today</button>
+          <button class="is-quiet" type="button" data-compare-view="0">Show A</button>
+        </div>
+      </figcaption>
+    </figure>
+
+    <section class="section facts" aria-labelledby="shared-model">
+      <h2 id="shared-model">What all three designs do</h2>
+      <p>The default browser opens on demand and keeps its place between runs. You can also open a separate browser. A person or an agent can drive each target, one at a time. Agents opt in, and you can take over or hand control back.</p>
+      <p>Browsers, physical devices and emulators use the same picker and handoff, with controls that fit each target.</p>
+    </section>
+
+    <section class="section" aria-labelledby="choices">
+      <h2 id="choices">Choose where to land</h2>
+      <div class="option-grid">
+        <article class="option recommended-option">
+          <h3>A. Open the last target <span class="recommended">Recommended</span></h3>
+          <p>Open the viewer. Switch targets from its header.</p>
+          <p class="tradeoff">Best fit when you pick up where you left off. To see what else is available, open the picker.</p>
+          <p class="label"><a href="#comparison" data-compare-view="0">See A in the comparison above</a></p>
+          <button class="hub-only" type="button" data-pick="last-target">Choose A</button>
+        </article>
+        <article class="option">
+          <h3>B. Work beside the agent</h3>
+          <p>Show the viewer beside the conversation on desktop. On a phone, the viewer fills the screen and the conversation opens in a sheet.</p>
+          <p class="tradeoff">Best fit for frequent handoffs during chat. The split uses some desktop viewer space.</p>
+          <figure>
+            <div class="shot">
+              <img class="t-light" src="{{img:b-phone-light.png}}" alt="Option B pairs a full-width mobile browser viewer with the agent conversation in a sheet.">
+              <img class="t-dark" src="{{img:b-phone-dark.png}}" alt="Option B pairs a full-width mobile browser viewer with the agent conversation in a sheet.">
+            </div>
+            <figcaption class="label"><span class="fid">sketch</span> Working with an agent on a phone</figcaption>
+          </figure>
+          <button class="hub-only is-quiet" type="button" data-pick="beside-agent">Choose B</button>
+        </article>
+        <article class="option">
+          <h3>C. Browse all targets</h3>
+          <p>Start with a list of browsers, physical devices and emulators. See availability and who’s in control before you open one.</p>
+          <p class="tradeoff">Best fit when choosing among several targets. Opening your usual browser takes another tap.</p>
+          <figure>
+            <div class="shot phone-image">
+              <img class="t-light" src="{{img:c-phone-light.png}}" alt="Option C starts on a target list with browser, physical device and emulated device rows.">
+              <img class="t-dark" src="{{img:c-phone-dark.png}}" alt="Option C starts on a target list with browser, physical device and emulated device rows.">
+            </div>
+            <figcaption class="label"><span class="fid">sketch</span> Checking available targets</figcaption>
+          </figure>
+          <button class="hub-only is-quiet" type="button" data-pick="browse-targets">Choose C</button>
+        </article>
+        <article class="option">
+          <h3>Keep it as it is</h3>
+          <p>Keep the Browser pane attached to an active run.</p>
+          <p class="tradeoff">This keeps the existing entry point. The finished-run screen still needs a different active run with a browser attached.</p>
+          <p class="label"><a href="#comparison" data-compare-view="100">See today’s pane in the comparison above</a></p>
+          <button class="hub-only is-quiet" type="button" data-pick="keep-current">Choose keep it as it is</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="next">
+      <h2 id="next">What happens after you choose</h2>
+      <p>A, B or C selects the first screen for a design spec. The spec will show how opening, switching and handing off targets work and will identify what the product needs to support.</p>
+      <p>Choose <strong>Keep it as it is</strong> to close this design decision. With no answer, the design stays open.</p>
+      <p class="local-only"><a href="prototype.html">Try the interactive prototype</a> from this folder. The sample browser, devices and handoffs are simulated.</p>
+    </section>
+
+    <details>
+      <summary>Compare the desktop layouts</summary>
+      <div class="artboards">
+        <figure>
+          <div class="shot">
+            <img class="t-light" src="{{img:a-desktop-light.png}}" alt="Option A on desktop uses most of the window for the viewer and puts the target switcher in the header.">
+            <img class="t-dark" src="{{img:a-desktop-dark.png}}" alt="Option A on desktop uses most of the window for the viewer and puts the target switcher in the header.">
+          </div>
+          <figcaption class="label"><span class="fid">sketch</span> A. Open the last target</figcaption>
+        </figure>
+        <figure>
+          <div class="shot">
+            <img class="t-light" src="{{img:b-desktop-light.png}}" alt="Option B on desktop shows the conversation beside the browser viewer.">
+            <img class="t-dark" src="{{img:b-desktop-dark.png}}" alt="Option B on desktop shows the conversation beside the browser viewer.">
+          </div>
+          <figcaption class="label"><span class="fid">sketch</span> B. Work beside the agent</figcaption>
+        </figure>
+        <figure>
+          <div class="shot">
+            <img class="t-light" src="{{img:c-desktop-light.png}}" alt="Option C on desktop opens the library of browsers, physical devices and emulators.">
+            <img class="t-dark" src="{{img:c-desktop-dark.png}}" alt="Option C on desktop opens the library of browsers, physical devices and emulators.">
+          </div>
+          <figcaption class="label"><span class="fid">sketch</span> C. Browse all targets</figcaption>
+        </figure>
+      </div>
+    </details>
+
+    <details class="meta">
+      <summary>Where these pictures come from</summary>
+      <p><strong>Captured</strong> means pixels from the served Aquila UI. Capture <code>aquila-browser-finished-20261127</code> used route <code>/</code>, bundle <code>index-_LlM1RN_.js</code> and a synthetic finished run. Aquila’s current canvas is dark under both theme preferences.</p>
+      <p><strong>Sketch</strong> means pixels from a standalone HTML prototype. The layouts use Vrooli’s Button and IconButton components. Browser sessions, device signals, permissions and control handoffs are simulated. The option tradeoffs are design judgments based on the reported workflow.</p>
+    </details>
+  </main>
+  <script>
+    if (window.hub && window.hub.prefill) {
+      document.documentElement.classList.add("in-hub");
+      document.querySelectorAll("[data-pick]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          window.hub.prefill("answer", button.getAttribute("data-pick"));
+        });
+      });
+      document.querySelectorAll("[data-compare-view]").forEach(function (control) {
+        control.addEventListener("click", function () {
+          var slider = document.querySelector("[data-hub-compare] input[type='range']");
+          if (!slider) return;
+          slider.value = control.getAttribute("data-compare-view");
+          slider.dispatchEvent(new Event("input"));
+        });
+      });
+    }
+  </script>
+</body>
+</html>

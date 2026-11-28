@@ -91,11 +91,12 @@ func (s *Server) GetRoleModelChoices(_ context.Context, agentID, targetID, launc
 		if window > 0 {
 			windowSource = descriptor.Features.ContextWindowSource
 		}
+		routeKind, applicableLimit := modelRouteMetadata(catalog.Billing, choice.Source)
 		item := modelselection.Choice{
 			Model: choice.Model, DisplayName: modelDisplayNameForSource(catalog, choice.Source, choice.Model), Source: choice.Source, Provider: choice.Provider, LaunchModel: launchModel,
 			SourceLabel: modelSourceLabel(catalog.Billing, choice.Source), IsDefault: choice.Model == catalog.Roles[codingRoleName].Model,
 			ContextWindowTokens: window, ContextWindowSource: windowSource, ContextLimitTokens: descriptor.ContextLimitOptions(window, contextLimitCandidates),
-			Metered: modelSourceMetered(catalog.Billing, choice.Source),
+			Metered: modelSourceMetered(catalog.Billing, choice.Source), RouteKind: routeKind, ApplicableLimit: applicableLimit,
 		}
 		if choice.Effort != nil {
 			item.Effort = *choice.Effort
@@ -122,6 +123,34 @@ func (s *Server) GetRoleModelChoices(_ context.Context, agentID, targetID, launc
 		}
 	}
 	return result
+}
+
+// modelRouteMetadata classifies only the source owner’s structured billing
+// declaration. Provider IDs and display labels are never used as evidence.
+func modelRouteMetadata(billing *agentcatalog.Billing, source string) (modelselection.RouteKind, modelselection.ApplicableLimit) {
+	unknown := modelselection.ApplicableLimit{Kind: modelselection.LimitKindNotReported, Provenance: "source owner did not report a hard per-run limit"}
+	if billing == nil {
+		return "", unknown
+	}
+	for _, declared := range billing.Sources {
+		if declared.ID != source {
+			continue
+		}
+		switch declared.BillingMode {
+		case "local":
+			return modelselection.RouteKindLocal, modelselection.ApplicableLimit{Kind: modelselection.LimitKindNoMonetarySpend, Provenance: "resource billing source declares local execution"}
+		case "subscription":
+			return modelselection.RouteKindHosted, unknown
+		case "metered":
+			if strings.TrimSpace(declared.CredentialKey) != "" {
+				return modelselection.RouteKindOwnKey, unknown
+			}
+			return "", unknown
+		default:
+			return "", unknown
+		}
+	}
+	return "", unknown
 }
 
 // sortModelChoices keeps each source together, the default's first. Within a source

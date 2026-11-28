@@ -1724,6 +1724,23 @@
           }
         },
         {
+          "name": "local-receipt",
+          "description": "Re-attach a durable local-only receipt; never qualifies a remote target lane",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Durable Bridge run id" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetLocalTargetReceipt"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
           "name": "list",
           "description": "List runs newest-first",
           "flags": [

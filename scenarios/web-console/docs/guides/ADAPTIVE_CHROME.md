@@ -94,8 +94,8 @@ colors are not changed.
 
 The detected color changes frequently while a TUI repaints, so it is applied
 **imperatively** — `chromeTheme` derives the palette and writes the `--wc-*`
-tokens, `--wc-chrome-color`, `--wc-chrome-fg`, an HTML adaptive flag for iOS
-edge slivers, and the `<meta name="theme-color">` tag — and **never** through
+tokens, `--wc-chrome-color`, `--wc-chrome-fg`, an HTML adaptive flag for the iOS
+bottom edge sliver, and the `<meta name="theme-color">` tag — and **never** through
 React state. Consequently the heavy `TerminalPane` / xterm subtree never
 re-renders on a color change; only a style recalc occurs. Detection is
 additionally debounced (~200ms), samples a bounded region, runs **only for the
@@ -115,13 +115,26 @@ clearance as internal toolbar/drawer padding; tint layers supply color only.
 - **Android / PWA and iOS Safari 15-18.6:** the `<meta name="theme-color">` tag
   is updated live, so browser chrome follows the terminal background.
 - **iOS Safari 26.x:** WebKit no longer honors `theme-color` for tab tinting.
-  It samples the page background or a fixed/sticky element near the physical
-  viewport edge. The app therefore also keeps `body` backed by
-  `--wc-chrome-color` and renders top/bottom 4px fixed edge slivers while
-  adaptive chrome is active. This satisfies Safari 26's geometry-based sampler.
-  The slivers are a fallback: they sit **behind** app chrome (`z-index: 0`) so
-  they never overpaint a bar that already reaches the edge (an earlier max
-  z-index clipped the top of the mobile hamburger's unread badge).
+  It samples a fixed/sticky element at each physical viewport edge
+  (`LocalFrameView::fixedContainerEdges` in WebKit): it hit-tests the middle of
+  the edge, ignoring `pointer-events`, walks up from the hit element to the
+  nearest `position: fixed` or `sticky` box, and accepts that box as an edge bar
+  only when it is at least 90% of the viewport wide and less than its full
+  height. The bar's colour is the one opaque background on the path from the hit
+  element up to the bar. A second colour on that path, or a `backdrop-filter`,
+  disqualifies it, and so does any box 10px or thinner. When no bar qualifies,
+  the installed app draws its blurred scroll-edge effect over roughly the top
+  40pt, header included.
+  - **Top:** `TopSafeArea` is the bar. It is `position: sticky` (which lays out
+    as before in the non-scrolling column) and its first child is the opaque
+    `StatusBarFill`, so WebKit extends the strip's colour under the status bar.
+    The fixed full-screen `body` cannot serve, because it is viewport-sized. A
+    top sliver did not serve either: at 4px it is below the 10px floor, and
+    restoring one on 2026-11-26 left the blur in place on the phone.
+  - **Bottom:** a 4px fixed sliver remains while adaptive chrome is active. It
+    sits **behind** app chrome (`z-index: 0`) so it never overpaints a bar that
+    already reaches the edge.
+  - `body` stays backed by `--wc-chrome-color` for seams and older versions.
   Safari 26.0/26.1 have reported bugs where post-paint color changes may not
   live-update the browser bars until navigation/repaint; Safari 26.2 reportedly
   improves that. In every version, the user-side Safari setting **Allow Website
@@ -133,13 +146,18 @@ clearance as internal toolbar/drawer padding; tint layers supply color only.
   `apple-mobile-web-app-status-bar-style` entirely** and draws an opaque system
   status bar that cannot show the tinted body (this was the cause of the status
   bar "not updating" in an installed build). `apple-mobile-web-app-status-bar-style`
-  only accepts `default` / `black` / `black-translucent` and is read at launch —
-  it cannot be recolored per value. With `black-translucent` the status bar
-  overlays the page and shows our tinted `body` background, **but its text/icons
-  are forced light**. This works for the common dark-terminal case; a very
-  *light* terminal background can make the iOS status-bar text hard to read. The
-  contrast-aware `--wc-chrome-fg` keeps in-app chrome text legible, but it cannot
-  override the OS-forced light status-bar glyphs on iOS.
+  only accepts `default` / `black` / `black-translucent`, is read at launch (some
+  reports say at install, so re-add the icon if a relaunch shows no change), and
+  cannot be recolored per value. The app ships **`default`** (since 2026-11-26).
+  Under `black-translucent` the page runs under the status bar, and the
+  installed iOS 26 app blurred the top ~40pt over it, tab bar included. Making
+  `TopSafeArea` a qualifying sticky bar did not remove that on the operator's
+  iPhone, which fits the report that the translucent style switches off
+  WebKit's colour extension (nesquena/hermes-webui#8365, device-tested). Under
+  `default` the web view starts below the status bar (`safe-area-inset-top` is
+  0, so `StatusBarFill` collapses), and iOS 26 extends the sticky top bar's
+  colour under the status bar. Before iOS 26, `default` draws a plain system
+  status bar that does not follow the tint.
 - **Normal Safari tab:** the status strip at the top is system-drawn and not
   page-controllable in the default bottom-address-bar layout; only the bottom
   toolbar and (in top-address-bar layout) the top bar tint. Install the app to

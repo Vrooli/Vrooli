@@ -52,6 +52,27 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) localReceipt(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.GetLocalTargetReceipt(context.Background(), connect.NewRequest(&runsv1.GetLocalTargetReceiptRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get local receipt for run %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetRunId() != id {
+		return fmt.Errorf("server returned no matching local receipt")
+	}
+	receipt := resp.Msg
+	return cliapp.RenderProtoList(ctx, receipt, cliapp.ListReport{
+		Summary: []string{fmt.Sprintf("Run %s — %s (local fixture; never qualifies a remote lane).", receipt.GetRunId(), receipt.GetStatus())},
+		ResultsHeading: "Local receipt",
+		Results: []string{
+			fmt.Sprintf("lane=%s target=%s class=%s provenance=%s", receipt.GetLane(), receipt.GetTargetId(), receipt.GetTargetClass(), receipt.GetProvenance()),
+			fmt.Sprintf("scenario=%s verb=%s status=%s exit=%d", receipt.GetScenario(), receipt.GetVerb(), receipt.GetStatus(), receipt.GetExitCode()),
+			fmt.Sprintf("lane_eligible=%t evidence=%v", receipt.GetLaneEligible(), receipt.GetEvidenceRefs()),
+		},
+	})
+}
+
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListRuns(context.Background(), connect.NewRequest(&runsv1.ListRunsRequest{
 		NodeId: ctx.Flag("node"),

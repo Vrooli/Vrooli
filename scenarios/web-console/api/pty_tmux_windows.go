@@ -59,3 +59,5 @@ func buildTmuxNewSessionArgs(sessionName, workingDir string, spec pty.LaunchSpec
 func tmuxPaneCurrentCommand(context.Context, string) ([]byte, error) {
 	return nil, pty.ErrUnsupported
 }
+
+func discoverHostTmuxSessions(context.Context) ([]string, error) { return nil, pty.ErrUnsupported }

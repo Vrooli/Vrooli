@@ -264,6 +264,12 @@ the resulting version, and the terminal outcome stream back as durable, audited
 - [ ] Provisioning to a target revision R is idempotent and re-runnable;
       verify a node already at R is a clean no-op.
 - [ ] Audit trail records the rollout (who, which nodes, outcome).
+- Explicit node subsets are validated against the current registry before
+  dispatch; any unknown or stale ID rejects the request instead of silently
+  shrinking the requested fleet. Registered but offline/incompatible nodes
+  remain explicit skipped results. After provisioner recovery, retry with the
+  same pinned revision creates a new rollout record and preserves the failed
+  attempt for audit.
 
 ## Rollback
 

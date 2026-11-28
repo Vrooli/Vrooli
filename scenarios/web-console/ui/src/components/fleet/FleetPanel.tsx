@@ -273,7 +273,7 @@ export default function FleetPanel({ open, onStartSession, onInstallCapability }
 
       {/* The footer is the architectural argument in one sentence: a machine
           is linked once, for the whole installation. */}
-      <footer className="shrink-0 border-t border-wc-default bg-wc-surface-raised/95 px-5 py-3 text-xs text-wc-text-faint">
+      {view.kind !== "machine" && <footer className="shrink-0 border-t border-wc-default bg-wc-surface-raised/95 px-5 py-3 text-xs text-wc-text-faint">
         <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-2">
         <span data-testid="machines-footer">{t(strings.machines.footer)}</span>
         {controlPlaneLine && (
@@ -286,7 +286,7 @@ export default function FleetPanel({ open, onStartSession, onInstallCapability }
           </span>
         )}
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }

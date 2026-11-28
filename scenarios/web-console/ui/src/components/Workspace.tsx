@@ -106,10 +106,10 @@ import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesVi
 import WorkspaceFilePreview from "./file-preview/WorkspaceFilePreview";
 import RunScriptDialog from "./file-preview/RunScriptDialog";
 import RunCommandDialog from "./file-preview/RunCommandDialog";
-import { fitFilePreviewWidth, useFilePreviewStore } from "../stores/useFilePreviewStore";
+import { FILE_PREVIEW_MAX_WIDTH, fitFilePreviewWidth, useFilePreviewStore } from "../stores/useFilePreviewStore";
 import type { PreviewSourceContext } from "@vrooli/file-viewer";
 import { resolveSessionPath } from "../api/filePreview";
-import { shouldFocusArtifactViewer } from "@vrooli/file-viewer";
+import { ARTIFACT_VIEWER_MIN_WIDTH, ARTIFACT_WORKSPACE_MIN_WIDTH, shouldFocusArtifactViewer } from "@vrooli/file-viewer";
 import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transport";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { setupMediaSession } from "../domains/tts-playback/mediaSession";
@@ -515,6 +515,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const setFilePreviewRequest = useFilePreviewStore((state) => state.setRequest);
   const setFilePreviewWidth = useFilePreviewStore((state) => state.setWidth);
   const clearFilePreview = useFilePreviewStore((state) => state.clear);
+  const filePreviewRecent = useFilePreviewStore((state) => state.recent);
   // Dragging the splitter fires many updates. Keep the live width in local
   // state so the split follows the pointer, and write it through to persisted
   // storage only when the gesture settles (or the viewer closes).
@@ -528,12 +529,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setFilePreviewWidth(liveWidthRef.current);
   }, [setFilePreviewWidth]);
   const changeFilePreviewWidth = useCallback((width: number) => {
+    liveWidthRef.current = width;
     setLiveFilePreviewWidth(width);
     if (widthCommit.current) clearTimeout(widthCommit.current);
     widthCommit.current = setTimeout(() => { widthCommit.current = null; setFilePreviewWidth(width); }, 120);
   }, [setFilePreviewWidth]);
   useEffect(() => {
-    const flush = () => { commitFilePreviewWidth(); };
+    const flush = () => { if (widthCommit.current) commitFilePreviewWidth(); };
     window.addEventListener("pointerup", flush);
     return () => {
       window.removeEventListener("pointerup", flush);
@@ -554,6 +556,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const openDeepLinkedFile = useCallback((sessionId: string, path: string) => {
     openFilePreview(sessionId, path, "message_link");
   }, [openFilePreview]);
+  const openRecentFile = useCallback((sessionId: string, path: string) => {
+    openFilePreview(sessionId, path, "message_link");
+  }, [openFilePreview]);
   const filePreviewDeepLink = useFilePreviewDeepLink({
     hydrated: isHydrated,
     activeSessionId: workspace.activePane,
@@ -561,23 +566,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     open: openDeepLinkedFile,
   });
 
-  // Restore the preview that was open when the tab was last closed. The
-  // request is persisted with the pane it belongs to, so a stale session
-  // (closed elsewhere, or a different account) is dropped rather than opening
-  // a viewer over a terminal that no longer exists.
-  const restoredFilePreview = useRef(false);
   useEffect(() => {
-    if (!isHydrated || restoredFilePreview.current) return;
-    restoredFilePreview.current = true;
-    const restored = useFilePreviewStore.getState().request;
-    if (restored && workspacePanes.some((pane) => pane.sessionId === restored.sessionId)) {
-      activatePane(restored.sessionId);
+    // Only a non-empty list is evidence a pane is really gone.
+    if (!isHydrated || !filePreviewRequest || workspacePanes.length === 0) return;
+    if (!workspacePanes.some((pane) => pane.sessionId === filePreviewRequest.sessionId)) {
+      clearFilePreview();
+      setFilePreviewFocus(false);
     }
-  }, [isHydrated, workspacePanes, activatePane]);
-  useEffect(() => {
-    if (!isHydrated || !filePreviewRequest) return;
-    if (!workspacePanes.some((pane) => pane.sessionId === filePreviewRequest.sessionId)) clearFilePreview();
   }, [filePreviewRequest, isHydrated, workspacePanes, clearFilePreview]);
+  // No preview means no focus mode; otherwise closing the owning session while
+  // in focus mode leaves the workspace invisible with nothing to restore it.
+  useEffect(() => {
+    if (!filePreviewRequest) setFilePreviewFocus(false);
+  }, [filePreviewRequest]);
   const closeFilePreview = useCallback(() => {
     commitFilePreviewWidth();
     clearFilePreview();
@@ -649,12 +650,28 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const [viewportWidth, setViewportWidth] = useState(
     () => typeof window !== "undefined" ? window.innerWidth : 1280,
   );
+  const [filePreviewAreaWidth, setFilePreviewAreaWidth] = useState(0);
   useEffect(() => {
     const onResize = () => { setIsMobile(window.innerWidth < 768); setViewportWidth(window.innerWidth); };
     window.addEventListener("resize", onResize);
     return () => { window.removeEventListener("resize", onResize); };
   }, []);
-  const effectiveFilePreviewWidth = fitFilePreviewWidth(liveFilePreviewWidth, viewportWidth);
+  useEffect(() => {
+    const element = filePreviewAreaRef.current;
+    if (!element) return;
+    const update = () => { setFilePreviewAreaWidth(element.clientWidth); };
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => { observer.disconnect(); };
+  }, [isTabLikeMode, workspace.displayMode]);
+  const availableFilePreviewWidth = filePreviewAreaWidth > 0 ? filePreviewAreaWidth : viewportWidth;
+  const effectiveFilePreviewWidth = fitFilePreviewWidth(liveFilePreviewWidth, availableFilePreviewWidth);
+  const maxFilePreviewWidth = Math.min(
+    FILE_PREVIEW_MAX_WIDTH,
+    Math.max(ARTIFACT_VIEWER_MIN_WIDTH, availableFilePreviewWidth - ARTIFACT_WORKSPACE_MIN_WIDTH),
+  );
 
   useEffect(() => {
     const element = filePreviewAreaRef.current;
@@ -665,6 +682,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       }
     };
     update();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => { observer.disconnect(); };
@@ -2494,7 +2512,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             <WorkspaceFilePreview
               request={filePreviewRequest}
               mobile={false}
+              recentFiles={filePreviewRecent}
+              onOpenRecent={openRecentFile}
               width={effectiveFilePreviewWidth}
+              maxWidth={maxFilePreviewWidth}
               focusMode={filePreviewFocus}
               onWidthChange={changeFilePreviewWidth}
               onFocus={() => { setFilePreviewFocus(true); }}
@@ -2541,7 +2562,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             <WorkspaceFilePreview
               request={filePreviewRequest}
               mobile={false}
+              recentFiles={filePreviewRecent}
+              onOpenRecent={openRecentFile}
               width={effectiveFilePreviewWidth}
+              maxWidth={maxFilePreviewWidth}
               focusMode={filePreviewFocus}
               onWidthChange={changeFilePreviewWidth}
               onFocus={() => { setFilePreviewFocus(true); }}
@@ -2558,6 +2582,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         <WorkspaceFilePreview
           request={filePreviewRequest}
           mobile
+          recentFiles={filePreviewRecent}
+          onOpenRecent={openRecentFile}
           width={effectiveFilePreviewWidth}
           focusMode={false}
           onWidthChange={changeFilePreviewWidth}

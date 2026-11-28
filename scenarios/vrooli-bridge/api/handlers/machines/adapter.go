@@ -29,7 +29,7 @@ func projectionToProto(projection internalmachines.Projection) *machinesv1.Curre
 	if !projection.HasNode {
 		return nil
 	}
-	return &machinesv1.CurrentNodeProjection{NodeId: projection.Node.ID, Name: projection.Node.Name, Capabilities: append([]string(nil), projection.Node.Capabilities...), Online: projection.Presence.Connected}
+	return &machinesv1.CurrentNodeProjection{NodeId: projection.Node.ID, Name: projection.Node.Name, Capabilities: append([]string(nil), projection.Node.Capabilities...), Online: projection.Presence.Connected, EnrollmentGeneration: projection.Node.EnrollmentGeneration}
 }
 
 func auditToProto(event internalmachines.AuditEvent) *machinesv1.MachineAuditEvent {
@@ -55,6 +55,7 @@ func domainToProto(m internalmachines.Machine) *machinesv1.Machine {
 		Id:                    m.ID,
 		Lifecycle:             string(m.Lifecycle),
 		Version:               m.Version,
+		EnrollmentGeneration:  m.EnrollmentGeneration,
 		DesiredProfileId:      m.DesiredProfileID,
 		DesiredProfileVersion: m.DesiredProfileVersion,
 		AppliedProfileId:      m.AppliedProfileID,
@@ -74,10 +75,11 @@ func domainToProto(m internalmachines.Machine) *machinesv1.Machine {
 	}
 	for _, lineage := range m.Lineage {
 		entry := &machinesv1.NodeLineage{
-			NodeId:        lineage.NodeID,
-			Current:       lineage.Current,
-			LinkedAt:      timestamppb.New(lineage.LinkedAt),
-			CorrelationId: lineage.CorrelationID,
+			NodeId:               lineage.NodeID,
+			Current:              lineage.Current,
+			EnrollmentGeneration: lineage.EnrollmentGeneration,
+			LinkedAt:             timestamppb.New(lineage.LinkedAt),
+			CorrelationId:        lineage.CorrelationID,
 		}
 		if !lineage.SupersededAt.IsZero() {
 			entry.SupersededAt = timestamppb.New(lineage.SupersededAt)

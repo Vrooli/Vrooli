@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, MessageSquare, PlugZap, RefreshCw, Terminal } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
 import { strings } from "../consts/strings";
 import type { ConversationViewState } from "../stores/useConversationStore";
 import { PaneEmptyState } from "./PaneEmptyState";
@@ -188,10 +189,10 @@ export function MessagesPaneSkeleton() {
     >
       {[0, 1, 2].map((row) => (
         <div key={row} className="flex flex-col gap-2">
-          <div className="h-2.5 w-20 animate-pulse rounded bg-wc-surface-input" />
-          <div className="h-2.5 w-full animate-pulse rounded bg-wc-surface-input" />
-          <div className="h-2.5 w-11/12 animate-pulse rounded bg-wc-surface-input" />
-          <div className="h-2.5 w-3/5 animate-pulse rounded bg-wc-surface-input" />
+          <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2.5 w-20 rounded" />
+          <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2.5 w-full rounded" />
+          <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2.5 w-11/12 rounded" />
+          <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-2.5 w-3/5 rounded" />
         </div>
       ))}
       <span className="sr-only">{t(strings.messagesPane.state.loading)}</span>

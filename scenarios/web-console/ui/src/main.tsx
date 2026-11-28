@@ -12,6 +12,7 @@ import App from "./App";
 import { FileViewerHost } from "./components/FileViewerHost";
 import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { registerVoiceTransport } from "./audio-integration";
+import { installTouchHtmlFrameOrigin } from "./lib/touchHtmlFrameOrigin";
 import "./i18n";
 import "./design-tokens.css";
 import "@vrooli/file-viewer/styles.css";
@@ -41,6 +42,11 @@ if (import.meta.hot) {
 // gone, so a tab opened before the deploy would crash on its next
 // navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
+
+// Chromium-only: keep an interactive HTML preview at the viewport origin so
+// touch taps land on the control the person touched. WebKit/Gecko keep the
+// normal drawer chrome above the preview (see lib/touchHtmlFrameOrigin.ts).
+installTouchHtmlFrameOrigin();
 
 // Re-confirm this installed app with Notification Hub and open the screen a
 // notification tap asked for (no-op until app notifications are turned on).

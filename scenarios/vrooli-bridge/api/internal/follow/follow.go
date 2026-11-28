@@ -17,7 +17,6 @@ package follow
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -26,6 +25,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 const schema = `
@@ -58,12 +59,7 @@ type Policy struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-// SQLExecutor is satisfied by both *sql.DB and api-core's routed database.
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
+// The API Core SQL executor is satisfied by both *sql.DB and routed databases.
 
 // HeadResolver reads a branch's current commit from a repository.
 type HeadResolver interface {
@@ -88,7 +84,7 @@ var ErrNotFollowing = errors.New("node is not following a branch")
 
 // Service owns branch-follow policies and their checks.
 type Service struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	heads HeadResolver
 	prov  Provisioner
 	nodes NodeChecker
@@ -97,7 +93,7 @@ type Service struct {
 }
 
 // NewService constructs the branch-follow service.
-func NewService(db SQLExecutor, heads HeadResolver, prov Provisioner, nodes NodeChecker, now func() time.Time) *Service {
+func NewService(db database.SQLExecutor, heads HeadResolver, prov Provisioner, nodes NodeChecker, now func() time.Time) *Service {
 	if now == nil {
 		now = time.Now
 	}

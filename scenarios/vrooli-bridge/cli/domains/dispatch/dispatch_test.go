@@ -64,5 +64,6 @@ func TestDispatch_JobRoundTrip(t *testing.T) {
 	require.Equal(t, "n1", svc.lastReq.NodeId)
 	require.Equal(t, "scenario test", svc.lastReq.Verb)
 	require.Equal(t, []string{"web-search", "--json"}, svc.lastReq.Args)
+	require.Empty(t, svc.lastReq.GetDeploymentTier(), "legacy CLI requests omit the additive owner-managed tier field")
 	require.Contains(t, out.String(), "run-1")
 }

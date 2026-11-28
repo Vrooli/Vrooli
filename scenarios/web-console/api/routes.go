@@ -53,7 +53,12 @@ func (s *Server) setupRoutes() {
 
 	healthBuilder := health.New().Version("1.0.0").BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY"))
 	if s.db != nil {
-		healthBuilder = healthBuilder.Check(health.DB(s.db.Primary()), health.Critical)
+		healthBuilder = healthBuilder.Check(health.CheckerFunc(func(ctx context.Context) health.CheckResult {
+			started := time.Now()
+			var ready int
+			err := s.db.Reader().QueryRowContext(ctx, `SELECT 1`).Scan(&ready)
+			return health.CheckResult{Name: "database", Connected: err == nil, Latency: time.Since(started), Error: err}
+		}), health.Critical)
 		healthBuilder = healthBuilder.Functional(func(ctx context.Context) health.FunctionalStatus {
 			report, err := s.observeContinuityHealth(ctx)
 			if err != nil {
@@ -77,6 +82,7 @@ func (s *Server) setupRoutes() {
 	if session := s.subscriptionSessionModule(); session != nil {
 		s.router.HandleFunc("/api/v1/auth/subscription/authorization", s.subscriptionAuthorizationURL).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/auth/subscription/session/exchange", s.subscriptionAuthorizationExchange).Methods(http.MethodPost)
+		s.router.HandleFunc("/api/v1/auth/subscription/access-token", s.subscriptionAccessTokenHandler).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", func(w http.ResponseWriter, r *http.Request) {
@@ -109,13 +115,15 @@ func (s *Server) setupRoutes() {
 		AppKey: "web-console", BundleKey: "business_suite",
 		Operations: map[monetization.JourneyOperation]func(context.Context) (string, error){
 			monetization.JourneyProviderObservation: func(ctx context.Context) (string, error) {
-				if _, err := s.Integrity(ctx); err != nil {
+				// A liveness probe of the continuity store, not a conservation
+				// audit: Health answers from indexes in milliseconds.
+				if _, err := s.Health(ctx); err != nil {
 					return "", fmt.Errorf("web-console integrity unavailable: %w", err)
 				}
 				return "provider=tier1-local-vrooli;route=scenario-api-proxy", nil
 			},
 			monetization.JourneyCommunication: func(ctx context.Context) (string, error) {
-				if _, err := s.Integrity(ctx); err != nil {
+				if _, err := s.Health(ctx); err != nil {
 					return "", fmt.Errorf("web-console communication unavailable: %w", err)
 				}
 				return "operation=thin-client;mode=thin-client", nil
@@ -179,7 +187,7 @@ func (s *Server) setupRoutes() {
 	// path-scoped Hub cookie only after validating the opaque role receipt; this
 	// proxy keeps that cookie and the discovered BAS origin on the server.
 	paneResolver := newWebConsoleBrowserPaneReceiptResolver(s.sessionStore)
-	s.router.Handle("/api/v1/browser/sessions/{sessionID}/stream", newBrowserStreamProxy(func(ctx context.Context) (string, error) {
+	s.router.Handle("/api/v1/browser/stream", newBrowserStreamProxy(func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
 	}, paneResolver)).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/browser/pane/sessions", browserPaneSessionsHandler(paneResolver)).Methods(http.MethodPost)

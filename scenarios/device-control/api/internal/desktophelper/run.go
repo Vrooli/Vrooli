@@ -14,7 +14,6 @@ import (
 	"device-control/internal/native/atspi"
 	nativehost "device-control/internal/native/host"
 	"device-control/internal/native/wayland"
-	"device-control/internal/native/x11"
 	"device-control/internal/sessions"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
@@ -80,19 +79,7 @@ func RunBound(ctx context.Context, path, ownerPath string, session SessionEnviro
 			if config.WaylandBackend != "" {
 				return ErrBootstrap
 			}
-			authorityBytes, readErr := readPrivate(config.XAuthorityFile, 1024*1024)
-			if readErr != nil {
-				return readErr
-			}
-			hostname, hostErr := os.Hostname()
-			if hostErr != nil {
-				return ErrBootstrap
-			}
-			cookie, cookieErr := xCookie(authorityBytes, config.Display, hostname)
-			if cookieErr != nil {
-				return cookieErr
-			}
-			backend, backendErr := x11.NewForSession(ctx, config.Display, cookie, config.SessionID)
+			backend, backendErr := OpenX11Session(ctx, config.Display, config.XAuthorityFile, config.SessionID)
 			if backendErr != nil {
 				return ErrBootstrap
 			}

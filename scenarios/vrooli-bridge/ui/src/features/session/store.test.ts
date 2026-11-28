@@ -80,7 +80,8 @@ describe("session store", () => {
 
     clearSession();
     mintSession.mockRejectedValue(new Error("unsupported browser"));
-    await expect(restoreLocalSession()).resolves.toEqual(emptySession);
+    await expect(restoreLocalSession()).rejects.toThrow("Saved browser enrollment could not be restored");
+    expect(loadSession()).toEqual(emptySession);
   });
 
   it("returns null when no enrollment is available or a session is already live", async () => {

@@ -92,6 +92,25 @@ func TestApplyDoesNotResurrectRevokedGrantFromSignedPush(t *testing.T) {
 	require.Equal(t, "address is revoked on this node", result.Receipt.GetReason())
 }
 
+func TestApplyRejectsDelayedPushAfterGenerationBoundPurgeWithoutGrantMetadata(t *testing.T) {
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	aad := []byte("credential-aad")
+	sealed, err := sealing.Seal(private.PublicKey().Bytes(), []byte("fixture-secret"), aad)
+	require.NoError(t, err)
+	grants := credentialgrant.NewMemoryStore()
+	require.NoError(t, grants.RevokeGrant(credentialgrant.Grant{ID: "g1", NodeID: "node-1", LogicalID: "vrooli/test", Field: "api-key", Generation: 4}))
+	var sink sink
+	result, err := Apply(&channelv1.CredentialPush{
+		GrantId: "g1", NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key", Generation: 4,
+		Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionDurable, SealedValue: sealed, Aad: aad,
+	}, "node-1", private, grants, &sink)
+	require.NoError(t, err)
+	require.True(t, result.Rejected)
+	require.Equal(t, "address is revoked on this node", result.RejectReason)
+	require.Empty(t, sink.value)
+}
+
 func TestApplyRenewsRevokedGrantOnlyWithNewerSignedGeneration(t *testing.T) {
 	private, err := ecdh.X25519().GenerateKey(rand.Reader)
 	require.NoError(t, err)

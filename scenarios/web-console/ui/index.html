@@ -21,12 +21,14 @@
 
     <!-- Installable PWA / iOS standalone.
          apple-mobile-web-app-status-bar-style only takes effect when the app is
-         web-app-capable; without these two metas iOS ignores black-translucent
-         and draws an opaque system status bar that cannot show the tinted body
-         (see docs/guides/ADAPTIVE_CHROME.md). -->
+         web-app-capable. It is `default`, not `black-translucent`: on iOS 26 the
+         translucent style lays the page under the status bar, where the
+         installed app draws a blurred scroll edge over the top chrome. Under
+         `default` iOS extends the colour of the sticky top bar (TopSafeArea)
+         under the status bar instead (see docs/guides/ADAPTIVE_CHROME.md). -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Aquila" />
 
 

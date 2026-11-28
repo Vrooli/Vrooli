@@ -36,6 +36,7 @@ import {
   type PlaybackTransportEvent,
   type PlaybackTransportState,
 } from "./flow/transition";
+import { isAgentReply, isSpeakable } from "../../lib/conversationRows";
 
 // AI_CHECK: web_console_tts_playback_unification=3 | LAST: 2026-05-13
 //
@@ -213,7 +214,7 @@ export function useTtsPlaybackController({
   ): Promise<{ text: string; paragraphs: string[]; version: PlaybackVersion }> => {
     const currentVersions = auxRef.current.selectedVersions;
     const resolvedVersion = resolvePlaybackVersion(currentVersions, preferredVersion, sessionId, event);
-    if (resolvedVersion === "active" && event.role === "assistant" && !event.summarized) {
+    if (resolvedVersion === "active" && event.role === "assistant" && isSpeakable(event) && !event.summarized) {
       try {
         const result = await summarizeEvent(sessionId, event.id);
         if (result.summarized && result.speechParagraphs) {
@@ -389,7 +390,8 @@ export function useTtsPlaybackController({
     if (!session) return;
     const startIndex = session.events.findIndex((event) => event.id === eventId);
     if (startIndex === -1) return;
-    const queueIds = session.events.slice(startIndex).map((event) => event.id);
+    // Messages only: the work rows between them and notices are never read aloud.
+    const queueIds = session.events.slice(startIndex).filter(isSpeakable).map((event) => event.id);
     if (queueIds.length === 0) return;
     beginQueue(sessionId, queueIds, 0);
   }, [beginQueue]);
@@ -559,7 +561,7 @@ export function useTtsPlaybackController({
   // SM when audio playback originates outside the controller (e.g. live
   // assistant streaming begins speaking before the user hits play).
   const handleIncomingEvent = useCallback((sessionId: string, event: ConversationEvent, sendAck: IncomingPlaybackAck) => {
-    if (event.role !== "assistant") return;
+    if (!isAgentReply(event)) return;
     if (!shouldQueueIncomingEvent({
       autoTtsEnabled,
       playbackIntent: playbackIntentRef.current,

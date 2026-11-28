@@ -10,6 +10,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/nodereach"
+	"github.com/vrooli/platform-go/desktopowner"
+	interactiveconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/interactive/interactive_v1connect"
 )
 
 type desktopURLResolver func(context.Context) (string, error)
@@ -48,6 +50,24 @@ func newBridgeControlProxy(resolve desktopTargetClientResolver) *bridgeControlPr
 }
 
 func (p *bridgeControlProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "Desktop requests require POST", http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+		http.Error(w, "Cross-site desktop request refused", http.StatusForbidden)
+		return
+	}
+	procedure := "/" + strings.TrimPrefix(r.URL.Path, "/api/v1/desktop-bridge/")
+	switch procedure {
+	case interactiveconnect.InteractiveDesktopServiceOpenChannelProcedure,
+		interactiveconnect.InteractiveDesktopServiceSignalProcedure,
+		interactiveconnect.InteractiveDesktopServiceCloseChannelProcedure:
+	default:
+		http.NotFound(w, r)
+		return
+	}
 	if p == nil || p.resolve == nil {
 		http.Error(w, "Bridge unavailable", http.StatusServiceUnavailable)
 		return
@@ -62,12 +82,7 @@ func (p *bridgeControlProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bridge unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	procedure := strings.TrimPrefix(r.URL.Path, "/api/v1/desktop-bridge/")
-	if strings.TrimSpace(procedure) == "" || strings.Contains(procedure, "..") {
-		http.Error(w, "Bridge procedure is invalid", http.StatusBadRequest)
-		return
-	}
-	targetURL := strings.TrimRight(bridgeURL, "/") + "/" + procedure
+	targetURL := strings.TrimRight(bridgeURL, "/") + procedure
 	request, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, io.LimitReader(r.Body, 128*1024))
 	if err != nil {
 		http.Error(w, "Bridge request is invalid", http.StatusBadRequest)
@@ -97,13 +112,23 @@ func newDesktopTargetProxy(resolve desktopTargetClientResolver) *desktopTargetPr
 }
 
 func (p *desktopTargetProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "Desktop requests require POST", http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
+		http.Error(w, "Cross-site desktop request refused", http.StatusForbidden)
+		return
+	}
 	if p == nil || p.resolve == nil {
 		http.Error(w, "Bridge unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	nodeID := mux.Vars(r)["nodeID"]
 	procedure := strings.TrimPrefix(r.URL.Path, "/api/v1/desktop/"+url.PathEscape(nodeID)+"/")
-	if strings.TrimSpace(nodeID) == "" || strings.TrimSpace(procedure) == "" || strings.Contains(procedure, "..") {
+	service, method, ok := strings.Cut(procedure, "/")
+	if strings.TrimSpace(nodeID) == "" || !ok || !desktopowner.AllowsRPC(desktopowner.Scenario, service, method, procedure, r.Method) {
 		http.Error(w, "desktop target is invalid", http.StatusBadRequest)
 		return
 	}
@@ -117,7 +142,7 @@ func (p *desktopTargetProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bridge unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	targetURL := strings.TrimRight(bridgeURL, "/") + "/api/v1/targets/" + url.PathEscape(nodeID) + "/scenarios/device-control/" + strings.TrimPrefix(procedure, "/")
+	targetURL := strings.TrimRight(bridgeURL, "/") + "/api/v1/targets/" + url.PathEscape(nodeID) + "/scenarios/" + desktopowner.Scenario + "/" + strings.TrimPrefix(procedure, "/")
 	request, err := http.NewRequestWithContext(r.Context(), http.MethodPost, targetURL, io.LimitReader(r.Body, 128*1024))
 	if err != nil {
 		http.Error(w, "desktop request is invalid", http.StatusBadRequest)
@@ -138,6 +163,7 @@ func (p *desktopTargetProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(key, value)
 		}
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(response.StatusCode)
 	_, _ = io.CopyN(w, response.Body, 128*1024+1)
 }

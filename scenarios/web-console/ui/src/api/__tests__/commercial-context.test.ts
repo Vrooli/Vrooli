@@ -16,6 +16,9 @@ import {
   testOpenRouterKey,
 } from "../monetization";
 
+const auth = vi.hoisted(() => ({ getAccessToken: vi.fn() }));
+vi.mock("../../lib/auth", () => ({ getAccessToken: auth.getAccessToken }));
+
 const context = {
   account: { subscription_status: "active", plan_tier: "free", credit_balance: 4, entitlement_ids: [], evaluated_at: "now" },
   content: [{ content_id: "connect", placement: "integrations", title: "Connect", description: "Connect an account", priority: "contextual", eligible: true, cta_label: "Manage account", cta_destination: "/account", expires_at: "later", dismissible: true }],
@@ -25,13 +28,14 @@ const context = {
 };
 
 function signIn(token: string): void {
-  sessionStorage.setItem("vrooli.web.access-token", JSON.stringify({ accessToken: token, expiresAt: "2099-01-01T00:00:00Z" }));
+  auth.getAccessToken.mockResolvedValue(token);
 }
 
 describe("commercial context client", () => {
   beforeEach(() => {
     _resetCommercialContextCache();
     sessionStorage.clear();
+    auth.getAccessToken.mockReset().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -108,6 +112,7 @@ describe("commercial context client", () => {
 describe("subscription and credential REST wrappers", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    auth.getAccessToken.mockReset().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -121,10 +126,7 @@ describe("subscription and credential REST wrappers", () => {
   }
 
   it("fetches subscription session status with an auth header when signed in", async () => {
-    sessionStorage.setItem(
-      "vrooli.web.access-token",
-      JSON.stringify({ accessToken: "tok", expiresAt: "2099-01-01T00:00:00Z" }),
-    );
+    auth.getAccessToken.mockResolvedValue("tok");
     const mock = stubFetch(() => new Response(JSON.stringify({ configured: true, provider_state: "ok" }), { status: 200 }));
     await expect(getSubscriptionSession()).resolves.toEqual({ configured: true, provider_state: "ok" });
     expect(mock).toHaveBeenCalledWith("/api/v1/auth/subscription/session", expect.anything());

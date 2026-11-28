@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserPane, type BrowserPaneProps, type BrowserPaneSession } from "./BrowserPane";
-import { sendBASHubInput, toBASHubRecordingInput, type BASHubInputSocket } from "./browserHubInput";
+import { encodeBASHubInput, type BASHubInputSocket } from "./browserHubInput";
 import { SingleFlightSurfaceOperation } from "./remoteSurface";
 import { WorkspaceSurfaceHandoff } from "./workspaceSurfaceContract";
 import { LatestFrameRenderQueue } from "./frameRenderQueue";
+import { BrowserHubTelemetry } from "./browserHubTelemetry";
 
 export type HubMessage = {
   type?: string;
@@ -14,6 +15,7 @@ export type HubMessage = {
   height?: number;
   captured_at?: string;
   timestamp?: string;
+  input_id?: string;
 };
 
 // Keep decoded canvas backing stores at or below 64 MiB RGBA per frame.
@@ -77,26 +79,27 @@ export function decodeBrowserHubBinaryFrame(buffer: ArrayBuffer, sessionID: stri
 
 export interface BrowserHubPaneProps extends Omit<BrowserPaneProps, "frame" | "onInput" | "loading" | "error"> {
   onControlReturned?: () => Promise<void>;
+  /** Rechecks the exact Web Console/run/thread owner chain after stream loss. */
+  onRevalidateOwner?: (reason: "stream-lost" | "owner-refused") => Promise<boolean>;
 }
 
 let nextLocalControlGeneration = 0;
+let nextBrowserInputID = 0;
 
 /**
  * BrowserPane wired to the Web Console same-origin BAS stream facade. BAS
  * validates the role receipt and remains the only session/input owner.
  */
-export function BrowserHubPane({ session, onControlReturned, ...paneProps }: BrowserHubPaneProps) {
+export function BrowserHubPane({ session, onControlReturned, onRevalidateOwner, ...paneProps }: BrowserHubPaneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const socketRef = useRef<WebSocket>();
-  const bytesRef = useRef(0);
-  const framesRef = useRef(0);
-  const inputsRef = useRef(0);
-  const attachStartedAtRef = useRef<number>();
-  const attachToFirstFrameMsRef = useRef<number>();
-  const [stats, setStats] = useState<NonNullable<BrowserPaneSession["stats"]>>({ frames: 0, bytes: 0, inputApplied: 0 });
+  const telemetry = useMemo(() => new BrowserHubTelemetry(), [session?.sessionId]);
+  const [stats, setStats] = useState<NonNullable<BrowserPaneSession["stats"]>>(() => telemetry.snapshot());
   const [frameSize, setFrameSize] = useState<BrowserPaneSession["frameSize"]>();
   const [frameAgeMs, setFrameAgeMs] = useState<number>();
   const [streamError, setStreamError] = useState("");
+  const [streamRevoked, setStreamRevoked] = useState(false);
+  const streamRevokedRef = useRef(false);
   const frameContextRef = useRef<{
     streamGeneration: number;
     setError: (message: string) => void;
@@ -132,8 +135,10 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
     );
   }
   const [connectionState, setConnectionState] = useState<BrowserPaneSession["state"]>("connecting");
+  const [reconnectAllowed, setReconnectAllowed] = useState(false);
   const [reconnectCount, setReconnectCount] = useState(0);
   const returnStartedRef = useRef(false);
+  const revalidatePendingRef = useRef(false);
   const returnControlRef = useRef(onControlReturned);
   returnControlRef.current = onControlReturned;
   const closeAfterReturnRef = useRef(false);
@@ -180,12 +185,27 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
   const streamURL = useMemo(() => {
     if (typeof window === "undefined") return "";
     const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${scheme}//${window.location.host}/api/v1/browser/sessions/${encodeURIComponent(session?.sessionId ?? "")}/stream`;
-  }, [session?.sessionId]);
+    return `${scheme}//${window.location.host}/api/v1/browser/stream`;
+  }, []);
   const reportStreamFailure = useCallback((message: string) => {
     if (role === "control") dispatchHandoff({ type: "request", operation: "handback" });
     dispatchHandoff({ type: "owner-failed", owner: "bas", message });
   }, [dispatchHandoff, role]);
+  const revalidateOwner = useCallback(async (reason: "stream-lost" | "owner-refused") => {
+    if (revalidatePendingRef.current) return;
+    revalidatePendingRef.current = true;
+    setReconnectAllowed(false);
+    if (!onRevalidateOwner) { revalidatePendingRef.current = false; return; }
+    try {
+      const active = await onRevalidateOwner(reason);
+      if (active && reason === "stream-lost") setReconnectAllowed(true);
+    } catch {
+      // An owner lookup failure is not evidence that a run or session remains active.
+      setReconnectAllowed(false);
+    } finally {
+      revalidatePendingRef.current = false;
+    }
+  }, [onRevalidateOwner]);
 
   frameContextRef.current.render = ({ width, height, capturedAt }, bitmap) => {
     try {
@@ -194,13 +214,13 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
         if (target) { target.width = bitmap.width; target.height = bitmap.height; }
       }
       const context = target?.getContext("2d");
-      if (context) context.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
-      framesRef.current += 1;
+      if (context) {
+        context.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
+        telemetry.recordFramePainted(performance.now(), capturedAt, Date.now());
+      }
       setFrameSize({ width: bitmap.width || width, height: bitmap.height || height });
-      const capturedAtMs = capturedAt ? Date.parse(capturedAt) : NaN;
-      setFrameAgeMs(Number.isFinite(capturedAtMs) ? Math.max(0, Date.now() - capturedAtMs) : undefined);
-      if (attachToFirstFrameMsRef.current === undefined && attachStartedAtRef.current !== undefined) attachToFirstFrameMsRef.current = Math.max(0, Math.round(performance.now() - attachStartedAtRef.current));
-      setStats({ frames: framesRef.current, bytes: bytesRef.current, inputApplied: inputsRef.current, attachToFirstFrameMs: attachToFirstFrameMsRef.current });
+      setFrameAgeMs(telemetry.snapshot().frameAgeMs);
+      setStats(telemetry.snapshot());
       if (handoffStateRef.current.pending === "takeover") dispatchHandoff({ type: "owner-control-granted", owner: "bas", leaseHeld: true });
       else if (handoffStateRef.current.pending === "reconnect") dispatchHandoff({ type: "owner-reconnected", owner: "bas", access: controlRoleRequested ? "control" : "observe", leaseHeld: controlRoleRequested });
       else if (handoffStateRef.current.pending === "open") dispatchHandoff({ type: "owner-opened", owner: "bas", canControl: Boolean(session?.capabilities.control), leaseHeld: controlRoleRequested });
@@ -241,37 +261,35 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
     const current = canvasRef.current;
     const sessionID = session?.sessionId;
     dispatchHandoff({ type: "request", operation: reconnectCount > 0 ? "reconnect" : role === "control" ? "takeover" : "open" });
-    bytesRef.current = 0;
-    framesRef.current = 0;
-    inputsRef.current = 0;
-    attachStartedAtRef.current = undefined;
-    attachToFirstFrameMsRef.current = undefined;
     if (current) {
       current.width = 0;
       current.height = 0;
     }
-    setStats({ frames: 0, bytes: 0, inputApplied: 0 });
+    setStats(telemetry.snapshot());
     setFrameSize(undefined);
     setFrameAgeMs(undefined);
     setConnectionState("connecting");
+    streamRevokedRef.current = false;
+    setStreamRevoked(false);
     returnStartedRef.current = false;
     if (!canObserve || !sessionID || !streamURL || !current) return;
     setStreamError("");
+    telemetry.beginAttach(performance.now());
     const socket = new WebSocket(streamURL);
     socket.binaryType = "arraybuffer";
     socketRef.current = socket;
     socket.addEventListener("open", () => {
       setConnectionState("viewer");
-      const attach = JSON.stringify({ type: "attach", role });
+      const attach = JSON.stringify({ type: "attach", role, pane_handle: sessionID });
       const subscribe = JSON.stringify({ type: "subscribe_recording", session_id: sessionID });
-      attachStartedAtRef.current = performance.now();
       socket.send(attach);
       socket.send(subscribe);
-      bytesRef.current += new TextEncoder().encode(attach + subscribe).byteLength;
+      telemetry.addBytes(new TextEncoder().encode(attach).byteLength + new TextEncoder().encode(subscribe).byteLength);
+      setStats(telemetry.snapshot());
     });
     socket.addEventListener("message", (event) => {
       if (event.data instanceof ArrayBuffer) {
-        bytesRef.current += event.data.byteLength;
+        telemetry.addBytes(event.data.byteLength);
         const frame = decodeBrowserHubBinaryFrame(event.data, sessionID);
         if (!frame) { setStreamError("The browser owner sent a frame outside this session."); return; }
         paintFrame(frame.jpeg, "image/jpeg", 0, 0, frame.capturedAt);
@@ -281,16 +299,25 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
       let message: HubMessage;
       try { message = JSON.parse(event.data) as HubMessage; }
       catch { setStreamError("The browser owner sent an unreadable stream message."); return; }
-      bytesRef.current += new TextEncoder().encode(event.data).byteLength;
+      telemetry.addBytes(new TextEncoder().encode(event.data).byteLength);
       if (message.type === "browser_stream_error") {
+        void revalidateOwner("owner-refused");
         reportStreamFailure("BAS refused or lost the authorized browser stream.");
         setStreamError("The browser owner refused or lost the authorized stream.");
         setConnectionState("failed");
         return;
       }
-      if (message.type === "recording_input_applied") {
-        inputsRef.current += 1;
-        setStats({ frames: framesRef.current, bytes: bytesRef.current, inputApplied: inputsRef.current, attachToFirstFrameMs: attachToFirstFrameMsRef.current });
+      if (message.type === "session_access_revoked" && message.session_id === sessionID
+        && Object.keys(message).every((key) => key === "type" || key === "session_id")) {
+        streamRevokedRef.current = true;
+        setStreamRevoked(true);
+        setStreamError("");
+        setConnectionState("revoked");
+        return;
+      }
+      if (message.type === "recording_input_applied" && message.session_id === sessionID) {
+        telemetry.recordInputApplied(typeof message.input_id === "string" ? message.input_id : undefined, performance.now());
+        setStats(telemetry.snapshot());
         return;
       }
       const frame = decodeBrowserHubSessionFrame(message, sessionID);
@@ -298,32 +325,35 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
       paintFrame(frame.image, frame.mediaType, frame.width, frame.height, frame.capturedAt);
     });
     socket.addEventListener("close", () => {
-      if (socketRef.current === socket) { reportStreamFailure("Browser stream disconnected."); setStreamError("The browser stream disconnected. Reconnect through the browser session owner."); setConnectionState("disconnected"); }
+      if (socketRef.current === socket && !streamRevokedRef.current) { void revalidateOwner("stream-lost"); telemetry.markDisconnected(performance.now()); setStats(telemetry.snapshot()); reportStreamFailure("Browser stream disconnected."); setStreamError("The browser stream disconnected. Checking whether the run still owns an active browser session."); setConnectionState("disconnected"); }
     });
-    socket.addEventListener("error", () => { reportStreamFailure("Browser stream connection failed."); setStreamError("The same-origin browser stream could not connect."); setConnectionState("disconnected"); });
+    socket.addEventListener("error", () => { if (streamRevokedRef.current) return; void revalidateOwner("stream-lost"); telemetry.markDisconnected(performance.now()); setStats(telemetry.snapshot()); reportStreamFailure("Browser stream connection failed."); setStreamError("The same-origin browser stream could not connect. Checking whether the run still owns an active browser session."); setConnectionState("disconnected"); });
     return () => {
       frameContextRef.current.streamGeneration += 1;
       frameQueueRef.current?.clear();
       socketRef.current = undefined;
       if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) socket.close();
     };
-  }, [canObserve, reconnectCount, role, session?.sessionId, streamURL, controlRoleRequested, handoff, dispatchHandoff, reportStreamFailure]);
+  }, [canObserve, reconnectCount, role, session?.sessionId, streamURL, controlRoleRequested, handoff, dispatchHandoff, reportStreamFailure, revalidateOwner, telemetry]);
 
   const onInput: BrowserPaneProps["onInput"] = async (input, _order, lease) => {
     const current = currentControlRef.current;
     const socket = socketRef.current as (WebSocket & BASHubInputSocket) | undefined;
-    const message = current.sessionId ? toBASHubRecordingInput(current.sessionId, input) : undefined;
-    if (!current.active || !current.sessionId || lease.receipt !== current.receipt || lease.epoch !== current.epoch || socket?.readyState !== WebSocket.OPEN || !message || !sendBASHubInput(socket, current.sessionId, input)) {
+    const inputID = `wc-input-${++nextBrowserInputID}`;
+    const encoded = current.sessionId ? encodeBASHubInput(current.sessionId, input, inputID) : undefined;
+    if (!current.active || !current.sessionId || lease.receipt !== current.receipt || lease.epoch !== current.epoch || socket?.readyState !== WebSocket.OPEN || !encoded) {
       throw new Error("The owner-admitted browser stream is not ready for input.");
     }
-    bytesRef.current += new TextEncoder().encode(JSON.stringify(message)).byteLength;
-    setStats({ frames: framesRef.current, bytes: bytesRef.current, inputApplied: inputsRef.current, attachToFirstFrameMs: attachToFirstFrameMsRef.current });
+    socket.send(encoded);
+    telemetry.addBytes(new TextEncoder().encode(encoded).byteLength);
+    telemetry.recordInputSent(inputID, performance.now());
+    setStats(telemetry.snapshot());
   };
 
   const ownerTerminalState = session && ["offline", "blocked", "revoked", "failed"].includes(session.state) ? session.state : undefined;
-  const liveState: BrowserPaneSession["state"] = ownerTerminalState ?? (connectionState === "viewer" && controllerActive ? "controller" : connectionState);
+  const liveState: BrowserPaneSession["state"] = ownerTerminalState ?? (streamRevoked ? "revoked" : connectionState === "viewer" && controllerActive ? "controller" : connectionState);
   const liveSession = session ? { ...session, state: liveState, controller: controllerActive, controlReceipt: controllerActive ? localControlLease.receipt : undefined, sessionEpoch: controllerActive ? localControlLease.epoch : undefined, frameSize: frameSize ?? session.frameSize, stats, frameAgeMs } : undefined;
-  const reconnect = () => { void lifecycleRef.current.run("reconnect", async () => { dispatchHandoff({ type: "request", operation: "reconnect" }); setStreamError(""); setConnectionState("connecting"); setReconnectCount((count)=>count+1); }); };
+  const reconnect = () => { void lifecycleRef.current.run("reconnect", async () => { telemetry.startReconnect(performance.now()); setStats(telemetry.snapshot()); dispatchHandoff({ type: "request", operation: "reconnect" }); setStreamError(""); setConnectionState("connecting"); setReconnectCount((count)=>count+1); }); };
   const takeControl = () => { void lifecycleRef.current.run("takeover", async () => { const pending = dispatchHandoff({ type: "request", operation: "takeover" }); if (pending.pending !== "takeover") return; setStreamError(""); setConnectionState("connecting"); }); };
   const beginHandback = () => {
     const pending = dispatchHandoff({ type: "request", operation: "handback" });
@@ -338,5 +368,5 @@ export function BrowserHubPane({ session, onControlReturned, ...paneProps }: Bro
     paneProps.onClose?.();
     dispatchHandoff({ type: "owner-closed", owner: "bas" });
   };
-  return <BrowserPane {...paneProps} onClose={closePane} session={liveSession} frame={<canvas key={`${session?.sessionId ?? "none"}:${session?.sessionEpoch ?? 0n}:${reconnectCount}:${canObserve ? role : "closed"}`} ref={canvasRef} />} onInput={onInput} onTakeControl={takeControl} onHandBack={releaseControl} onReconnect={reconnect} onSurfaceFocusChange={(focused) => { dispatchHandoff({ type: "focus", focused }); }} loading={Boolean(session && canObserve && !frameSize)} error={streamError || undefined} />;
+  return <BrowserPane {...paneProps} onClose={closePane} session={liveSession} frame={<canvas key={`${session?.sessionId ?? "none"}:${session?.sessionEpoch ?? 0n}:${reconnectCount}:${canObserve ? role : "closed"}`} ref={canvasRef} />} onInput={onInput} onTakeControl={takeControl} onHandBack={releaseControl} onReconnect={reconnectAllowed ? reconnect : undefined} onSurfaceFocusChange={(focused) => { dispatchHandoff({ type: "focus", focused }); }} loading={Boolean(session && canObserve && !frameSize)} error={streamError || undefined} />;
 }

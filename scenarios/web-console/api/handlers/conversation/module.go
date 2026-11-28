@@ -29,6 +29,11 @@ type Service interface {
 	Search(ctx context.Context, sessionID string, query SearchQuery) (SearchResult, error)
 	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
 	GetRange(ctx context.Context, sessionID string, from, to int64) (SessionState, error)
+	// Project reads the Messages projection: a thread's conversation rows
+	// interleaved with work rows summarising what happened between them.
+	Project(ctx context.Context, sessionID string, query ProjectionQuery) (SessionState, error)
+	// WorkRange returns a thread's work rows in from..to with preview text.
+	WorkRange(ctx context.Context, sessionID, threadID string, from, to int64) (SessionState, error)
 	ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) (ResolveEventsResult, error)
 	UpdateCursor(ctx context.Context, sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
@@ -56,6 +61,8 @@ type SearchQuery struct {
 	Role          string
 	Limit         int
 	AfterSequence int64
+	// Kinds restricts the search to these row kinds; empty searches all.
+	Kinds []string
 }
 
 // TextRange is a match inside an excerpt, in UTF-16 code units.
@@ -68,6 +75,8 @@ type SearchMatch struct {
 	EventID    string
 	Sequence   int64
 	Role       string
+	Kind       string
+	ThreadID   string
 	CreatedAt  string
 	OccurredAt string
 	Excerpt    string
@@ -127,6 +136,48 @@ type Event struct {
 	TTSState                 string
 	ConsumptionState         string
 	NativeProvenance         *NativeProvenance
+	Kind                     string
+	Author                   string
+	AuthorName               string
+	Label                    string
+	ThreadID                 string
+	Work                     *WorkSpan
+	TextTruncated            bool
+}
+
+// WorkSpan summarises one thread's rows hidden between conversation rows.
+type WorkSpan struct {
+	FromSequence int64
+	ToSequence   int64
+	ToolCalls    int
+	ToolResults  int
+	Reasoning    int
+	Context      int
+	StartedAt    string
+	EndedAt      string
+}
+
+// Thread is an agent thread inside a session with its row totals.
+type Thread struct {
+	ThreadID       string
+	Kind           string
+	Label          string
+	Description    string
+	ParentThreadID string
+	FirstSequence  int64
+	LastSequence   int64
+	MessageCount   int
+	WorkCount      int
+	StartedAt      string
+	EndedAt        string
+}
+
+// ProjectionQuery reads one page of the Messages projection of a thread.
+type ProjectionQuery struct {
+	ThreadID       string
+	Limit          int
+	BeforeSequence int64
+	SinceSequence  int64
 }
 
 type NativeProvenance struct {
@@ -153,6 +204,8 @@ type SessionState struct {
 	OldestSequence int64
 	NewestSequence int64
 	TotalCount     int64
+	// Threads lists the session's agent threads (Messages projection only).
+	Threads []Thread
 	// Capture explains the event list. Callers must not infer meaning from
 	// len(Events) alone: zero events is produced both by a session nobody has
 	// spoken in and by a session whose transcript cannot be read at all.

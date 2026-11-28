@@ -111,7 +111,7 @@ func TestBrowserPaneCandidateToSameOriginFrameUsesOneOwnerSession(t *testing.T) 
 		browserPaneSessionsHandler(resolver)(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
 	}).Methods(http.MethodPost)
 	streamProxy := newBrowserStreamProxy(func(context.Context) (string, error) { return owner.URL, nil }, resolver)
-	apiRouter.Handle("/api/v1/browser/sessions/{sessionID}/stream", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiRouter.Handle("/api/v1/browser/stream", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		streamProxy.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
 	})).Methods(http.MethodGet)
 	api := httptest.NewServer(apiRouter)
@@ -137,7 +137,7 @@ func TestBrowserPaneCandidateToSameOriginFrameUsesOneOwnerSession(t *testing.T) 
 	if strings.Contains(string(public), ownerRun) || strings.Contains(string(public), thread) || strings.Contains(string(public), basSession) {
 		t.Fatalf("browser pane response leaked owner identifiers: %s", public)
 	}
-	conn, handshake, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(api.URL, "http")+"/api/v1/browser/sessions/"+handle+"/stream", http.Header{"Origin": []string{api.URL}})
+	conn, handshake, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(api.URL, "http")+"/api/v1/browser/stream", http.Header{"Origin": []string{api.URL}})
 	if err != nil {
 		if handshake != nil && handshake.Body != nil {
 			defer handshake.Body.Close()
@@ -147,7 +147,7 @@ func TestBrowserPaneCandidateToSameOriginFrameUsesOneOwnerSession(t *testing.T) 
 		t.Fatalf("open proxied stream: %v response=%v", err, handshake)
 	}
 	defer conn.Close()
-	_ = conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "observe"})
+	_ = conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "observe", PaneHandle: handle})
 	_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"subscribe_recording","session_id":"`+handle+`"}`))
 	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	messageType, frame, err := conn.ReadMessage()

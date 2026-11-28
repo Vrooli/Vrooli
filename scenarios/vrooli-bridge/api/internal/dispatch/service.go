@@ -2,6 +2,9 @@ package dispatch
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -116,6 +119,10 @@ var _ Service = (*service)(nil)
 func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, error) {
 	job := in.Job.trimmed()
 	in.Job = job
+	if len(job.RequestID) > 128 {
+		s.auditReject(ctx, in, "request_id exceeds 128 characters")
+		return Decision{}, ErrInvalidJob{Field: "request_id", Reason: "must be at most 128 characters"}
+	}
 	if s.catalogErr != nil {
 		s.auditReject(ctx, in, s.catalogErr.Error())
 		return Decision{}, s.catalogErr
@@ -180,16 +187,27 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	if timeout <= 0 {
 		timeout = s.defaultTimeout
 	}
-	runID, err := s.runs.CreateRun(ctx, CreateRunInput{
-		NodeID:         job.NodeID,
-		Scenario:       job.Scenario,
-		Verb:           job.Verb,
-		Args:           job.Args,
-		TimeoutSeconds: timeout,
+	created, err := s.runs.CreateRun(ctx, CreateRunInput{
+		OwnerID:            in.Actor,
+		RequestID:          job.RequestID,
+		RequestFingerprint: fingerprintJob(job, timeout),
+		NodeID:             job.NodeID,
+		Scenario:           job.Scenario,
+		Verb:               job.Verb,
+		Args:               job.Args,
+		TimeoutSeconds:     timeout,
 	})
 	if err != nil {
+		var conflict ErrIdempotencyConflict
+		if errors.As(err, &conflict) {
+			s.auditReject(ctx, in, err.Error())
+		}
 		return Decision{}, err
 	}
+	if created.Replayed {
+		return Decision{RunID: created.RunID, Replayed: true, Job: job}, nil
+	}
+	runID := created.RunID
 
 	// 7. Audit the accepted dispatch. This is FAIL-CLOSED: remote code execution
 	//    must be accountable, so if we cannot record the dispatch we abort the
@@ -226,6 +244,18 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	}
 
 	return Decision{RunID: runID, Job: job, Queued: queued}, nil
+}
+
+func fingerprintJob(job Job, timeout int64) string {
+	payload, _ := json.Marshal(struct {
+		NodeID   string   `json:"node_id"`
+		Scenario string   `json:"scenario"`
+		Verb     string   `json:"verb"`
+		Args     []string `json:"args"`
+		Timeout  int64    `json:"timeout_seconds"`
+	}{job.NodeID, job.Scenario, job.Verb, job.Args, timeout})
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
 }
 
 func (s *service) validateCredentialInjections(ctx context.Context, job Job) error {
@@ -265,6 +295,9 @@ func Admit(job Job, node TargetNode, manifest []string) error {
 	}
 	if node.Kind != "" && node.Kind != "agent" {
 		return ErrUnsupportedNodeKind{ID: job.NodeID, Kind: node.Kind}
+	}
+	if job.DeploymentTier != "" && (node.DeploymentTier == "" || job.DeploymentTier != node.DeploymentTier) {
+		return ErrDeploymentTierMismatch{ID: job.NodeID, Requested: job.DeploymentTier, Registered: node.DeploymentTier}
 	}
 	return Allow(job, node.Scopes, manifest)
 }

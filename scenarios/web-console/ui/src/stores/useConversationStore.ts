@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import type { ConversationCursor, ConversationEvent } from "../api/conversation";
+import type { ConversationCursor, ConversationEvent, ConversationThreadSummary } from "../api/conversation";
 import type { MessageCaptureStatus } from "../api/messageCapture";
 import { UNKNOWN_CAPTURE } from "../api/messageCapture";
 import { echoMatches, type OutboxState, type SentEcho } from "../lib/echoMatch";
+import { firstSequence, foldLiveRow, foldThreadRow, isAgentReply, isConversationRow, mergeProjectedRows } from "../lib/conversationRows";
 
 /**
  * How the last attempt to load this session's history ended. The Messages view
@@ -21,8 +22,15 @@ export interface ConversationLoadError {
   retryable: boolean;
 }
 
+/**
+ * A session's loaded rows are the Messages projection of its main thread
+ * (lib/conversationRows): conversation rows and the "work" rows between them,
+ * contiguous by sequence. Raw tool rows never enter the store.
+ */
 export type SessionConversationState = {
   events: ConversationEvent[];
+  /** The session's agent threads (subagents, teammates), shown as groups in the list. */
+  threads?: ConversationThreadSummary[];
   cursor: ConversationCursor;
   hydrated: boolean;
   knownEventIds?: ReadonlySet<string>;
@@ -55,6 +63,7 @@ export interface ConversationPage {
   hasOlder: boolean;
   totalCount: number;
   capture?: MessageCaptureStatus;
+  threads?: ConversationThreadSummary[];
 }
 
 interface ConversationStoreActions {
@@ -73,7 +82,7 @@ interface ConversationStoreActions {
    * exists. Used by reconnect / view-open / out-of-sync refresh paths to
    * fill gaps without disturbing the tail the live WS already delivered.
    */
-  mergeEvents: (sessionId: string, events: ConversationEvent[], cursor?: ConversationCursor, capture?: MessageCaptureStatus) => void;
+  mergeEvents: (sessionId: string, events: ConversationEvent[], cursor?: ConversationCursor, capture?: MessageCaptureStatus, threads?: ConversationThreadSummary[]) => void;
   /** Merge updated fields (e.g. summarization) into an existing event by ID. */
   updateEvent: (sessionId: string, eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
   updateCursor: (sessionId: string, cursor: Partial<ConversationCursor>) => void;
@@ -172,14 +181,16 @@ function sessionMetadata(events: ConversationEvent[], cursor: ConversationCursor
   let unreadCount = 0;
   for (const event of events) {
     maxSequence = Math.max(maxSequence, event.sequence);
-    if (previous > 0 && event.sequence !== previous + 1) {
+    // A work row covers its whole range, so it continues from its first sequence.
+    if (previous > 0 && firstSequence(event) !== previous + 1) {
       hasSequenceGap = true;
       if (refetchSinceSequence === 0) refetchSinceSequence = previous;
     }
     previous = event.sequence;
-    if (event.role === "assistant" && event.sequence > cursor.lastSeenSequence) unreadCount += 1;
+    if (isAgentReply(event) && event.sequence > cursor.lastSeenSequence) unreadCount += 1;
   }
-  const prefixGap = !startsAtWindow(events[0]?.sequence ?? 1, windowOldestSequence);
+  const head = events[0];
+  const prefixGap = !startsAtWindow(head ? firstSequence(head) : 1, windowOldestSequence);
   if (prefixGap) refetchSinceSequence = 0;
   return { knownEventIds, unreadCount, maxSequence, hasSequenceGap: hasSequenceGap || prefixGap, refetchSinceSequence };
 }
@@ -195,7 +206,7 @@ let nextEchoSequence = 0;
 /** Removes the first echo a newly recorded user turn matches, if any. */
 function withoutMatchedEcho(echoes: Record<string, SentEcho[]>, event: ConversationEvent): Record<string, SentEcho[]> {
   const pending = echoes[event.sessionId];
-  if (!pending || event.role !== "user") return echoes;
+  if (!pending || event.role !== "user" || !isConversationRow(event)) return echoes;
   const index = pending.findIndex((echo) => echoMatches(echo, event));
   if (index < 0) return echoes;
   return { ...echoes, [event.sessionId]: pending.filter((_, position) => position !== index) };
@@ -217,7 +228,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
       return {
         sessions: {
           ...state.sessions,
-          [sessionId]: { events, cursor, hydrated: true, ...sessionMetadata(events, cursor, page?.oldestSequence), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
+          [sessionId]: { events, threads: page?.threads ?? existing?.threads, cursor, hydrated: true, ...sessionMetadata(events, cursor, page?.oldestSequence), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
         },
       };
     }
@@ -229,7 +240,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     return {
       sessions: {
         ...state.sessions,
-        [sessionId]: { events: merged, cursor, hydrated: true, ...sessionMetadata(merged, cursor, page?.oldestSequence), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
+        [sessionId]: { events: merged, threads: page?.threads ?? existing.threads, cursor, hydrated: true, ...sessionMetadata(merged, cursor, page?.oldestSequence), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
       },
     };
   }),
@@ -272,6 +283,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
       ...state.sessions,
       [sessionId]: {
         events,
+        threads: page.threads ?? state.sessions[sessionId]?.threads,
         cursor,
         hydrated: true,
         ...sessionMetadata(events, cursor, page.oldestSequence),
@@ -299,7 +311,16 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     if (knownEventIds.has(event.id)) {
       return state;
     }
-    const nextKnownEventIds = new Set(knownEventIds).add(event.id);
+    // A live row that is not this thread's conversation folds into the work
+    // row at the tail; one already covered (a replay) changes nothing.
+    const folds = !isConversationRow(event) || Boolean(event.threadId);
+    if (folds && event.sequence <= (existing.maxSequence ?? 0)) {
+      return state;
+    }
+    const events = foldLiveRow(existing.events, event);
+    const tail = events[events.length - 1];
+    const nextKnownEventIds = new Set(knownEventIds);
+    if (tail) nextKnownEventIds.add(tail.id);
     // A first event with nothing loaded before it leaves the whole prefix
     // missing; a later out-of-order event opens a gap after the current end.
     const opensPrefixGap = existing.events.length === 0 && !startsAtWindow(event.sequence, existing.windowOldestSequence);
@@ -309,14 +330,15 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     const refetchSinceSequence = existing.hasSequenceGap
       ? existing.refetchSinceSequence
       : opensPrefixGap ? 0 : opensGap ? existing.maxSequence : existing.refetchSinceSequence;
-    const unreadCount = (existing.unreadCount ?? getSessionUnreadCount(state, event.sessionId)) + (event.role === "assistant" && event.sequence > existing.cursor.lastSeenSequence ? 1 : 0);
+    const unreadCount = (existing.unreadCount ?? getSessionUnreadCount(state, event.sessionId)) + (isAgentReply(event) && event.sequence > existing.cursor.lastSeenSequence ? 1 : 0);
     return {
       echoes: withoutMatchedEcho(state.echoes, event),
       sessions: {
         ...state.sessions,
         [event.sessionId]: {
           ...existing,
-          events: [...existing.events, event],
+          events,
+          ...(event.threadId ? { threads: foldThreadRow(existing.threads ?? [], event) } : {}),
           knownEventIds: nextKnownEventIds,
           unreadCount,
           maxSequence: Math.max(existing.maxSequence ?? 0, event.sequence),
@@ -327,9 +349,9 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     };
   }),
 
-  mergeEvents: (sessionId, incoming, cursor, capture) => set((state) => {
+  mergeEvents: (sessionId, incoming, cursor, capture, threads) => set((state) => {
     const existing = state.sessions[sessionId] ?? blankSession();
-    if (incoming.length === 0 && !cursor && !capture) {
+    if (incoming.length === 0 && !cursor && !capture && !threads) {
       // Still mark hydrated so UI stops showing "not loaded" states.
       if (existing.hydrated && existing.status === "loaded") return state;
       return {
@@ -339,11 +361,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
         },
       };
     }
-    const seen = existing.knownEventIds ?? new Set(existing.events.map((e) => e.id));
-    const added = incoming.filter((e) => !seen.has(e.id));
-    const merged = added.length > 0
-      ? [...existing.events, ...added].sort((a, b) => a.sequence - b.sequence)
-      : existing.events;
+    const { events: merged, added } = mergeProjectedRows(existing.events, incoming);
     return {
       echoes: added.reduce(withoutMatchedEcho, state.echoes),
       sessions: {
@@ -356,6 +374,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
         [sessionId]: {
           ...existing,
           events: merged,
+          threads: threads ?? existing.threads,
           cursor: cursor ?? existing.cursor,
           hydrated: true,
           status: "loaded",
@@ -557,13 +576,13 @@ export function getSessionConversationCursor(state: ConversationStoreState, sess
 export function getSessionUnreadCount(state: ConversationStoreState, sessionId: string): number {
   const session = state.sessions[sessionId];
   if (!session) return 0;
-  return session.unreadCount ?? session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+  return session.unreadCount ?? session.events.filter((event) => isAgentReply(event) && event.sequence > session.cursor.lastSeenSequence).length;
 }
 
 export function getSessionUnlistenedEvents(state: ConversationStoreState, sessionId: string): ConversationEvent[] {
   const session = state.sessions[sessionId];
   if (!session) return [];
-  return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastListenedSequence);
+  return session.events.filter((event) => isAgentReply(event) && event.sequence > session.cursor.lastListenedSequence);
 }
 
 /**
@@ -583,12 +602,12 @@ export function getSessionRefetchSinceSequence(state: ConversationStoreState, se
   }
   const sorted = [...events].sort((a, b) => a.sequence - b.sequence);
   const first = sorted[0];
-  if (!first || !startsAtWindow(first.sequence, session?.windowOldestSequence)) return 0;
+  if (!first || !startsAtWindow(firstSequence(first), session?.windowOldestSequence)) return 0;
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
     const cur = sorted[i];
     if (!prev || !cur) continue;
-    if (cur.sequence !== prev.sequence + 1) {
+    if (firstSequence(cur) !== prev.sequence + 1) {
       return prev.sequence;
     }
   }

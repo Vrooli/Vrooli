@@ -242,13 +242,11 @@ func (a *conversationAdapter) lastCapturedAt(ctx context.Context, sessionID stri
 	if a.srv.conversations == nil {
 		return ""
 	}
-	state := a.srv.conversations.ListSession(ctx, sessionID)
-	if len(state.Events) == 0 {
+	// One row, read by the (session_id, sequence) index: this runs on every
+	// conversation Get and poll.
+	createdAt, found := a.srv.conversations.LatestEventCreatedAt(ctx, sessionID)
+	if !found || createdAt.IsZero() {
 		return ""
 	}
-	last := state.Events[len(state.Events)-1]
-	if last.CreatedAt.IsZero() {
-		return ""
-	}
-	return last.CreatedAt.UTC().Format(time.RFC3339)
+	return createdAt.UTC().Format(time.RFC3339)
 }

@@ -89,9 +89,9 @@ func (s *Service) FirstTouch(ctx context.Context, req FirstTouchRequest) (FirstT
 	if user == "" {
 		user = DefaultUser
 	}
-	port := req.Port
-	if port == 0 {
-		port = DefaultPort
+	port, err := normalizePort(req.Port)
+	if err != nil {
+		return FirstTouchResult{}, fmt.Errorf("first touch: invalid port: %w", err)
 	}
 	keyName := strings.TrimSpace(req.KeyName)
 	if keyName == "" {

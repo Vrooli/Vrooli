@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS nodes (
   id           TEXT PRIMARY KEY,
   name         TEXT NOT NULL,
   kind         TEXT NOT NULL DEFAULT 'agent',
+  deployment_tier TEXT NOT NULL DEFAULT '',
+  enrollment_generation INTEGER NOT NULL DEFAULT 0,
+  owner_revision INTEGER NOT NULL DEFAULT 1,
   os           TEXT NOT NULL DEFAULT '',
   arch         TEXT NOT NULL DEFAULT '',
   machine_arch TEXT NOT NULL DEFAULT '',
@@ -28,6 +31,17 @@ CREATE TABLE IF NOT EXISTS nodes (
   ,configuration_state TEXT NOT NULL DEFAULT ''
   ,configuration_at TEXT NOT NULL DEFAULT ''
   ,configuration_unmet TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS node_update_receipts (
+  request_id TEXT PRIMARY KEY,
+  actor_id TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  expected_revision INTEGER NOT NULL,
+  new_revision INTEGER NOT NULL,
+  payload_digest TEXT NOT NULL,
+  created_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_nodes_created_at ON nodes(created_at DESC);

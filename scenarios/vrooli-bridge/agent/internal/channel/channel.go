@@ -41,9 +41,11 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cliresolve"
+	"github.com/vrooli/platform-go/desktopowner"
 
 	"vrooli-bridge/agent/internal/artifactdelivery"
 	"vrooli-bridge/agent/internal/buildinfo"
+	"vrooli-bridge/agent/internal/closureshipment"
 	"vrooli-bridge/agent/internal/config"
 	"vrooli-bridge/agent/internal/cpverify"
 	"vrooli-bridge/agent/internal/credentialgrant"
@@ -99,23 +101,24 @@ var ErrNotConfigured = errors.New("agent not configured to dial a control plane 
 
 // Client holds the agent's channel configuration and transport seams.
 type Client struct {
-	cfg            config.Config
-	machineArch    string
-	httpClient     *http.Client
-	rpc            presence_v1connect.PresenceServiceClient
-	grantRPC       credentialgrantconnect.CredentialGrantServiceClient
-	scenarioRPC    scenarioResponseReporter
-	runsRPC        runs_v1connect.RunsServiceClient
-	artifactsRPC   artifacts_v1connect.ArtifactsServiceClient
-	provisionRPC   provision_v1connect.ProvisionServiceClient
-	cleanupRPC     cleanup_v1connect.CleanupServiceClient
-	sampler        health.Sampler
-	cred           *nodecred.Credential
-	encryption     *nodecred.EncryptionCredential
-	grantStore     credentialgrant.Store
-	credentialSink credentialpush.Sink
-	ephemeral      *credentialpush.EphemeralStore
-	storeUnlock    *storeunlock.Holder
+	cfg             config.Config
+	machineArch     string
+	httpClient      *http.Client
+	desktopEndpoint func(context.Context) (string, *http.Client, error)
+	rpc             presence_v1connect.PresenceServiceClient
+	grantRPC        credentialgrantconnect.CredentialGrantServiceClient
+	scenarioRPC     scenarioResponseReporter
+	runsRPC         runs_v1connect.RunsServiceClient
+	artifactsRPC    artifacts_v1connect.ArtifactsServiceClient
+	provisionRPC    provision_v1connect.ProvisionServiceClient
+	cleanupRPC      cleanup_v1connect.CleanupServiceClient
+	sampler         health.Sampler
+	cred            *nodecred.Credential
+	encryption      *nodecred.EncryptionCredential
+	grantStore      credentialgrant.Store
+	credentialSink  credentialpush.Sink
+	ephemeral       *credentialpush.EphemeralStore
+	storeUnlock     *storeunlock.Holder
 	// lockedPushes holds durable pushes the node store refused while locked;
 	// they are applied again once this node's store passphrase arrives.
 	lockedMu     sync.Mutex
@@ -303,8 +306,10 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	if c.interactiveReporter == nil {
 		c.interactiveReporter = presenceInteractiveReporter{rpc: c.rpc, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
 	}
+	desktop := localDeviceControlInteractiveAdapter{httpClient: c.httpClient, resolvePort: resolveDesktopCompanionPort, ownerSocket: true}
+	c.desktopEndpoint = desktop.endpoint
 	if c.interactiveAdapter == nil {
-		c.interactiveAdapter = localDeviceControlInteractiveAdapter{httpClient: c.httpClient, resolvePort: resolveDesktopCompanionPort}
+		c.interactiveAdapter = desktop
 	}
 	if c.companionReporter == nil {
 		c.companionReporter = presenceCompanionReporter{rpc: c.rpc, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
@@ -370,7 +375,7 @@ func (c *Client) SyncCredentialGrants(ctx context.Context) error {
 			continue
 		}
 		if grant.GetRevokedAt() != nil {
-			if err := c.grantStore.Revoke(grant.GetLogicalId(), grant.GetField()); err != nil {
+			if err := c.grantStore.RevokeGrant(credentialgrant.Grant{ID: grant.GetId(), NodeID: c.cfg.NodeID, LogicalID: grant.GetLogicalId(), Field: grant.GetField(), Class: grant.GetClass(), Retention: grant.GetRetention(), Generation: grant.GetGeneration()}); err != nil {
 				return fmt.Errorf("revoke remotely revoked credential grant: %w", err)
 			}
 			if c.credentialSink != nil {
@@ -621,14 +626,14 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: rejected unverified server frame (%v); total rejected=%d", err, n)
 		return
 	}
-	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetCleanup() != nil || frame.GetAbort() != nil || frame.GetArtifactDelivery() != nil {
+	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetCleanup() != nil || frame.GetAbort() != nil || frame.GetArtifactDelivery() != nil || frame.GetClosureShipment() != nil {
 		c.sendDeliveryAck(frame)
 	}
 	if session := frame.GetSession(); session != nil {
 		c.handleSessionFrame(session)
 	}
 	if signal := frame.GetInteractiveSignal(); signal != nil {
-		if c.cfg.PresenceOnly {
+		if c.cfg.PresenceOnly && !desktopOwnerOptedIn() {
 			c.logger.Printf("channel: rejecting interactive signal channel_id=%q because agent is in presence-only posture", signal.GetChannelId())
 		} else {
 			go c.handleInteractiveSignal(signal)
@@ -674,7 +679,8 @@ func (c *Client) handleServerFrame(payload string) {
 		go c.runJob(job)
 	}
 	if request := frame.GetScenarioRequest(); request != nil {
-		if c.cfg.PresenceOnly {
+		if c.cfg.PresenceOnly && !(desktopOwnerOptedIn() && desktopowner.AllowsRPC(
+			request.GetScenario(), request.GetService(), request.GetMethod(), request.GetHttpPath(), request.GetHttpMethod())) {
 			c.logger.Printf("channel: rejecting scenario request correlation_id=%q because agent is in presence-only posture", request.GetCorrelationId())
 			return
 		}
@@ -692,6 +698,16 @@ func (c *Client) handleServerFrame(payload string) {
 		}
 		c.logger.Printf("channel: received artifact delivery item_id=%q destination=%q", delivery.GetItemId(), delivery.GetDestinationPath())
 		go c.runArtifactDelivery(delivery)
+	}
+	if shipment := frame.GetClosureShipment(); shipment != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting closure shipment id=%q because agent is in presence-only posture", shipment.GetShipmentId())
+			return
+		}
+		// Process the ordered shipment command stream inline. The coordinator
+		// sends BEGIN, chunks, VERIFY and ACTIVATE as distinct frames; racing
+		// goroutines could otherwise reorder those effects on the target.
+		c.runClosureShipment(shipment)
 	}
 	if relayRequest := frame.GetRelay(); relayRequest != nil {
 		if c.cfg.PresenceOnly {
@@ -765,7 +781,7 @@ func (c *Client) handleCredentialGrant(grant *channelv1.CredentialGrant) {
 		return
 	}
 	if grant.GetRevoked() {
-		if err := c.grantStore.Revoke(grant.GetLogicalId(), grant.GetField()); err != nil {
+		if err := c.grantStore.RevokeGrant(credentialgrant.Grant{ID: grant.GetGrantId(), NodeID: c.cfg.NodeID, LogicalID: grant.GetLogicalId(), Field: grant.GetField(), Class: grant.GetClass(), Retention: grant.GetRetention(), Generation: grant.GetGeneration()}); err != nil {
 			c.logger.Printf("channel: credential grant revoke failed for logical_id=%q field=%q: %v", grant.GetLogicalId(), grant.GetField(), err)
 		}
 		return
@@ -897,7 +913,13 @@ func (c *Client) handleCredentialPurge(purge *channelv1.CredentialPurge) {
 		if stalePurge {
 			continue
 		}
-		if err := c.grantStore.Revoke(parts[0], parts[1]); err != nil {
+		var err error
+		if purge.GetGeneration() > 0 {
+			err = c.grantStore.RevokeGrant(credentialgrant.Grant{ID: purge.GetGrantId(), NodeID: c.cfg.NodeID, LogicalID: parts[0], Field: parts[1], Generation: purge.GetGeneration()})
+		} else {
+			err = c.grantStore.Revoke(parts[0], parts[1])
+		}
+		if err != nil {
 			c.logger.Printf("channel: credential purge refused for address metadata: %v", err)
 			accepted = false
 			reason = err.Error()
@@ -1164,6 +1186,43 @@ func (c *Client) runArtifactDelivery(delivery *channelv1.ArtifactDelivery) {
 	})
 }
 
+func (c *Client) runClosureShipment(command *channelv1.ClosureShipmentCommand) {
+	if command == nil {
+		return
+	}
+	receiver := closureshipment.Receiver{WorkDir: c.cfg.WorkDir, TargetID: c.cfg.NodeID}
+	receipt, err := receiver.Handle(c.baseCtxOrBackground(), command)
+	if receipt == nil {
+		c.logger.Printf("channel: closure shipment id=%q action=%s failed without receipt: %v", command.GetShipmentId(), command.GetAction(), err)
+		return
+	}
+	if err != nil {
+		c.logger.Printf("channel: closure shipment id=%q action=%s reported state=%s error=%v", receipt.GetShipmentId(), command.GetAction(), receipt.GetState(), err)
+	} else {
+		c.logger.Printf("channel: closure shipment id=%q action=%s state=%s", receipt.GetShipmentId(), command.GetAction(), receipt.GetState())
+	}
+	if command.GetAction() != channelv1.ClosureShipmentAction_CLOSURE_SHIPMENT_ACTION_FILE_CHUNK || err != nil {
+		c.reportClosureShipmentReceipt(receipt)
+	}
+}
+
+func (c *Client) reportClosureShipmentReceipt(receipt *channelv1.ClosureShipmentReceipt) {
+	if receipt == nil || c.rpc == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.baseCtxOrBackground(), 10*time.Second)
+	defer cancel()
+	req := connect.NewRequest(&presencev1.ReportClosureShipmentReceiptRequest{Receipt: receipt})
+	if c.cred != nil {
+		for key, value := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
+			req.Header().Set(key, value)
+		}
+	}
+	if _, err := c.rpc.ReportClosureShipmentReceipt(ctx, req); err != nil {
+		c.logger.Printf("channel: closure shipment receipt id=%q state=%s failed: %v", receipt.GetShipmentId(), receipt.GetState(), err)
+	}
+}
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if value = strings.TrimSpace(value); value != "" {
@@ -1195,8 +1254,8 @@ const (
 	maxScenarioRequestTimeout     = 5 * time.Minute
 	defaultScenarioResponseBytes  = 8 << 20
 	maxScenarioResponseBytes      = 8 << 20
-	deviceControlScenario         = "device-control"
-	desktopSessionService         = "vrooli.device_control.v1.desktop.DesktopSessionService"
+	deviceControlScenario         = desktopowner.Scenario
+	desktopSessionService         = desktopowner.Service
 	desktopJSONContentType        = "application/json"
 	protobufContentType           = "application/proto"
 )
@@ -1218,7 +1277,16 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 	ctx, cancel := context.WithTimeout(base, timeout)
 	defer cancel()
 	response := &sharedv1.ScenarioResponse{CorrelationId: request.GetCorrelationId()}
-	port, err := c.resolveScenarioRequestPort(ctx, request)
+	var endpointURL string
+	transport := c.httpClient
+	var err error
+	if isDesktopSessionRequest(request) {
+		endpointURL, transport, err = c.desktopEndpoint(ctx)
+	} else {
+		var port int
+		port, err = c.resolveScenarioPort(ctx, request.GetScenario())
+		endpointURL = "http://127.0.0.1:" + strconv.Itoa(port)
+	}
 	if err == nil {
 		maxBytes := request.GetMaxResponseBytes()
 		if maxBytes == 0 || maxBytes > maxScenarioResponseBytes {
@@ -1231,7 +1299,7 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 		if request.GetService() == "" || request.GetMethod() == "" {
 			err = errors.New("scenario request requires service and method")
 		} else {
-			urlValue := "http://127.0.0.1:" + strconv.Itoa(port) + path
+			urlValue := endpointURL + path
 			verb := strings.ToUpper(strings.TrimSpace(request.GetHttpMethod()))
 			if verb == "" {
 				verb = http.MethodPost
@@ -1246,7 +1314,7 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 				}
 				httpRequest.Header.Set("Content-Type", contentType)
 				httpRequest.Header.Set("Accept", contentType)
-				httpResponse, doErr := c.httpClient.Do(httpRequest)
+				httpResponse, doErr := transport.Do(httpRequest)
 				if doErr != nil {
 					err = doErr
 				} else {
@@ -1277,21 +1345,6 @@ func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
 
 func isDesktopSessionRequest(request *channelv1.ScenarioRequest) bool {
 	return request != nil && request.GetScenario() == deviceControlScenario && request.GetService() == desktopSessionService
-}
-
-// resolveScenarioRequestPort keeps the browser-facing Device Control desktop
-// contract on the managed companion process. The request still carries the
-// authoritative device-control scenario identity, so Bridge admission and
-// scope catalog checks remain unchanged; only the node-local process selected
-// for the typed desktop service differs from ordinary scenario APIs.
-func (c *Client) resolveScenarioRequestPort(ctx context.Context, request *channelv1.ScenarioRequest) (int, error) {
-	if isDesktopSessionRequest(request) {
-		return resolveDesktopCompanionPort(ctx, "device-control-companion")
-	}
-	if request == nil {
-		return 0, errors.New("scenario request is required")
-	}
-	return c.resolveScenarioPort(ctx, request.GetScenario())
 }
 
 func (c *Client) resolveScenarioPort(ctx context.Context, scenario string) (int, error) {

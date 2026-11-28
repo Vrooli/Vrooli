@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownUp, Folder, FolderX, Palette, Search, X } from "lucide-react";
+import { ArrowDownUp, Folder, FolderX, Palette, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { SearchField } from "./SearchField";
 
 import { HEADER_COLORS } from "../consts/config";
 import { strings } from "../consts/strings";
@@ -216,17 +217,15 @@ export default function ManageGroupsDrawer() {
             {emptyTotal > 0 && ` · ${t(strings.manageGroups.emptyCount, { count: emptyTotal })}`}
           </p>
           <div className="flex items-center gap-2">
-          <label className="relative block min-w-0 flex-1">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-wc-text-faint" aria-hidden />
-            <input
-              data-testid="manage-groups-filter"
-              aria-label={t(strings.manageGroups.filter)}
-              placeholder={t(strings.manageGroups.filter)}
-              value={filter}
-              onChange={(event) => { setFilter(event.target.value); }}
-              className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input py-2 ps-9 pe-3 text-sm text-wc-text-primary outline-none transition placeholder:text-wc-text-faint focus:border-wc-accent"
-            />
-          </label>
+          <SearchField
+            testId="manage-groups-filter"
+            groupTestId="manage-groups-filter-group"
+            value={filter}
+            onValueChange={setFilter}
+            placeholder={t(strings.manageGroups.filter)}
+            label={t(strings.manageGroups.filter)}
+            className="min-w-0 flex-1"
+          />
           <button
             type="button"
             data-testid="manage-groups-sort"

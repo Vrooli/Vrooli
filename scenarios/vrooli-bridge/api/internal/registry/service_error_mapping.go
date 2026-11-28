@@ -30,5 +30,17 @@ func ToConnectError(err error) error {
 	if errors.As(err, &active) {
 		return connect.NewError(connect.CodeFailedPrecondition, active)
 	}
+	var stale ErrRevisionConflict
+	if errors.As(err, &stale) {
+		return connect.NewError(connect.CodeAborted, stale)
+	}
+	var reused ErrRequestIdentityConflict
+	if errors.As(err, &reused) {
+		return connect.NewError(connect.CodeAlreadyExists, reused)
+	}
+	var revoked ErrNodeRevoked
+	if errors.As(err, &revoked) {
+		return connect.NewError(connect.CodeFailedPrecondition, revoked)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

@@ -117,7 +117,15 @@ cd api && go list -deps -f '{{`{{.ImportPath}}: {{.CgoFiles}}`}}' ./... | grep -
 
 Replace the offending dependency with a pure-Go alternative.
 
-### `pnpm install` fails or installs the wrong tree
+### Runtime UI dependency recovery
+
+Vrooli's scenario lifecycle owns runtime dependency setup. When a scenario starts, the lifecycle checks its UI dependencies and repairs them when safe. If a shared scenario may be serving from its current `node_modules`, Vrooli keeps that runtime serving and reports the dependency condition instead of replacing its live tree. No manual package install, dependency deletion, or service stop is needed for runtime recovery.
+
+If the scenario remains unavailable, check its health/status in the Vrooli interface used to manage your services and contact your Vrooli maintainer with the scenario name and displayed health error. Do not repair a runtime dependency tree manually.
+
+### Development workflow: UI dependency setup from source
+
+The following setup guidance is for developers changing this scenario's source checkout. It is not a runtime recovery procedure.
 
 Run normal setup from the scenario directory:
 

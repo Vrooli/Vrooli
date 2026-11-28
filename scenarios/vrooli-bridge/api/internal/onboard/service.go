@@ -649,30 +649,7 @@ func (c *coordinator) releaseOp(id string) {
 }
 
 func (c *coordinator) registerWaiter(id string) (<-chan struct{}, func()) {
-	ch := make(chan struct{})
-	c.mu.Lock()
-	set := c.waiters[id]
-	if set == nil {
-		set = make(map[chan struct{}]struct{})
-		c.waiters[id] = set
-	}
-	set[ch] = struct{}{}
-	c.mu.Unlock()
-
-	var once sync.Once
-	cancel := func() {
-		once.Do(func() {
-			c.mu.Lock()
-			if s := c.waiters[id]; s != nil {
-				delete(s, ch)
-				if len(s) == 0 {
-					delete(c.waiters, id)
-				}
-			}
-			c.mu.Unlock()
-		})
-	}
-	return ch, cancel
+	return registerChannel(&c.mu, c.waiters, id, 0)
 }
 
 func (c *coordinator) signalTerminal(id string) {
@@ -686,30 +663,37 @@ func (c *coordinator) signalTerminal(id string) {
 }
 
 func (c *coordinator) subscribe(id string) (<-chan StepEvent, func()) {
-	ch := make(chan StepEvent, subscriberBuffer)
-	c.mu.Lock()
-	set := c.subs[id]
+	return registerChannel(&c.mu, c.subs, id, subscriberBuffer)
+}
+
+// registerChannel owns the shared lifecycle of waiter and subscriber channels:
+// register under the coordinator lock, and return an idempotent removal that
+// deletes the per-operation entry once its last channel leaves.
+func registerChannel[T any](mu *sync.Mutex, groups map[string]map[chan T]struct{}, id string, capacity int) (<-chan T, func()) {
+	ch := make(chan T, capacity)
+	mu.Lock()
+	set := groups[id]
 	if set == nil {
-		set = make(map[chan StepEvent]struct{})
-		c.subs[id] = set
+		set = make(map[chan T]struct{})
+		groups[id] = set
 	}
 	set[ch] = struct{}{}
-	c.mu.Unlock()
+	mu.Unlock()
 
 	var once sync.Once
-	cancel := func() {
+	remove := func() {
 		once.Do(func() {
-			c.mu.Lock()
-			if s := c.subs[id]; s != nil {
-				delete(s, ch)
-				if len(s) == 0 {
-					delete(c.subs, id)
+			mu.Lock()
+			if set := groups[id]; set != nil {
+				delete(set, ch)
+				if len(set) == 0 {
+					delete(groups, id)
 				}
 			}
-			c.mu.Unlock()
+			mu.Unlock()
 		})
 	}
-	return ch, cancel
+	return ch, remove
 }
 
 func (c *coordinator) publish(ev StepEvent) {

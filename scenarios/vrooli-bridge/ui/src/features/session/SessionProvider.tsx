@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -10,12 +8,13 @@ import {
 
 import {
   clearSession,
-  loadSession,
+  loadInitialSession,
   saveSession,
   restoreLocalSession,
   SESSION_EXPIRED_EVENT,
   type SessionState,
 } from "./store";
+import { SessionContext, type SessionContextValue } from "./sessionContext";
 
 /**
  * Session context + `useSession()` hook. Enrollment metadata survives a
@@ -23,32 +22,32 @@ import {
  * provider restores it locally on mount so React surfaces re-render when the
  * session changes (signed in vs not).
  */
-export interface SessionContextValue {
-  session: SessionState;
-  /** True once a locally minted owner session is present. */
-  isOwner: boolean;
-  /** Owner email for display, when known. */
-  ownerEmail: string | null;
-  /** Store / replace the ephemeral local session (and optional email). */
-  setOwnerToken: (ownerToken: string, ownerEmail?: string | null) => void;
-  /** Drop the local session; durable enrollment remains available. */
-  clearOwnerToken: () => void;
-}
-
-const SessionContext = createContext<SessionContextValue | null>(null);
-
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<SessionState>(() => loadSession());
+  const [initial] = useState(loadInitialSession);
+  const [session, setSession] = useState<SessionState>(initial.session);
+  const [restoreStatus, setRestoreStatus] = useState<SessionContextValue["restoreStatus"]>(initial.restoreStatus);
+
+  const restore = useCallback(async (isCurrent: () => boolean, markChecking = true) => {
+    if (markChecking) setRestoreStatus("checking");
+    try {
+      const restored = await restoreLocalSession();
+      if (!isCurrent()) return;
+      if (restored) setSession(restored);
+      setRestoreStatus("ready");
+    } catch {
+      if (isCurrent()) setRestoreStatus("unavailable");
+    }
+  }, []);
+  const retryRestore = useCallback(() => restore(() => true), [restore]);
 
   useEffect(() => {
+    if (initial.restoreStatus !== "checking") return;
     let cancelled = false;
-    void restoreLocalSession().then((restored) => {
-      if (!cancelled && restored) setSession(restored);
-    });
+    void restore(() => !cancelled, false);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initial.restoreStatus, restore]);
 
   const setOwnerToken = useCallback((ownerToken: string, ownerEmail: string | null = null) => {
     const next: SessionState = { ownerToken, ownerEmail };
@@ -76,19 +75,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       isOwner: Boolean(session.ownerToken),
       ownerEmail: session.ownerEmail,
+      restoreStatus,
+      retryRestore,
       setOwnerToken,
       clearOwnerToken,
     }),
-    [session, setOwnerToken, clearOwnerToken],
+    [session, restoreStatus, retryRestore, setOwnerToken, clearOwnerToken],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
-}
-
-export function useSession(): SessionContextValue {
-  const ctx = useContext(SessionContext);
-  if (!ctx) {
-    throw new Error("useSession must be used within a <SessionProvider>");
-  }
-  return ctx;
 }

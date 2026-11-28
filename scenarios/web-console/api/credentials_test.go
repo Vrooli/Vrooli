@@ -23,6 +23,7 @@ type credentialHandlerClient struct {
 	refs        []credentialclient.CredentialRef
 	status      credentialclient.CredentialStatus
 	provision   credentialclient.ProvisionRequest
+	resolved    string
 	deleteID    string
 	deleteField string
 }
@@ -33,7 +34,7 @@ func (c *credentialHandlerClient) Provision(_ context.Context, request credentia
 }
 
 func (c *credentialHandlerClient) Resolve(context.Context, string, string) (string, error) {
-	return "", nil
+	return c.resolved, nil
 }
 
 func (c *credentialHandlerClient) Delete(_ context.Context, identity, field string) error {
@@ -201,6 +202,57 @@ func TestSubscriptionAuthorizationExchangeRejectsCrossOriginBeforeLPBS(t *testin
 	(&Server{subscriptionResolver: resolver}).subscriptionAuthorizationExchange(response, request)
 	if response.Code != http.StatusForbidden || called || credentials.provision.Value != "" {
 		t.Fatalf("cross-origin exchange status=%d called=%v credential=%q", response.Code, called, credentials.provision.Value)
+	}
+}
+
+func TestSubscriptionAccessTokenReacquiresFromServerOwnedSession(t *testing.T) {
+	expiresAt := time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
+	lpbs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/auth/refresh" {
+			t.Fatalf("LPBS request = %s %s", r.Method, r.URL.Path)
+		}
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["refresh_token"] != "server-owned-refresh" {
+			t.Fatalf("refresh body = %#v, err=%v", body, err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"access_token": "fresh-short-lived", "refresh_token": "rotated-server-owned", "expires_at": expiresAt})
+	}))
+	defer lpbs.Close()
+
+	credentials := &credentialHandlerClient{
+		resolved: "server-owned-refresh",
+		status:   credentialclient.CredentialStatus{Configured: true, ProviderState: "configured"},
+	}
+	resolver := &credentialclient.ConsumerSessionResolver{Credentials: credentials, LPBSBaseURL: lpbs.URL, HTTPClient: lpbs.Client()}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/subscription/access-token", nil)
+	request.RemoteAddr = "192.0.2.20:1234"
+	request.Host = "console.example"
+	request.Header.Set("Origin", "http://console.example")
+	response := httptest.NewRecorder()
+	(&Server{subscriptionResolver: resolver}).subscriptionAccessTokenHandler(response, request)
+
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || !strings.Contains(response.Body.String(), `"access_token":"fresh-short-lived"`) || strings.Contains(response.Body.String(), "server-owned-refresh") || strings.Contains(response.Body.String(), "rotated-server-owned") {
+		t.Fatalf("status/headers/body = %d/%v/%q", response.Code, response.Header(), response.Body.String())
+	}
+	if credentials.provision.Value != "rotated-server-owned" {
+		t.Fatalf("rotated refresh credential was not retained by owner: %q", credentials.provision.Value)
+	}
+}
+
+func TestSubscriptionAccessTokenRejectsCrossOriginBeforeResolvingSession(t *testing.T) {
+	called := false
+	lpbs := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+	defer lpbs.Close()
+	credentials := &credentialHandlerClient{resolved: "server-owned-refresh", status: credentialclient.CredentialStatus{Configured: true}}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/subscription/access-token", nil)
+	request.RemoteAddr = "192.0.2.20:1234"
+	request.Host = "console.example"
+	request.Header.Set("Origin", "https://evil.example")
+	response := httptest.NewRecorder()
+	(&Server{subscriptionResolver: &credentialclient.ConsumerSessionResolver{Credentials: credentials, LPBSBaseURL: lpbs.URL, HTTPClient: lpbs.Client()}}).subscriptionAccessTokenHandler(response, request)
+	if response.Code != http.StatusForbidden || called || credentials.provision.Value != "" {
+		t.Fatalf("cross-origin token request status=%d called=%v credential-write=%q", response.Code, called, credentials.provision.Value)
 	}
 }
 

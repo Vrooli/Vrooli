@@ -28,8 +28,12 @@ var _ KeyCopier = ExecKeyCopier{}
 // CopyKey copies the public key to the host using password authentication.
 func (ExecKeyCopier) CopyKey(ctx context.Context, req CopyKeyRequest) CopyKeyResponse {
 	timestamp := nowTimestamp()
+	port, err := normalizePort(req.Port)
+	if err != nil {
+		return copyErr(StatusInvalidInput, "Invalid SSH port", err.Error(), timestamp)
+	}
 
-	cfg := NewConfig(req.Host, req.Port, req.User, req.KeyPath, req.KnownHostsFile)
+	cfg := NewConfig(req.Host, port, req.User, req.KeyPath, req.KnownHostsFile)
 
 	pkPath := pubKeyPath(cfg.KeyPath)
 	pubKeyContent, err := os.ReadFile(pkPath)

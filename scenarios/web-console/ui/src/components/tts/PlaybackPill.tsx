@@ -7,7 +7,7 @@ import { strings } from "../../consts/strings";
 import { usePlaybackTransport } from "../../domains/tts-playback/transport";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { cn } from "../../lib/classnames";
-import { speakerKey, timeLabel } from "../messages/speaker";
+import { speakerKey, speakerParams, timeLabel } from "../messages/speaker";
 import type { PlaybackModeControlProps } from "./PlaybackModeControl";
 import { PlaybackPillExpanded } from "./PlaybackPillExpanded";
 import { formatClock } from "./pillFormat";
@@ -69,7 +69,7 @@ export function PlaybackPill(props: PlaybackPillProps) {
   const duration = transport?.duration ?? null;
   const canSeek = (transport?.capabilities.canSeek ?? false) && duration !== null && duration > 0;
   const progress = duration ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
-  const speaker: string = t(speakerKey(event) as never);
+  const speaker: string = t(speakerKey(event) as never, speakerParams(event));
   const label = `${speaker} · ${timeLabel(event.createdAt)}`;
 
   const gestures = usePillGestures({

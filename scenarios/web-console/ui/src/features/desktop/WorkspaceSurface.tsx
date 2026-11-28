@@ -24,17 +24,17 @@ const stateLabels: Record<WorkspacePaneState, string> = {
 };
 
 const stateAnnouncements: Record<WorkspacePaneState, string> = {
-  loading: "Surface is loading.",
+  loading: "Surface is loading or connecting. Content will appear when ready.",
   ready: "Surface is ready.",
   observe: "Observe mode. Changes are not being sent to the remote surface.",
   controlling: "Control is active for this surface.",
   "permission-blocked": "Access is blocked by this surface's permission.",
   offline: "The surface is offline.",
-  revoked: "Control was revoked for this surface. Close it before reconnecting.",
+  revoked: "Access to this surface was revoked. Close and reopen it to check whether access is available.",
   choosing: "Choose an item to continue. The preview is waiting for a selection.",
   unsupported: "This preview format is not supported.",
-  reconnecting: "Surface is reconnecting.",
-  failed: "Surface is unavailable.",
+  reconnecting: "The connection was lost. Reconnect is available if the owner is still online.",
+  failed: "The surface connection failed. Review the message and retry if available.",
   closed: "Surface is closed.",
 };
 
@@ -115,10 +115,31 @@ export function workspaceSurfaceTouchAction(controller: boolean): "none" | "auto
   return controller ? "none" : "auto";
 }
 
+const paneStateTone: Record<WorkspacePaneState, string> = {
+  loading: "bg-amber-400 motion-safe:animate-pulse",
+  ready: "bg-emerald-400",
+  observe: "bg-sky-400",
+  controlling: "bg-emerald-400",
+  "permission-blocked": "bg-amber-400",
+  choosing: "bg-cyan-400",
+  offline: "bg-red-400",
+  revoked: "bg-red-400",
+  reconnecting: "bg-amber-400 motion-safe:animate-pulse",
+  failed: "bg-red-400",
+  closed: "bg-slate-400",
+  unsupported: "bg-slate-400",
+};
+
+/**
+ * A status dot, not a labelled pill: the pane's job is the content, and a
+ * permanent "Ready" chip beside the title was one more thing competing with
+ * the file name. The label stays available to a pointer and to a screen
+ * reader, and the state is announced only when it changes.
+ */
 export function WorkspacePaneStateStatus({ state, label }: { state: WorkspacePaneState; label: string }) {
-  return <span data-testid="workspace-pane-state" data-pane-state={state} className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-wc-default px-2 text-[11px] font-medium md:px-2.5" aria-label={`${label}: ${workspacePaneStateLabel(state)}`}>
-    <span aria-hidden="true" className="h-2 w-2 rounded-full bg-current md:hidden" />
-    <span aria-hidden="true" className="hidden md:inline">{workspacePaneStateLabel(state)}</span>
+  return <span data-testid="workspace-pane-state" data-pane-state={state} className="inline-flex h-6 w-3 shrink-0 items-center justify-center" title={`${label}: ${workspacePaneStateLabel(state)}`} aria-label={`${label}: ${workspacePaneStateLabel(state)}`}>
+    <span aria-hidden="true" className={`h-2 w-2 rounded-full ${paneStateTone[state]}`} />
+    <span className="sr-only">{workspacePaneStateLabel(state)}</span>
     <span className="sr-only" role="status" aria-live="polite">{label}: {workspacePaneAnnouncement(state)}</span>
   </span>;
 }
@@ -158,23 +179,28 @@ export function WorkspacePaneToolbar({ label, state, children, nowrap = false }:
 }
 
 /** Shared RCL header, state announcement and bounded workspace layout for remote owners. */
-export function WorkspaceSurfacePane({ label, title, state, summary, stats, statsLabel, owner, canControl = false, onFocusChange, children }: {
+export function WorkspaceSurfacePane({ label, title, state, summary, stats, statsLabel, owner, canControl = false, onFocusChange, children, compact = false }: {
   label: string;
   title: string;
   state: WorkspacePaneState;
   summary?: string;
   stats?: string;
   statsLabel?: string;
+  compact?: boolean;
   owner: Exclude<WorkspaceSurfaceOwner, "file-preview">;
   canControl?: boolean;
   onFocusChange?: (focused: boolean) => void;
   children: ReactNode;
 }) {
   const contractAttributes = workspaceSurfacePresentationAttributes(owner, state, false, canControl);
-  return <section {...contractAttributes} aria-label={label} data-testid="workspace-surface-pane" data-state={state} data-surface-focused={state === "failed" || state === "revoked" || state === "closed" ? "false" : undefined} tabIndex={-1} onFocusCapture={(event) => { event.currentTarget.dataset.surfaceFocused = "true"; onFocusChange?.(true); }} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { event.currentTarget.dataset.surfaceFocused = "false"; onFocusChange?.(false); } }} className="flex min-h-64 min-w-0 w-full flex-col gap-3 rounded-lg border border-app-border bg-app-surface p-3">
-    <WorkspaceHeader as="div" title={title} primaryAction={<WorkspacePaneStateStatus state={state} label={title} />} />
+  return <section {...contractAttributes} aria-label={label} data-testid="workspace-surface-pane" data-state={state} data-surface-focused={state === "failed" || state === "revoked" || state === "closed" ? "false" : undefined} tabIndex={-1} onFocusCapture={(event) => { event.currentTarget.dataset.surfaceFocused = "true"; onFocusChange?.(true); }} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) { event.currentTarget.dataset.surfaceFocused = "false"; onFocusChange?.(false); } }} className={compact ? "flex w-full min-w-0 flex-col gap-2" : "flex min-h-64 min-w-0 w-full flex-col gap-3 rounded-lg border border-app-border bg-app-surface p-3"}>
+    {compact ? <div className="flex min-w-0 items-center justify-between gap-2 px-1"><h2 className="text-sm font-semibold">{title}</h2><span className="flex items-center gap-1 text-xs text-app-muted"><WorkspacePaneStateStatus state={state} label={title} />{workspacePaneStateLabel(state)}</span></div> : <WorkspaceHeader as="div" title={title} primaryAction={<WorkspacePaneStateStatus state={state} label={title} />} />}
     {summary && <p className="min-w-0 break-words text-sm leading-relaxed text-app-muted">{summary}</p>}
-    {stats && <p aria-label={statsLabel ?? `${title} transport statistics`} className="min-w-0 break-words border-y border-app-border py-1 text-xs text-app-muted">{stats}</p>}
+    {!compact && stats && <p aria-label={statsLabel ?? `${title} transport statistics`} data-testid="workspace-pane-telemetry" className="min-w-0 break-words border-y border-app-border py-1 text-xs text-app-muted">{stats}</p>}
     {children}
+    {compact && stats && <details className="px-1 text-xs text-app-muted">
+      <summary className="min-h-9 cursor-pointer leading-9">Connection details</summary>
+      <p aria-label={statsLabel} data-testid="workspace-pane-telemetry">{stats}</p>
+    </details>}
   </section>;
 }

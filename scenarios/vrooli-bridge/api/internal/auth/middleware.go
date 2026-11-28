@@ -2,9 +2,12 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/vrooli/api-core/identity"
 )
 
 // ctxKey is the unexported context key for the request-scoped owner Identity.
@@ -49,13 +52,34 @@ func OwnerFromContext(ctx context.Context) (Identity, bool) {
 	return id, ok
 }
 
-// RequireOwner is the handler-side gate for owner-authed RPCs. It returns the
+// RequireOwner is the handler-side gate for human-owner RPCs. It returns the
 // Identity or ErrUnauthenticated when none is present. The pairing redeem path
 // (Phase 2), reachable by a not-yet-trusted node, simply never calls this.
 func RequireOwner(ctx context.Context) (Identity, error) {
 	id, ok := OwnerFromContext(ctx)
-	if !ok {
+	if !ok || id.Kind == identity.ActorService || id.Kind == identity.ActorAgent || id.Kind == identity.ActorConflict {
 		return Identity{}, ErrUnauthenticated
+	}
+	return id, nil
+}
+
+var ErrDispatchServiceScope = errors.New("service principal lacks vrooli-bridge:dispatch")
+
+// RequireDispatchCaller admits a verified human owner or a specifically
+// scoped service principal. It is intentionally narrower than RequireOwner
+// and must only be used by durable scenario dispatch.
+func RequireDispatchCaller(ctx context.Context) (Identity, error) {
+	id, ok := OwnerFromContext(ctx)
+	if !ok || id.OwnerID == "" || id.Kind == identity.ActorAgent || id.Kind == identity.ActorConflict {
+		return Identity{}, ErrUnauthenticated
+	}
+	if id.Kind == identity.ActorService {
+		for _, scope := range id.Scopes {
+			if scope == DispatchServiceScope {
+				return id, nil
+			}
+		}
+		return Identity{}, ErrDispatchServiceScope
 	}
 	return id, nil
 }

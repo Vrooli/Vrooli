@@ -68,7 +68,11 @@ type HeartbeatDeps struct {
 	ArtifactReceipts interface {
 		RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
 	}
-	CompanionArtifactReceipts interface {
+	ClosureShipmentReceipts interface {
+		RecordNodeReceipt(context.Context, internalartifacts.ClosureNodeReceipt) error
+	}
+	ClosureShipmentReceiptTargetValidator func(context.Context, internalartifacts.ClosureNodeReceipt) error
+	CompanionArtifactReceipts             interface {
 		DeliverArtifactReceipt(context.Context, string, string, bool, string) bool
 	}
 	ScenarioResponses interface {
@@ -120,6 +124,16 @@ func WithArtifactReceiptRecorder(recorder interface {
 },
 ) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.ArtifactReceipts = recorder }
+}
+
+func WithClosureShipmentReceiptRecorder(recorder interface {
+	RecordNodeReceipt(context.Context, internalartifacts.ClosureNodeReceipt) error
+}) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.ClosureShipmentReceipts = recorder }
+}
+
+func WithClosureShipmentReceiptTargetValidator(validate func(context.Context, internalartifacts.ClosureNodeReceipt) error) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.ClosureShipmentReceiptTargetValidator = validate }
 }
 
 func WithCompanionArtifactReceiptSink(sink interface {

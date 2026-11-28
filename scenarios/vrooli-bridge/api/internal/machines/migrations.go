@@ -10,10 +10,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// Migrate brings an existing Machine schema to the declared shape before
-// EnsureSchemas runs its drift check. A fresh database has no review table yet,
-// so it remains a no-op and EnsureSchemas creates the complete schema.
+// Migrate adds forward-only enrollment and legacy-machine columns before
+// EnsureSchemas validates the declared shape. Legacy generations remain zero
+// until a correlated Bridge enrollment binds them.
 func Migrate(ctx context.Context, db SQLExecutor) error {
+	if err := addEnrollmentGenerationColumns(ctx, db); err != nil {
+		return err
+	}
 	if err := ensureLocatorClaims(ctx, db); err != nil {
 		return err
 	}
@@ -45,6 +48,48 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		return err
 	}
 	return migrateLegacyCleanupTombstones(ctx, db)
+}
+
+// Legacy generations remain zero; no timestamp or caller field is sufficient
+// evidence to fabricate a Bridge enrollment generation. A later correlated
+// Bridge enrollment binds and advances the authoritative counter.
+func addEnrollmentGenerationColumns(ctx context.Context, db SQLExecutor) error {
+	for _, table := range []string{"machines", "machine_node_lineage"} {
+		exists, err := migrationTableExists(ctx, db, table)
+		if err != nil || !exists {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		var found int
+		err = db.QueryRowContext(ctx, "SELECT 1 FROM pragma_table_info('"+table+"') WHERE name='enrollment_generation'").Scan(&found)
+		if errors.Is(err, sql.ErrNoRows) {
+			if _, err = db.ExecContext(ctx, "ALTER TABLE "+table+" ADD COLUMN enrollment_generation INTEGER NOT NULL DEFAULT 0"); err != nil {
+				return fmt.Errorf("add %s.enrollment_generation: %w", table, err)
+			}
+		} else if err != nil {
+			return fmt.Errorf("inspect %s.enrollment_generation: %w", table, err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS machine_enrollment_generations (
+        machine_id TEXT NOT NULL, enrollment_generation INTEGER NOT NULL,
+        node_id TEXT NOT NULL, correlation_id TEXT NOT NULL, created_at TEXT NOT NULL,
+        PRIMARY KEY(machine_id,enrollment_generation), UNIQUE(machine_id,correlation_id))`); err != nil {
+		return fmt.Errorf("create machine enrollment generation ledger: %w", err)
+	}
+	if exists, err := migrationTableExists(ctx, db, "machine_node_lineage"); err != nil {
+		return err
+	} else if exists {
+		if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO machine_enrollment_generations
+            (machine_id,enrollment_generation,node_id,correlation_id,created_at)
+            SELECT machine_id,enrollment_generation,node_id,source_correlation_id,linked_at
+            FROM machine_node_lineage
+            WHERE enrollment_generation>0 AND trim(source_correlation_id)<>''`); err != nil {
+			return fmt.Errorf("backfill machine enrollment generation ledger: %w", err)
+		}
+	}
+	return nil
 }
 
 func addSelectionColumns(ctx context.Context, db SQLExecutor) error {

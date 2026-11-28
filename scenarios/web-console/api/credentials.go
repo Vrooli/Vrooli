@@ -415,6 +415,33 @@ func (s *Server) subscriptionAuthorizationExchange(w http.ResponseWriter, r *htt
 	writeCredentialJSON(w, http.StatusOK, map[string]any{"access_token": access.AccessToken, "expires_at": access.ExpiresAt.UTC().Format(time.RFC3339)})
 }
 
+// subscriptionAccessTokenHandler reacquires a short-lived browser bearer from
+// the server-owned refresh credential. The browser keeps the result in memory
+// only; the refresh credential never crosses this response.
+func (s *Server) subscriptionAccessTokenHandler(w http.ResponseWriter, r *http.Request) {
+	if !webConsoleSameOrigin(w, r) {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	if s == nil || s.subscriptionResolver == nil {
+		http.Error(w, "subscription authority unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	access, err := s.subscriptionResolver.Resolve(r.Context())
+	if err != nil || strings.TrimSpace(access.AccessToken) == "" {
+		status := http.StatusServiceUnavailable
+		if errors.Is(err, credentialclient.ErrCredentialAbsent) || errors.Is(err, credentialclient.ErrSubscriptionUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		http.Error(w, "subscription session unavailable", status)
+		return
+	}
+	writeCredentialJSON(w, http.StatusOK, map[string]any{
+		"access_token": access.AccessToken,
+		"expires_at":   access.ExpiresAt.UTC().Format(time.RFC3339),
+	})
+}
+
 func (s *Server) subscriptionSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	if !webConsoleSameOrigin(w, r) {
 		return

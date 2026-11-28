@@ -249,11 +249,27 @@
       "commands": [
         {
           "name": "integrity",
-          "description": "Read-only continuity integrity audit",
+          "description": "Read-only continuity integrity audit, including the event-content hash (cached until events change)",
           "binding": {
             "kind": "connect-rpc",
             "service": "ContinuityService",
             "method": "Integrity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Fast catalog-link drift counts (orphans, uncataloged conversations) without reading message bodies",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContinuityService",
+            "method": "Health"
           },
           "governance": {
             "effect": "read",
@@ -274,7 +290,7 @@
             },
             {
               "name": "generation",
-              "description": "Expected integrity generation"
+              "description": "Generation returned by the dry run; omit it on the first dry run"
             },
             {
               "name": "operation-id",

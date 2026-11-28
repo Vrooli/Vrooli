@@ -29,6 +29,8 @@ import type { ConversationEvent } from "../api/conversation";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import { useHandoffRequestStore } from "../stores/useHandoffRequestStore";
+import { useFilePreviewStore, FILE_PREVIEW_DEFAULT_WIDTH } from "../stores/useFilePreviewStore";
+import { useFilePreviewDeepLinkStore } from "../stores/useFilePreviewDeepLinkStore";
 
 // [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
 // [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle
@@ -288,6 +290,12 @@ vi.mock("../components/WorkspaceMinimap", () => ({
   default: vi.fn(() => <div data-testid="mock-minimap" />),
 }));
 
+vi.mock("../components/file-preview/WorkspaceFilePreview", () => ({
+  default: ({ request }: { request: { path: string } | null }) => request
+    ? <div data-testid="workspace-file-preview">{request.path}</div>
+    : null,
+}));
+
 vi.mock("../components/TerminalLauncher", () => ({
   default: vi.fn(({ open, onClose, onLaunch, isCreating: creating }: {
     open: boolean; onClose: () => void; onLaunch: (opts?: Record<string, unknown>) => void; isCreating: boolean;
@@ -385,6 +393,8 @@ describe("Workspace", () => {
     mockStoreState.groups = [];
     mockStoreState.plusButtonBehavior = "launcher";
     useHandoffRequestStore.setState({ request: null, nextId: 1 });
+    useFilePreviewStore.setState({ request: null, width: FILE_PREVIEW_DEFAULT_WIDTH, recent: [] });
+    useFilePreviewDeepLinkStore.getState().clear();
     mockStoreState.defaultHeaderColor = "transparent";
     mockStoreState.defaultThemeId = "default";
     mockStoreState.defaultFontSize = 14;
@@ -401,6 +411,34 @@ describe("Workspace", () => {
     mockStoreActions.setTabContextMenu = vi.fn((next: typeof mockStoreState.tabContextMenu) => {
       mockStoreState.tabContextMenu = next;
     });
+  });
+
+  it("keeps an explicit file deep link open after Workspace consumes the intent", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "Active", headerColor: "transparent" }];
+    mockStoreState.activePane = mockSession.id;
+    act(() => { useFilePreviewDeepLinkStore.getState().request("/workspace/deep-linked.html#section"); });
+
+    render(<Workspace />);
+
+    expect(await screen.findByTestId("workspace-file-preview")).toHaveTextContent("/workspace/deep-linked.html#section");
+    await waitFor(() => expect(useFilePreviewDeepLinkStore.getState().path).toBeNull());
+    expect(useFilePreviewStore.getState().request).toEqual({
+      sessionId: mockSession.id,
+      path: "/workspace/deep-linked.html#section",
+      source: "message_link",
+    });
+  });
+
+  it("does not restore a file preview when memory-only request state is empty", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "Active", headerColor: "transparent" }];
+    mockStoreState.activePane = mockSession.id;
+
+    render(<Workspace />);
+
+    expect(screen.queryByTestId("workspace-file-preview")).not.toBeInTheDocument();
+    expect(useFilePreviewStore.getState().request).toBeNull();
   });
 
   it("opens the existing handoff composer for a context-controls request", async () => {

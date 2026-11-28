@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, Pencil, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, Pencil, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -20,6 +20,7 @@ import { useGroupActions } from "../hooks/useGroupActions";
 // consumer and is still greenfield, so taking each release as it lands is
 // cheaper than discovering the drift at the next deliberate upgrade.
 import { SidebarShell } from "@vrooli/react-component-library/SidebarShell";
+import { SearchField } from "./SearchField";
 import { Button } from "./ui/button";
 import TabContextMenu from "./TabContextMenu";
 import GroupContextMenu from "./GroupContextMenu";
@@ -708,16 +709,16 @@ export default function SessionSidebar({
               <ArrowLeft className="h-3.5 w-3.5" />
               {t(strings.sessionSidebar.archiveBack)}
             </button>
-            <label className="flex items-center gap-2 rounded border border-wc-default bg-wc-surface-input px-2 py-1.5">
-              <Search className="h-3.5 w-3.5 text-wc-text-muted" />
-              <input
-                data-testid="sidebar-archive-filter"
-                className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary outline-none"
-                value={archiveFilter}
-                onChange={(event) => { setArchiveFilter(event.target.value); }}
-                placeholder={t(strings.sessionSidebar.archiveFilterPlaceholder)}
-              />
-            </label>
+            <SearchField
+              testId="sidebar-archive-filter"
+              groupTestId="sidebar-archive-filter-group"
+              value={archiveFilter}
+              onValueChange={setArchiveFilter}
+              placeholder={t(strings.sessionSidebar.archiveFilterPlaceholder)}
+              label={t(strings.sessionSidebar.archiveFilterPlaceholder)}
+              size="sm"
+              className="w-full"
+            />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {archiveLoading && <p className="p-2 text-xs text-wc-text-muted">{t(strings.sessionSidebar.archiveLoading)}</p>}

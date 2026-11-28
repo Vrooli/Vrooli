@@ -347,6 +347,11 @@
     "signedInAs": "{{email}} としてサインイン中",
     "signedIn": "サインイン済み",
     "signOut": "サインアウト",
+    "restore": {
+      "checking": "保存済みのブラウザーセッションを確認しています…",
+      "unavailable": "保存済みのブラウザーセッションを復元できません。ブラウザーのストレージと WebCrypto を確認して再試行してください。重複登録を防ぐため、サインインを一時停止しています。",
+      "retry": "保存済みセッションを再試行"
+    },
     "accountHeading": "アカウント",
     "firstTimeNote": "初めてですか？ オーナーアカウントを作成してください — このフリートを管理します。",
     "login": {
@@ -356,8 +361,12 @@
       "tabCreate": "アカウント作成",
       "emailLabel": "メールアドレス",
       "emailPlaceholder": "you@example.com",
+      "enrollmentRecovery": "ブラウザーキーは登録されましたが、サインインを完了できませんでした。このページを開いたまま再試行してください。もう一度サインインすると登録が重複する場合があります。",
+      "enrollmentRecoveryRetry": "登録情報は安全なブラウザー保存を待っています。ここから再試行してください。もう一度サインインしないでください。",
       "passwordLabel": "パスワード",
       "passwordPlaceholder": "パスワード",
+      "retryEnrollmentSave": "安全なキー保存を再試行",
+      "retryingEnrollmentSave": "キーを保存中…",
       "usernameLabel": "表示名（任意）",
       "usernamePlaceholder": "フリートオペレーター",
       "submit": "サインイン",

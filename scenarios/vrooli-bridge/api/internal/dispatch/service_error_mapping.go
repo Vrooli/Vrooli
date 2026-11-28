@@ -22,19 +22,21 @@ func ToConnectError(err error) error {
 		return nil
 	}
 	var (
-		invalid     ErrInvalidJob
-		notInMan    ErrVerbNotInManifest
-		outOfScope  ErrVerbOutOfScope
-		unsafe      ErrUnsafeToken
-		notFound    ErrNodeNotFound
-		revoked     ErrNodeRevoked
-		offline     ErrNodeOffline
-		needsUpdate ErrNodeNeedsUpdate
-		kind        ErrUnsupportedNodeKind
-		delivery    ErrDeliveryFailed
-		leaseReq    ErrDeviceLeaseRequired
-		leaseHeld   ErrDeviceLeaseNotHeld
-		catalog     ErrCatalogUnavailable
+		invalid      ErrInvalidJob
+		notInMan     ErrVerbNotInManifest
+		outOfScope   ErrVerbOutOfScope
+		unsafe       ErrUnsafeToken
+		notFound     ErrNodeNotFound
+		revoked      ErrNodeRevoked
+		offline      ErrNodeOffline
+		needsUpdate  ErrNodeNeedsUpdate
+		kind         ErrUnsupportedNodeKind
+		delivery     ErrDeliveryFailed
+		leaseReq     ErrDeviceLeaseRequired
+		leaseHeld    ErrDeviceLeaseNotHeld
+		catalog      ErrCatalogUnavailable
+		requestID    ErrIdempotencyConflict
+		tierMismatch ErrDeploymentTierMismatch
 	)
 	switch {
 	case errors.As(err, &invalid):
@@ -55,12 +57,16 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, needsUpdate)
 	case errors.As(err, &kind):
 		return connect.NewError(connect.CodeFailedPrecondition, kind)
+	case errors.As(err, &tierMismatch):
+		return connect.NewError(connect.CodeFailedPrecondition, tierMismatch)
 	case errors.As(err, &leaseReq):
 		return connect.NewError(connect.CodeFailedPrecondition, leaseReq)
 	case errors.As(err, &leaseHeld):
 		return connect.NewError(connect.CodeFailedPrecondition, leaseHeld)
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
+	case errors.As(err, &requestID):
+		return connect.NewError(connect.CodeFailedPrecondition, requestID)
 	case errors.As(err, &catalog):
 		return connect.NewError(connect.CodeUnavailable, catalog)
 	default:
@@ -72,21 +78,23 @@ func ToConnectError(err error) error {
 // (as opposed to an internal failure). The handler uses it to decide log noise.
 func IsRejection(err error) bool {
 	var (
-		invalid     ErrInvalidJob
-		notInMan    ErrVerbNotInManifest
-		outOfScope  ErrVerbOutOfScope
-		unsafe      ErrUnsafeToken
-		notFound    ErrNodeNotFound
-		revoked     ErrNodeRevoked
-		offline     ErrNodeOffline
-		needsUpdate ErrNodeNeedsUpdate
-		kind        ErrUnsupportedNodeKind
-		leaseReq    ErrDeviceLeaseRequired
-		leaseHeld   ErrDeviceLeaseNotHeld
-		catalog     ErrCatalogUnavailable
+		invalid      ErrInvalidJob
+		notInMan     ErrVerbNotInManifest
+		outOfScope   ErrVerbOutOfScope
+		unsafe       ErrUnsafeToken
+		notFound     ErrNodeNotFound
+		revoked      ErrNodeRevoked
+		offline      ErrNodeOffline
+		needsUpdate  ErrNodeNeedsUpdate
+		kind         ErrUnsupportedNodeKind
+		leaseReq     ErrDeviceLeaseRequired
+		leaseHeld    ErrDeviceLeaseNotHeld
+		catalog      ErrCatalogUnavailable
+		requestID    ErrIdempotencyConflict
+		tierMismatch ErrDeploymentTierMismatch
 	)
 	return errors.As(err, &invalid) || errors.As(err, &notInMan) || errors.As(err, &outOfScope) ||
 		errors.As(err, &unsafe) || errors.As(err, &notFound) || errors.As(err, &revoked) ||
 		errors.As(err, &offline) || errors.As(err, &needsUpdate) || errors.As(err, &kind) ||
-		errors.As(err, &leaseReq) || errors.As(err, &leaseHeld) || errors.As(err, &catalog)
+		errors.As(err, &leaseReq) || errors.As(err, &leaseHeld) || errors.As(err, &catalog) || errors.As(err, &requestID) || errors.As(err, &tierMismatch)
 }

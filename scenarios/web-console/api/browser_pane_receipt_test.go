@@ -63,6 +63,7 @@ func TestBrowserPaneReceiptResolverChecksWebConsoleOwnerAndUsesDedicatedAMIdenti
 func TestBrowserPaneHandleKeepsRunAndBASIDsServerSide(t *testing.T) {
 	var listBody, issueBody []byte
 	var ownerCalls []string
+	terminalRun := false
 	owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ownerCalls = append(ownerCalls, r.URL.Path)
 		if r.Header.Get("Authorization") != "Bearer pane-service" {
@@ -71,6 +72,11 @@ func TestBrowserPaneHandleKeepsRunAndBASIDsServerSide(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/v1/browser/pane/sessions":
 			listBody, _ = io.ReadAll(r.Body)
+			if terminalRun {
+				w.WriteHeader(http.StatusGone)
+				_, _ = w.Write([]byte(`{"error":"browser_run_not_active"}`))
+				return
+			}
 			_ = json.NewEncoder(w).Encode(paneSessionInternalResponse{RunID: "d28e41fa-c82a-4e6f-8c3b-0e6c50d9dc6c", ThreadID: "thread-private", Sessions: []paneSessionInternal{{SessionID: "bas-private", Mode: "managed", CanControl: true}}})
 		case "/api/v1/browser/pane/yield", "/api/v1/browser/pane/resolve":
 			issueBody, _ = io.ReadAll(r.Body)
@@ -108,6 +114,12 @@ func TestBrowserPaneHandleKeepsRunAndBASIDsServerSide(t *testing.T) {
 	if err != nil || len(listed.Sessions) != 1 {
 		t.Fatalf("list=%+v err=%v", listed, err)
 	}
+	terminalRun = true
+	finished, err := resolver.List(ctx, "wc-private")
+	if err != nil || !finished.RunFinished || len(finished.Sessions) != 0 {
+		t.Fatalf("finished run discovery=%+v err=%v", finished, err)
+	}
+	terminalRun = false
 	public, _ := json.Marshal(listed)
 	for _, secret := range []string{"d28e41fa-c82a-4e6f-8c3b-0e6c50d9dc6c", "thread-private", "bas-private"} {
 		if strings.Contains(string(public), secret) {
@@ -173,6 +185,19 @@ func TestBrowserPaneSessionsRouteRequiresVerifiedHuman(t *testing.T) {
 	handler.ServeHTTP(res, req)
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("unverified HTTP caller received pane candidates: status=%d body=%s", res.Code, res.Body.String())
+	}
+}
+
+func TestBrowserPaneSessionsRoutePreservesFinishedRunState(t *testing.T) {
+	handler := browserPaneSessionsHandler(&fixedBrowserPaneReceiptResolver{
+		list: paneSessionListResponse{Sessions: []paneSessionSummary{}, RunFinished: true},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/browser/pane/sessions", strings.NewReader(`{"web_console_session_id":"wc-1"}`))
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+	var body paneSessionListResponse
+	if res.Code != http.StatusOK || json.Unmarshal(res.Body.Bytes(), &body) != nil || !body.RunFinished || len(body.Sessions) != 0 {
+		t.Fatalf("terminal owner state was not preserved: status=%d body=%s decoded=%+v", res.Code, res.Body.String(), body)
 	}
 }
 

@@ -2,7 +2,9 @@ package relay_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	dbtest "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/dispatch"
@@ -281,6 +284,70 @@ func TestSQLiteCommandStorePersistsReceiptAcrossReopen(t *testing.T) {
 	require.Equal(t, relay.StateCompleted, record.State)
 	require.Equal(t, []byte("ok"), record.Response.Data)
 	require.Equal(t, []string{"--json"}, record.Request.Args)
+}
+
+// AC6: a Web Console retry after a lost response or process restart must use
+// the same command ID. The production Relay service must return its SQLite
+// receipt without dispatching the harness lifecycle action a second time.
+func TestCallReplaysHarnessLifecycleReceiptAfterServiceReconstruction(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.NewSQLite(t)
+	_, err := db.ExecContext(ctx, relay.Schema())
+	require.NoError(t, err)
+	storeA, err := relay.NewSQLiteCommandStore(db)
+	require.NoError(t, err)
+	brokerA := relay.NewBroker()
+	pushes := 0
+	pusher := fakePusher{push: func(request relay.Request) {
+		pushes++
+		require.NoError(t, brokerA.Deliver(ctx, request.NodeID, relay.Response{
+			CorrelationID: request.CorrelationID,
+			Kind:          relay.KindCompleted,
+			Data:          []byte(`{"success":true,"harness_update":{"action":"update","success":true}}`),
+		}))
+	}}
+	nodes := fakeNodes{node: dispatch.TargetNode{ID: "ac6-node", Kind: "agent", Scopes: []string{"vrooli-bridge:write", "vrooli:write"}}}
+	presence := fakePresence{online: true, dispatchable: true}
+	request := relay.Request{
+		CommandID: "0c7e6530-45ab-45e5-a63f-ef4d8ac6ac06", CorrelationID: "ac6-correlation-1",
+		Actor: "owner", NodeID: "ac6-node", Scenario: "vrooli", Command: "resource update",
+		Args: []string{"codex", "--action", "update", "--json"}, TimeoutSeconds: 1,
+	}
+	firstService := relay.NewService(nodes, presence, nil, pusher, brokerA, relay.WithCommandStore(storeA))
+	first, err := firstService.Call(ctx, request)
+	require.NoError(t, err)
+	require.Equal(t, relay.KindCompleted, first.Kind)
+	require.Equal(t, "ac6-correlation-1", first.CorrelationID)
+
+	// Reopen the file-backed journal and create a new service and command-store
+	// instance to model the Bridge API restart boundary.
+	var seq int
+	var dbName, dbPath string
+	require.NoError(t, db.QueryRowContext(ctx, `PRAGMA database_list`).Scan(&seq, &dbName, &dbPath))
+	require.Equal(t, "main", dbName)
+	require.NotEmpty(t, dbPath)
+	require.NoError(t, db.Close())
+	dsn, err := storage.SQLiteDSNAt(filepath.Clean(dbPath), storage.SQLiteTuning{TxLock: "immediate"})
+	require.NoError(t, err)
+	db, err = sql.Open("sqlite", dsn)
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, db.PingContext(ctx))
+	storeB, err := relay.NewSQLiteCommandStore(db)
+	require.NoError(t, err)
+	secondService := relay.NewService(nodes, presence, nil, pusher, relay.NewBroker(), relay.WithCommandStore(storeB))
+	second, err := secondService.Call(ctx, request)
+	require.NoError(t, err)
+	require.Equal(t, first.Kind, second.Kind)
+	require.Equal(t, first.CorrelationID, second.CorrelationID)
+	require.Equal(t, first.Data, second.Data)
+	require.Equal(t, 1, pushes, "replaying a completed harness action must not push another effect")
+
+	receipt, err := secondService.Reconcile(ctx, relay.ReconcileRequest{NodeID: request.NodeID, CommandID: request.CommandID})
+	require.NoError(t, err)
+	require.Equal(t, relay.StateCompleted, receipt.State)
+	require.Equal(t, request.CommandID, receipt.CommandID)
 }
 
 func TestCommandStateTransitionMatrixRejectsInvalidEdges(t *testing.T) {

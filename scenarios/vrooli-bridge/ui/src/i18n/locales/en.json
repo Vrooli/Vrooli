@@ -375,11 +375,15 @@
     "login": {
       "emailLabel": "Email",
       "emailPlaceholder": "you@example.com",
+      "enrollmentRecovery": "Your browser key was enrolled, but sign-in could not finish. Keep this page open and retry; signing in again could create a duplicate enrollment.",
+      "enrollmentRecoveryRetry": "The saved enrollment is still waiting for secure browser storage. Retry here; do not sign in again.",
       "intro": "Use your Vrooli owner account, or create one — a new account is signed in immediately.",
       "invalidCredentials": "Invalid email or password.",
       "missingFields": "Enter your email and password.",
       "passwordLabel": "Password",
       "passwordPlaceholder": "Your password",
+      "retryEnrollmentSave": "Retry secure key storage",
+      "retryingEnrollmentSave": "Saving key…",
       "submit": "Sign in",
       "submitting": "Signing in…",
       "tabCreate": "Create account",
@@ -399,7 +403,12 @@
     "screenTitle": "Welcome to Vrooli Bridge",
     "signOut": "Sign out",
     "signedIn": "Signed in",
-    "signedInAs": "Signed in as {{email}}"
+    "signedInAs": "Signed in as {{email}}",
+    "restore": {
+      "checking": "Checking for your saved browser session…",
+      "unavailable": "Bridge could not restore your saved browser session. Check browser storage and WebCrypto support, then retry. Sign-in is paused to avoid creating a duplicate enrollment.",
+      "retry": "Retry saved session"
+    }
   },
   "theme": {
     "choice": {

@@ -6,6 +6,7 @@ package ssh
 
 import (
 	"errors"
+	"fmt"
 
 	sshcore "github.com/vrooli/ssh-core"
 	gossh "golang.org/x/crypto/ssh"
@@ -33,8 +34,9 @@ func (s *Service) ForgetHostKey(host string, port int) error {
 	if host == "" {
 		return errors.New("host key review: host is required")
 	}
-	if port == 0 {
-		port = DefaultPort
+	port, err := normalizePort(port)
+	if err != nil {
+		return fmt.Errorf("host key review: invalid port: %w", err)
 	}
 	return sshcore.ForgetHostKey(s.knownHostsPath(), host, port)
 }

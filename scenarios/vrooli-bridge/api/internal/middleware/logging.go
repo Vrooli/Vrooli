@@ -11,7 +11,7 @@ import (
 )
 
 // NewLoggingMiddleware returns a middleware that logs each request's
-// method, URI, and elapsed duration. Time is read from the injected
+// method, path, and elapsed duration without query strings or bodies. Time is read from the injected
 // Clock so tests using scheduletest.FakeClock can assert exact durations
 // without depending on the wall schedule. Logger defaults to log.Default()
 // when nil; tests inject a buffer-backed *log.Logger to capture output.
@@ -23,7 +23,9 @@ func NewLoggingMiddleware(clk schedule.Clock, logger *log.Logger) func(http.Hand
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := clk.Now()
 			next.ServeHTTP(w, r)
-			logger.Printf("[%s] %s %s", r.Method, r.RequestURI, clk.Now().Sub(start))
+			// Query strings are not needed for request-shape telemetry and can
+			// expose credentials or signaling material supplied by integrations.
+			logger.Printf("[%s] %s %s", r.Method, r.URL.Path, clk.Now().Sub(start))
 		})
 	}
 }

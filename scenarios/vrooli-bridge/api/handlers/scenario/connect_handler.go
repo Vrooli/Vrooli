@@ -15,6 +15,7 @@ import (
 	internal "vrooli-bridge/internal/scenario"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/platform-go/desktopowner"
 )
 
 type Deps struct {
@@ -49,8 +50,8 @@ type handler struct{ deps Deps }
 func NewHandler(deps Deps) *handler { return &handler{deps: deps} }
 
 const (
-	deviceControlScenario = "device-control"
-	desktopSessionService = "vrooli.device_control.v1.desktop.DesktopSessionService"
+	deviceControlScenario = desktopowner.Scenario
+	desktopSessionService = desktopowner.Service
 )
 
 var upstreamHTTPStatusPattern = regexp.MustCompile(`(?i)\bHTTP\s+(\d{3})\b`)

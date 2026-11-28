@@ -139,10 +139,21 @@ type Metadata struct {
 	ProviderVersion         string
 	NativeThreadID          string
 	LastVerifiedTurnID      string
+	NativeTurnActivity      NativeTurnActivity
 	ForkedFromNativeSession string
 	LaunchDescriptorJSON    string
 	BusinessAccountID       string
 }
+
+// NativeTurnActivity is the last observed turn state, independent of the
+// session lifecycle. The zero value means no observation was recorded.
+type NativeTurnActivity string
+
+const (
+	NativeTurnIdle    NativeTurnActivity = "idle"
+	NativeTurnActive  NativeTurnActivity = "active"
+	NativeTurnUnknown NativeTurnActivity = "unknown"
+)
 
 // Retired reports that the session was archived or dismissed: nothing runs for
 // it and nothing may be started on its behalf until it is unarchived or its
@@ -171,6 +182,7 @@ type AgentInfo struct {
 	ProviderVersion         string
 	NativeThreadID          string
 	LastVerifiedTurnID      string
+	NativeTurnActivity      NativeTurnActivity
 	ForkedFromNativeSession string
 	LaunchDescriptorJSON    string
 }
@@ -245,11 +257,11 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 			launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
 			last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint,
-			business_account_id, archive_note
+			business_account_id, archive_note, native_turn_activity
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?, ?)
+			?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			backend=excluded.backend, shell=excluded.shell, cols=excluded.cols, rows=excluded.rows,
 			policy_mode=excluded.policy_mode, policy_duration=excluded.policy_duration,
@@ -264,7 +276,8 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			last_verified_turn_id=excluded.last_verified_turn_id,
 			forked_from_native_session=excluded.forked_from_native_session,
 			launch_descriptor_json=excluded.launch_descriptor_json, create_fingerprint=CASE WHEN excluded.create_fingerprint='' THEN sessions.create_fingerprint ELSE excluded.create_fingerprint END,
-			business_account_id=excluded.business_account_id`,
+			business_account_id=excluded.business_account_id,
+			native_turn_activity=COALESCE(NULLIF(excluded.native_turn_activity, ''), sessions.native_turn_activity)`,
 		meta.ID,
 		string(meta.Backend),
 		meta.Shell,
@@ -290,7 +303,7 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 		string(meta.LaunchMode), string(meta.ControlMode), meta.NativeOwner,
 		meta.NativeTransport, meta.ProviderVersion, meta.NativeThreadID,
 		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON, meta.CreateFingerprint, meta.BusinessAccountID,
-		meta.ArchiveNote,
+		meta.ArchiveNote, meta.NativeTurnActivity,
 	)
 	return err
 }
@@ -301,7 +314,7 @@ const selectColumns = `
 	last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 	launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
 	last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint,
-	business_account_id, archive_note`
+	business_account_id, archive_note, native_turn_activity`
 
 func (s *SQLStore) Get(ctx context.Context, id string) (Metadata, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
@@ -430,6 +443,10 @@ func (s *SQLStore) UpdateAgentInfo(ctx context.Context, id string, info AgentInf
 	if info.NativeThreadID != "" {
 		sets = append(sets, "native_thread_id = ?")
 		args = append(args, info.NativeThreadID)
+	}
+	if info.NativeTurnActivity != "" {
+		sets = append(sets, "native_turn_activity = ?")
+		args = append(args, info.NativeTurnActivity)
 	}
 	if info.LastVerifiedTurnID != "" {
 		sets = append(sets, "last_verified_turn_id = ?")
@@ -600,7 +617,7 @@ func scanMetadata(row scannable) (Metadata, error) {
 		&launchMode, &controlMode, &meta.NativeOwner, &meta.NativeTransport,
 		&meta.ProviderVersion, &meta.NativeThreadID, &meta.LastVerifiedTurnID,
 		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON, &meta.CreateFingerprint, &meta.BusinessAccountID,
-		&meta.ArchiveNote,
+		&meta.ArchiveNote, &meta.NativeTurnActivity,
 	)
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)
@@ -681,6 +698,9 @@ func (s *InMemoryStore) Save(_ context.Context, meta Metadata) error {
 			meta.CreateFingerprint = previous.CreateFingerprint
 		}
 		meta.Status = previous.Status
+		if meta.NativeTurnActivity == "" {
+			meta.NativeTurnActivity = previous.NativeTurnActivity
+		}
 		meta.OrphanedAt = previous.OrphanedAt
 		meta.RecoveredInto = previous.RecoveredInto
 		meta.ArchivedAt = previous.ArchivedAt
@@ -822,6 +842,9 @@ func (s *InMemoryStore) UpdateAgentInfo(_ context.Context, id string, info Agent
 	}
 	if info.NativeThreadID != "" {
 		meta.NativeThreadID = info.NativeThreadID
+	}
+	if info.NativeTurnActivity != "" {
+		meta.NativeTurnActivity = info.NativeTurnActivity
 	}
 	if info.LastVerifiedTurnID != "" {
 		meta.LastVerifiedTurnID = info.LastVerifiedTurnID

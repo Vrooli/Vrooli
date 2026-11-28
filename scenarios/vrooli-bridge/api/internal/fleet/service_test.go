@@ -76,6 +76,7 @@ func TestRoll_EmptyTargetRejected(t *testing.T) {
 	var invalid fleet.ErrInvalidRoll
 	require.ErrorAs(t, err, &invalid)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(fleet.ToConnectError(err)))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(fleet.ToConnectError(err)))
 }
 
 // [REQ:BRG-P1-001] A node whose provisioning dispatch fails is recorded FAILED
@@ -97,6 +98,23 @@ func TestRoll_ProvisionFailureRecordedPerNode(t *testing.T) {
 	require.Equal(t, fleet.DispositionDispatched, byNode["n1"].Disposition)
 	require.Equal(t, fleet.DispositionFailed, byNode["n2"].Disposition)
 	require.Contains(t, byNode["n2"].Detail, "delivery failed")
+}
+
+func TestRoll_UnsupportedSubsetIsRejectedBeforeDispatch(t *testing.T) {
+	nodes := &mocks.FakeNodeLister{Nodes: []fleet.NodeRef{{ID: "node-a"}}}
+	prov := &mocks.FakeProvisioner{}
+	svc, repo := newFakeService(nodes, &mocks.FakePresence{Online: map[string]bool{"node-a": true}}, prov)
+
+	_, err := svc.Roll(context.Background(), fleet.RollInput{Actor: "owner", TargetRevision: "rev-42", NodeIDs: []string{"node-a", " retired-node "}})
+	require.Error(t, err)
+	var invalid fleet.ErrInvalidRoll
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "node_ids", invalid.Field)
+	require.Equal(t, "not registered: retired-node", invalid.Reason)
+	require.Empty(t, prov.RequestedNodes(), "unsupported subset must not partially dispatch")
+	rollouts, listErr := repo.List(context.Background(), fleet.ListFilter{})
+	require.NoError(t, listErr)
+	require.Empty(t, rollouts, "unsupported subset must not create a misleading rollout")
 }
 
 // [REQ:BRG-P1-001] GetRollout on an unknown id is NotFound.

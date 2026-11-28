@@ -54,6 +54,7 @@ describe("desktop transport", () => {
     await t.attachViewer({});
     await t.takeControl({});
     await t.releaseControl({});
+    await t.readFrame?.({});
     await t.input({});
     await t.clipboard({});
     await t.close({});
@@ -64,6 +65,7 @@ describe("desktop transport", () => {
       `${base}AttachViewer`,
       `${base}TakeControl`,
       `${base}ReleaseControl`,
+      `${base}ReadFrame`,
       `${base}Input`,
       `${base}Clipboard`,
       `${base}CloseSession`,
@@ -85,9 +87,9 @@ describe("desktop transport", () => {
     vi.unstubAllGlobals();
   });
 
-  it("throws a labeled error when a desktop call is not ok", async () => {
+  it("explains a desktop readiness failure through Bridge", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("nope", { status: 503 })));
-    await expect(createDesktopSessionTransport().readiness({})).rejects.toThrow("desktop GetReadiness failed (503)");
+    await expect(createDesktopSessionTransport().readiness({})).rejects.toThrow("Web Console could not reach this machine’s desktop service through Bridge.");
     await expect(createBridgeInteractiveTransport().open({})).rejects.toThrow("desktop channel OpenChannel failed (503)");
     vi.unstubAllGlobals();
   });

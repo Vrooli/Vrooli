@@ -158,6 +158,13 @@ export function MessagesFilterPopover({
           >
             {t(strings.messageJumpList.wholeWord)}
           </Chip>
+          <Chip
+            data-testid="messages-search-include-work"
+            selected={searchOptions.includeWork === true}
+            onClick={() => { onSearchOptionsChange({ ...searchOptions, includeWork: !searchOptions.includeWork }); }}
+          >
+            {t(strings.messageJumpList.includeWork)}
+          </Chip>
         </Section>
 
         <Section label={t(strings.messageJumpList.sortHeading)}>

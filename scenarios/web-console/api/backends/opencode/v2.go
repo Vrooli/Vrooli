@@ -80,6 +80,7 @@ func (c *V2Client) ListSessions(ctx context.Context, directory string) ([]Sessio
 		var page struct {
 			Data []struct {
 				ID       string `json:"id"`
+				ParentID string `json:"parentID"`
 				Title    string `json:"title"`
 				Location struct {
 					Directory string `json:"directory"`
@@ -101,7 +102,7 @@ func (c *V2Client) ListSessions(ctx context.Context, directory string) ([]Sessio
 			return nil, err
 		}
 		for _, item := range page.Data {
-			session := Session{ID: item.ID, Directory: item.Location.Directory, Title: item.Title}
+			session := Session{ID: item.ID, ParentID: item.ParentID, Directory: item.Location.Directory, Title: item.Title}
 			session.Time.Created = item.Time.Created
 			session.Time.Updated = item.Time.Updated
 			if item.Revert != nil {

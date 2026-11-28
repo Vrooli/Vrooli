@@ -2,9 +2,12 @@ package artifacts
 
 import (
 	"context"
+	"io"
 	"log"
+	"net/http"
 
 	internalartifacts "vrooli-bridge/internal/artifacts"
+	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/registry"
@@ -14,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/discovery"
 
 	artifactsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts/artifacts_v1connect"
 )
@@ -28,7 +32,7 @@ type ArtifactReceiptRecorder interface {
 	RecordDeliveryReceipt(context.Context, internalartifacts.DeliveryReceipt) error
 }
 
-func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger, placementPusher ArtifactPlacementPusher) (module.Module, ArtifactReceiptRecorder, internalartifacts.Service) {
+func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, runsSvc internalruns.Service, verifier *nodeauth.Verifier, logger *log.Logger, placementPusher ArtifactPlacementPusher) (module.Module, ArtifactReceiptRecorder, internalartifacts.Service, *internalartifacts.ClosureShipmentService) {
 	svc := internalartifacts.NewService(
 		internalartifacts.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},
@@ -37,10 +41,25 @@ func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc re
 		internalartifacts.WithProducedRepository(internalartifacts.NewSQLiteProducedRepository(db, clk)),
 		internalartifacts.WithRunReader(runReaderAdapter{svc: runsSvc}),
 	)
+	closureShipments := internalartifacts.NewClosureShipmentService(internalartifacts.NewSQLiteClosureShipmentRepository(db), nil, clk.Now)
+	machineSvc := internalmachines.NewService(internalmachines.NewSQLiteRepository(db, clk))
+	selectionVerifier := onboardingSelectionVerifier{resolve: func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-onboarding")
+	}}
+	closureShipments.AuthorizeSelection = selectionVerifier.Authorize
+	closureShipments.TargetPolicy = func(ctx context.Context, shipment internalartifacts.ClosureShipment) error {
+		return validateClosureTarget(ctx, shipment, nodeReaderAdapter{svc: registrySvc}, machineSvc)
+	}
+	var closurePusher internalartifacts.ClosureShipmentFramePusher
+	if p, ok := placementPusher.(ClosureShipmentPusher); ok {
+		closurePusher = p
+	}
+	closureCoordinator := internalartifacts.NewClosureShipmentCoordinator(closureShipments, closurePusher, func(ctx context.Context, source string) (io.ReadCloser, error) {
+		return internalartifacts.OpenClosureSource(ctx, source, http.DefaultClient)
+	})
 	path, handler := artifactsconnect.NewArtifactsServiceHandler(NewConnectHandler(Deps{
-		Service:  svc,
-		Verifier: verifier,
-		Logger:   logger,
+		Service: svc, ClosureShipments: closureCoordinator,
+		Verifier: verifier, Logger: logger,
 	}))
 	return module.Module{
 		Name: "artifacts",
@@ -48,7 +67,7 @@ func Module(db internalartifacts.SQLExecutor, clk schedule.Clock, registrySvc re
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
 		},
 		Endpoints: Endpoints,
-	}, svc, svc
+	}, svc, svc, closureShipments
 }
 
 type runReaderAdapter struct{ svc internalruns.Service }

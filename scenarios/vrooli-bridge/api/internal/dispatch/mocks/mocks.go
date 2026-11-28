@@ -47,29 +47,34 @@ func (f *FakePresence) Dispatchable(nodeID string) bool {
 
 // FakeRunController records created/aborted runs and hands out deterministic ids.
 type FakeRunController struct {
-	mu        sync.Mutex
-	Created   []dispatch.CreateRunInput
-	Aborted   []string
-	NextRunID string
-	CreateErr error
-	AbortErr  error
-	seq       int
+	mu         sync.Mutex
+	Created    []dispatch.CreateRunInput
+	Aborted    []string
+	NextRunID  string
+	CreateErr  error
+	ReplayNext bool
+	AbortErr   error
+	seq        int
 }
 
 var _ dispatch.RunController = (*FakeRunController)(nil)
 
-func (f *FakeRunController) CreateRun(_ context.Context, in dispatch.CreateRunInput) (string, error) {
+func (f *FakeRunController) CreateRun(_ context.Context, in dispatch.CreateRunInput) (dispatch.CreateRunResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.CreateErr != nil {
-		return "", f.CreateErr
+		return dispatch.CreateRunResult{}, f.CreateErr
+	}
+	if f.ReplayNext {
+		f.ReplayNext = false
+		return dispatch.CreateRunResult{RunID: f.NextRunID, Replayed: true}, nil
 	}
 	f.Created = append(f.Created, in)
 	if f.NextRunID != "" {
-		return f.NextRunID, nil
+		return dispatch.CreateRunResult{RunID: f.NextRunID}, nil
 	}
 	f.seq++
-	return "run-" + string(rune('0'+f.seq)), nil
+	return dispatch.CreateRunResult{RunID: "run-" + string(rune('0'+f.seq))}, nil
 }
 
 func (f *FakeRunController) AbortRun(_ context.Context, runID, _ string) error {

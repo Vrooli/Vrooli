@@ -32,6 +32,14 @@ func (f *fakeRuns) GetRun(_ context.Context, req *connect.Request[runsv1.GetRunR
 	}), nil
 }
 
+func (f *fakeRuns) GetLocalTargetReceipt(_ context.Context, req *connect.Request[runsv1.GetLocalTargetReceiptRequest]) (*connect.Response[runsv1.GetLocalTargetReceiptResponse], error) {
+	return connect.NewResponse(&runsv1.GetLocalTargetReceiptResponse{
+		RunId: req.Msg.Id, Lane: "local-contract", TargetId: "fixture-node", TargetClass: "local-fixture",
+		Provenance: "local-fixture", Scenario: "vrooli-bridge", Verb: "scenario.status",
+		Status: "passed", ExitCode: 0, EvidenceRefs: []string{"bridge-run://" + req.Msg.Id}, LaneEligible: false,
+	}), nil
+}
+
 func (f *fakeRuns) ListRuns(context.Context, *connect.Request[runsv1.ListRunsRequest]) (*connect.Response[runsv1.ListRunsResponse], error) {
 	return connect.NewResponse(&runsv1.ListRunsResponse{Runs: []*runsv1.Run{
 		{Id: "run-1", NodeId: "n1", Verb: "scenario test", Status: runsv1.RunStatus_RUN_STATUS_PASSED},
@@ -81,6 +89,15 @@ func TestRuns_GetAndList(t *testing.T) {
 	listCtx, listOut := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "node"}, {Name: "limit"}}}, cliapptest.TestRunContextOptions{})
 	require.NoError(t, h.list(listCtx))
 	require.Contains(t, listOut.String(), "run-1")
+}
+
+func TestRuns_LocalReceiptIsExplicitlyNonQualifying(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(&fakeRuns{}))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id"}}}, cliapptest.TestRunContextOptions{Positionals: map[string]string{"id": "run-1"}})
+	require.NoError(t, h.localReceipt(ctx))
+	require.Contains(t, out.String(), "local fixture; never qualifies a remote lane")
+	require.Contains(t, out.String(), "lane_eligible=false")
 }
 
 // [REQ:BRG-P0-005] wait returns nil on a passing run and an error on a

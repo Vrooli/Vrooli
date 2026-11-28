@@ -98,6 +98,17 @@ func (h *handler) Signal(ctx context.Context, req *connect.Request[desktopv1.Des
 	return connect.NewResponse(response), nil
 }
 
+func (h *handler) ReadFrame(ctx context.Context, req *connect.Request[desktopv1.ReadFrameRequest]) (*connect.Response[desktopv1.ReadFrameResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, desktopwebrtc.ErrInvalidCall)
+	}
+	frame, err := h.manager.ReadFrame(ctx, req.Msg)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(frame), nil
+}
+
 func (h *handler) Input(ctx context.Context, req *connect.Request[desktopv1.InputRequest]) (*connect.Response[desktopv1.InputReceipt], error) {
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, desktopwebrtc.ErrInvalidCall)
@@ -134,6 +145,8 @@ func (h *handler) CloseSession(ctx context.Context, req *connect.Request[desktop
 func mapError(err error) error {
 	code := connect.CodeFailedPrecondition
 	switch {
+	case errors.Is(err, desktopwebrtc.ErrFrameBusy):
+		code = connect.CodeResourceExhausted
 	case errors.Is(err, desktopwebrtc.ErrInvalidCall):
 		code = connect.CodeInvalidArgument
 	case errors.Is(err, desktopwebrtc.ErrNoSession):

@@ -13,6 +13,33 @@ import (
 	"web-console/internal/module"
 )
 
+type RouteKind string
+
+const (
+	RouteKindLocal        RouteKind = "local"
+	RouteKindOwnKey       RouteKind = "own_key"
+	RouteKindVrooliCredit RouteKind = "vrooli_credits"
+	RouteKindHosted       RouteKind = "hosted"
+)
+
+type LimitKind string
+
+const (
+	LimitKindNoMonetarySpend    LimitKind = "no_monetary_spend"
+	LimitKindSelectableCredits  LimitKind = "selectable_credits_cap"
+	LimitKindNotReported        LimitKind = "not_reported"
+	LimitKindOwnerEnforcedValue LimitKind = "owner_enforced_value"
+)
+
+type ApplicableLimit struct {
+	Kind         LimitKind
+	MaxValue     int64
+	Unit         string
+	Provenance   string
+	Options      []int64
+	DefaultValue int64
+}
+
 type Choice struct {
 	Model       string
 	Source      string
@@ -29,6 +56,8 @@ type Choice struct {
 	Metered             bool
 	DisplayName         string
 	PolicyCurrent       bool
+	RouteKind           RouteKind
+	ApplicableLimit     ApplicableLimit
 }
 
 type Result struct {
@@ -81,10 +110,40 @@ func (h *handler) GetRoleModelChoices(ctx context.Context, req *connect.Request[
 		SourceConfigurationSupported: result.SourceConfigurationSupported,
 	}
 	for _, choice := range result.Choices {
-		item := &modelselectionv1.RoleModelChoice{Model: choice.Model, Source: choice.Source, Provider: choice.Provider, LaunchModel: choice.LaunchModel, Effort: choice.Effort, SourceLabel: choice.SourceLabel, IsDefault: choice.IsDefault, ContextWindowTokens: choice.ContextWindowTokens, ContextWindowSource: choice.ContextWindowSource, ContextLimitTokens: choice.ContextLimitTokens, Metered: choice.Metered, DisplayName: choice.DisplayName, PolicyCurrent: choice.PolicyCurrent}
+		item := &modelselectionv1.RoleModelChoice{Model: choice.Model, Source: choice.Source, Provider: choice.Provider, LaunchModel: choice.LaunchModel, Effort: choice.Effort, SourceLabel: choice.SourceLabel, IsDefault: choice.IsDefault, ContextWindowTokens: choice.ContextWindowTokens, ContextWindowSource: choice.ContextWindowSource, ContextLimitTokens: choice.ContextLimitTokens, Metered: choice.Metered, DisplayName: choice.DisplayName, PolicyCurrent: choice.PolicyCurrent, RouteKind: routeKindToProto(choice.RouteKind), ApplicableLimit: &modelselectionv1.ApplicableLimit{Kind: limitKindToProto(choice.ApplicableLimit.Kind), MaxValue: choice.ApplicableLimit.MaxValue, Unit: choice.ApplicableLimit.Unit, Provenance: choice.ApplicableLimit.Provenance, Options: choice.ApplicableLimit.Options, DefaultValue: choice.ApplicableLimit.DefaultValue}}
 		response.Choices = append(response.Choices, item)
 	}
 	return connect.NewResponse(response), nil
+}
+
+func routeKindToProto(kind RouteKind) modelselectionv1.RouteKind {
+	switch kind {
+	case RouteKindLocal:
+		return modelselectionv1.RouteKind_ROUTE_KIND_LOCAL
+	case RouteKindOwnKey:
+		return modelselectionv1.RouteKind_ROUTE_KIND_OWN_KEY
+	case RouteKindVrooliCredit:
+		return modelselectionv1.RouteKind_ROUTE_KIND_VROOLI_CREDITS
+	case RouteKindHosted:
+		return modelselectionv1.RouteKind_ROUTE_KIND_HOSTED
+	default:
+		return modelselectionv1.RouteKind_ROUTE_KIND_UNSPECIFIED
+	}
+}
+
+func limitKindToProto(kind LimitKind) modelselectionv1.LimitKind {
+	switch kind {
+	case LimitKindNoMonetarySpend:
+		return modelselectionv1.LimitKind_LIMIT_KIND_NO_MONETARY_SPEND
+	case LimitKindSelectableCredits:
+		return modelselectionv1.LimitKind_LIMIT_KIND_SELECTABLE_CREDITS_CAP
+	case LimitKindNotReported:
+		return modelselectionv1.LimitKind_LIMIT_KIND_NOT_REPORTED
+	case LimitKindOwnerEnforcedValue:
+		return modelselectionv1.LimitKind_LIMIT_KIND_OWNER_ENFORCED_VALUE
+	default:
+		return modelselectionv1.LimitKind_LIMIT_KIND_UNSPECIFIED
+	}
 }
 
 func Module(service Service, logger *log.Logger) module.Module {

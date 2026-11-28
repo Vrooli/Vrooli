@@ -1,6 +1,6 @@
 import { AuthClient } from "@vrooli/react-component-library/AuthClient/1.0.0";
 
-const ACCESS_TOKEN_KEY = "vrooli.web.access-token";
+const LEGACY_ACCESS_TOKEN_KEY = "vrooli.web.access-token";
 const AUTH_STATE_KEY = "vrooli.web.auth-state";
 const AUTH_VERIFIER_KEY = "vrooli.web.auth-verifier";
 const AUTH_REDIRECT_KEY = "vrooli.web.auth-redirect";
@@ -11,43 +11,78 @@ interface StoredAccessToken {
 }
 
 const authClient = new AuthClient({ baseURL: window.location.origin });
+let webAccessToken: StoredAccessToken | null = null;
+let accessTokenRequest: Promise<string | null> | null = null;
+let authGeneration = 0;
+let authCallbackRequest: Promise<boolean> | null = null;
 
-function readStoredAccessToken(): StoredAccessToken | null {
-  try {
-    const raw = sessionStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredAccessToken>;
-    if (typeof parsed.accessToken !== "string" || typeof parsed.expiresAt !== "string") return null;
-    if (Date.now() >= new Date(parsed.expiresAt).getTime() - 30_000) {
-      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-      return null;
-    }
-    return { accessToken: parsed.accessToken, expiresAt: parsed.expiresAt };
-  } catch {
+function clearLegacyAccessToken(): void {
+  try { sessionStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY); } catch { /* storage is optional */ }
+}
+
+// Old releases stored the short-lived bearer here. Remove it on every module
+// load and never treat it as an input to the new memory-only auth owner.
+clearLegacyAccessToken();
+
+function currentWebAccessToken(): StoredAccessToken | null {
+  if (!webAccessToken) return null;
+  if (!webAccessToken.accessToken || Number.isNaN(new Date(webAccessToken.expiresAt).getTime()) || Date.now() >= new Date(webAccessToken.expiresAt).getTime() - 30_000) {
+    webAccessToken = null;
     return null;
   }
+  return webAccessToken;
+}
+
+function cacheWebAccessToken(accessToken: string, expiresAt: string): string | null {
+  const expires = new Date(expiresAt).getTime();
+  if (!accessToken || !Number.isFinite(expires) || Date.now() >= expires - 30_000) {
+    webAccessToken = null;
+    return null;
+  }
+  authGeneration++;
+  webAccessToken = { accessToken, expiresAt };
+  return accessToken;
 }
 
 export function getWebAccessToken(): string | null {
-  return readStoredAccessToken()?.accessToken ?? null;
+  return currentWebAccessToken()?.accessToken ?? null;
 }
 
 function clearWebAccessToken(): void {
-  try {
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
-  } catch {
-    // A disabled session store must not prevent local sign-out.
-  }
+  authGeneration++;
+  webAccessToken = null;
+  accessTokenRequest = null;
+  clearLegacyAccessToken();
+}
+
+async function reacquireWebAccessToken(): Promise<string | null> {
+  const current = currentWebAccessToken();
+  if (current) return current.accessToken;
+  if (accessTokenRequest) return accessTokenRequest;
+  const generation = authGeneration;
+  const request = authClient.request<{ access_token?: string; expires_at?: string }>("/api/v1/auth/subscription/access-token", { method: "GET" })
+    .then((result) => generation === authGeneration
+      ? cacheWebAccessToken(result?.access_token ?? "", result?.expires_at ?? "")
+      : null)
+    .catch(() => null)
+    .finally(() => { if (accessTokenRequest === request) accessTokenRequest = null; });
+  accessTokenRequest = request;
+  return request;
 }
 
 export async function getAccessToken(): Promise<string | null> {
   if (window.desktop?.auth?.getAccessToken) {
     return window.desktop.auth.getAccessToken();
   }
-  return getWebAccessToken();
+  try {
+    await completeWebAuthCallback();
+  } catch {
+    return null;
+  }
+  return reacquireWebAccessToken();
 }
 
-export async function completeWebAuthCallback(): Promise<boolean> {
+async function completeWebAuthCallbackOnce(): Promise<boolean> {
   if (window.desktop?.auth) return false;
   const params = new URLSearchParams(window.location.search);
   const code = params.get("code");
@@ -81,8 +116,18 @@ export async function completeWebAuthCallback(): Promise<boolean> {
   if (!accessToken || !expiresAt || Number.isNaN(new Date(expiresAt).getTime()) || Date.now() >= new Date(expiresAt).getTime()) {
     throw new Error("Authentication callback was incomplete or expired");
   }
-  sessionStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ accessToken, expiresAt } satisfies StoredAccessToken));
+  cacheWebAccessToken(accessToken, expiresAt);
   return true;
+}
+
+export function completeWebAuthCallback(): Promise<boolean> {
+  if (!authCallbackRequest) {
+    const request = completeWebAuthCallbackOnce().finally(() => {
+      if (authCallbackRequest === request) authCallbackRequest = null;
+    });
+    authCallbackRequest = request;
+  }
+  return authCallbackRequest;
 }
 
 function toBase64URL(bytes: Uint8Array): string {

@@ -4,7 +4,8 @@
  * short-lived Bridge LocalSession in memory. The key is the browser analogue
  * of the CLI's per-user local enrollment store.
  */
-import { loadBrowserEnrollment, mintBrowserSession } from "./browser_session";
+import { BrowserSessionRestoreError, loadBrowserEnrollment, mintBrowserSession } from "./browser_session";
+import { readBrowserStorage, removeBrowserStorage, writeBrowserStorage } from "./browser_storage";
 
 export interface SessionState {
   /** Ephemeral OS1 LocalSession; never written to browser storage. */
@@ -24,21 +25,15 @@ export const emptySession: SessionState = {
   ownerEmail: null,
 };
 
+export interface InitialSessionSnapshot {
+  session: SessionState;
+  restoreStatus: "checking" | "ready" | "unavailable";
+}
+
 let volatileToken: string | null = null;
 let bootstrapToken: string | null = null;
 
-const safeStorage = (): Storage | null => {
-  try {
-    return typeof window !== "undefined" ? window.localStorage : null;
-  } catch {
-    return null;
-  }
-};
-
-function storedOwnerEmail(): string | null {
-  const storage = safeStorage();
-  if (!storage) return null;
-  const raw = storage.getItem(DISPLAY_STORAGE_KEY);
+function ownerEmailFrom(raw: string | null): string | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as StoredEnrollmentOwner;
@@ -50,11 +45,28 @@ function storedOwnerEmail(): string | null {
 
 /** Read the in-memory session. Persistent enrollment is restored explicitly. */
 export function loadSession(): SessionState {
-  const target = safeStorage();
-  if (target && !target.getItem(DISPLAY_STORAGE_KEY) && !target.getItem("vrooli-bridge.operator-session")) {
-    volatileToken = null;
+  return loadInitialSession().session;
+}
+
+export function loadInitialSession(): InitialSessionSnapshot {
+  try {
+    const display = readBrowserStorage(DISPLAY_STORAGE_KEY);
+    const enrollment = readBrowserStorage("vrooli-bridge.operator-session");
+    if (!display && !enrollment) {
+      volatileToken = null;
+    }
+    return {
+      session: { ownerToken: volatileToken, ownerEmail: ownerEmailFrom(display) },
+      restoreStatus: enrollment ? "checking" : "ready",
+    };
+  } catch {
+    // Keep memory-only identity and let SessionProvider expose the unavailable
+    // persistence state instead of crashing before the sign-in surface mounts.
+    return {
+      session: { ownerToken: volatileToken, ownerEmail: null },
+      restoreStatus: "unavailable",
+    };
   }
-  return { ownerToken: volatileToken, ownerEmail: storedOwnerEmail() };
 }
 
 /**
@@ -63,12 +75,10 @@ export function loadSession(): SessionState {
  */
 export function saveSession(state: SessionState): void {
   volatileToken = state.ownerToken;
-  const storage = safeStorage();
-  if (!storage) return;
   try {
-    const previous = storage.getItem(DISPLAY_STORAGE_KEY);
-    const ownerEmail = state.ownerEmail ?? (previous ? storedOwnerEmail() : null);
-    storage.setItem(DISPLAY_STORAGE_KEY, JSON.stringify({ ownerEmail } satisfies StoredEnrollmentOwner));
+    const previous = readBrowserStorage(DISPLAY_STORAGE_KEY);
+    const ownerEmail = state.ownerEmail ?? ownerEmailFrom(previous);
+    writeBrowserStorage(DISPLAY_STORAGE_KEY, JSON.stringify({ ownerEmail } satisfies StoredEnrollmentOwner));
   } catch {
     // Quota / disabled storage — the in-memory session remains usable.
   }
@@ -78,13 +88,10 @@ export function saveSession(state: SessionState): void {
 export function clearSession(): void {
   volatileToken = null;
   bootstrapToken = null;
-  const target = safeStorage();
-  if (target) {
-    try {
-      target.removeItem(DISPLAY_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+  try {
+    removeBrowserStorage(DISPLAY_STORAGE_KEY);
+  } catch {
+    // Keep the local session cleared even if browser storage is unavailable.
   }
 }
 
@@ -104,12 +111,13 @@ export function clearEnrollmentBootstrapToken(): void {
 /** Restore and mint a local session without contacting the identity provider. */
 export async function restoreLocalSession(): Promise<SessionState | null> {
   if (volatileToken) return null;
-  const enrollment = await loadBrowserEnrollment();
+  const enrollment = loadBrowserEnrollment();
   if (!enrollment) return null;
   try {
     volatileToken = await mintBrowserSession(enrollment);
   } catch {
     volatileToken = null;
+    throw new BrowserSessionRestoreError();
   }
   return loadSession();
 }

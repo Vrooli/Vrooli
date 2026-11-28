@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { SignInScreen } from "./SignInScreen";
-import { useSession } from "./SessionProvider";
+import { useSession } from "./sessionContext";
 
 /**
  * Owner gate. The whole bridge console is owner-gated, so when no owner token is
@@ -11,6 +11,6 @@ import { useSession } from "./SessionProvider";
  * after there is a token to authorize them.
  */
 export function AppGate({ children }: { children: ReactNode }) {
-  const { isOwner } = useSession();
-  return isOwner ? <>{children}</> : <SignInScreen />;
+  const { isOwner, restoreStatus } = useSession();
+  return isOwner && restoreStatus === "ready" ? <>{children}</> : <SignInScreen />;
 }

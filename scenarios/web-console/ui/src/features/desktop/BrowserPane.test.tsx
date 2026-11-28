@@ -18,7 +18,7 @@ const session = {
 };
 
 describe("BrowserPane", () => {
-  it.each([375, 1280])("uses the shared pane and toolbar contract at %i px", (width) => {
+  it.each([320, 375, 1280])("uses the shared pane and toolbar contract at %i px", (width) => {
     render(<div style={{ width }}><BrowserPane session={session} frame={<canvas aria-label="Browser frame" />} onTakeControl={() => undefined} onClose={() => undefined} /></div>);
     expect(screen.getByTestId("workspace-surface-pane")).toHaveAttribute("data-state", "observe");
     expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", "observe");
@@ -28,6 +28,20 @@ describe("BrowserPane", () => {
     expect(controls[0]).toHaveAttribute("tabindex", "0");
     controls.slice(1).forEach((control) => { expect(control).toHaveAttribute("tabindex", "-1"); });
     expect(screen.getByRole("status")).toHaveTextContent(/Browser: Observe mode/);
+  });
+
+  it.each([
+    ["connecting", "loading", /loading or connecting.*content will appear/i],
+    ["disconnected", "reconnecting", /connection was lost.*reconnect is available/i],
+    ["failed", "failed", /connection failed.*review the message/i],
+    ["revoked", "revoked", /access to this surface was revoked/i],
+  ] as const)("announces %s with an actionable state at a 320 px pane width", (state, projectedState, announcement) => {
+    render(<div style={{ width: 320 }}><BrowserPane session={{ ...session, state, stats: { frames: 4, bytes: 512, inputApplied: 0 } }} frame={<canvas />} onReconnect={() => undefined} onClose={() => undefined} /></div>);
+    expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", projectedState);
+    expect(screen.getByRole("status")).toHaveTextContent(announcement);
+    expect(screen.getByRole("toolbar", { name: "Browser session controls" })).toHaveClass("flex-wrap");
+    expect(screen.getByLabelText("Live browser surface")).toHaveClass("min-h-48", "min-w-0");
+    expect(screen.getByLabelText("Browser viewer telemetry")).toHaveClass("min-w-0", "break-words");
   });
 
   it("shows owner session and verified run/thread context with observer controls", () => {
@@ -43,11 +57,33 @@ describe("BrowserPane", () => {
     expect(screen.getByRole("img", { name: "Browser frame" })).toBeInTheDocument();
   });
 
+  it("exposes bounded telemetry as a non-live viewer measurement", () => {
+    render(<BrowserPane session={{ ...session, frameAgeMs: 18, stats: {
+      frames: 12, bytes: 4096, inputApplied: 2, attachToFirstFrameMs: 240,
+      inputToPaintedFrameMs: 95, inputToPaintedFrameSamples: 2, reconnectCount: 1, reconnectAttempts: 1, reconnectMs: 310,
+    } }} />);
+    const telemetry = screen.getByLabelText("Browser viewer telemetry");
+    expect(telemetry).toHaveTextContent("payload bytes this viewer 4096");
+    expect(telemetry).toHaveTextContent("attach to first frame 240 ms");
+    expect(telemetry).toHaveTextContent("input to next painted frame 95 ms (2 samples)");
+    expect(telemetry).toHaveTextContent("frame age 18 ms");
+    expect(telemetry).toHaveTextContent("reconnects 1/1 attempts, last 310 ms");
+    expect(telemetry).not.toHaveAttribute("aria-live");
+    expect(telemetry.textContent).not.toMatch(/secret|credential|session[_ -]?id|node url|sdp|clipboard/i);
+  });
+
+  it("announces controller state and keeps hand-back keyboard reachable", () => {
+    render(<BrowserPane session={{ ...session, state: "controller", controller: true, controlReceipt: "opaque-lease", sessionEpoch: 4n }} onHandBack={() => undefined} />);
+    expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", "controlling");
+    expect(screen.getByRole("status")).toHaveTextContent(/Control is active for this surface/);
+    expect(screen.getByRole("button", { name: "Release control" })).toBeInTheDocument();
+  });
+
   it("announces owner revocation as revoked and keeps recovery explicit", () => {
     render(<BrowserPane session={{ ...session, state: "revoked" }} onClose={() => undefined} />);
     expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", "revoked");
     expect(screen.getByTestId("workspace-pane-state")).toHaveTextContent(/Revoked/);
-    expect(screen.getByText(/controller lease was revoked/i)).toBeInTheDocument();
+    expect(screen.getByText(/browser owner revoked this stream/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Take control" })).not.toBeInTheDocument();
   });
 

@@ -91,8 +91,6 @@ func TestRunScenarioRequestRoutesDesktopServiceToManagedCompanion(t *testing.T) 
 		_, _ = w.Write([]byte("companion-response"))
 	}))
 	defer server.Close()
-	companionPort := 0
-	_, _ = fmt.Sscanf(server.URL, "http://127.0.0.1:%d", &companionPort)
 	ordinaryResolverCalls := 0
 	collector := scenarioResponseCollector{response: make(chan *sharedv1.ScenarioResponse, 1)}
 	client := NewClient(config.Config{NodeID: "node-1"},
@@ -104,7 +102,7 @@ func TestRunScenarioRequestRoutesDesktopServiceToManagedCompanion(t *testing.T) 
 		WithScenarioResponseReporter(collector),
 	)
 	client.baseCtx = context.Background()
-	t.Setenv(desktopCompanionPortEnv, fmt.Sprint(companionPort))
+	client.desktopEndpoint = func(context.Context) (string, *http.Client, error) { return server.URL, server.Client(), nil }
 	client.runScenarioRequest(&channelv1.ScenarioRequest{
 		CorrelationId:    "desktop-companion",
 		Scenario:         deviceControlScenario,

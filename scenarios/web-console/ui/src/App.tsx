@@ -134,6 +134,9 @@ export default function App() {
     // applied on top of it by the library and is not this setting's concern.
     <HandednessProvider value={handedness}>
     <ErrorBoundary region="app">
+      {/* The top edge needs no sliver: `TopSafeArea` is the sticky edge bar
+          iOS 26 samples there, and a strip 10px or thinner is ignored by
+          WebKit's sampler anyway (docs/guides/ADAPTIVE_CHROME.md). */}
       <div className="wc-ios-tint-edge wc-ios-tint-edge-bottom" aria-hidden="true" />
 
       {/* Always render workspace — even during initial load or error */}

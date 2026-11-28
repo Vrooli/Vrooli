@@ -64,21 +64,14 @@ func (a *conversationAdapter) Get(ctx context.Context, sessionID string, sinceSe
 	if !a.canReadSession(ctx, sessionID) {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	state := a.srv.conversations.ListSession(ctx, sessionID)
-	hasMore := false
-	if limit > 0 {
-		state, hasMore = a.srv.conversations.ListSessionPage(ctx, sessionID, limit, beforeSequence)
-	}
+	// One bounded read: since/before/limit are SQL predicates, so a poll for
+	// newer events costs an index probe rather than a load of the session.
+	// With both since and limit, the page is the newest limit events after
+	// since, and HasMore reports that more of that window lies below it.
+	state, hasMore := a.srv.conversations.ListSessionPage(ctx, sessionID, ConversationPageQuery{
+		Limit: max(limit, 0), BeforeSequence: beforeSequence, SinceSequence: sinceSequence,
+	})
 	events := state.Events
-	if sinceSequence > 0 {
-		filtered := make([]ConversationEvent, 0, len(events))
-		for _, ev := range events {
-			if ev.Sequence > sinceSequence {
-				filtered = append(filtered, ev)
-			}
-		}
-		events = filtered
-	}
 	result := conversationH.SessionState{
 		SessionID: state.SessionID,
 		Events:    transportEvents(events),
@@ -99,7 +92,7 @@ func (a *conversationAdapter) Get(ctx context.Context, sessionID string, sinceSe
 func repoSearchQuery(q conversationH.SearchQuery) ConversationSearchQuery {
 	return ConversationSearchQuery{
 		Query: q.Query, Mode: ConversationSearchMode(q.Mode), CaseSensitive: q.CaseSensitive,
-		WholeWord: q.WholeWord, Role: q.Role, Limit: q.Limit, AfterSequence: q.AfterSequence,
+		WholeWord: q.WholeWord, Role: q.Role, Limit: q.Limit, AfterSequence: q.AfterSequence, Kinds: q.Kinds,
 	}
 }
 
@@ -129,7 +122,7 @@ func (a *conversationAdapter) Search(ctx context.Context, sessionID string, quer
 	out := conversationH.SearchResult{Truncated: result.Truncated, TotalMatches: result.Total, Error: result.Error, HasMore: result.HasMore, NextAfterSequence: result.NextAfterSequence, Matches: make([]conversationH.SearchMatch, 0, len(result.Matches))}
 	for _, match := range result.Matches {
 		out.Matches = append(out.Matches, conversationH.SearchMatch{
-			EventID: match.EventID, Sequence: match.Sequence, Role: match.Role,
+			EventID: match.EventID, Sequence: match.Sequence, Role: match.Role, Kind: match.Kind, ThreadID: match.ThreadID,
 			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339Nano), OccurredAt: formatOptionalOccurredAt(match.OccurredAt), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
 		})
 	}
@@ -170,8 +163,8 @@ func (a *conversationAdapter) GetRange(ctx context.Context, sessionID string, fr
 	if err != nil {
 		return conversationH.SessionState{}, err
 	}
-	state := a.srv.conversations.ListSession(ctx, sessionID)
-	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events), Cursor: conversationH.Cursor{LastSeenSequence: state.Cursor.LastSeenSequence, LastListenedSequence: state.Cursor.LastListenedSequence}}, nil
+	cursor := a.srv.conversations.SessionCursor(ctx, sessionID)
+	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events), Cursor: conversationH.Cursor{LastSeenSequence: cursor.LastSeenSequence, LastListenedSequence: cursor.LastListenedSequence}}, nil
 }
 
 func (a *conversationAdapter) ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) (conversationH.ResolveEventsResult, error) {
@@ -216,17 +209,11 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 		}, nil
 	}
 
-	state := a.srv.conversations.ListSession(ctx, sessionID)
-	var event *ConversationEvent
-	for i := range state.Events {
-		if state.Events[i].ID == eventID {
-			event = &state.Events[i]
-			break
-		}
-	}
-	if event == nil {
+	stored, found := a.srv.conversations.GetEvent(ctx, sessionID, eventID)
+	if !found {
 		return conversationH.SummarizeResult{}, fmt.Errorf("event %q: %w", sanitizeID(eventID), conversationH.ErrNotFound)
 	}
+	event := &stored
 	if event.Role != ConversationRoleAssistant {
 		return conversationH.SummarizeResult{}, fmt.Errorf("only assistant events can be summarized: %w", conversationH.ErrInvalidArgument)
 	}
@@ -295,6 +282,84 @@ func transportEvents(in []ConversationEvent) []conversationH.Event {
 			TTSState:                 string(e.TTSState),
 			ConsumptionState:         string(e.ConsumptionState),
 			NativeProvenance:         nativeProvenance(e.NativeProvenance),
+			Kind:                     storedConversationKind(e.Kind),
+			Author:                   e.Author,
+			AuthorName:               e.AuthorName,
+			Label:                    e.Label,
+			ThreadID:                 e.ThreadID,
+			Work:                     transportWork(e.Work),
+			TextTruncated:            e.TextTruncated,
+		})
+	}
+	return out
+}
+
+func transportWork(work *ConversationWorkSpan) *conversationH.WorkSpan {
+	if work == nil {
+		return nil
+	}
+	return &conversationH.WorkSpan{
+		FromSequence: work.FromSequence, ToSequence: work.ToSequence, ToolCalls: work.ToolCalls, ToolResults: work.ToolResults,
+		Reasoning: work.Reasoning, Context: work.Context, StartedAt: formatOptionalOccurredAt(work.StartedAt), EndedAt: formatOptionalOccurredAt(work.EndedAt),
+	}
+}
+
+// Project reads the Messages projection of one thread of a session.
+func (a *conversationAdapter) Project(ctx context.Context, sessionID string, query conversationH.ProjectionQuery) (conversationH.SessionState, error) {
+	if !a.canReadSession(ctx, sessionID) {
+		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
+	}
+	projector, ok := a.srv.conversations.repository.(conversationProjector)
+	if !ok {
+		return conversationH.SessionState{}, fmt.Errorf("conversation repository has no projection")
+	}
+	page, err := projector.ListProjectionPage(ctx, sessionID, ConversationProjectionQuery{
+		ThreadID: query.ThreadID, Limit: query.Limit, BeforeSequence: query.BeforeSequence, SinceSequence: query.SinceSequence,
+	})
+	if err != nil {
+		return conversationH.SessionState{}, err
+	}
+	result := conversationH.SessionState{
+		SessionID: sessionID,
+		Events:    transportEvents(page.State.Events),
+		Cursor: conversationH.Cursor{
+			LastSeenSequence: page.State.Cursor.LastSeenSequence, LastListenedSequence: page.State.Cursor.LastListenedSequence,
+		},
+		HasMore:        page.HasMore,
+		OldestSequence: page.OldestSequence,
+		TotalCount:     a.srv.conversations.CountSessionEvents(ctx, sessionID),
+		Threads:        transportThreads(page.Threads),
+	}
+	if len(page.State.Events) > 0 {
+		result.NewestSequence = page.State.Events[len(page.State.Events)-1].Sequence
+	}
+	return result, nil
+}
+
+// WorkRange returns one thread's work rows in from..to with preview text.
+func (a *conversationAdapter) WorkRange(ctx context.Context, sessionID, threadID string, from, to int64) (conversationH.SessionState, error) {
+	if !a.canReadSession(ctx, sessionID) {
+		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
+	}
+	projector, ok := a.srv.conversations.repository.(conversationProjector)
+	if !ok {
+		return conversationH.SessionState{}, fmt.Errorf("conversation repository has no projection")
+	}
+	events, err := projector.ListWorkRange(ctx, sessionID, threadID, from, to, 0)
+	if err != nil {
+		return conversationH.SessionState{}, err
+	}
+	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events)}, nil
+}
+
+func transportThreads(in []ConversationThreadSummary) []conversationH.Thread {
+	out := make([]conversationH.Thread, 0, len(in))
+	for _, thread := range in {
+		out = append(out, conversationH.Thread{
+			ThreadID: thread.ThreadID, Kind: thread.Kind, Label: thread.Label, Description: thread.Description,
+			ParentThreadID: thread.ParentThreadID, FirstSequence: thread.FirstSequence, LastSequence: thread.LastSequence,
+			MessageCount: thread.MessageCount, WorkCount: thread.WorkCount,
+			StartedAt: formatOptionalOccurredAt(thread.StartedAt), EndedAt: formatOptionalOccurredAt(thread.EndedAt),
 		})
 	}
 	return out

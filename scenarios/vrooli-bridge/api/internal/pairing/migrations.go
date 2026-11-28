@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Migrate evolves the pre-correlation pairing table before EnsureSchemas checks
 // its declared shape. It never recreates or deletes pairing history.
-func Migrate(ctx context.Context, db SQLExecutor) error {
+func Migrate(ctx context.Context, db database.SQLExecutor) error {
 	exists, err := pairingTableExists(ctx, db, "pairing_codes")
 	if err != nil || !exists {
 		return err
@@ -48,7 +50,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 	return nil
 }
 
-func pairingTableExists(ctx context.Context, db SQLExecutor, table string) (bool, error) {
+func pairingTableExists(ctx context.Context, db database.SQLExecutor, table string) (bool, error) {
 	var one int
 	err := db.QueryRowContext(ctx, "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&one)
 	if err == nil {
@@ -60,7 +62,7 @@ func pairingTableExists(ctx context.Context, db SQLExecutor, table string) (bool
 	return false, err
 }
 
-func pairingColumnExists(ctx context.Context, db SQLExecutor, table, column string) (bool, error) {
+func pairingColumnExists(ctx context.Context, db database.SQLExecutor, table, column string) (bool, error) {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%q)", table))
 	if err != nil {
 		return false, err

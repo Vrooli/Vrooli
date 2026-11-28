@@ -67,18 +67,19 @@ func TestHomeForVrooliBinaryStripsInstalledLayout(t *testing.T) {
 // handler (which records what the agent reports). It is the in-process double
 // the live-dial test drives — no real control plane needed.
 type fakeControlPlane struct {
-	mu           sync.Mutex
-	heartbeats   []*sharedv1.Heartbeat
-	hbAuthSig    string // X-Bridge-Sig of the most recent heartbeat
-	hbAuthNode   string
-	hbAuthTS     string
-	sseToken     string // ?token= of the most recent dial-out
-	sseProtocol  string
-	sseMachine   string
-	sseBinary    string
-	sseOpened    atomic.Int64
-	deliveryAcks []*sharedv1.DeliveryAck
-	closeStreams chan struct{}
+	mu              sync.Mutex
+	heartbeats      []*sharedv1.Heartbeat
+	hbAuthSig       string // X-Bridge-Sig of the most recent heartbeat
+	hbAuthNode      string
+	hbAuthTS        string
+	sseToken        string // ?token= of the most recent dial-out
+	sseProtocol     string
+	sseMachine      string
+	sseBinary       string
+	sseOpened       atomic.Int64
+	deliveryAcks    []*sharedv1.DeliveryAck
+	closureReceipts []*channelv1.ClosureShipmentReceipt
+	closeStreams    chan struct{}
 	// pushFrames carries already-serialised SSE payloads (a signed
 	// SignedServerFrame envelope) the control plane pushes down a held stream, so
 	// a test can deliver a real server frame over the actual dial-out transport.
@@ -122,6 +123,13 @@ func (f *fakeControlPlane) ReportCredentialReceipt(_ context.Context, _ *connect
 
 func (f *fakeControlPlane) ReportArtifactReceipt(_ context.Context, _ *connect.Request[presencev1.ReportArtifactReceiptRequest]) (*connect.Response[presencev1.ReportArtifactReceiptResponse], error) {
 	return connect.NewResponse(&presencev1.ReportArtifactReceiptResponse{Accepted: true}), nil
+}
+
+func (f *fakeControlPlane) ReportClosureShipmentReceipt(_ context.Context, req *connect.Request[presencev1.ReportClosureShipmentReceiptRequest]) (*connect.Response[presencev1.ReportClosureShipmentReceiptResponse], error) {
+	f.mu.Lock()
+	f.closureReceipts = append(f.closureReceipts, req.Msg.GetReceipt())
+	f.mu.Unlock()
+	return connect.NewResponse(&presencev1.ReportClosureShipmentReceiptResponse{Accepted: true}), nil
 }
 
 func (f *fakeControlPlane) ReportScenarioResponse(_ context.Context, _ *connect.Request[presencev1.ReportScenarioResponseRequest]) (*connect.Response[presencev1.ReportScenarioResponseResponse], error) {

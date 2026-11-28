@@ -9,6 +9,7 @@ import (
 	"vrooli-bridge/internal/provision"
 	"vrooli-bridge/internal/registry"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
@@ -24,7 +25,7 @@ import (
 // bound to the concrete registry (enumerate + revocation), presence (online +
 // protocol compatibility), and provision (dispatch a privileged op). It owns its
 // own durable rollout tables, so it re-exports Schema().
-func Module(db internalfleet.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, hub *presence.Hub, provisionSvc provision.Service, resolver internalfleet.RevisionResolver, logger *log.Logger) module.Module {
+func Module(db database.SQLExecutor, clk schedule.Clock, registrySvc registry.Service, hub *presence.Hub, provisionSvc provision.Service, resolver internalfleet.RevisionResolver, logger *log.Logger) module.Module {
 	opts := []internalfleet.Option{}
 	if resolver != nil {
 		opts = append(opts, internalfleet.WithRevisionResolver(resolver))

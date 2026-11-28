@@ -50,5 +50,15 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 			return fmt.Errorf("add nodes.%s: %w", column, err)
 		}
 	}
+	if !columns["enrollment_generation"] {
+		if _, err = db.ExecContext(ctx, "ALTER TABLE nodes ADD COLUMN enrollment_generation INTEGER NOT NULL DEFAULT 0"); err != nil {
+			return fmt.Errorf("add nodes.enrollment_generation: %w", err)
+		}
+	}
+	if !columns["owner_revision"] {
+		if _, err = db.ExecContext(ctx, "ALTER TABLE nodes ADD COLUMN owner_revision INTEGER NOT NULL DEFAULT 1"); err != nil {
+			return fmt.Errorf("add nodes.owner_revision: %w", err)
+		}
+	}
 	return nil
 }

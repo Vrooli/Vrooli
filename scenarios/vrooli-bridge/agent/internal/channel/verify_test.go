@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"io"
 	"log"
+	"path/filepath"
 	"testing"
 
 	"vrooli-bridge/agent/internal/config"
@@ -202,4 +203,20 @@ func TestHandleCredentialPurgeIgnoresOlderGeneration(t *testing.T) {
 	grant, ok := store.Lookup("vrooli/test", "token")
 	require.True(t, ok)
 	require.Equal(t, int64(5), grant.Generation)
+}
+
+func TestHandleCredentialPurgePersistsTombstoneWhenGrantFrameWasLost(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "grants.json")
+	store, err := credentialgrant.LoadFile(path)
+	require.NoError(t, err)
+	c := &Client{cfg: config.Config{NodeID: "node-1"}, grantStore: store, logger: log.New(io.Discard, "", 0)}
+	c.handleCredentialPurge(&channelv1.CredentialPurge{NodeId: "node-1", GrantId: "grant-1", Generation: 4, Addresses: []string{"vrooli/test:token"}})
+
+	restarted, err := credentialgrant.LoadFile(path)
+	require.NoError(t, err)
+	entries := restarted.List()
+	require.Len(t, entries, 1)
+	require.Equal(t, "grant-1", entries[0].ID)
+	require.Equal(t, int64(4), entries[0].Generation)
+	require.True(t, entries[0].Revoked)
 }

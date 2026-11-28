@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/vrooli/cli-core/agenttranscript"
 	"log"
 	"strings"
 	"time"
@@ -86,37 +87,7 @@ func (s *Server) AppendAssistant(ctx context.Context, responseText, targetSessio
 // AppendAssistantAt preserves the provider-record time separately from local
 // event ingestion time for file-backed transcript sources.
 func (s *Server) AppendAssistantAt(ctx context.Context, responseText, targetSessionID, source string, occurredAt time.Time) ConversationAppendResult {
-	if strings.TrimSpace(targetSessionID) == "" {
-		result := conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
-		s.recordLastTTSRouting(result)
-		return result
-	}
-
-	if _, ok := s.sessions.Get(targetSessionID); !ok {
-		result := conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
-		s.recordLastTTSRouting(result)
-		return result
-	}
-
-	event, result := s.conversations.AppendAssistantEventAt(ctx, targetSessionID, source, responseText, occurredAt)
-	if result.Appended && !result.Duplicate {
-		// Publish to the global event channel immediately so the text lands in
-		// every subscribed client with no delay — audio is handled separately
-		// below.
-		s.publishConversationEvent(event)
-
-		policy := s.getSummarizeAutoPolicy()
-		shouldSummarize := s.summarizer != nil && policy.Enabled && len(event.Text) >= policy.CharThreshold
-		if shouldSummarize {
-			// Summarize-first path: wait for the audio-tools Summarize call
-			// to finish before notifying clients of the summarized version.
-			go func(ev ConversationEvent) {
-				s.asyncSummarizeAndNotify(context.WithoutCancel(ctx), ev, targetSessionID, policy)
-			}(event)
-		}
-	}
-	s.recordLastTTSRouting(result)
-	return result
+	return s.AppendTranscriptAt(ctx, ConversationRoleAssistant, responseText, targetSessionID, source, occurredAt, nil)
 }
 
 // AppendUser validates and publishes a user prompt to the owning terminal
@@ -129,17 +100,50 @@ func (s *Server) AppendUser(ctx context.Context, promptText, targetSessionID, so
 // AppendUserAt preserves the provider-record time separately from local event
 // ingestion time for file-backed transcript sources.
 func (s *Server) AppendUserAt(ctx context.Context, promptText, targetSessionID, source string, occurredAt time.Time) ConversationAppendResult {
+	return s.AppendTranscriptAt(ctx, ConversationRoleUser, promptText, targetSessionID, source, occurredAt, nil)
+}
+
+// AppendTranscriptAt validates, stores and publishes one transcript row with
+// the classification its parser derived (nil: classified from the text). Only
+// the session agent's own replies are summarised for playback; tool rows,
+// injected context and subagent threads never reach the summariser.
+func (s *Server) AppendTranscriptAt(ctx context.Context, role ConversationRole, text, targetSessionID, source string, occurredAt time.Time, class *agenttranscript.Classification) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
-		return conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
+		result := conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
+		if role == ConversationRoleAssistant {
+			s.recordLastTTSRouting(result)
+		}
+		return result
 	}
 
 	if _, ok := s.sessions.Get(targetSessionID); !ok {
-		return conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
+		result := conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
+		if role == ConversationRoleAssistant {
+			s.recordLastTTSRouting(result)
+		}
+		return result
 	}
 
-	event, result := s.conversations.AppendUserEventAt(ctx, targetSessionID, source, promptText, occurredAt)
+	event, result := s.conversations.AppendClassifiedEvent(ctx, targetSessionID, source, role, text, occurredAt, class)
 	if result.Appended && !result.Duplicate {
+		// Publish to the global event channel immediately so the text lands in
+		// every subscribed client with no delay — audio is handled separately
+		// below.
 		s.publishConversationEvent(event)
+
+		policy := s.getSummarizeAutoPolicy()
+		spoken := role == ConversationRoleAssistant && isSpokenReply(event)
+		shouldSummarize := spoken && s.summarizer != nil && policy.Enabled && len(event.Text) >= policy.CharThreshold
+		if shouldSummarize {
+			// Summarize-first path: wait for the audio-tools Summarize call
+			// to finish before notifying clients of the summarized version.
+			go func(ev ConversationEvent) {
+				s.asyncSummarizeAndNotify(context.WithoutCancel(ctx), ev, targetSessionID, policy)
+			}(event)
+		}
+	}
+	if role == ConversationRoleAssistant {
+		s.recordLastTTSRouting(result)
 	}
 	return result
 }

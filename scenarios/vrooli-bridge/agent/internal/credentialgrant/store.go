@@ -41,6 +41,7 @@ type Store interface {
 	List() []Grant
 	Put(Grant) error
 	Revoke(logicalID, field string) error
+	RevokeGrant(Grant) error
 }
 
 type MemoryStore struct {
@@ -81,15 +82,48 @@ func (s *MemoryStore) Put(grant Grant) error {
 		return err
 	}
 	s.mu.Lock()
-	if current, exists := s.grants[key(grant.LogicalID, grant.Field)]; exists && current.Generation > grant.Generation {
-		// Replayed or out-of-order metadata must not roll the local consent
-		// generation backward. Keeping the current record makes duplicate
-		// delivery idempotent and leaves stale payloads fail-closed in Apply.
-		s.mu.Unlock()
-		return nil
+	if current, exists := s.grants[key(grant.LogicalID, grant.Field)]; exists {
+		if current.Generation > grant.Generation {
+			// Replayed or out-of-order metadata must not roll consent backward.
+			s.mu.Unlock()
+			return nil
+		}
+		if current.Generation == grant.Generation {
+			if current.ID != grant.ID || current.NodeID != grant.NodeID {
+				s.mu.Unlock()
+				return errors.New("credential grants: conflicting identity at the same generation")
+			}
+			if current.Revoked {
+				// An equal-generation replay cannot erase a durable revocation.
+				s.mu.Unlock()
+				return nil
+			}
+		}
 	}
 	s.grants[key(grant.LogicalID, grant.Field)] = grant
 	s.mu.Unlock()
+	return nil
+}
+
+// RevokeGrant records a generation-bound tombstone even when the preceding
+// grant metadata frame was lost. A purge replay can therefore block a delayed
+// signed push after restart. Older revocations cannot affect newer grants.
+func (s *MemoryStore) RevokeGrant(grant Grant) error {
+	if grant.ID == "" || grant.NodeID == "" || grant.LogicalID == "" || grant.Field == "" || grant.Generation <= 0 {
+		return errors.New("credential grants: revoke identity and positive generation are required")
+	}
+	grant.Revoked = true
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if current, exists := s.grants[key(grant.LogicalID, grant.Field)]; exists {
+		if current.Generation > grant.Generation {
+			return nil
+		}
+		if current.Generation == grant.Generation && (current.ID != grant.ID || current.NodeID != grant.NodeID) {
+			return errors.New("credential grants: revoke identity conflicts with current generation")
+		}
+	}
+	s.grants[key(grant.LogicalID, grant.Field)] = grant
 	return nil
 }
 
@@ -129,8 +163,14 @@ func LoadFile(path string) (*FileStore, error) {
 		return nil, fmt.Errorf("credential grants: decode: %w", err)
 	}
 	for _, grant := range grants {
-		if err := s.mem.Put(grant); err != nil {
-			return nil, err
+		var putErr error
+		if grant.Revoked && grant.ID != "" && grant.NodeID != "" && grant.Generation > 0 {
+			putErr = s.mem.RevokeGrant(grant)
+		} else {
+			putErr = s.mem.Put(grant)
+		}
+		if putErr != nil {
+			return nil, putErr
 		}
 	}
 	return s, nil
@@ -150,6 +190,13 @@ func (s *FileStore) Put(grant Grant) error {
 
 func (s *FileStore) Revoke(logicalID, field string) error {
 	if err := s.mem.Revoke(logicalID, field); err != nil {
+		return err
+	}
+	return s.save()
+}
+
+func (s *FileStore) RevokeGrant(grant Grant) error {
+	if err := s.mem.RevokeGrant(grant); err != nil {
 		return err
 	}
 	return s.save()

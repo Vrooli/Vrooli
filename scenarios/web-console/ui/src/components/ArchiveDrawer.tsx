@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, RotateCcw, Search } from "lucide-react";
+import { Archive, RotateCcw } from "lucide-react";
 import { SwipeActions } from "@vrooli/react-component-library/SwipeActions";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,7 @@ import {
   type RecoverableSession,
   type RecoverResult,
 } from "../api/sessions";
-import { getContinuityIntegrity } from "../api/continuity";
+import { getContinuityHealth } from "../api/continuity";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
@@ -33,6 +33,8 @@ import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1
 import type { OverlayActionList, OverlayPrimaryAction, OverlaySecondaryAction } from "@vrooli/react-component-library/OverlayActionBar/1";
 import MessageExportDrawer from "./MessageExportDrawer";
 import MessagesPane from "./MessagesPane";
+import { SearchField } from "./SearchField";
+import { isConversationRow } from "../lib/conversationRows";
 
 interface ArchiveDrawerProps {
   open: boolean;
@@ -193,7 +195,9 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     setReceipt(null);
     void refreshArchive().catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
     let cancelled = false;
-    void getContinuityIntegrity().then((report) => {
+    // Health answers from indexes; the full integrity audit hashes every
+    // message body and is an explicit operator action, not a drawer probe.
+    void getContinuityHealth().then((report) => {
       if (cancelled) return;
       // Catalog-only conversations are a distinct drift class. Include them
       // without double-counting rows already represented by the legacy orphan
@@ -339,7 +343,8 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     setError(null);
     try {
       const response = await getConversationRange(selectedSession.id, 1, Math.max(1, selectedSession.message_count));
-      setExportEvents(response.events);
+      // Export the conversation, as the Messages view lists it, not the tool rows between.
+      setExportEvents(response.events.filter(isConversationRow));
       setExportOpen(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -489,20 +494,19 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
         closeLabel={t(strings.archiveDrawer.close)}
         testId="archive-drawer"
         actions={archiveActions}
-        headerExtra={
-          <div className="mt-3 space-y-2">
+        subheader={
+          <div className="space-y-2 px-4 py-3">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2">
-                <Search className="h-4 w-4 shrink-0 text-wc-text-muted" aria-hidden="true" />
-                <input
-                  ref={searchRef}
-                  data-testid="archive-search-input"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary outline-none"
-                  placeholder={t(strings.archiveDrawer.searchPlaceholder)}
-                />
-              </label>
+              <SearchField
+                ref={searchRef}
+                testId="archive-search-input"
+                groupTestId="archive-search-group"
+                value={query}
+                onValueChange={setQuery}
+                placeholder={t(strings.archiveDrawer.searchPlaceholder)}
+                label={t(strings.archiveDrawer.searchPlaceholder)}
+                className="min-w-0 flex-1"
+              />
               <div data-testid="archive-search-counts" className="shrink-0 text-xs text-wc-text-muted">
                 {t(strings.archiveDrawer.resultCounts, { messages: displayedMessageCount, sessions: displayedSessionCount })}
               </div>

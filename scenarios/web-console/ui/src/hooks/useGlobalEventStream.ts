@@ -8,6 +8,7 @@ import { useLiveStreamStore } from "../stores/useLiveStreamStore";
 import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import { decodeActivityPayload, type SessionActivityPayload } from "../api/sessionActivity";
 import { refreshConversationSession } from "./useConversationSession";
+import { decodeClassification, isConversationRow } from "../lib/conversationRows";
 
 /**
  * useGlobalEventStream — the single SSE subscription for the whole app.
@@ -65,6 +66,11 @@ interface ConversationEventPayload {
   createdAt?: string;
   occurredAt?: string;
   sequence?: number;
+  kind?: string;
+  author?: string;
+  authorName?: string;
+  label?: string;
+  threadId?: string;
 }
 
 /**
@@ -229,14 +235,19 @@ function toConversationEvent(
   fallbackSequence: number,
   payload: ConversationEventPayload,
 ): ConversationEvent | null {
-  if (!payload.id || !payload.text) return null;
+  // Work rows (tool calls, results, injected context) arrive without their
+  // text: they only grow the collapsed work at the tail.
+  const classification = decodeClassification(payload);
+  const work = classification.kind != null && !isConversationRow({ role: "assistant", kind: classification.kind });
+  if (!payload.id || (!payload.text && !work)) return null;
+  const text = payload.text ?? "";
   return {
     id: payload.id,
     sessionId,
     source: payload.source ?? "",
     role: payload.role === "user" ? "user" : "assistant",
-    text: payload.text,
-    speechParagraphs: payload.speechParagraphs ?? [payload.text],
+    text,
+    speechParagraphs: payload.speechParagraphs ?? (work ? [] : [text]),
     originalSpeechParagraphs: payload.originalSpeechParagraphs,
     summarized: payload.summarized ?? false,
     createdAt: payload.createdAt ?? new Date().toISOString(),
@@ -245,6 +256,7 @@ function toConversationEvent(
     deliveryState: "received",
     ttsState: "idle",
     consumptionState: "unseen",
+    ...classification,
   };
 }
 

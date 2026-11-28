@@ -15,6 +15,7 @@ type NativeThreadState struct {
 	Status        string
 	ActiveFlags   []string
 	ActiveTurnID  string
+	ConsoleTurn   bool
 	GoalAvailable bool
 	Goal          *NativeGoalState
 }
@@ -130,6 +131,8 @@ func (o *ManagedOwner) ReadNativeThreadStates(ctx context.Context, ids []string)
 					state.ActiveTurnID = turns.Data[0].ID
 					o.activeTurnID = state.ActiveTurnID
 				}
+				state.ConsoleTurn = o.consoleTurnUnknown ||
+					(o.consoleTurnID != "" && (state.ActiveTurnID == "" || state.ActiveTurnID == o.consoleTurnID))
 				// Active with no confirmed turn stays active/unknown to callers;
 				// neither an old cached ID nor a goal is proof of a live turn.
 				if errors.Is(err, ErrClosed) || ctx.Err() != nil || o.closing.Load() {
@@ -137,6 +140,7 @@ func (o *ManagedOwner) ReadNativeThreadStates(ctx context.Context, ids []string)
 				}
 			case "idle":
 				o.activeTurnID = ""
+				o.consoleTurnID, o.consoleTurnUnknown = "", false
 			}
 		}
 		out = append(out, state)

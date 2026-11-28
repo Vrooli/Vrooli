@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Braces, Clock, List, Pencil, Pin, PinOff, Plus, Search, Trash2, X } from "lucide-react";
+import { Braces, Clock, List, Pencil, Pin, PinOff, Plus, Search, Trash2 } from "lucide-react";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { Input } from "@vrooli/react-component-library/Input/1";
-import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import { SearchField } from "../SearchField";
 
 import type { SnippetDTO } from "../../api/snippets";
 import { useSnippets } from "../../hooks/useSnippets";
@@ -196,36 +195,16 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
             style={{ paddingInline: "var(--space-md)", paddingBlock: "var(--space-sm)" }}
           >
             <div className="flex items-center gap-2">
-              <InputGroup className="min-w-0 flex-1" size="md" shape="rounded" testId="snippet-filter-group">
-                <InputGroup.Adornment side="leading">
-                  <Search aria-hidden />
-                </InputGroup.Adornment>
-                <InputGroup.Field>
-                  <Input
-                    type="search"
-                    aria-label={t(strings.snippets.picker.filterAria)}
-                    data-testid="snippet-filter"
-                    value={filter}
-                    onChange={(event) => { setFilter(event.target.value); }}
-                    placeholder={t(strings.snippets.picker.filterPlaceholder)}
-                  />
-                </InputGroup.Field>
-                {filtering && (
-                  <InputGroup.Action>
-                    <IconButton
-                      type="button"
-                      data-testid="snippet-filter-clear"
-                      aria-label={t(strings.snippets.picker.clearFilter)}
-                      onClick={() => { setFilter(""); }}
-                      shape="rounded"
-                      surface="ghost"
-                      size="sm"
-                    >
-                      <X className="h-4 w-4" aria-hidden />
-                    </IconButton>
-                  </InputGroup.Action>
-                )}
-              </InputGroup>
+              <SearchField
+                testId="snippet-filter"
+                groupTestId="snippet-filter-group"
+                value={filter}
+                onValueChange={setFilter}
+                placeholder={t(strings.snippets.picker.filterPlaceholder)}
+                label={t(strings.snippets.picker.filterAria)}
+                clearLabel={t(strings.snippets.picker.clearFilter)}
+                className="min-w-0 flex-1"
+              />
               {/* Adding sits beside the field that searches what already
                   exists: both act on the same list, so they share a row. */}
               <IconButton

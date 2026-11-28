@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	continuityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/continuity/continuity_v1connect"
 	"web-console/internal/continuity"
 )
 
@@ -42,6 +43,24 @@ func TestHealthDoesNotReadConversationBodiesButExplicitIntegrityDoes(t *testing.
 		if report.Functional == nil || !report.Functional.Healthy || report.Status != health.StatusHealthy {
 			t.Fatalf("%s performed a conversation content audit: %s", path, response.Body.String())
 		}
+	}
+	// The monetization journey probes and the Archive drawer's warning ask
+	// whether the continuity store answers, not for a conservation receipt.
+	for _, operation := range []string{"provider_observation", "communication_operation"} {
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/internal/monetization/journey?operation="+operation, nil)
+		request.RemoteAddr = "127.0.0.1:1234"
+		response := httptest.NewRecorder()
+		srv.router.ServeHTTP(response, request)
+		if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "unsupported:") {
+			t.Fatalf("journey %s read conversation bodies: status=%d body=%s", operation, response.Code, response.Body.String())
+		}
+	}
+	request := httptest.NewRequest(http.MethodPost, continuityconnect.ContinuityServiceHealthProcedure, strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	srv.router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "{") {
+		t.Fatalf("Health RPC read conversation bodies: status=%d body=%s", response.Code, response.Body.String())
 	}
 	if _, err := srv.Integrity(context.Background()); err == nil {
 		t.Fatal("explicit integrity audit no longer checks conversation content")

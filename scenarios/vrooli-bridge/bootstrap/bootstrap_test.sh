@@ -377,6 +377,14 @@ check "pinned fresh clone exits 0" "$?"
 check "pinned clone uses --no-checkout" "$(grep -q -- 'clone --no-checkout https://github.com/Vrooli/Vrooli.git' "$WORKROOT/git.calls" && echo 0 || echo 1)"
 check "pinned clone reaches run-ok" "$(grep -q 'event=run-ok' "$OUTPINNED" && echo 0 || echo 1)"
 
+echo "== machine checkout expands into a managed home directory =="
+rm -rf "$STATE" "$CHECKOUT"; : >"$WORKROOT/git.calls"
+OUTMACHINE="${WORKROOT}/machine-checkout.out"
+run_bootstrap "$OUTMACHINE" --checkout-dir '~/.vrooli/fleet/machines/test-machine'
+check "machine checkout run exits 0" "$?"
+check "machine checkout expands under node home" "$(grep -Fq -- "${TEST_HOME}/.vrooli/fleet/machines/test-machine" "$WORKROOT/git.calls" && echo 0 || echo 1)"
+check "machine checkout reaches run-ok" "$(grep -q 'event=run-ok' "$OUTMACHINE" && echo 0 || echo 1)"
+
 echo "== unreadable managed state directory is repaired narrowly =="
 rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$STATE"; chmod 000 "$STATE"
 OUTOWNERSHIP="${WORKROOT}/ownership-repair.out"

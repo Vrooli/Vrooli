@@ -345,6 +345,14 @@
       "testId": "session-first-time-note",
       "selector": "[data-testid=\"session-first-time-note\"]"
     },
+    "session.restore.status": {
+      "testId": "session-restore-status",
+      "selector": "[data-testid=\"session-restore-status\"]"
+    },
+    "session.restore.retry": {
+      "testId": "session-restore-retry",
+      "selector": "[data-testid=\"session-restore-retry\"]"
+    },
     "session.owner.panel": {
       "testId": "session-owner-panel",
       "selector": "[data-testid=\"session-owner-panel\"]"
@@ -396,6 +404,10 @@
     "session.login.error": {
       "testId": "session-login-error",
       "selector": "[data-testid=\"session-login-error\"]"
+    },
+    "session.login.retryEnrollmentSave": {
+      "testId": "session-login-retry-enrollment-save",
+      "selector": "[data-testid=\"session-login-retry-enrollment-save\"]"
     },
     "library.controls.button.root": {
       "testId": "controls.button",
@@ -703,7 +715,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "11bd40692d6bcc12a17d5d226a3a398211e7fe994f86443929a8bd1e54a3bd80",
-    "ui/src/consts/selectors.ts": "3f33b0f3c380676414fccc383b893d6d611c5d785cad7efb02ba686e38f1fc1a",
+    "ui/src/consts/selectors.ts": "f3fa9d43bbcd1e145e9018d69e418fbb40a423e54714ee454e4392fcb89cd266",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -2,34 +2,27 @@ package audit
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
 
-// SQLExecutor is the narrow database surface sqliteStore depends on. Both
-// *sql.DB (tests) and *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
+// sqliteStore uses API Core's shared executor for test and routed databases.
 type sqliteStore struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteStore constructs the production Store (Sink + Reader). This is the
 // default accountability substrate; it is append-only by construction (only the
 // INSERT and SELECT below exist).
-func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
+func NewSQLiteStore(db database.SQLExecutor, clk schedule.Clock) Store {
 	return &sqliteStore{db: db, clock: clk}
 }
 

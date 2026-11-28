@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
-import { MoreHorizontal, Search } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
+import { SearchField } from "./SearchField";
 import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
 import { sendComboSequence } from "../lib/comboSequence";
 import { strings } from "../consts/strings";
@@ -181,18 +182,17 @@ export default function KeyComboPicker({
 
         {/* Search */}
         {showKeyCombos && (
-          <div className="flex items-center gap-2 border-b border-wc-default px-3 py-2">
-            <Search className="h-4 w-4 shrink-0 text-wc-text-muted" />
-            <input
+          <div className="border-b border-wc-default px-3 py-2">
+            <SearchField
               ref={searchRef}
-              data-testid="combo-picker-search"
-              type="text"
+              testId="combo-picker-search"
+              groupTestId="combo-picker-search-group"
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-              }}
+              onValueChange={setSearchQuery}
               placeholder={t(strings.keyComboPicker.searchPlaceholder)}
-              className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
+              label={t(strings.keyComboPicker.searchPlaceholder)}
+              size="sm"
+              className="w-full"
             />
           </div>
         )}

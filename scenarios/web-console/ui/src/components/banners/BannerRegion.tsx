@@ -40,7 +40,10 @@ export default function BannerRegion({ banners, damping }: BannerRegionProps) {
         expanded ? t(strings.banners.showLess) : t(strings.banners.moreNotices, { count })
       }
       testId="banner-region"
-      className="wc-stable-theme relative z-[var(--layer-banner)] w-full pt-[env(safe-area-inset-top)]"
+      // No safe-area padding here: the region always sits inside `TopSafeArea`,
+      // whose `StatusBarFill` already reserves the notch. Padding it again
+      // pushed the banner a full status-bar height below the strip.
+      className="wc-stable-theme relative z-[var(--layer-banner)] w-full"
     />
   );
 }

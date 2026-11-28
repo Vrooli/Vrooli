@@ -76,10 +76,13 @@ func (a localCompanionLifecycleAdapter) HandleCompanionCommand(ctx context.Conte
 		return nil, errors.New("invalid companion command")
 	}
 	response := &companionv1.CompanionResponse{OperationId: command.GetOperationId(), NodeId: command.GetNodeId(), Version: command.GetVersion(), ObservedAt: timestamppb.Now()}
+	if runtime.GOOS == "linux" {
+		return a.handleLinuxCompanion(ctx, command, response), nil
+	}
 	if runtime.GOOS != "darwin" {
 		response.State = companionv1.CompanionState_COMPANION_STATE_FAILED
 		response.ReasonCode = "unsupported_platform"
-		response.Recovery = "run_on_macos_user_session"
+		response.Recovery = "select_a_supported_desktop_session"
 		return response, nil
 	}
 	home, err := a.resolveHome()

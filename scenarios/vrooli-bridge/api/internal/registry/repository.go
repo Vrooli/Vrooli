@@ -28,9 +28,13 @@ type Repository interface {
 	// Update persists the owner-editable fields of n (matched by n.ID) and
 	// bumps UpdatedAt. Returns ErrNodeNotFound when no row matches.
 	Update(ctx context.Context, n Node) (Node, error)
+	UpdateCAS(ctx context.Context, m CASMutation) (UpdateCASResult, error)
 	// UpdateArchitecture records the agent's self-reported machine and binary
 	// architectures without allowing the node to edit owner-controlled fields.
 	UpdateArchitecture(ctx context.Context, id, machineArch, binaryArch string) error
+	// SetEnrollmentGeneration binds the registry node to a Bridge-owned Machine
+	// lineage generation. It only advances and is idempotent for the same value.
+	SetEnrollmentGeneration(ctx context.Context, id string, generation int64) (Node, error)
 
 	// Revoke stamps revoked_at on the node (idempotent: a second revoke is a
 	// no-op that returns the already-revoked record). Returns ErrNodeNotFound

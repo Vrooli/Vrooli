@@ -90,8 +90,9 @@ type RunTarget struct {
 // TargetNode is the minimal node shape distribution needs: its id and whether it
 // is revoked.
 type TargetNode struct {
-	ID      string
-	Revoked bool
+	ID                   string
+	EnrollmentGeneration int64
+	Revoked              bool
 }
 
 // DistributeInput is what Service.Distribute accepts.

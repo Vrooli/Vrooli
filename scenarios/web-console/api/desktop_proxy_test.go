@@ -81,3 +81,27 @@ func TestBridgeControlProxyKeepsInteractiveRPCOnBridge(t *testing.T) {
 		t.Fatalf("status=%d body=%q", record.Code, record.Body.String())
 	}
 }
+
+func TestDesktopBridgeRejectsUnrelatedAndCrossSiteRequestsBeforeResolvingCredentials(t *testing.T) {
+	resolve := func(context.Context) (*nodereach.Client, error) {
+		t.Fatal("rejected request attempted to resolve Bridge credentials")
+		return nil, nil
+	}
+	signal := "/api/v1/desktop-bridge/vrooli.vrooli_bridge.v1.interactive.InteractiveDesktopService/Signal"
+	for _, test := range []struct {
+		path, method, site string
+		status             int
+	}{
+		{signal, http.MethodGet, "", http.StatusMethodNotAllowed},
+		{signal, http.MethodPost, "cross-site", http.StatusForbidden},
+		{"/api/v1/desktop-bridge/unrelated.BridgeService/Write", http.MethodPost, "", http.StatusNotFound},
+	} {
+		request := httptest.NewRequest(test.method, test.path, nil)
+		request.Header.Set("Sec-Fetch-Site", test.site)
+		w := httptest.NewRecorder()
+		newBridgeControlProxy(resolve).ServeHTTP(w, request)
+		if w.Code != test.status {
+			t.Errorf("%s %s: response %d, want %d", test.method, test.path, w.Code, test.status)
+		}
+	}
+}

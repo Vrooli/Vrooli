@@ -30,6 +30,8 @@ type ManagedOwner struct {
 	originalThreadID   string
 	lastVerifiedTurnID string
 	activeTurnID       string
+	consoleTurnID      string
+	consoleTurnUnknown bool
 	closeOnce          sync.Once
 	closing            atomic.Bool
 	closeDone          chan struct{}
@@ -88,7 +90,7 @@ func ResumeManagedInDirWithEnv(ctx context.Context, executable, cwd, ownerID, cl
 		return nil, err
 	}
 	thread, err := client.ResumeThread(ctx, threadID)
-	if err != nil || (thread.ID() != "" && thread.ID() != threadID) {
+	if err != nil || thread.ID() != threadID {
 		_ = client.Close()
 		if err != nil {
 			return nil, err
@@ -325,19 +327,21 @@ func (o *ManagedOwner) StartTurn(ctx context.Context, text string) (string, erro
 	if strings.TrimSpace(text) == "" {
 		return "", errors.New("codex turn text is required")
 	}
-	o.mu.RLock()
-	threadID := o.threadID
-	o.mu.RUnlock()
-	result, err := o.client.StartTurn(ctx, threadID, text)
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closing.Load() {
+		return "", ErrClosed
+	}
+	o.consoleTurnUnknown = true
+	result, err := o.client.StartTurn(ctx, o.threadID, text)
 	if err != nil {
 		return "", fmt.Errorf("start Codex turn: %w", err)
 	}
 	if strings.TrimSpace(result.ID()) == "" {
 		return "", ErrMissingTurn
 	}
-	o.mu.Lock()
 	o.activeTurnID = result.ID()
-	o.mu.Unlock()
+	o.consoleTurnID, o.consoleTurnUnknown = result.ID(), false
 	return result.ID(), nil
 }
 
@@ -370,6 +374,7 @@ func (o *ManagedOwner) DeliverPrompt(ctx context.Context, expectedThreadID, expe
 		if state.Status != "idle" {
 			return "", "", errors.New("native Codex thread is not confirmed idle")
 		}
+		o.consoleTurnUnknown = true
 		result, callErr := o.client.StartTurn(ctx, o.threadID, text)
 		if callErr != nil {
 			return "", "", fmt.Errorf("start native Codex turn: %w", callErr)
@@ -379,6 +384,7 @@ func (o *ManagedOwner) DeliverPrompt(ctx context.Context, expectedThreadID, expe
 	} else {
 		// Provider-originated notifications can lag the authoritative state read.
 		// The provider's expected-turn CAS decides steering, not that cache.
+		o.consoleTurnID = expectedTurnID
 		result, callErr := o.client.SteerTurn(ctx, o.threadID, expectedTurnID, text)
 		if callErr != nil {
 			return "", "", fmt.Errorf("steer native Codex turn: %w", callErr)
@@ -392,6 +398,7 @@ func (o *ManagedOwner) DeliverPrompt(ctx context.Context, expectedThreadID, expe
 	if delivery == "started" {
 		o.activeTurnID = turnID
 	}
+	o.consoleTurnID, o.consoleTurnUnknown = turnID, false
 	return turnID, delivery, nil
 }
 

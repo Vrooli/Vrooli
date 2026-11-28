@@ -38,10 +38,10 @@ func TestApplyColumnMigrations_BackfillsOriginToUI(t *testing.T) {
 		t.Fatalf("applyColumnMigrations: %v", err)
 	}
 
-	var origin, owner, label, agentSessionID string
+	var origin, owner, label, agentSessionID, activity string
 	err := db.QueryRow(
-		`SELECT origin, owner, display_label, agent_session_id FROM sessions WHERE id = 'legacy'`,
-	).Scan(&origin, &owner, &label, &agentSessionID)
+		`SELECT origin, owner, display_label, agent_session_id, native_turn_activity FROM sessions WHERE id = 'legacy'`,
+	).Scan(&origin, &owner, &label, &agentSessionID, &activity)
 	if err != nil {
 		t.Fatalf("read migrated row: %v", err)
 	}
@@ -53,6 +53,9 @@ func TestApplyColumnMigrations_BackfillsOriginToUI(t *testing.T) {
 	}
 	if agentSessionID != "cid" {
 		t.Errorf("existing data lost: agent_session_id = %q, want 'cid'", agentSessionID)
+	}
+	if activity != "" {
+		t.Errorf("legacy native turn activity = %q, want no observation", activity)
 	}
 
 	// Idempotent: a second pass must not error on the now-existing columns.

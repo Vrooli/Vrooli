@@ -38,6 +38,7 @@ type ClaudeTailer struct {
 	checkpoints AgentTranscriptCheckpointStore
 	engine      *tailer.Engine
 	identity    *claudeIdentityResolver
+	threads     *transcriptThreads
 	mu          sync.Mutex
 	// undiscovered records the live Claude sessions whose transcript discovery
 	// skipped on the most recent pass. Discovery used to drop these with a bare
@@ -51,6 +52,7 @@ type CodexTailer struct {
 	server      *Server
 	checkpoints AgentTranscriptCheckpointStore
 	engine      *tailer.Engine
+	threads     *transcriptThreads
 	mu          sync.Mutex
 	watchers    map[string]string
 }
@@ -64,7 +66,7 @@ type GrokTailer struct {
 }
 
 func NewClaudeTailer(server *Server) *ClaudeTailer {
-	ct := &ClaudeTailer{server: server, undiscovered: make(map[string]bool)}
+	ct := &ClaudeTailer{server: server, undiscovered: make(map[string]bool), threads: &transcriptThreads{}}
 	if server != nil {
 		ct.checkpoints = server.agentCheckpointStore
 		if server.sessionStore != nil {
@@ -124,7 +126,7 @@ func (ct *ClaudeTailer) UndiscoveredSessions() []string {
 }
 
 func NewCodexTailer(server *Server) *CodexTailer {
-	ct := &CodexTailer{server: server, watchers: make(map[string]string)}
+	ct := &CodexTailer{server: server, watchers: make(map[string]string), threads: &transcriptThreads{}}
 	if server != nil {
 		ct.checkpoints = server.agentCheckpointStore
 	}

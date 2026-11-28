@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   listRecoverableSessions: vi.fn(),
   recoverSession: vi.fn(),
   dismissRecoverableSession: vi.fn(),
-  getContinuityIntegrity: vi.fn(),
+  getContinuityHealth: vi.fn(),
   searchLocalContinuity: vi.fn(),
   getContinuityReceipt: vi.fn(),
 }));
@@ -44,7 +44,7 @@ vi.mock("../api/conversation", () => ({
 }));
 
 vi.mock("../api/continuity", () => ({
-  getContinuityIntegrity: mocks.getContinuityIntegrity,
+  getContinuityHealth: mocks.getContinuityHealth,
   searchLocalContinuity: mocks.searchLocalContinuity,
   getContinuityReceipt: mocks.getContinuityReceipt,
 }));
@@ -68,7 +68,7 @@ vi.mock("../components/MessageExportDrawer", () => ({ default: () => null }));
 describe("ArchiveDrawer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getContinuityIntegrity.mockResolvedValue({ orphanConversations: 0, orphanCheckpoints: 0, orphanWorkspacePanes: 0, uncatalogedConversations: 0 });
+    mocks.getContinuityHealth.mockResolvedValue({ orphanConversations: 0, orphanCheckpoints: 0, orphanWorkspacePanes: 0, uncatalogedConversations: 0 });
     mocks.listRecoverableSessions.mockResolvedValue([]);
     mocks.listArchivedSessions.mockResolvedValue({
       total: 1,
@@ -114,7 +114,7 @@ describe("ArchiveDrawer", () => {
   });
 
   it("surfaces integrity drift without hiding the archive", async () => {
-    mocks.getContinuityIntegrity.mockResolvedValue({ orphanConversations: 2, orphanCheckpoints: 1, orphanWorkspacePanes: 0, uncatalogedConversations: 0 });
+    mocks.getContinuityHealth.mockResolvedValue({ orphanConversations: 2, orphanCheckpoints: 1, orphanWorkspacePanes: 0, uncatalogedConversations: 0 });
     render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
 
     expect(await screen.findByTestId("archive-continuity-warning")).toHaveTextContent("archiveDrawer.continuityWarning");
@@ -122,7 +122,7 @@ describe("ArchiveDrawer", () => {
   });
 
   it("surfaces catalog-only continuity drift", async () => {
-    mocks.getContinuityIntegrity.mockResolvedValue({ orphanConversations: 0, orphanCheckpoints: 0, orphanWorkspacePanes: 0, uncatalogedConversations: 2 });
+    mocks.getContinuityHealth.mockResolvedValue({ orphanConversations: 0, orphanCheckpoints: 0, orphanWorkspacePanes: 0, uncatalogedConversations: 2 });
     render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
 
     expect(await screen.findByTestId("archive-continuity-warning")).toHaveTextContent("archiveDrawer.continuityWarning");

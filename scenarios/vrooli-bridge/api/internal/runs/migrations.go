@@ -22,6 +22,9 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		name string
 		ddl  string
 	}{
+		{"owner_id", "TEXT NOT NULL DEFAULT ''"},
+		{"request_id", "TEXT NOT NULL DEFAULT ''"},
+		{"request_fingerprint", "TEXT NOT NULL DEFAULT ''"},
 		{"queued_since", "TEXT NOT NULL DEFAULT ''"},
 		{"pushed_at", "TEXT NOT NULL DEFAULT ''"},
 		{"acked_at", "TEXT NOT NULL DEFAULT ''"},
@@ -44,6 +47,9 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN "+column.name+" "+column.ddl); err != nil {
 			return fmt.Errorf("add runs.%s: %w", column.name, err)
 		}
+	}
+	if _, err := db.ExecContext(ctx, "CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_owner_request ON runs(owner_id, request_id) WHERE request_id <> ''"); err != nil {
+		return fmt.Errorf("create idempotent run index: %w", err)
 	}
 	return nil
 }

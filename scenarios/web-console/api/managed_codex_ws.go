@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"strings"
@@ -66,7 +65,7 @@ func (s *Server) handleManagedCodexWS(w http.ResponseWriter, r *http.Request, se
 					_ = write(TerminalMessage{Type: wireproto.MsgTypeError, Reason: "no_active_turn"})
 					continue
 				}
-				if err := owner.Interrupt(context.Background(), turnID); err != nil {
+				if err := owner.Interrupt(r.Context(), turnID); err != nil {
 					_ = write(TerminalMessage{Type: wireproto.MsgTypeError, Reason: err.Error()})
 				}
 			}
@@ -83,7 +82,7 @@ func (s *Server) handleManagedCodexWS(w http.ResponseWriter, r *http.Request, se
 				_ = write(TerminalMessage{Type: wireproto.MsgTypeStdinAck, Ok: true, AcceptedThrough: message.Offset + int64(len(message.Data))})
 				continue
 			}
-			if _, err := owner.StartTurn(context.Background(), text); err != nil {
+			if _, err := owner.StartTurn(r.Context(), text); err != nil {
 				log.Printf("managed Codex turn[%s]: %v", sessionID, err)
 				_ = write(TerminalMessage{Type: wireproto.MsgTypeStdinAck, Reason: err.Error(), AcceptedThrough: acceptedThrough})
 				continue

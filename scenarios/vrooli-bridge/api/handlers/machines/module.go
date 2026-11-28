@@ -82,7 +82,7 @@ func (r machineRepairer) Repair(ctx context.Context, machine internalmachines.Ma
 	}
 	input := internalonboard.StartInput{
 		MachineID: machine.ID, Host: host, Port: port, User: trusted.SSHUser, NodeName: machine.ID,
-		TargetRevision: "@cp", ProvisionSudo: true,
+		TargetRevision: "@cp", CheckoutDir: "~/.vrooli/fleet/machines/" + machine.ID, ProvisionSudo: true,
 	}
 	var currentNodeID string
 	for _, lineage := range machine.Lineage {
@@ -140,7 +140,7 @@ func (r registryProjectionReader) GetNode(ctx context.Context, nodeID string) (i
 		return internalmachines.NodeSnapshot{}, err
 	}
 	return internalmachines.NodeSnapshot{
-		ID: node.ID, Name: node.Name, Capabilities: append([]string(nil), node.Capabilities...), ApprovedScopes: append([]string(nil), node.Scopes...),
+		ID: node.ID, Name: node.Name, EnrollmentGeneration: node.EnrollmentGeneration, Capabilities: append([]string(nil), node.Capabilities...), ApprovedScopes: append([]string(nil), node.Scopes...),
 		ConfigurationState: node.ConfigurationState, ConfigurationUnmet: append([]string(nil), node.ConfigurationUnmet...),
 	}, nil
 }

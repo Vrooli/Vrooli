@@ -24,7 +24,7 @@ type ConversationRepository interface {
 	GetEvent(ctx context.Context, sessionID, eventID string) (ConversationEvent, bool, error)
 	FindNativeEvent(ctx context.Context, sessionID string, provenance *NativeProvenance) (ConversationEvent, bool, error)
 	ListSession(ctx context.Context, sessionID string) (ConversationSessionState, error)
-	ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error)
+	ListSessionPage(ctx context.Context, sessionID string, query ConversationPageQuery) (ConversationSessionState, bool, error)
 	CountSessionEvents(ctx context.Context, sessionID string) (int64, error)
 	SessionStorageBytes(ctx context.Context, sessionID string) (int64, error)
 	SearchSession(ctx context.Context, sessionID string, query ConversationSearchQuery) (ConversationSearchResult, error)
@@ -36,6 +36,23 @@ type ConversationRepository interface {
 	RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) error
 	DeleteSession(ctx context.Context, sessionID string) error
 	CopySession(ctx context.Context, oldID, newID string) error
+	// SessionCursor reads the seen/listened cursor without loading events.
+	SessionCursor(ctx context.Context, sessionID string) (ConversationCursor, error)
+	// LatestEventCreatedAt is the ingestion time of the session's newest
+	// event; found is false for a session with no events.
+	LatestEventCreatedAt(ctx context.Context, sessionID string) (createdAt time.Time, found bool, err error)
+}
+
+// ConversationPageQuery bounds one read of a session's events. Every bound is
+// applied in SQL, so a poll or a page reads only the rows it returns.
+type ConversationPageQuery struct {
+	// Limit keeps the newest Limit events of the window; zero returns the
+	// whole window.
+	Limit int
+	// BeforeSequence, when positive, keeps events with a lower sequence.
+	BeforeSequence int64
+	// SinceSequence, when positive, keeps events with a higher sequence.
+	SinceSequence int64
 }
 
 // conversationEventPruner is intentionally additive: callers that do not own
@@ -53,6 +70,8 @@ type ConversationSearchMatch struct {
 	EventID    string
 	Sequence   int64
 	Role       string
+	Kind       string
+	ThreadID   string
 	CreatedAt  time.Time
 	OccurredAt time.Time
 	Excerpt    string
@@ -99,13 +118,8 @@ func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event Conve
 		now = formatTime(time.Now())
 	}
 
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO conversation_sessions (session_id, created_at, updated_at)
-		VALUES (?, ?, ?)
-		ON CONFLICT(session_id) DO NOTHING`,
-		event.SessionID, now, now,
-	); err != nil {
-		return ConversationEvent{}, fmt.Errorf("ensure session: %w", err)
+	if err := ensureProjection(ctx, tx, event.SessionID, now, event.NativeProvenance); err != nil {
+		return ConversationEvent{}, err
 	}
 
 	if err := tx.QueryRowContext(ctx, `
@@ -134,9 +148,10 @@ func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event Conve
 		INSERT INTO conversation_events (
 			id, session_id, source, role, text, speech_paragraphs,
 			original_speech_paragraphs, summarized, created_at, occurred_at, sequence,
-			delivery_state, tts_state, consumption_state, native_provenance_json
+			delivery_state, tts_state, consumption_state, native_provenance_json,
+			kind, author, author_name, label, thread_id
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		event.ID,
 		event.SessionID,
 		event.Source,
@@ -152,6 +167,11 @@ func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event Conve
 		string(event.TTSState),
 		string(event.ConsumptionState),
 		nativeProvenanceJSON(event.NativeProvenance),
+		storedConversationKind(event.Kind),
+		event.Author,
+		event.AuthorName,
+		event.Label,
+		event.ThreadID,
 	); err != nil {
 		return ConversationEvent{}, fmt.Errorf("insert event: %w", err)
 	}
@@ -160,6 +180,55 @@ func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event Conve
 		return ConversationEvent{}, fmt.Errorf("commit event: %w", err)
 	}
 	return event, nil
+}
+
+// ensureProjection creates the session's conversation projection when it is
+// absent and, in the same transaction, catalogs a new projection that has no
+// live session row.
+func ensureProjection(ctx context.Context, tx *sql.Tx, sessionID, now string, provenance *NativeProvenance) error {
+	result, err := tx.ExecContext(ctx, `
+		INSERT INTO conversation_sessions (session_id, created_at, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(session_id) DO NOTHING`,
+		sessionID, now, now,
+	)
+	if err != nil {
+		return fmt.Errorf("ensure session: %w", err)
+	}
+	if created, err := result.RowsAffected(); err != nil || created == 0 {
+		return err
+	}
+	return catalogNewProjection(ctx, tx, sessionID, now, provenance)
+}
+
+// catalogNewProjection gives a projection without a live session row (a
+// native archive import, typically) its continuity catalog entry as it is
+// created, so continuity health never finds it uncataloged and the
+// missing-catalog repair stays a recovery tool. The record comes from the
+// planner's own builder and is written under the repair's own predicate; a
+// projection whose session row exists is left to that session.
+//
+// The record claims no agent-session alias. An archive import often mirrors a
+// conversation a Web Console pane already owns under that native id, and a
+// second claim would be an alias collision needing review.
+func catalogNewProjection(ctx context.Context, tx *sql.Tx, sessionID, now string, provenance *NativeProvenance) error {
+	at, _ := time.Parse(time.RFC3339Nano, now)
+	evidence := continuity.Evidence{SessionID: sessionID, HasConversation: true, CreatedAt: at, LastActivityAt: at}
+	if provenance != nil {
+		evidence.AgentType = provenance.Provider
+		evidence.HasNativeHistory = true
+		if provenance.Provider != "" && provenance.SessionID != "" {
+			evidence.OriginalTitle = provenance.Provider + " conversation " + provenance.SessionID[:min(8, len(provenance.SessionID))]
+		}
+	}
+	record, err := continuity.BuildCatalogRecord(evidence)
+	if err != nil {
+		return fmt.Errorf("catalog new projection: %w", err)
+	}
+	if _, err := continuity.CatalogMissingConversation(ctx, tx, record); err != nil {
+		return fmt.Errorf("catalog new projection: %w", err)
+	}
+	return nil
 }
 
 func (r *SQLConversationRepository) UpdateNativeEventOccurredAt(ctx context.Context, sessionID string, provenance *NativeProvenance, occurredAt time.Time) (bool, error) {
@@ -176,9 +245,7 @@ func (r *SQLConversationRepository) UpdateNativeEventOccurredAt(ctx context.Cont
 
 func (r *SQLConversationRepository) GetEvent(ctx context.Context, sessionID, eventID string) (ConversationEvent, bool, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, session_id, source, role, text, speech_paragraphs,
-		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
-		       delivery_state, tts_state, consumption_state, native_provenance_json
+		SELECT `+conversationEventColumns+`
 		FROM conversation_events
 		WHERE session_id = ? AND id = ?`,
 		sessionID, eventID,
@@ -194,9 +261,7 @@ func (r *SQLConversationRepository) GetEvent(ctx context.Context, sessionID, eve
 }
 
 const findNativeEventByIdentityQuery = `
-	SELECT id, session_id, source, role, text, speech_paragraphs,
-	       COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
-	       delivery_state, tts_state, consumption_state, native_provenance_json
+	SELECT ` + conversationEventColumns + `
 	FROM conversation_events INDEXED BY idx_conversation_events_native_identity
 	WHERE session_id = ? AND native_provenance_json = ?
 	LIMIT 1`
@@ -236,9 +301,7 @@ func (r *SQLConversationRepository) ListSession(ctx context.Context, sessionID s
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, session_id, source, role, text, speech_paragraphs,
-		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
-		       delivery_state, tts_state, consumption_state, native_provenance_json
+		SELECT `+conversationEventColumns+`
 		FROM conversation_events
 		WHERE session_id = ?
 		ORDER BY sequence`,
@@ -263,28 +326,35 @@ func (r *SQLConversationRepository) ListSession(ctx context.Context, sessionID s
 	return state, nil
 }
 
-// ListSessionPage returns one bounded, ascending page ending before
-// beforeSequence (or the newest events when beforeSequence is zero).
-func (r *SQLConversationRepository) ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
-	if limit <= 0 {
-		state, err := r.ListSession(ctx, sessionID)
+// ListSessionPage returns one ascending page of the window the query bounds:
+// the newest Limit events after SinceSequence and before BeforeSequence, or
+// the whole window when Limit is zero. hasMore reports that the window holds
+// older events than the page. Both bounds and the limit are SQL predicates on
+// the (session_id, sequence) index, so a poll for "anything newer" costs one
+// index probe however long the session is.
+func (r *SQLConversationRepository) ListSessionPage(ctx context.Context, sessionID string, page ConversationPageQuery) (ConversationSessionState, bool, error) {
+	state := ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}
+	cursor, found, err := r.sessionCursor(ctx, sessionID)
+	if err != nil || !found {
 		return state, false, err
 	}
-	state := ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}
-	if err := r.db.QueryRowContext(ctx, `SELECT last_seen_sequence, last_listened_sequence FROM conversation_sessions WHERE session_id = ?`, sessionID).Scan(&state.Cursor.LastSeenSequence, &state.Cursor.LastListenedSequence); err != nil {
-		if err == sql.ErrNoRows {
-			return state, false, nil
-		}
-		return ConversationSessionState{}, false, fmt.Errorf("load cursor: %w", err)
-	}
-	query := `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence, delivery_state, tts_state, consumption_state, native_provenance_json FROM conversation_events WHERE session_id = ?`
+	state.Cursor = cursor
+	query := `SELECT ` + conversationEventColumns + ` FROM conversation_events WHERE session_id = ?`
 	args := []any{sessionID}
-	if beforeSequence > 0 {
+	if page.BeforeSequence > 0 {
 		query += ` AND sequence < ?`
-		args = append(args, beforeSequence)
+		args = append(args, page.BeforeSequence)
 	}
-	query += ` ORDER BY sequence DESC LIMIT ?`
-	args = append(args, limit+1)
+	if page.SinceSequence > 0 {
+		query += ` AND sequence > ?`
+		args = append(args, page.SinceSequence)
+	}
+	if page.Limit > 0 {
+		query += ` ORDER BY sequence DESC LIMIT ?`
+		args = append(args, page.Limit+1)
+	} else {
+		query += ` ORDER BY sequence`
+	}
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return ConversationSessionState{}, false, fmt.Errorf("query event page: %w", err)
@@ -300,14 +370,50 @@ func (r *SQLConversationRepository) ListSessionPage(ctx context.Context, session
 	if err := rows.Err(); err != nil {
 		return ConversationSessionState{}, false, fmt.Errorf("iterate event page: %w", err)
 	}
-	hasMore := len(state.Events) > limit
+	if page.Limit <= 0 {
+		return state, false, nil
+	}
+	hasMore := len(state.Events) > page.Limit
 	if hasMore {
-		state.Events = state.Events[:limit]
+		state.Events = state.Events[:page.Limit]
 	}
-	for left, right := 0, len(state.Events)-1; left < right; left, right = left+1, right-1 {
-		state.Events[left], state.Events[right] = state.Events[right], state.Events[left]
-	}
+	slices.Reverse(state.Events)
 	return state, hasMore, nil
+}
+
+// SessionCursor reads the cursor alone; an unknown session has a zero cursor.
+func (r *SQLConversationRepository) SessionCursor(ctx context.Context, sessionID string) (ConversationCursor, error) {
+	cursor, _, err := r.sessionCursor(ctx, sessionID)
+	return cursor, err
+}
+
+func (r *SQLConversationRepository) sessionCursor(ctx context.Context, sessionID string) (ConversationCursor, bool, error) {
+	var cursor ConversationCursor
+	err := r.db.QueryRowContext(ctx, `SELECT last_seen_sequence, last_listened_sequence FROM conversation_sessions WHERE session_id = ?`, sessionID).Scan(&cursor.LastSeenSequence, &cursor.LastListenedSequence)
+	switch {
+	case err == nil:
+		return cursor, true, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return ConversationCursor{}, false, nil
+	default:
+		return ConversationCursor{}, false, fmt.Errorf("load cursor: %w", err)
+	}
+}
+
+// LatestEventCreatedAt reads one row: the session's highest sequence. Events
+// are stamped with their ingestion time in the transaction that reserves their
+// sequence, and copied history keeps its older times below the copy's
+// sequences, so the highest sequence carries the latest ingestion time.
+func (r *SQLConversationRepository) LatestEventCreatedAt(ctx context.Context, sessionID string) (time.Time, bool, error) {
+	var createdAt string
+	err := r.db.QueryRowContext(ctx, `SELECT created_at FROM conversation_events WHERE session_id = ? ORDER BY sequence DESC LIMIT 1`, sessionID).Scan(&createdAt)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return time.Time{}, false, nil
+	case err != nil:
+		return time.Time{}, false, fmt.Errorf("latest event time: %w", err)
+	}
+	return parseConversationTime(createdAt), true, nil
 }
 
 func (r *SQLConversationRepository) CountSessionEvents(ctx context.Context, sessionID string) (int64, error) {
@@ -401,7 +507,7 @@ func sessionSearchResult(hits []searchHit, capped bool, limit int) ConversationS
 	for _, hit := range kept {
 		createdAt, _ := time.Parse(time.RFC3339Nano, hit.createdAt)
 		result.Matches = append(result.Matches, ConversationSearchMatch{
-			EventID: hit.id, Sequence: hit.sequence, Role: hit.role, CreatedAt: createdAt, OccurredAt: parseConversationTime(hit.occurredAt), Excerpt: hit.excerpt, Ranges: hit.ranges,
+			EventID: hit.id, Sequence: hit.sequence, Role: hit.role, Kind: hit.kind, ThreadID: hit.threadID, CreatedAt: createdAt, OccurredAt: parseConversationTime(hit.occurredAt), Excerpt: hit.excerpt, Ranges: hit.ranges,
 		})
 	}
 	if len(result.Matches) > 0 && result.HasMore {
@@ -426,6 +532,7 @@ func (r *SQLConversationRepository) SearchArchived(ctx context.Context, filter A
 		// fixed-width predicate below.
 		ftsOrder:  "bm25(conversation_events_fts), julianday(COALESCE(e.occurred_at, e.created_at)) DESC, e.session_id DESC, e.sequence DESC, e.id DESC",
 		scanOrder: "julianday(COALESCE(e.occurred_at, e.created_at)) DESC, e.session_id DESC, e.sequence DESC, e.id DESC",
+		ftsDriven: true,
 	}
 	if filter.AgentType != "" {
 		if source := nativeArchiveSourceForAgentType(filter.AgentType); source != "" {
@@ -477,7 +584,7 @@ func nativeArchiveSourceForAgentType(agentType string) string {
 }
 
 func (r *SQLConversationRepository) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence, delivery_state, tts_state, consumption_state, native_provenance_json FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
+	rows, err := r.db.QueryContext(ctx, `SELECT `+conversationEventColumns+` FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -552,13 +659,8 @@ func (r *SQLConversationRepository) UpdateCursor(ctx context.Context, sessionID 
 	defer tx.Rollback() //nolint:errcheck
 
 	now := formatTime(time.Now())
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO conversation_sessions (session_id, created_at, updated_at)
-		VALUES (?, ?, ?)
-		ON CONFLICT(session_id) DO NOTHING`,
-		sessionID, now, now,
-	); err != nil {
-		return ConversationCursor{}, fmt.Errorf("ensure session: %w", err)
+	if err := ensureProjection(ctx, tx, sessionID, now, nil); err != nil {
+		return ConversationCursor{}, err
 	}
 
 	var cursor ConversationCursor
@@ -684,6 +786,9 @@ func (r *SQLConversationRepository) DeleteSession(ctx context.Context, sessionID
 	if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_events WHERE session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("delete conversation events: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_threads WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("delete conversation threads: %w", err)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_sessions WHERE session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("delete conversation session: %w", err)
 	}
@@ -788,22 +893,35 @@ func (r *SQLConversationRepository) CopySession(ctx context.Context, oldID, newI
 	); err != nil {
 		return fmt.Errorf("ensure destination session: %w", err)
 	}
+	if !destSessionExists {
+		if err := catalogNewProjection(ctx, tx, newID, now, nil); err != nil {
+			return err
+		}
+	}
 
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO conversation_events (
 			id, session_id, source, role, text, speech_paragraphs,
 			original_speech_paragraphs, summarized, created_at, occurred_at, sequence,
-			delivery_state, tts_state, consumption_state, native_provenance_json
+			delivery_state, tts_state, consumption_state, native_provenance_json,
+			kind, author, author_name, label, thread_id
 		)
 		SELECT lower(hex(randomblob(16))), ?, source, role, text, speech_paragraphs,
 		       original_speech_paragraphs, summarized, created_at, occurred_at, sequence,
-		       delivery_state, tts_state, consumption_state, native_provenance_json
+		       delivery_state, tts_state, consumption_state, native_provenance_json,
+		       kind, author, author_name, label, thread_id
 		FROM conversation_events
 		WHERE session_id = ?
 		ORDER BY sequence`,
 		newID, oldID,
 	); err != nil {
 		return fmt.Errorf("copy events: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT OR IGNORE INTO conversation_threads (session_id, thread_id, kind, label, description, parent_thread_id, created_at)
+		SELECT ?, thread_id, kind, label, description, parent_thread_id, created_at
+		FROM conversation_threads WHERE session_id = ?`, newID, oldID); err != nil {
+		return fmt.Errorf("copy threads: %w", err)
 	}
 	if destLastSeq > 0 {
 		if _, err := tx.ExecContext(ctx, `
@@ -841,6 +959,7 @@ func maxInt64(a, b int64) int64 {
 type InMemoryConversationRepository struct {
 	mu       sync.Mutex
 	sessions map[string]*conversationSession
+	threads  map[string]map[string]ConversationThread
 }
 
 func NewInMemoryConversationRepository() *InMemoryConversationRepository {
@@ -936,29 +1055,42 @@ func (r *InMemoryConversationRepository) ListSession(_ context.Context, sessionI
 	}, nil
 }
 
-func (r *InMemoryConversationRepository) ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
+func (r *InMemoryConversationRepository) ListSessionPage(ctx context.Context, sessionID string, page ConversationPageQuery) (ConversationSessionState, bool, error) {
 	state, err := r.ListSession(ctx, sessionID)
-	if err != nil || limit <= 0 {
+	if err != nil {
 		return state, false, err
 	}
-	end := len(state.Events)
-	if beforeSequence > 0 {
-		end = 0
-		for index, event := range state.Events {
-			if event.Sequence >= beforeSequence {
-				end = index
-				break
-			}
-			end = index + 1
+	window := make([]ConversationEvent, 0, len(state.Events))
+	for _, event := range state.Events {
+		if (page.BeforeSequence <= 0 || event.Sequence < page.BeforeSequence) && (page.SinceSequence <= 0 || event.Sequence > page.SinceSequence) {
+			window = append(window, event)
 		}
 	}
-	start := end - limit
-	if start < 0 {
-		start = 0
+	hasMore := page.Limit > 0 && len(window) > page.Limit
+	if hasMore {
+		window = window[len(window)-page.Limit:]
 	}
-	hasMore := start > 0
-	state.Events = append([]ConversationEvent(nil), state.Events[start:end]...)
+	state.Events = window
 	return state, hasMore, nil
+}
+
+func (r *InMemoryConversationRepository) SessionCursor(_ context.Context, sessionID string) (ConversationCursor, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if session := r.sessions[sessionID]; session != nil {
+		return session.cursor, nil
+	}
+	return ConversationCursor{}, nil
+}
+
+func (r *InMemoryConversationRepository) LatestEventCreatedAt(_ context.Context, sessionID string) (time.Time, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	session := r.sessions[sessionID]
+	if session == nil || len(session.events) == 0 {
+		return time.Time{}, false, nil
+	}
+	return session.events[len(session.events)-1].CreatedAt, true, nil
 }
 
 func (r *InMemoryConversationRepository) CountSessionEvents(_ context.Context, sessionID string) (int64, error) {
@@ -1006,13 +1138,16 @@ func (r *InMemoryConversationRepository) SearchSession(ctx context.Context, sess
 		if q.Role != "" && string(event.Role) != q.Role {
 			continue
 		}
+		if !searchKindAllowed(q.Kinds, event.Kind) {
+			continue
+		}
 		ranges := plan.match(event.Text)
 		if len(ranges) == 0 {
 			continue
 		}
 		excerpt, textRanges := searchExcerpt(event.Text, ranges)
 		hits = append(hits, searchHit{
-			id: event.ID, sessionID: sessionID, sequence: event.Sequence, role: string(event.Role),
+			id: event.ID, sessionID: sessionID, sequence: event.Sequence, role: string(event.Role), kind: event.Kind, threadID: event.ThreadID,
 			createdAt: formatTime(event.CreatedAt), occurredAt: formatOptionalOccurredAt(event.OccurredAt), excerpt: excerpt, ranges: textRanges,
 		})
 	}
@@ -1245,6 +1380,21 @@ func (r *InMemoryConversationRepository) ensureSessionLocked(sessionID string) *
 	return session
 }
 
+// conversationEventColumns is the one column list scanConversationEvent reads.
+const conversationEventColumns = `id, session_id, source, role, text, speech_paragraphs,
+	COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
+	delivery_state, tts_state, consumption_state, native_provenance_json,
+	kind, author, author_name, label, thread_id`
+
+// storedConversationKind keeps the column's default for rows appended
+// without a classification (tests and legacy fixtures).
+func storedConversationKind(kind string) string {
+	if kind == "" {
+		return "message"
+	}
+	return kind
+}
+
 type scannable interface {
 	Scan(dest ...any) error
 }
@@ -1282,6 +1432,7 @@ func scanConversationEvent(row scannable) (ConversationEvent, error) {
 	var summarized int
 	var deliveryState, ttsState, consumptionState string
 	var nativeJSON sql.NullString
+	var kind string
 	if err := row.Scan(
 		&event.ID,
 		&event.SessionID,
@@ -1298,9 +1449,15 @@ func scanConversationEvent(row scannable) (ConversationEvent, error) {
 		&ttsState,
 		&consumptionState,
 		&nativeJSON,
+		&kind,
+		&event.Author,
+		&event.AuthorName,
+		&event.Label,
+		&event.ThreadID,
 	); err != nil {
 		return ConversationEvent{}, fmt.Errorf("scan conversation event: %w", err)
 	}
+	event.Kind = kind
 
 	event.Role = ConversationRole(role)
 	event.Summarized = summarized == 1
@@ -1352,9 +1509,7 @@ func marshalStringSlice(values []string) (string, error) {
 
 func applyCursorStateUpdates(ctx context.Context, tx *sql.Tx, sessionID string, cursor ConversationCursor) error {
 	rows, err := tx.QueryContext(ctx, `
-		SELECT id, session_id, source, role, text, speech_paragraphs,
-		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
-		       delivery_state, tts_state, consumption_state, native_provenance_json
+		SELECT `+conversationEventColumns+`
 		FROM conversation_events
 		WHERE session_id = ?
 		ORDER BY sequence`,
@@ -1399,9 +1554,7 @@ func applyCursorStateUpdates(ctx context.Context, tx *sql.Tx, sessionID string, 
 
 func loadConversationEventForUpdate(ctx context.Context, tx *sql.Tx, sessionID, eventID string, event *ConversationEvent) (bool, error) {
 	row := tx.QueryRowContext(ctx, `
-		SELECT id, session_id, source, role, text, speech_paragraphs,
-		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
-		       delivery_state, tts_state, consumption_state, native_provenance_json
+		SELECT `+conversationEventColumns+`
 		FROM conversation_events
 		WHERE session_id = ? AND id = ?`,
 		sessionID, eventID,

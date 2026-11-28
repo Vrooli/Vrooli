@@ -39,9 +39,7 @@ func (r *SQLConversationRepository) ResolveEvents(ctx context.Context, sessionID
 		end := min(start+conversationResolveBatchSize, len(ids))
 		batch := ids[start:end]
 		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
-		query := `SELECT id, session_id, source, role, text, speech_paragraphs,
-			COALESCE(original_speech_paragraphs, ''), summarized, created_at, occurred_at, sequence,
-			delivery_state, tts_state, consumption_state, native_provenance_json
+		query := `SELECT ` + conversationEventColumns + `
 			FROM conversation_events WHERE session_id = ? AND id IN (` + placeholders + `)`
 		args := make([]any, 0, len(batch)+1)
 		args = append(args, sessionID)

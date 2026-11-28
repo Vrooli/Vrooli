@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -214,6 +215,27 @@ func (s *SQLCatalogStore) RollbackManifest(ctx context.Context, hash string) err
 // Observe reads only Web Console-owned metadata and produces source evidence
 // for reconciliation. The LEFT JOINs are intentional: missing projection rows
 // are evidence of recoverability debt, not permission to discard native data.
+// MissingConversationIDs selects exactly the rows counted by continuity health.
+func (s *SQLCatalogStore) MissingConversationIDs(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT c.session_id FROM conversation_sessions c
+		LEFT JOIN sessions s ON s.id=c.session_id
+		LEFT JOIN conversation_catalog k ON k.session_id=c.session_id
+		WHERE s.id IS NULL AND k.session_id IS NULL`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
+}
+
 func (s *SQLCatalogStore) Observe(ctx context.Context) ([]Evidence, error) {
 	rows, err := s.db.QueryContext(ctx, `WITH ids(session_id) AS (
 		SELECT id FROM sessions
@@ -378,11 +400,19 @@ func (s *SQLCatalogStore) ListAll(ctx context.Context, lifecycleState string) ([
 	return rows, err
 }
 
+type catalogWriter interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
 func (s *SQLCatalogStore) Upsert(ctx context.Context, r CatalogRecord) error {
+	return upsertCatalogRecord(ctx, s.db, r)
+}
+
+func upsertCatalogRecord(ctx context.Context, writer catalogWriter, r CatalogRecord) error {
 	if r.SessionID == "" || r.SourceFingerprint == "" {
 		return fmt.Errorf("catalog session_id and source_fingerprint are required")
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO conversation_catalog
+	_, err := writer.ExecContext(ctx, `INSERT INTO conversation_catalog
 		(session_id, lifecycle_state, lifecycle_version, backend, agent_type, agent_session_id,
 		agent_home_ref, rollout_ref, original_title, current_title, topic_summary, cwd,
 		created_at, last_activity_at, source_fingerprint)
@@ -399,7 +429,7 @@ func (s *SQLCatalogStore) Upsert(ctx context.Context, r CatalogRecord) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO continuity_publication_queue(session_id, lifecycle_state, source_fingerprint, attempts, last_error, published_fingerprint, updated_at) VALUES (?, ?, ?, 0, '', '', ?) ON CONFLICT(session_id) DO UPDATE SET lifecycle_state=excluded.lifecycle_state, source_fingerprint=excluded.source_fingerprint, updated_at=excluded.updated_at WHERE continuity_publication_queue.published_fingerprint <> excluded.source_fingerprint`, r.SessionID, string(r.LifecycleState), r.SourceFingerprint, formatCatalogTime(time.Now().UTC()))
+	_, err = writer.ExecContext(ctx, `INSERT INTO continuity_publication_queue(session_id, lifecycle_state, source_fingerprint, attempts, last_error, published_fingerprint, updated_at) VALUES (?, ?, ?, 0, '', '', ?) ON CONFLICT(session_id) DO UPDATE SET lifecycle_state=excluded.lifecycle_state, source_fingerprint=excluded.source_fingerprint, updated_at=excluded.updated_at WHERE continuity_publication_queue.published_fingerprint <> excluded.source_fingerprint`, r.SessionID, string(r.LifecycleState), r.SourceFingerprint, formatCatalogTime(time.Now().UTC()))
 	return err
 }
 
@@ -416,15 +446,90 @@ func (s *SQLCatalogStore) NeedsReconciliation(ctx context.Context, r CatalogReco
 }
 
 func (s *SQLCatalogStore) AddAliases(ctx context.Context, r CatalogRecord) error {
+	return addCatalogAliases(ctx, s.db, r)
+}
+
+func addCatalogAliases(ctx context.Context, writer catalogWriter, r CatalogRecord) error {
 	for _, alias := range r.Aliases {
 		if alias.Kind == "" || alias.Value == "" {
 			continue
 		}
-		if _, err := s.db.ExecContext(ctx, `INSERT INTO conversation_aliases(session_id, alias_kind, alias_value, observed_at) VALUES (?, ?, ?, ?) ON CONFLICT(alias_kind, alias_value) DO NOTHING`, r.SessionID, alias.Kind, alias.Value, formatCatalogTime(time.Now().UTC())); err != nil {
+		if _, err := writer.ExecContext(ctx, `INSERT INTO conversation_aliases(session_id, alias_kind, alias_value, observed_at) VALUES (?, ?, ?, ?) ON CONFLICT(alias_kind, alias_value) DO NOTHING`, r.SessionID, alias.Kind, alias.Value, formatCatalogTime(time.Now().UTC())); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// ApplyMissingConversation adds a reviewed missing entry only while the
+// projection still has neither a session row nor a catalog row.
+func (s *SQLCatalogStore) ApplyMissingConversation(ctx context.Context, item ReconcileItem) (bool, error) {
+	if item.Action == ActionQuarantine {
+		return false, nil
+	}
+	if item.Action != ActionCreate {
+		return false, fmt.Errorf("missing-conversation repair requires a create item")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	written, err := CatalogMissingConversation(ctx, tx, item.Record)
+	if errors.Is(err, ErrCatalogAliasOwned) {
+		return false, fmt.Errorf("catalog alias ownership changed after review for %s", item.Record.SessionID)
+	}
+	if err != nil || !written {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ErrCatalogAliasOwned reports that another session already owns one of a
+// record's aliases. Such a record needs review, which is what quarantine in
+// the reconciliation plan is for.
+var ErrCatalogAliasOwned = errors.New("catalog alias owned by another session")
+
+// CatalogTx is the transaction surface CatalogMissingConversation writes on.
+type CatalogTx interface {
+	catalogWriter
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// CatalogMissingConversation writes record into the catalog, inside the
+// caller's transaction, only while its conversation projection exists with
+// neither a session row nor a catalog row: exactly the rows continuity health
+// counts as uncataloged. Ingestion calls it in the transaction that creates
+// such a projection, and the missing-catalog repair calls it for each reviewed
+// item, so both produce the same rows under the same predicate. It reports
+// whether it wrote anything.
+func CatalogMissingConversation(ctx context.Context, tx CatalogTx, record CatalogRecord) (bool, error) {
+	var missing bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM conversation_sessions WHERE session_id = ?)
+		AND NOT EXISTS (SELECT 1 FROM sessions WHERE id = ?)
+		AND NOT EXISTS (SELECT 1 FROM conversation_catalog WHERE session_id = ?)`, record.SessionID, record.SessionID, record.SessionID).Scan(&missing); err != nil || !missing {
+		return false, err
+	}
+	for _, alias := range record.Aliases {
+		var occupied bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM conversation_aliases
+			WHERE alias_kind = ? AND alias_value = ? AND session_id != ?)`, alias.Kind, alias.Value, record.SessionID).Scan(&occupied); err != nil {
+			return false, err
+		}
+		if occupied {
+			return false, ErrCatalogAliasOwned
+		}
+	}
+	if err := upsertCatalogRecord(ctx, tx, record); err != nil {
+		return false, err
+	}
+	if err := addCatalogAliases(ctx, tx, record); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *SQLCatalogStore) UpdateLifecycleState(ctx context.Context, sessionID string, state State) error {

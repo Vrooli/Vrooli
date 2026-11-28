@@ -31,6 +31,7 @@ var (
 	ErrRevoked        = errors.New("desktop session is revoked")
 	ErrClipboard      = errors.New("clipboard capability is not granted")
 	ErrInvalidCall    = errors.New("invalid desktop session request")
+	ErrFrameBusy      = errors.New("desktop frame transport is busy")
 	ErrCleanupPending = errors.New("desktop input cleanup is pending")
 )
 
@@ -74,13 +75,15 @@ func (UnavailableProvider) ReadClipboard(context.Context) (string, error) { retu
 func (UnavailableProvider) WriteClipboard(context.Context, string) error  { return ErrNotReady }
 
 type Manager struct {
-	mu       sync.Mutex
-	provider Provider
-	now      func() time.Time
-	sessions map[string]*state
+	mu        sync.Mutex
+	provider  Provider
+	now       func() time.Time
+	sessions  map[string]*state
+	frameBusy bool
 }
 
 type state struct {
+	nextFrame       time.Time
 	session         *desktopv1.DesktopSession
 	clipboard       bool
 	revoked         bool

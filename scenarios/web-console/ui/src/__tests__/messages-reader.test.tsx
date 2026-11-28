@@ -245,6 +245,56 @@ describe("messages reader", () => {
     expect(screen.getByTestId("messages-reader-body")).toHaveTextContent("alpha three.");
   });
 
+  it("[REQ:P0-017d] returns to the list at the place it was left, even after stepping", () => {
+    render(<MessagesPane {...props} />);
+    const list = screen.getByTestId("messages-scroll");
+    list.scrollTop = 240;
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    fireEvent.click(screen.getByTestId("reader-prev-reply"));
+    expect(screen.getByTestId("reader-meta")).toHaveTextContent("#1");
+
+    fireEvent.click(screen.getByTestId("reader-return"));
+    expect(screen.queryByTestId("messages-reader")).toBeNull();
+    expect(list.scrollTop).toBe(240);
+  });
+
+  it("[REQ:P0-017d] scrubs through replies while an arrow is held, with a speed and place readout", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame", "performance", "Date"] });
+    try {
+      seed(Array.from({ length: 60 }, (_, index) => event(`r${String(index + 1)}`, index + 1, `Reply ${String(index + 1)}.`)));
+      render(<MessagesPane {...props} />);
+      act(() => { useMessagesViewStore.getState().setReader("sess-1", { eventId: "r1", seenThrough: 60 }); });
+      const next = screen.getByTestId("reader-next-reply");
+      const hud = screen.getByTestId("reader-scrub-hud");
+      expect(hud).toHaveAttribute("data-visible", "false");
+
+      fireEvent.pointerDown(next, { isPrimary: true, button: 0 });
+      act(() => { vi.advanceTimersByTime(1000); });
+      expect(next).toHaveAttribute("data-scrub-phase", "scrubbing");
+      expect(hud).toHaveAttribute("data-visible", "true");
+      expect(screen.getByTestId("reader-scrub-speed")).toHaveAttribute("data-speed", "2");
+      const early = Number(/#(\d+)/.exec(screen.getByTestId("reader-meta").textContent ?? "")?.[1]);
+      expect(early).toBeGreaterThan(1);
+      expect(screen.getByTestId("reader-scrub-position")).toHaveAttribute("data-current", String(early));
+      expect(screen.getByTestId("reader-scrub-position")).toHaveAttribute("data-total", "60");
+
+      // Held long enough, it reaches the latest reply and says so.
+      act(() => { vi.advanceTimersByTime(8000); });
+      expect(screen.getByTestId("reader-meta")).toHaveTextContent("#60");
+      expect(screen.getByTestId("reader-scrub-edge")).toHaveAttribute("data-edge", "latest");
+      // Still under the finger, so not disabled until it lets go.
+      expect(next).toBeEnabled();
+
+      fireEvent.pointerUp(window);
+      fireEvent.click(next);
+      expect(screen.getByTestId("reader-meta")).toHaveTextContent("#60");
+      expect(next).toBeDisabled();
+      expect(hud).toHaveAttribute("data-visible", "false");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("[REQ:P0-017d] marks the next-reply button when a reply arrives while reading, and clears it once read", () => {
     render(<MessagesPane {...props} />);
     fireEvent.click(screen.getByTestId("msg-open-reader-long"));
@@ -261,16 +311,22 @@ describe("messages reader", () => {
     expect(screen.getByTestId("reader-next-reply")).not.toHaveAttribute("data-new-count");
   });
 
-  it("[REQ:P0-017d] resizes its text with the size buttons and a pinch, and keeps the size", () => {
+  it("[REQ:P0-017d] resizes its text with Ctrl/⌘ ± and a pinch, and keeps the size", () => {
     const { unmount } = render(<MessagesPane {...props} />);
     fireEvent.click(screen.getByTestId("msg-open-reader-long"));
     const body = () => screen.getByTestId("messages-reader-body");
     const start = parseFloat(body().style.fontSize);
+    expect(screen.queryByTestId("reader-font-larger")).toBeNull();
 
-    fireEvent.click(screen.getByTestId("reader-font-larger"));
+    // The shortcut sizes the reader's text and keeps the browser from zooming the page.
+    const larger = fireEvent.keyDown(screen.getByTestId("reader-find-input"), { key: "=", ctrlKey: true });
+    expect(larger).toBe(false);
     expect(parseFloat(body().style.fontSize)).toBeGreaterThan(start);
-    fireEvent.click(screen.getByTestId("reader-font-smaller"));
+    fireEvent.keyDown(screen.getByTestId("messages-reader"), { key: "-", metaKey: true });
     expect(parseFloat(body().style.fontSize)).toBe(start);
+    fireEvent.keyDown(screen.getByTestId("messages-reader"), { key: "=", ctrlKey: true });
+    fireEvent.keyDown(screen.getByTestId("messages-reader"), { key: "0", ctrlKey: true });
+    expect(parseFloat(body().style.fontSize)).toBe(16);
 
     // Two fingers spreading to twice their distance double the size.
     fireEvent.touchStart(body(), { touches: [{ identifier: 0, clientX: 0, clientY: 0 }, { identifier: 1, clientX: 0, clientY: 100 }] });
@@ -293,9 +349,9 @@ describe("messages reader", () => {
       render(<MessagesPane {...props} />);
       fireEvent.click(screen.getByTestId("msg-open-reader-long"));
 
-      expect(screen.queryByTestId("reader-font-larger")).toBeNull();
+      expect(screen.queryByTestId("reader-return")).toBeNull();
       act(() => { useWorkspaceStore.setState({ keyboardOpen: false }); });
-      expect(screen.getByTestId("reader-font-larger")).toBeInTheDocument();
+      expect(screen.getByTestId("reader-return")).toBeInTheDocument();
     } finally {
       delete (navigator as unknown as Record<string, unknown>).maxTouchPoints;
       if (touchPoints) Object.defineProperty(Navigator.prototype, "maxTouchPoints", touchPoints);

@@ -2,6 +2,9 @@ package registry
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -27,11 +30,76 @@ type Service interface {
 
 	// Update validates (id + name required) and persists the editable surface.
 	Update(ctx context.Context, in UpdateInput) (Node, error)
+	UpdateCAS(ctx context.Context, in UpdateCASInput) (UpdateCASResult, error)
 	UpdateArchitecture(ctx context.Context, id, machineArch, binaryArch string) error
+	SetEnrollmentGeneration(ctx context.Context, id string, generation int64) (Node, error)
 
 	// Revoke severs a node (idempotent). Returns ErrNodeNotFound when unknown.
 	Revoke(ctx context.Context, id string) (Node, error)
 	Remove(ctx context.Context, id string) error
+}
+
+const UpdateNodeSubject = "registry.node.owner-fields"
+
+func (s *service) UpdateCAS(ctx context.Context, in UpdateCASInput) (UpdateCASResult, error) {
+	id := strings.TrimSpace(in.Update.ID)
+	if id == "" {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "id", Reason: "required"}
+	}
+	if in.ActorID == "" {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "actor_id", Reason: "authenticated owner identity required"}
+	}
+	if strings.TrimSpace(in.RequestID) == "" {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "request_id", Reason: "required"}
+	}
+	if in.ExpectedRevision <= 0 {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "expected_revision", Reason: "must be positive"}
+	}
+	name := strings.TrimSpace(in.Update.Name)
+	if name == "" {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "name", Reason: "required"}
+	}
+	if err := s.validateScopes(in.Update.Scopes); err != nil {
+		return UpdateCASResult{}, err
+	}
+	current, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return UpdateCASResult{}, err
+	}
+	kind := strings.TrimSpace(in.Update.Kind)
+	if kind == "" {
+		kind = current.Kind
+	}
+	tier := strings.TrimSpace(in.Update.DeploymentTier)
+	if tier == "" {
+		tier = current.DeploymentTier
+	}
+	if !ValidKind(kind) {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, attached, or control_plane"}
+	}
+	if tier != "" && !validDeploymentTier(tier) {
+		return UpdateCASResult{}, ErrInvalidNode{Field: "deployment_tier", Reason: "must be local, vps, or test-device"}
+	}
+	caps, scopes := trimAll(in.Update.Capabilities), trimAll(in.Update.Scopes)
+	payload := struct {
+		ID, Name, Endpoint             string
+		Capabilities, Scopes           []string
+		Revision, Kind, DeploymentTier string
+	}{id, name, strings.TrimSpace(in.Update.Endpoint), caps, scopes, strings.TrimSpace(in.Update.Revision), kind, tier}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return UpdateCASResult{}, err
+	}
+	sum := sha256.Sum256(b)
+	n := current
+	n.Name = name
+	n.Endpoint = payload.Endpoint
+	n.Capabilities = caps
+	n.Scopes = scopes
+	n.Revision = payload.Revision
+	n.Kind = kind
+	n.DeploymentTier = tier
+	return s.repo.UpdateCAS(ctx, CASMutation{ActorID: in.ActorID, RequestID: strings.TrimSpace(in.RequestID), TargetID: id, Subject: UpdateNodeSubject, ExpectedRevision: in.ExpectedRevision, PayloadDigest: hex.EncodeToString(sum[:]), Node: n})
 }
 
 type service struct {
@@ -85,12 +153,17 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 	if !ValidKind(kind) {
 		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, attached, or control_plane"}
 	}
+	tier := strings.TrimSpace(in.DeploymentTier)
+	if tier != "" && !validDeploymentTier(tier) {
+		return Node{}, ErrInvalidNode{Field: "deployment_tier", Reason: "must be local, vps, or test-device"}
+	}
 	if err := s.validateScopes(in.Scopes); err != nil {
 		return Node{}, err
 	}
 	return s.repo.Create(ctx, Node{
 		Name:                 name,
 		Kind:                 kind,
+		DeploymentTier:       tier,
 		OS:                   os,
 		Arch:                 arch,
 		MachineArch:          machineArch,
@@ -108,6 +181,17 @@ func (s *service) UpdateArchitecture(ctx context.Context, id, machineArch, binar
 		return ErrInvalidNode{Field: "id", Reason: "required"}
 	}
 	return s.repo.UpdateArchitecture(ctx, id, strings.TrimSpace(machineArch), strings.TrimSpace(binaryArch))
+}
+
+// SetEnrollmentGeneration is an internal owner operation called only after
+// Machine lineage has assigned its generation. Callers cannot choose a value
+// through RegisterNode or UpdateNode.
+func (s *service) SetEnrollmentGeneration(ctx context.Context, id string, generation int64) (Node, error) {
+	id = strings.TrimSpace(id)
+	if id == "" || generation <= 0 {
+		return Node{}, ErrInvalidNode{Field: "enrollment_generation", Reason: "node id and positive Bridge-assigned generation are required"}
+	}
+	return s.repo.SetEnrollmentGeneration(ctx, id, generation)
 }
 
 func (s *service) List(ctx context.Context) ([]Node, error) {
@@ -135,12 +219,21 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 		return Node{}, err
 	}
 	kind := strings.TrimSpace(in.Kind)
-	if kind == "" {
+	tier := strings.TrimSpace(in.DeploymentTier)
+	if kind == "" || tier == "" {
 		current, err := s.repo.Get(ctx, id)
 		if err != nil {
 			return Node{}, err
 		}
-		kind = current.Kind
+		if kind == "" {
+			kind = current.Kind
+		}
+		if tier == "" {
+			tier = current.DeploymentTier
+		}
+	}
+	if tier != "" && !validDeploymentTier(tier) {
+		return Node{}, ErrInvalidNode{Field: "deployment_tier", Reason: "must be local, vps, or test-device"}
 	}
 	if !ValidKind(kind) {
 		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, attached, or control_plane"}
@@ -153,11 +246,21 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 		Scopes:             trimAll(in.Scopes),
 		Revision:           strings.TrimSpace(in.Revision),
 		Kind:               kind,
+		DeploymentTier:     tier,
 		ConfigurationOpID:  strings.TrimSpace(in.ConfigurationOpID),
 		ConfigurationState: strings.TrimSpace(in.ConfigurationState),
 		ConfigurationAt:    in.ConfigurationAt,
 		ConfigurationUnmet: trimAll(in.ConfigurationUnmet),
 	})
+}
+
+func validDeploymentTier(tier string) bool {
+	switch tier {
+	case "local", "vps", "test-device":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *service) validateScopes(scopes []string) error {

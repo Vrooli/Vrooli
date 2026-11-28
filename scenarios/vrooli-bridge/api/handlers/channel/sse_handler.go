@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/lifecycle"
+
 	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/httpx"
 	"vrooli-bridge/internal/nodeauth"
@@ -153,6 +155,10 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-lifecycle.Closing(ctx):
+			// The agent will reconnect. A parked SSE reader must let the
+			// maintenance generation drain before the server can restart.
 			return
 		case <-conn.Done():
 			// The control plane severed this channel (e.g. atomic revocation):

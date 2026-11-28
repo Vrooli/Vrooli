@@ -6,7 +6,8 @@ import (
 )
 
 var Endpoints = []module.EndpointDescriptor{
-	{ID: "continuity_integrity", Path: continuityconnect.ContinuityServiceIntegrityProcedure, Method: "POST", Summary: "Audit conversation continuity", Description: "Read-only counts and a deterministic generation for local session, transcript, checkpoint, and workspace evidence.", Category: "continuity"},
+	{ID: "continuity_integrity", Path: continuityconnect.ContinuityServiceIntegrityProcedure, Method: "POST", Summary: "Audit conversation continuity", Description: "Read-only counts, a deterministic generation, and the event-content conservation hash (cached until events change) for local session, transcript, checkpoint, and workspace evidence.", Category: "continuity"},
+	{ID: "continuity_health", Path: continuityconnect.ContinuityServiceHealthProcedure, Method: "POST", Summary: "Observe continuity catalog-link health", Description: "Orphan and uncataloged counts from indexes alone, in milliseconds; never reads message bodies and is not a conservation receipt.", Category: "continuity"},
 	{ID: "continuity_reconcile", Path: continuityconnect.ContinuityServiceReconcileProcedure, Method: "POST", Summary: "Plan or apply catalog reconciliation", Description: "Dry-run by default; apply=true writes only the Web Console catalog projection.", Category: "continuity"},
 	{ID: "continuity_catalog_list", Path: continuityconnect.ContinuityServiceListCatalogProcedure, Method: "POST", Summary: "List canonical conversation records", Description: "Exports stable Web Console source identities and aliases for local recovery and Agent Manager import.", Category: "continuity"},
 	{ID: "continuity_search", Path: continuityconnect.ContinuityServiceSearchProcedure, Method: "POST", Summary: "Search all local conversation states", Description: "Deterministic exact-text search across live, archived, recoverable, and orphaned retained events.", Category: "continuity"},

@@ -4,6 +4,9 @@ CREATE TABLE IF NOT EXISTS machines (
   id TEXT PRIMARY KEY,
   lifecycle TEXT NOT NULL DEFAULT 'active',
   version INTEGER NOT NULL DEFAULT 1,
+  -- Bridge-owned monotonic enrollment generation. Legacy rows remain zero
+  -- until a correlated enrollment safely binds a current node.
+  enrollment_generation INTEGER NOT NULL DEFAULT 0,
   desired_profile_id TEXT NOT NULL DEFAULT '',
   desired_profile_version TEXT NOT NULL DEFAULT '',
   desired_selection_json TEXT NOT NULL DEFAULT '',
@@ -35,6 +38,7 @@ CREATE TABLE IF NOT EXISTS machine_node_lineage (
   linked_at TEXT NOT NULL,
   superseded_at TEXT NOT NULL DEFAULT '',
   source_correlation_id TEXT NOT NULL DEFAULT '',
+  enrollment_generation INTEGER NOT NULL DEFAULT 0,
   UNIQUE(machine_id, node_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_machine_one_current_node
@@ -43,6 +47,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_machine_one_current_node
 -- reconciles legacy duplicates before creating this index.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_machine_one_current_node_global
   ON machine_node_lineage(node_id) WHERE is_current = 1;
+-- Immutable enrollment correlation receipts prevent an old successful attempt
+-- from being reused after a same-node re-enrollment replaces its lineage row.
+CREATE TABLE IF NOT EXISTS machine_enrollment_generations (
+  machine_id TEXT NOT NULL,
+  enrollment_generation INTEGER NOT NULL,
+  node_id TEXT NOT NULL,
+  correlation_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY(machine_id, enrollment_generation),
+  UNIQUE(machine_id, correlation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_machine_enrollment_generation_node
+  ON machine_enrollment_generations(machine_id, node_id, enrollment_generation DESC);
 CREATE INDEX IF NOT EXISTS idx_machine_locators_normalized
   ON machine_locators(kind, normalized_value);
 

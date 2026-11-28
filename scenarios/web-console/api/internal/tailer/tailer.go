@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"github.com/vrooli/cli-core/agenttranscript"
 	"io"
 	"log"
 	"os"
@@ -34,8 +35,11 @@ type Event struct {
 	Role       string
 	Text       string
 	OccurredAt time.Time
-	Commit     bool
-	Ignored    bool
+	// Class is what the decoder knows natively about the row (kind, author,
+	// agent thread). Nil lets the store classify the row from its text.
+	Class   *agenttranscript.Classification
+	Commit  bool
+	Ignored bool
 }
 
 // Checkpoint is an opaque source cursor. Append-only JSONL sources normally

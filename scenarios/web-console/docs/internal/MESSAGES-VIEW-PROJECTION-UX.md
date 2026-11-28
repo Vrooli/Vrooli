@@ -10,7 +10,38 @@ Web Console is the operator's daily surface for supervising coding agents. The M
 
 Messages shows only what capture understands, and says so when it does not. The terminal stays the ground truth; the view toggle between Terminal and Messages is unchanged. A state the projection cannot render (a tool call, a prompt a harness does not expose) is shown as a card that hands the user to the terminal, never as silence and never as a guess.
 
-Only natural-language turns are stored as conversation events. Session activity (below) explains the time between turns.
+Every captured row is stored, classified at ingestion (see [What a row is](#what-a-row-is)); the view lists only the conversation — what the operator and the agent said to each other — and folds everything else into the lines between it. Session activity (below) explains the time between turns.
+
+## What a row is
+
+A transcript row arrives on a channel (`role`: user or assistant), but the channel does not say what the row is or who wrote it: harnesses put tool calls on the assistant channel and inject instructions, task updates, other agents' messages and launch prompts on the user channel. Before classification about 400,000 of 650,000 stored rows were tool calls and results, and about 30,000 of 43,000 user-channel rows were not typed by the operator; all of them rendered as messages, and the injected ones as "You".
+
+Every row now carries three things, set when it is captured (`agenttranscript.Message`, shared by Web Console and Agent Manager):
+
+| Field | Values | Meaning |
+|---|---|---|
+| `kind` | `message`, `attachment`, `notice` | The conversation: listed as rows |
+| | `tool_call`, `tool_result`, `reasoning`, `context` | Work: folded into the line between messages |
+| `author` | `human`, `agent`, `peer`, `automation`, `harness` | Who wrote the text; `role` stays the channel |
+| `thread_id` | empty, or an agent thread | Empty is the session's own conversation; otherwise a subagent's, a teammate's or the approval reviewer's |
+
+Classification starts from native structure where the transcript has it — Claude's `origin` (peer, task notification, auto-continuation), `isMeta`, `isCompactSummary`, `isSidechain`/`agentId` and its subagent files with their `meta.json`; Codex's `session_meta` (`source.subagent.thread_spawn`, the guardian reviewer) and its function-call records — and falls back to the recognisers in `packages/cli-core/agenttranscript/message-classes.json` for rows that only carry text (hooks, archives, history). The recognisers are data: each rule is a prefix or pattern, a harness list, the kind and author it means, how to read the author's name, and whether it opens a thread. A lead's messages (`lead_agent_names`, `team-lead`) are the prompts of the agent it launched, so in that agent's own transcript they stay on its main thread. The first main-thread prompt of a programmatic session is attributed to the program that opened it (`author=automation`, `label=launch_prompt`), never to the operator.
+
+History is classified by a background pass (`conversation_event_classification_v1` in `web_console_migrations`): rowid-cursor batches of 500, each committed with its cursor, after the projection index (`idx_conversation_events_projection`) is built, so startup never waits on it, an interrupted pass resumes, it is idempotent, and nothing is deleted. On a copy of the live database (651,854 rows, 4 GB) the index took 48 s and the pass 2 min 11 s. Bump the migration name when the recognisers change in a way history should see.
+
+## Work between messages
+
+The server, not the client, projects the list (`Get` with `projection=MESSAGES`, `ListProjectionPage`): a page holds a thread's conversation rows, and before each one a synthesised `work` row (never stored) whose `ConversationWorkSpan` covers every sequence since the previous conversation row and counts that thread's tool calls, results, reasoning and context with their times. The span's range includes other threads' rows, so pages stay contiguous by sequence and the store's gap detection works unchanged; `limit` counts conversation rows, so a page is fifty messages, not fifty tool calls. The newest page also carries the trailing span. Tool text never travels with the list: a span's rows are fetched only when it opens (`GetRange` with `projection=WORK`), as 1,200-character previews.
+
+The line reads "Worked for 2m 12s · 14 tool calls", "Thought for 15s" when the span is reasoning only, and adds "· 2 context updates" for injected context; the duration runs from the conversation row before to the one after, so it is how long the agent took to answer. A span with nothing of this thread draws no line. Tapping the line opens it in place (`CollapsibleRegion`) to one line per row — the tool and its first argument, the result, the reasoning — and each of those opens to its preview. Live rows fold the same way in the store (`foldLiveRow`): the SSE hub sends work rows without their text, and they grow the tail's line.
+
+## Notices
+
+Text a harness or a program put into the conversation that a person should still see — a background task update, an interruption, a slash command, a usage-limit reset, a subagent's report, the auto-reviewer's verdict — is a `notice`: one quiet line in secondary text with an icon, a title from its recogniser label and a one-line summary read out of its markup (the task summary, the command and its arguments, the risk level). Tapping shows the full text. An image the operator attached is an `attachment` line. Neither is ever shown as a message from "You"; injected instructions, environment blocks, skill bodies and compaction summaries are `context` and live in the work line.
+
+## Agent threads
+
+A subagent (Claude's Task/Agent workers and in-process teammates, Codex `thread_spawn` rollouts), a teammate that messages the session, and the approval reviewer each get a thread (`conversation_threads`: id, kind, name, what it was asked, parent). The session's own conversation shows each as one group at the point it began — the work line that covers its first row — with its name, kind, message count and how long it ran, and a line of what it was asked. Tapping the group opens the thread's own conversation in the pane in place of the list (as the reader does), with its work collapsed the same way; Back returns to the list where it was. A teammate's message to the lead files under that teammate's thread; a subagent's brief is filed in its thread as written by the parent (`author=peer`).
 
 ## Session activity contract
 
@@ -93,7 +124,7 @@ Messages renders exactly one presentation under the last row (`data-testid="mess
 
 ## The row and action reveal
 
-The row header is `speaker · time`; the sequence number appears only in the time's tooltip. Speaker comes from `speakerLabel(event)`: user rows are "You"; assistant rows map the capture source (`claude_hook` Claude, `codex_tailer` Codex, `grok_tailer` Grok, `opencode_api` OpenCode, otherwise Agent).
+The row header is `speaker · time`; the sequence number appears only in the time's tooltip. Speaker comes from the row's author (`speakerKey`/`speakerParams`): the operator is "You" and only the operator's messages sit in the "You" bubble; the agent maps the capture source (`claude_hook` Claude, `codex_tailer` Codex, `grok_tailer` Grok, `opencode_api` OpenCode, otherwise Agent); another agent is named ("serving-fabric"); a launch prompt is "agent-manager · automated". A row from a server that predates authors falls back to its role.
 
 Actions stay declared in `ui/src/components/messages/messageActions.ts`. They are hidden at rest. Revealed, they are the library's ghost icon buttons (no fill or border at rest) sitting right after the timestamp in the row's fixed-height header line, so revealing them never changes the row's height; their tap targets overhang the line. Copy is the library's `CopyIconButton`: the icon morphs to a check in the success colour. On a fine pointer, hover or keyboard focus reveals at most three inline actions; right-click opens the full list. On a coarse pointer a tap reveals the same inline actions and the More button, on one row at a time; tapping the row again hides them, and a tap on a link or control inside the row is that control's. A long-press opens a bottom sheet with every applicable action, primary first. `j`/`k` move focus between rows, `Enter` opens the list, `Escape` closes it. The `audio-settings` action is removed; `read-from-here` and `open-in-reader` exist.
 
@@ -101,7 +132,7 @@ Handoff suggestions render inside the row's measured block. One rule matching se
 
 ## The reader
 
-Rows taller than 400 px end in a gradient and an outline footer ("Open in reader · N words · N headings · N code blocks"). The footer opens the reader, which takes the list's place inside the pane rather than covering the page, so the composer bar below stays usable: the operator drafts a reply while reading. Its header is a back arrow, the find-in-message field, copy, and More, which opens the message's full action list (the same one the row offers, less "Open in reader", plus "Play this message"). The match count and the previous and next match controls appear only once there is a query. The speaker, time, and sequence head the text, which has its own scroll and padding. The footer steps to the previous and next reply (the operator's own messages are skipped) and changes the text size in 2 px steps from 12 to 32 px; a two-finger pinch on the text does the same, and the size is kept across readers and reloads. A reply that arrives while the reader is open marks the next-reply button with a count until the reader steps to it; a send never closes the reader. While a phone keyboard is up the footer is hidden, so the text keeps its room.
+Rows taller than 400 px end in a gradient and an outline footer ("Open in reader · N words · N headings · N code blocks"). The footer opens the reader, which takes the list's place inside the pane rather than covering the page, so the composer bar below stays usable: the operator drafts a reply while reading. Its header is a back arrow, the find-in-message field, copy, and More, which opens the message's full action list (the same one the row offers, less "Open in reader", plus "Play this message"). The match count and the previous and next match controls appear only once there is a query. The speaker, time, and sequence head the text, which has its own scroll and padding. The footer is previous reply, a wide **Return**, and next reply: a reply is the agent's own message on the main thread, so the operator's messages, work lines, notices and thread groups are all stepped over. Return closes the reader onto the list exactly where it was left, however far the reader stepped. A tap on an arrow steps one reply; a hold past the long-press delay scrubs like a video player's fast-forward — 2×, 4×, 8×, then 16× over about four and a half seconds (`SCRUB_TIERS` in `hooks/useHoldToScrub.ts`). The rate is per second, not per frame, so a slow render skips replies rather than slowing the scrub. While the press is pending a ring fills around the arrow; once scrubbing, the arrow fills and doubles (⏪/⏩), and a readout above the footer shows the speed, its tier, and the place (`12 / 48`) with a position bar. At the first or latest reply the readout says so with a small bump, and the scrub holds there until release; the arrow is only disabled once the finger lifts. Android gets a short vibration on each tier and at an end. Enter or Space held on a focused arrow does the same; the settled place is announced to screen readers once, never per step. Text size is a two-finger pinch on the text or Ctrl/⌘ `+`, `−` and `0` (2 px steps, 12–32 px, 16 px reset) while the reader has focus — these size the reader instead of zooming the page — and the size is kept across readers and reloads. A reply that arrives while the reader is open marks the next-reply button with a count until the reader steps to it; a send never closes the reader. While a phone keyboard is up the footer is hidden, so the text keeps its room.
 
 On touch the reader takes focus itself, so opening it never raises the keyboard; on a keyboard the find field takes it. Back and `Escape` return to the list. The list stays laid out and live underneath (hidden, it would measure every row at zero) and is inert while covered, so `j`/`k` and search never reach it; closing returns focus to the row the reader showed last. A live pane's open reader survives a tab switch for as long as the page is open, never across a reload; the archive's reader is its own. File and diagram viewers opened from the reader stay overlays. There is no inline expand.
 
@@ -127,7 +158,7 @@ In Messages the composer bar shows on every device, not only on touch: it is the
 
 ## One search
 
-Session, navigator, and archived search share one repository function (`searchEvents` in `api/conversation_search.go`) over the FTS5 mirror `conversation_events_fts`, with modes `text`, `regex`, and `fuzzy` and flags case, whole word, and role. The index narrows; an exact Go matcher decides:
+Session, navigator, and archived search share one repository function (`searchEvents` in `api/conversation_search.go`) over the FTS5 mirror `conversation_events_fts`, with modes `text`, `regex`, and `fuzzy` and flags case, whole word, role and kinds. The Messages view searches the conversation it lists (`kinds` message, attachment, notice); the **Tool calls & context** chip in the filter popover drops the filter. A hit carries its kind and thread: a hit inside work opens the work line that holds it with the hit outlined, and a hit in a subagent's conversation opens that thread. The index narrows; an exact Go matcher decides:
 
 | Mode | Candidates | Match |
 |---|---|---|
@@ -141,7 +172,7 @@ The navigator lists server hits in sequence order with those ranges for highligh
 
 ## The pill
 
-Playback is one floating pill over the list that takes no layout height. Collapsed: play/pause, what is playing, elapsed and total, close, and a progress hairline. Expanded: scrub, previous and next, speed, summarize mode, voice, jump to message, and settings. Tap toggles; swipe down dismisses and stops playback; swipe left or right steps messages; drag on the progress zone scrubs. Transport values come from provider events, not polling. Media Session and lock-screen controls keep working. A dismissed pill is gone, not minimized; the next message to speak brings it back. While a reader is open the pill rises by the reader footer's height (`--wc-reader-footer-h`), so it never covers the footer's controls.
+Playback is one floating pill over the list that takes no layout height. It reads messages only: "Read from here" queues the messages after the row and skips work and notices, auto-play and auto-summarise take only the agent's main-thread replies, and the unread count is the agent's replies. Collapsed: play/pause, what is playing, elapsed and total, close, and a progress hairline. Expanded: scrub, previous and next, speed, summarize mode, voice, jump to message, and settings. Tap toggles; swipe down dismisses and stops playback; swipe left or right steps messages; drag on the progress zone scrubs. Transport values come from provider events, not polling. Media Session and lock-screen controls keep working. A dismissed pill is gone, not minimized; the next message to speak brings it back. While a reader is open the pill rises by the reader footer's height (`--wc-reader-footer-h`), so it never covers the footer's controls.
 
 ## Scroll invariants
 
@@ -175,6 +206,12 @@ Playback is one floating pill over the list that takes no layout height. Collaps
 - **D19 — Pill, reader, and state slot are scenario-local;** recorded in `docs/reference/component-library-gaps.md`.
 - **D20 — The prior plan `web-console-messages-view-open-reliably-at-thousands-of` is superseded.**
 - **D21 — One composer in Messages:** The composer bar shows in Messages on every device; there is no composer inside the reader, and "Send to composer" stages into the bar.
+- **D22 — Classify at ingestion, from native structure first:** Kind, author and thread are stored on the row by the shared parser; text recognisers are a data table per harness, and history is reclassified by an idempotent background pass rather than at read time. Switch cost: a new recogniser needs a migration-name bump to reach history.
+- **D23 — The server projects; the client never holds raw tool rows:** Paging counts conversation rows and work rows are synthesised per page, because 58% of rows are tool rows averaging 6 KB. Work rows cover whole sequence ranges so the store's contiguity rules hold. Alternative considered: client-side folding over full pages (rejected: pages of tool output on a phone).
+- **D24 — Work is one secondary line between messages, opened in place:** Not a separate tab or a toggle that re-lists everything; its rows load on demand as previews.
+- **D25 — Injected content is a notice or context, never "You":** Only `author=human` renders as the operator. A launch prompt is the launching program's.
+- **D26 — Agent threads are groups that open their own conversation:** Placed where the thread began, opened in place of the list like the reader. Codex and Claude subagent history captured before threads existed stays interleaved; teammate messages found in history text are threaded by the backfill.
+- **D27 — Search defaults to the conversation:** The kinds filter is server-side; including work is one chip.
 
 ## Native control and projection boundary
 
@@ -209,7 +246,18 @@ postcondition preserves projected history and prevents blind replay; an
 identical request replays the durable result without repeating the side effect.
 The installed owner was OpenCode 1.18.30 during validation. Claude, Codex, and
 Grok remain explicitly unsupported until their owners expose an equivalent
-verified operation. The reproducible served-browser safety-dialog case is
+verified operation.
+
+OpenCode rows reach Messages only after the pane is bound to its native
+session, and that binding is by identity, not inference. For OpenCode 2 the
+launcher preselects the session id (`--session <id>`) and records it in the
+pane's state (`opencode/<pane id>/binding.json`); the capture owner binds the
+pane when that session appears. Directory + time attribution remains only as a
+fallback for OpenCode 1 and `--continue`, and it ignores subagent sessions. On
+2026-11-24 that fallback, fed by subagent sessions in the shared repository
+root, left one pane ambiguous and then every later pane, so no OpenCode pane
+showed messages until bindings replaced it (validated against OpenCode 2.3.2;
+see `docs/guides/CONVERSATION_TRACKING.md`). The reproducible served-browser safety-dialog case is
 `bas/cases/02-messages/05-rewind/message-rewind-safety-dialog.json`.
 
 ## Mockups

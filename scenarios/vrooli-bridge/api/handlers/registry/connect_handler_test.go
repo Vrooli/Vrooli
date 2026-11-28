@@ -76,6 +76,27 @@ func TestHandler_RemoveNode_DelegatesForOwner(t *testing.T) {
 	require.Equal(t, []string{"revoked-node"}, svc.RemoveIDs)
 }
 
+func TestHandler_UpdateNodeUsesAuthenticatedCASIdentityAndReturnsReceipt(t *testing.T) {
+	receipt := registry.NodeUpdateReceipt{RequestID: "r1", ActorID: "owner-1", TargetID: "n1", Subject: registry.UpdateNodeSubject, ExpectedRevision: 7, NewRevision: 8, PayloadDigest: "sha256:abc", CreatedAt: time.Now().UTC()}
+	svc := &mocks.FakeService{CASOut: registry.UpdateCASResult{Node: registry.Node{ID: "n1", Name: "node", OwnerRevision: 8}, Receipt: receipt}}
+	h := newHarness(svc, nil)
+	expected := int64(7)
+	resp, err := h.UpdateNode(ownerCtx(), connect.NewRequest(&registryv1.UpdateNodeRequest{Id: "n1", Name: "node", RequestId: "r1", ExpectedRevision: &expected}))
+	require.NoError(t, err)
+	require.Equal(t, "owner-1", svc.CASInputs[0].ActorID)
+	require.Equal(t, "r1", svc.CASInputs[0].RequestID)
+	require.Equal(t, int64(7), svc.CASInputs[0].ExpectedRevision)
+	require.Equal(t, "owner-1", resp.Msg.Receipt.ActorId)
+	require.Equal(t, "n1", resp.Msg.Receipt.TargetId)
+	require.Equal(t, int64(8), resp.Msg.Node.OwnerRevision)
+}
+
+func TestHandler_UpdateNodeRequiresExpectedRevision(t *testing.T) {
+	h := newHarness(&mocks.FakeService{}, nil)
+	_, err := h.UpdateNode(ownerCtx(), connect.NewRequest(&registryv1.UpdateNodeRequest{Id: "n1", Name: "node", RequestId: "r1"}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
 // [REQ:BRG-P1-001] An online node whose agent protocol is flagged
 // (online but not dispatchable) reads NEEDS_UPDATE in the overlay, so the
 // operator/UI sees it is excluded from work until the agent is updated.
@@ -115,7 +136,7 @@ func TestHandler_RegisterNode_PassesInputAndOverlaysPresence(t *testing.T) {
 	h := newHarness(svc, fakePresence{online: map[string]bool{"n1": true}})
 
 	resp, err := h.RegisterNode(ownerCtx(), connect.NewRequest(&registryv1.RegisterNodeRequest{
-		Name: "a", Os: "linux", Arch: "amd64", Scopes: []string{"scenario test*"},
+		Name: "a", Os: "linux", Arch: "amd64", Scopes: []string{"scenario test*"}, DeploymentTier: "test-device",
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "n1", resp.Msg.Node.Id)
@@ -125,6 +146,12 @@ func TestHandler_RegisterNode_PassesInputAndOverlaysPresence(t *testing.T) {
 	require.Len(t, svc.RegisterInputs, 1)
 	require.Equal(t, "a", svc.RegisterInputs[0].Name)
 	require.Equal(t, []string{"scenario test*"}, svc.RegisterInputs[0].Scopes)
+	require.Equal(t, "test-device", svc.RegisterInputs[0].DeploymentTier)
+}
+
+func TestNodeWireCarriesBridgeOwnedEnrollmentGeneration(t *testing.T) {
+	wire := domainToProto(registry.Node{ID: "n4", EnrollmentGeneration: 4}, false, false, time.Minute)
+	require.EqualValues(t, 4, wire.GetEnrollmentGeneration())
 }
 
 func TestHandler_ListNodes_OverlaysPerNodePresence(t *testing.T) {

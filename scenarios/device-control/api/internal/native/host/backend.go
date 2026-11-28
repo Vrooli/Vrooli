@@ -10,13 +10,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
 	"image/png"
-	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -25,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"device-control/internal/desktopvideo"
 	"device-control/internal/sessions"
 	"github.com/google/uuid"
 	desktopv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop"
@@ -997,34 +996,11 @@ func (b *Backend) CaptureVP8(ctx context.Context) ([]byte, time.Duration, error)
 	if err != nil {
 		return nil, 0, err
 	}
-	frame, err := encodePNGToVP8(ctx, pngData)
+	frame, err := desktopvideo.EncodePNG(ctx, pngData)
 	if err != nil {
 		return nil, 0, err
 	}
 	return frame, 33 * time.Millisecond, nil
-}
-
-func encodePNGToVP8(ctx context.Context, pngData []byte) ([]byte, error) {
-	if len(pngData) == 0 || len(pngData) > maxCaptureBytes {
-		return nil, ErrUnavailable
-	}
-	command := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-loglevel", "error", "-framerate", "1", "-f", "image2pipe", "-vcodec", "png", "-i", "pipe:0", "-frames:v", "1", "-vf", "format=yuv420p", "-c:v", "libvpx", "-deadline", "realtime", "-cpu-used", "8", "-f", "ivf", "pipe:1")
-	command.Stdin = bytes.NewReader(pngData)
-	command.Stderr = io.Discard
-	var output boundedOutput
-	command.Stdout = &output
-	if err := command.Run(); err != nil {
-		return nil, ErrUnavailable
-	}
-	data := output.Bytes()
-	if len(data) < 44 || string(data[:4]) != "DKIF" {
-		return nil, ErrUnavailable
-	}
-	frameLength := int(binary.LittleEndian.Uint32(data[32:36]))
-	if frameLength <= 0 || frameLength > len(data)-44 {
-		return nil, ErrUnavailable
-	}
-	return append([]byte(nil), data[44:44+frameLength]...), nil
 }
 
 func (b *Backend) commandWithTimeout(ctx context.Context, args []string) ([]byte, error) {

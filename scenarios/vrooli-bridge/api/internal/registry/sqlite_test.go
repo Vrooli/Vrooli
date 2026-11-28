@@ -3,6 +3,7 @@ package registry_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -65,6 +66,46 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 	require.Equal(t, []string{"scenario test*", "registry list"}, got.Scopes)
 	require.False(t, got.Revoked())
 	require.True(t, got.LastSeenAt.IsZero())
+}
+
+func TestSQLiteRepository_UpdateCASReplayConflictAndStaleAreAtomic(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := registry.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	n, err := repo.Create(ctx, registry.Node{Name: "before", OS: "linux", Arch: "amd64", Endpoint: "https://secret.example"})
+	require.NoError(t, err)
+	m := registry.CASMutation{ActorID: "owner-a", RequestID: "request-1", TargetID: n.ID, Subject: registry.UpdateNodeSubject, ExpectedRevision: 1, PayloadDigest: "sha256:payload", Node: n}
+	m.Node.Name = "after"
+	first, err := repo.UpdateCAS(ctx, m)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), first.Node.OwnerRevision)
+	require.Equal(t, int64(2), first.Receipt.NewRevision)
+	require.NotContains(t, fmt.Sprintf("%+v", first.Receipt), "secret.example")
+	replay, err := repo.UpdateCAS(ctx, m)
+	require.NoError(t, err)
+	require.Equal(t, first.Receipt, replay.Receipt)
+	conflict := m
+	conflict.Node.Name = "different"
+	conflict.PayloadDigest = "sha256:other"
+	_, err = repo.UpdateCAS(ctx, conflict)
+	var identityConflict registry.ErrRequestIdentityConflict
+	require.ErrorAs(t, err, &identityConflict)
+	authorityConflict := m
+	authorityConflict.ActorID = "owner-b"
+	_, err = repo.UpdateCAS(ctx, authorityConflict)
+	require.ErrorAs(t, err, &identityConflict)
+	stale := m
+	stale.RequestID = "request-2"
+	_, err = repo.UpdateCAS(ctx, stale)
+	var revisionConflict registry.ErrRevisionConflict
+	require.ErrorAs(t, err, &revisionConflict)
+	current, err := repo.Get(ctx, n.ID)
+	require.NoError(t, err)
+	require.Equal(t, "after", current.Name)
+	require.Equal(t, int64(2), current.OwnerRevision)
+	var receipts int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM node_update_receipts`).Scan(&receipts))
+	require.Equal(t, 1, receipts, "stale mutation must not persist a receipt")
 }
 
 func TestSQLiteRepository_PersistsCapabilityInventory(t *testing.T) {

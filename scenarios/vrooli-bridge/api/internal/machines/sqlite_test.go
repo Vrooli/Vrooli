@@ -50,11 +50,18 @@ func TestMachineCreateAndNodeLineage(t *testing.T) {
 
 	first, err := repo.LinkNode(context.Background(), created.ID, "node-old", "corr-1")
 	require.NoError(t, err)
+	require.EqualValues(t, 1, first.EnrollmentGeneration)
 	require.Len(t, first.Lineage, 1)
 	require.True(t, first.Lineage[0].Current)
+	require.EqualValues(t, 1, first.Lineage[0].EnrollmentGeneration)
+
+	retry, err := repo.LinkNode(context.Background(), created.ID, "node-old", "corr-1")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, retry.EnrollmentGeneration, "same enrollment correlation must not advance generation")
 
 	second, err := repo.LinkNode(context.Background(), created.ID, "node-new", "corr-2")
 	require.NoError(t, err)
+	require.EqualValues(t, 2, second.EnrollmentGeneration)
 	require.Len(t, second.Lineage, 2)
 	var old, current machines.NodeLineage
 	for _, entry := range second.Lineage {
@@ -68,6 +75,31 @@ func TestMachineCreateAndNodeLineage(t *testing.T) {
 	require.False(t, old.Current)
 	require.True(t, current.Current)
 	require.Equal(t, "corr-2", current.CorrelationID)
+	require.EqualValues(t, 2, current.EnrollmentGeneration)
+	_, err = repo.LinkNode(context.Background(), created.ID, "node-old", "corr-1")
+	require.ErrorContains(t, err, "already consumed")
+	loaded, err := repo.Get(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, loaded.EnrollmentGeneration, "a replayed old correlation cannot roll back the machine counter")
+}
+
+func TestSameNodeReEnrollmentAdvancesAndOldCorrelationCannotReplay(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	machine, err := repo.Create(ctx, machines.CreateInput{ID: "same-node-reenroll", Locators: []machines.Locator{{Kind: "hostname", Value: "same.local"}}})
+	require.NoError(t, err)
+	first, err := repo.LinkNode(ctx, machine.ID, "node-same", "corr-first")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, first.EnrollmentGeneration)
+	second, err := repo.LinkNode(ctx, machine.ID, "node-same", "corr-second")
+	require.NoError(t, err)
+	require.EqualValues(t, 2, second.EnrollmentGeneration)
+	_, err = repo.LinkNode(ctx, machine.ID, "node-same", "corr-first")
+	require.ErrorContains(t, err, "already consumed")
+	loaded, err := repo.Get(ctx, machine.ID)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, loaded.EnrollmentGeneration)
 }
 
 func TestMachineRecordsAppliedProfileEvidence(t *testing.T) {
@@ -109,7 +141,7 @@ func TestLinkNodeReconcilesStaleArchivedOwner(t *testing.T) {
 	ctx := context.Background()
 	archived, err := repo.Create(ctx, machines.CreateInput{ID: "machine-archived", Locators: []machines.Locator{{Kind: "hostname", Value: "old.local"}}})
 	require.NoError(t, err)
-	_, err = repo.LinkNode(ctx, archived.ID, "node-retry", "old-correlation")
+	archived, err = repo.LinkNode(ctx, archived.ID, "node-retry", "old-correlation")
 	require.NoError(t, err)
 	_, err = repo.Archive(ctx, archived.ID, archived.Version)
 	require.NoError(t, err)
@@ -482,6 +514,8 @@ func TestMigrateReconcilesDuplicateCurrentNodesBeforeUniqueIndex(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.ExecContext(ctx, `CREATE TABLE machine_node_lineage (id TEXT PRIMARY KEY, machine_id TEXT NOT NULL, node_id TEXT NOT NULL, is_current INTEGER NOT NULL, linked_at TEXT NOT NULL, superseded_at TEXT NOT NULL DEFAULT '', source_correlation_id TEXT NOT NULL DEFAULT '')`)
 	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO machines (id,lifecycle,version,created_at,updated_at) VALUES ('m-old','active',1,'2026-07-17T11:00:00Z','2026-07-17T11:00:00Z'),('m-new','active',1,'2026-07-17T12:00:00Z','2026-07-17T12:00:00Z')`)
+	require.NoError(t, err)
 	_, err = d.ExecContext(ctx, `INSERT INTO machine_node_lineage (id,machine_id,node_id,is_current,linked_at) VALUES ('old','m-old','node-1',1,'2026-07-17T11:00:00Z'),('new','m-new','node-1',1,'2026-07-17T12:00:00Z')`)
 	require.NoError(t, err)
 	require.NoError(t, machines.Migrate(ctx, d))
@@ -490,6 +524,11 @@ func TestMigrateReconcilesDuplicateCurrentNodesBeforeUniqueIndex(t *testing.T) {
 	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_audit_events WHERE action='migration_supersede_duplicate_node'").Scan(&audits))
 	require.Equal(t, 1, current)
 	require.Equal(t, 1, audits)
+	var legacyMachineGeneration, legacyLineageGeneration int64
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT enrollment_generation FROM machines WHERE id='m-new'").Scan(&legacyMachineGeneration))
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT enrollment_generation FROM machine_node_lineage WHERE id='new'").Scan(&legacyLineageGeneration))
+	require.Zero(t, legacyMachineGeneration, "legacy records remain unbound until a correlated enrollment assigns a generation")
+	require.Zero(t, legacyLineageGeneration)
 	_, err = d.ExecContext(ctx, "CREATE UNIQUE INDEX idx_test_global_current ON machine_node_lineage(node_id) WHERE is_current=1")
 	require.NoError(t, err)
 	require.NoError(t, machines.Migrate(ctx, d), "migration is idempotent")

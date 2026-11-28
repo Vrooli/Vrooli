@@ -3,6 +3,8 @@ package continuity
 import (
 	"context"
 	"fmt"
+
+	"web-console/internal/dbx"
 )
 
 // HealthObservation reports current catalog-link health. It does not inventory
@@ -15,7 +17,19 @@ type HealthObservation struct {
 	OrphanWorkspacePanes     int64
 }
 
+// ObserveHealth reads its four counts from one snapshot so they agree with
+// each other.
 func (a *IntegrityAuditor) ObserveHealth(ctx context.Context) (HealthObservation, error) {
+	var observation HealthObservation
+	err := dbx.ReadSnapshot(ctx, a.db, func(q dbx.Querier) error {
+		var err error
+		observation, err = observeHealth(ctx, q)
+		return err
+	})
+	return observation, err
+}
+
+func observeHealth(ctx context.Context, q dbx.Querier) (HealthObservation, error) {
 	var observation HealthObservation
 	for _, check := range []struct {
 		name, query string
@@ -26,7 +40,7 @@ func (a *IntegrityAuditor) ObserveHealth(ctx context.Context) (HealthObservation
 		{"orphan_checkpoints", `SELECT COUNT(*) FROM agent_transcript_checkpoints c LEFT JOIN sessions s ON s.id=c.web_console_session_id WHERE s.id IS NULL`, &observation.OrphanCheckpoints},
 		{"orphan_workspace_panes", `SELECT COUNT(*) FROM workspace_panes p LEFT JOIN sessions s ON s.id=p.session_id WHERE s.id IS NULL`, &observation.OrphanWorkspacePanes},
 	} {
-		if err := a.db.QueryRowContext(ctx, check.query).Scan(check.destination); err != nil {
+		if err := q.QueryRowContext(ctx, check.query).Scan(check.destination); err != nil {
 			return HealthObservation{}, fmt.Errorf("observe continuity %s: %w", check.name, err)
 		}
 	}

@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -265,6 +266,27 @@ func TestFirstTouchRejectsEmptyHost(t *testing.T) {
 	svc := NewService(t.TempDir())
 	if _, err := svc.FirstTouch(context.Background(), FirstTouchRequest{User: "u"}); err == nil {
 		t.Fatal("expected an error for empty host")
+	}
+}
+
+func TestFirstTouchRejectsPortsOutsideTCPRangeBeforeConnecting(t *testing.T) {
+	for _, port := range []int{-1, 65536} {
+		t.Run(fmt.Sprintf("port_%d", port), func(t *testing.T) {
+			dir := t.TempDir()
+			seedKeypair(t, dir, "bridge-onboard")
+			runner := &scriptedRunner{}
+			svc := NewService(dir, WithRunner(runner))
+
+			_, err := svc.FirstTouch(context.Background(), FirstTouchRequest{
+				Host: "example.test", User: "u", Port: port, KeyName: "bridge-onboard",
+			})
+			if err == nil {
+				t.Fatal("expected invalid SSH port to be rejected")
+			}
+			if runner.calls != 0 {
+				t.Errorf("invalid SSH port reached connection runner %d times", runner.calls)
+			}
+		})
 	}
 }
 

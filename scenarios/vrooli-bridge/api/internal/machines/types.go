@@ -20,16 +20,18 @@ type Locator struct {
 	Ordinal int
 }
 type NodeLineage struct {
-	NodeID        string
-	Current       bool
-	LinkedAt      time.Time
-	SupersededAt  time.Time
-	CorrelationID string
+	NodeID               string
+	Current              bool
+	EnrollmentGeneration int64
+	LinkedAt             time.Time
+	SupersededAt         time.Time
+	CorrelationID        string
 }
 type Machine struct {
 	ID                    string
 	Lifecycle             Lifecycle
 	Version               int64
+	EnrollmentGeneration  int64
 	DesiredProfileID      string
 	DesiredProfileVersion string
 	AppliedProfileID      string

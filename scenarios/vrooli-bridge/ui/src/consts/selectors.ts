@@ -122,6 +122,10 @@ const literalSelectors = {
   session: {
     signInScreen: "session-sign-in-screen",
     firstTimeNote: "session-first-time-note",
+    restore: {
+      status: "session-restore-status",
+      retry: "session-restore-retry",
+    },
     owner: {
       panel: "session-owner-panel",
       status: "session-owner-status",
@@ -140,6 +144,7 @@ const literalSelectors = {
       usernameInput: "session-login-username",
       submit: "session-login-submit",
       error: "session-login-error",
+      retryEnrollmentSave: "session-login-retry-enrollment-save",
     },
   },
 } satisfies LiteralSelectorTree;

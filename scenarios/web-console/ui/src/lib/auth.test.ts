@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { completeWebAuthCallback, signOut, startSignIn } from "./auth";
+import { completeWebAuthCallback, getAccessToken, getWebAccessToken, signOut, startSignIn } from "./auth";
 
 const { authRequest } = vi.hoisted(() => ({ authRequest: vi.fn() }));
 vi.mock("@vrooli/react-component-library/AuthClient/1.0.0", () => ({
@@ -13,7 +13,24 @@ const AUTH_STATE_KEY = "vrooli.web.auth-state";
 const AUTH_VERIFIER_KEY = "vrooli.web.auth-verifier";
 const AUTH_REDIRECT_KEY = "vrooli.web.auth-redirect";
 
+function stubCallbackWindow(search: string): { replaceState: ReturnType<typeof vi.fn> } {
+  const location = { hash: "", pathname: "/app", search };
+  const replaceState = vi.fn((_state: unknown, _title: string, url: string) => {
+    const next = new URL(url, "http://127.0.0.1:3210");
+    location.pathname = next.pathname;
+    location.search = next.search;
+    location.hash = next.hash;
+  });
+  vi.stubGlobal("window", {
+    location,
+    history: { replaceState },
+  });
+  vi.stubGlobal("document", { title: "WC" });
+  return { replaceState };
+}
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   sessionStorage.removeItem(AUTH_STATE_KEY);
   sessionStorage.removeItem(AUTH_VERIFIER_KEY);
@@ -59,23 +76,13 @@ it("refuses a hosted callback that LPBS cannot redeem as a loopback app", async 
 });
 
 describe("completeWebAuthCallback", () => {
-  function stubCallbackWindow(search: string): { replaceState: ReturnType<typeof vi.fn> } {
-    const replaceState = vi.fn();
-    vi.stubGlobal("window", {
-      location: { hash: "", pathname: "/app", search },
-      history: { replaceState },
-    });
-    vi.stubGlobal("document", { title: "WC" });
-    return { replaceState };
-  }
-
   it("returns false when no authorization code is present", async () => {
     stubCallbackWindow("");
     await expect(completeWebAuthCallback()).resolves.toBe(false);
     expect(authRequest).not.toHaveBeenCalled();
   });
 
-  it("exchanges a PKCE code through the same-origin API and stores only the access token", async () => {
+  it("exchanges a PKCE code through the same-origin API and keeps the access token in memory only", async () => {
     const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
     sessionStorage.setItem(AUTH_STATE_KEY, "state-1");
     sessionStorage.setItem(AUTH_VERIFIER_KEY, "verifier-1");
@@ -89,7 +96,8 @@ describe("completeWebAuthCallback", () => {
       expect.objectContaining({ method: "POST", body: JSON.stringify({ code: "one-use", code_verifier: "verifier-1", redirect_uri: "http://127.0.0.1:3210/?workspace=current" }) }),
     );
     expect(replaceState).toHaveBeenCalledWith({}, "WC", "/app?workspace=current");
-    expect(JSON.parse(sessionStorage.getItem(ACCESS_TOKEN_KEY)!)).toEqual({ accessToken: "at", expiresAt });
+    expect(getWebAccessToken()).toBe("at");
+    expect(sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
     // Single-use: state and verifier are cleared after the callback.
     expect(sessionStorage.getItem(AUTH_STATE_KEY)).toBeNull();
     expect(sessionStorage.getItem(AUTH_VERIFIER_KEY)).toBeNull();
@@ -120,11 +128,58 @@ describe("completeWebAuthCallback", () => {
     await expect(completeWebAuthCallback()).rejects.toThrow("incomplete or expired");
     expect(sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
   });
+
+  it("clears a legacy token on module startup and reacquires through the server owner after reload", async () => {
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ accessToken: "legacy-bearer", expiresAt: "2099-01-01T00:00:00Z" }));
+    authRequest.mockResolvedValueOnce({ access_token: "reacquired", expires_at: new Date(Date.now() + 3_600_000).toISOString() });
+    vi.resetModules();
+    const reloadedAuth = await import("./auth");
+
+    expect(sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
+    await expect(reloadedAuth.getAccessToken()).resolves.toBe("reacquired");
+    expect(reloadedAuth.getWebAccessToken()).toBe("reacquired");
+    expect(authRequest).toHaveBeenCalledWith("/api/v1/auth/subscription/access-token", { method: "GET" });
+  });
+
+  it("reacquires a new access token after the in-memory token expires", async () => {
+    vi.useFakeTimers();
+    const now = Date.now();
+    vi.setSystemTime(now);
+    sessionStorage.setItem(AUTH_STATE_KEY, "state-1");
+    sessionStorage.setItem(AUTH_VERIFIER_KEY, "verifier-1");
+    sessionStorage.setItem(AUTH_REDIRECT_KEY, "http://127.0.0.1:3210/");
+    stubCallbackWindow("?code=one-use&state=state-1");
+    authRequest.mockResolvedValueOnce({ access_token: "first", expires_at: new Date(now + 90_000).toISOString() });
+    await completeWebAuthCallback();
+
+    await expect(getAccessToken()).resolves.toBe("first");
+    vi.setSystemTime(now + 120_000);
+    authRequest.mockResolvedValueOnce({ access_token: "second", expires_at: new Date(now + 3_600_000).toISOString() });
+    await expect(getAccessToken()).resolves.toBe("second");
+    expect(authRequest).toHaveBeenCalledTimes(2);
+    expect(authRequest).toHaveBeenLastCalledWith("/api/v1/auth/subscription/access-token", { method: "GET" });
+  });
+
+  it("deduplicates concurrent reacquisition for current API consumers", async () => {
+    vi.resetModules();
+    const reloadedAuth = await import("./auth");
+    authRequest.mockResolvedValueOnce({ access_token: "shared-memory-token", expires_at: new Date(Date.now() + 3_600_000).toISOString() });
+
+    const tokens = await Promise.all([reloadedAuth.getAccessToken(), reloadedAuth.getAccessToken(), reloadedAuth.getAccessToken()]);
+
+    expect(tokens).toEqual(["shared-memory-token", "shared-memory-token", "shared-memory-token"]);
+    expect(authRequest).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("signOut", () => {
-  it("revokes the server session and clears the local token", async () => {
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ accessToken: "at", expiresAt: "2099-01-01T00:00:00Z" }));
+  it("revokes the server session and clears the in-memory token", async () => {
+    sessionStorage.setItem(AUTH_STATE_KEY, "state-1");
+    sessionStorage.setItem(AUTH_VERIFIER_KEY, "verifier-1");
+    sessionStorage.setItem(AUTH_REDIRECT_KEY, "http://127.0.0.1:3210/");
+    stubCallbackWindow("?code=one-use&state=state-1");
+    authRequest.mockResolvedValueOnce({ access_token: "at", expires_at: "2099-01-01T00:00:00Z" });
+    await completeWebAuthCallback();
     sessionStorage.setItem("web-console.ai.remote-consent-receipt", "alice-receipt");
     sessionStorage.setItem("web-console.ai.remote-consent-source", "own-key");
     authRequest.mockResolvedValue(undefined);
@@ -133,15 +188,22 @@ describe("signOut", () => {
       "/api/v1/auth/subscription/session",
       expect.objectContaining({ method: "DELETE" }),
     );
+    expect(getWebAccessToken()).toBeNull();
     expect(sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
     expect(sessionStorage.getItem("web-console.ai.remote-consent-receipt")).toBeNull();
     expect(sessionStorage.getItem("web-console.ai.remote-consent-source")).toBeNull();
   });
 
-  it("still clears the local token when the revoke request fails", async () => {
-    sessionStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ accessToken: "at", expiresAt: "2099-01-01T00:00:00Z" }));
+  it("still clears the in-memory token when the revoke request fails", async () => {
+    sessionStorage.setItem(AUTH_STATE_KEY, "state-1");
+    sessionStorage.setItem(AUTH_VERIFIER_KEY, "verifier-1");
+    sessionStorage.setItem(AUTH_REDIRECT_KEY, "http://127.0.0.1:3210/");
+    stubCallbackWindow("?code=one-use&state=state-1");
+    authRequest.mockResolvedValueOnce({ access_token: "at", expires_at: "2099-01-01T00:00:00Z" });
+    await completeWebAuthCallback();
     authRequest.mockRejectedValue(new Error("offline"));
     await expect(signOut()).rejects.toThrow("offline");
+    expect(getWebAccessToken()).toBeNull();
     expect(sessionStorage.getItem(ACCESS_TOKEN_KEY)).toBeNull();
   });
 });

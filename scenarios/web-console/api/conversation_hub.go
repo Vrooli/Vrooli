@@ -63,6 +63,11 @@ type conversationEventPayload struct {
 	OccurredAt               string   `json:"occurredAt,omitempty"`
 	Sequence                 int64    `json:"sequence"`
 	SummarizeError           string   `json:"summarizeError,omitempty"`
+	Kind                     string   `json:"kind"`
+	Author                   string   `json:"author,omitempty"`
+	AuthorName               string   `json:"authorName,omitempty"`
+	Label                    string   `json:"label,omitempty"`
+	ThreadID                 string   `json:"threadId,omitempty"`
 }
 
 // hubSubscriber is one connected SSE client. events delivers live + replay
@@ -264,6 +269,13 @@ func (s *Server) publishConversationEvent(event ConversationEvent) {
 	if event.IsUpdate {
 		kind = HubKindConversationEventUpdate
 	}
+	// A work row (tool call, result, context) only grows the collapsed span
+	// in a live view; its text is fetched when that span is opened, so a
+	// multi-megabyte tool result never travels to every subscribed phone.
+	text := event.Text
+	if !isVisibleConversationKind(event.Kind) {
+		text = ""
+	}
 	s.hub.Publish(HubEnvelope{
 		SessionID: event.SessionID,
 		Kind:      kind,
@@ -272,7 +284,7 @@ func (s *Server) publishConversationEvent(event ConversationEvent) {
 			ID:                       event.ID,
 			Source:                   event.Source,
 			Role:                     string(event.Role),
-			Text:                     event.Text,
+			Text:                     text,
 			SpeechParagraphs:         event.SpeechParagraphs,
 			OriginalSpeechParagraphs: event.OriginalSpeechParagraphs,
 			Summarized:               event.Summarized,
@@ -280,6 +292,11 @@ func (s *Server) publishConversationEvent(event ConversationEvent) {
 			OccurredAt:               formatOptionalOccurredAt(event.OccurredAt),
 			Sequence:                 event.Sequence,
 			SummarizeError:           event.SummarizeError,
+			Kind:                     storedConversationKind(event.Kind),
+			Author:                   event.Author,
+			AuthorName:               event.AuthorName,
+			Label:                    event.Label,
+			ThreadID:                 event.ThreadID,
 		},
 	})
 }

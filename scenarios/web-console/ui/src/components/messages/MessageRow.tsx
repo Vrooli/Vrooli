@@ -24,7 +24,8 @@ import {
 } from "./messageActions";
 import { MessageActionList, useMessageActions, type ActionsOrigin } from "./MessageActionList";
 import { messageOutline, messagePreview } from "./outline";
-import { eventTime, speakerKey, voiceReceiptKey } from "./speaker";
+import { eventTime, speakerKey, speakerParams, voiceReceiptKey } from "./speaker";
+import { isHumanMessage } from "../../lib/conversationRows";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-row-and-action-reveal
 
@@ -128,6 +129,9 @@ function MessageRowImpl({
   }, [event.text, isPlaintext, preview.truncated]);
 
   const isUser = event.role === "user";
+  // Only the operator's own words sit in the "You" bubble; a peer's message
+  // or a launch prompt arriving on the same channel reads as its writer's.
+  const fromHuman = isHumanMessage(event);
   const voiceReceipt = voiceReceiptKey(event);
   const isSpeaking = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
   const outline = useMemo(() => (isTall ? messageOutline(event.text) : null), [event.text, isTall]);
@@ -215,7 +219,7 @@ function MessageRowImpl({
           </button>
         )}
         <b data-testid={`msg-speaker-${event.id}`} className="truncate text-[12.5px] font-semibold text-wc-text-secondary">
-          {t(speakerKey(event) as never)}
+          {t(speakerKey(event) as never, speakerParams(event))}
         </b>
         <time
           data-testid={`msg-time-${event.id}`}
@@ -289,7 +293,7 @@ function MessageRowImpl({
       <div
         className={cn(
           "relative max-h-[400px] overflow-hidden",
-          isUser && "rounded-[10px] bg-sky-500/10 px-3 py-2",
+          fromHuman && "rounded-[10px] bg-sky-500/10 px-3 py-2",
         )}
       >
         <div

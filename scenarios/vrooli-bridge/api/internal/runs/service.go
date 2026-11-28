@@ -136,13 +136,22 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Run, error) {
 	if verb == "" {
 		return Run{}, ErrInvalidRun{Field: "verb", Reason: "required"}
 	}
+	in.OwnerID = strings.TrimSpace(in.OwnerID)
+	in.RequestID = strings.TrimSpace(in.RequestID)
+	in.RequestFingerprint = strings.TrimSpace(in.RequestFingerprint)
+	if in.RequestID != "" && (in.OwnerID == "" || in.RequestFingerprint == "") {
+		return Run{}, ErrInvalidRun{Field: "request_id", Reason: "owner and request fingerprint are required for idempotent runs"}
+	}
 	return s.repo.Create(ctx, Run{
-		NodeID:         nodeID,
-		Scenario:       strings.TrimSpace(in.Scenario),
-		Verb:           verb,
-		Args:           trimArgs(in.Args),
-		Status:         StatusQueued,
-		TimeoutSeconds: in.TimeoutSeconds,
+		OwnerID:            in.OwnerID,
+		RequestID:          in.RequestID,
+		RequestFingerprint: in.RequestFingerprint,
+		NodeID:             nodeID,
+		Scenario:           strings.TrimSpace(in.Scenario),
+		Verb:               verb,
+		Args:               trimArgs(in.Args),
+		Status:             StatusQueued,
+		TimeoutSeconds:     in.TimeoutSeconds,
 	})
 }
 

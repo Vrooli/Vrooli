@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -121,5 +122,47 @@ func TestV2ClientPermissionRevertStatusAndEvents(t *testing.T) {
 	}
 	if events[1].Type != "permission.asked" || events[1].Properties["permission"] != "bash" {
 		t.Fatalf("permission event = %+v", events[1])
+	}
+}
+
+// The fixture is a verbatim GET /api/session page from OpenCode 2.3.2 (only the
+// project directory is replaced): a root session plus a subagent child created
+// through session.create with parentID. Subagent children share the parent's
+// directory and keep updating while the parent pane works, so attribution must
+// be able to tell them apart from the roots a pane starts.
+func TestV2ClientReportsSubagentParentFromRealSessionList(t *testing.T) {
+	fixture, err := os.ReadFile("testdata/v2-2.3.2-session-list-with-subagent.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/session" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.URL.Query().Get("cursor") != "" {
+			// OpenCode 2.3.2 returns a non-null next cursor on a complete page;
+			// following it yields this empty terminal page.
+			_, _ = w.Write([]byte(`{"data":[],"cursor":{"previous":null,"next":null}}`))
+			return
+		}
+		_, _ = w.Write(fixture)
+	}))
+	defer server.Close()
+
+	sessions, err := NewV2HTTPClient(server.URL, "secret").ListSessions(context.Background(), "/work/project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]Session{}
+	for _, s := range sessions {
+		byID[s.ID] = s
+	}
+	child, root := byID["ses_de7bddeddffeyTBnHkVSvmSHJI"], byID["ses_de7be9cdcffeTrIk1FI2jraGUg"]
+	if len(sessions) != 2 || child.ParentID != "ses_de7be9cdcffeTrIk1FI2jraGUg" || root.ParentID != "" {
+		t.Fatalf("sessions = %+v", sessions)
+	}
+	if root.Directory != "/work/project" || root.Time.Created != 1795703298680 || root.Time.Updated != 1795703298843 {
+		t.Fatalf("root = %+v", root)
 	}
 }

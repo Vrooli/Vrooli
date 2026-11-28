@@ -52,7 +52,8 @@ type paneSessionSummary struct {
 	CanControl bool   `json:"can_control"`
 }
 type paneSessionListResponse struct {
-	Sessions []paneSessionSummary `json:"sessions"`
+	Sessions   []paneSessionSummary `json:"sessions"`
+	RunFinished bool                `json:"run_finished,omitempty"`
 }
 type paneSessionInternal struct {
 	SessionID  string `json:"session_id"`
@@ -290,6 +291,12 @@ func (r *webConsoleBrowserPaneReceiptResolver) List(ctx context.Context, webSess
 		return paneSessionListResponse{}, errors.New("Agent Manager pane request failed")
 	}
 	defer response.Body.Close()
+	if response.StatusCode == http.StatusGone {
+		// AM's exact owner/thread lookup confirms there is no longer a running
+		// eligible run. Do not collapse this into generic authorization failure:
+		// Web Console must remove the cached-handle reconnect affordance.
+		return paneSessionListResponse{Sessions: []paneSessionSummary{}, RunFinished: true}, nil
+	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return paneSessionListResponse{}, fmt.Errorf("Agent Manager refused browser pane (HTTP %d)", response.StatusCode)
 	}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,6 +28,7 @@ import (
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
+	"web-console/internal/dbx"
 	"web-console/internal/events"
 	"web-console/internal/filepreview"
 	"web-console/internal/legacymigrate"
@@ -80,12 +83,14 @@ import (
 // triple (ttsHookConfigState), and the auto-summarize policy cache
 // (summarizeAutoPolicy*).
 type Server struct {
-	db         *database.RoutedDB
-	roots      *filerouting.RoutedRoots
-	router     *mux.Router
-	sessions   *session.Manager
-	hub        *ConversationHub
-	webSockets *webSocketQuiescer
+	db *database.RoutedDB
+	// contentReceipts caches the explicit integrity audit's content hash.
+	contentReceipts *internalContinuity.ContentReceiptCache
+	roots           *filerouting.RoutedRoots
+	router          *mux.Router
+	sessions        *session.Manager
+	hub             *ConversationHub
+	webSockets      *webSocketQuiescer
 	// agentTypes caches each session's agent harness for activity detection.
 	agentTypes agentTypeCache
 	// promptAnswering is the host policy for answering prompts from Messages.
@@ -105,6 +110,7 @@ type Server struct {
 	sweeper                *session.ExpirationSweeper
 	conversationRetention  *conversationRetentionSweeper
 	conversationControlMu  sync.Mutex
+	catalogApplyMu         sync.Mutex
 	conversationControl    *conversationControlState
 	managedCodex           *managedCodexRegistry
 	agentVoiceMu           sync.Mutex
@@ -243,6 +249,10 @@ type TTSPlaybackEvent struct {
 // It runs the schema initialization against the database and creates
 // SQLite-backed stores for shortcuts and AI config.
 func NewServer(db *database.RoutedDB) *Server {
+	return newServer(db, "unverified")
+}
+
+func newServer(db *database.RoutedDB, boot string) *Server {
 	ctx := context.Background()
 	if err := initSchema(ctx, db.Primary()); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
@@ -290,7 +300,11 @@ func NewServer(db *database.RoutedDB) *Server {
 
 	// Initialize backend registry and session metadata store
 	backendRegistry := InitDefaultRegistry()
-	sessionStore := sessionstore.NewSQL(db)
+	// Session metadata is read on every conversation request (read
+	// authorisation); its SELECTs share the read pool with the conversation
+	// store, while its writes and transactions stay on the single writer.
+	readWrite := dbx.ReadWrite{Writes: db, Reads: db.Reader()}
+	sessionStore := sessionstore.NewSQL(readWrite)
 	sessions.SetRegistry(backendRegistry)
 	sessions.SetStore(sessionStore)
 	sessions.SetMetrics(metrics)
@@ -340,6 +354,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		roots:             roots,
 		integrationHubURL: integrationHubURL,
 		db:                db,
+		contentReceipts:   internalContinuity.NewContentReceiptCache(),
 		router:            mux.NewRouter(),
 		resolveConsoleURL: discovery.ResolveExternalURL,
 		sessions:          sessions,
@@ -366,7 +381,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		},
 		summarizeAutoPolicy:  defaultSummarizeAutoPolicy(),
 		agentCheckpointStore: NewSQLAgentTranscriptCheckpointStore(db),
-		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
+		conversations:        NewConversationStoreWithRepository(NewSQLConversationRepository(readWrite)),
 		filePreviewResolver:  &filepreview.Resolver{ProjectRoot: config.ResolveWorkingDir()},
 		filePreviews:         filepreview.NewStore(filepreview.DefaultTTL),
 		lastTTSBySource:      make(map[string]conversationAppendSnapshot),
@@ -376,8 +391,12 @@ func NewServer(db *database.RoutedDB) *Server {
 	if err := srv.reconcileOrphanedControlReceipts(context.Background()); err != nil {
 		log.Printf("conversation control recovery: %v", err)
 	}
+	if prompts, ok := srv.conversations.repository.(mainThreadPromptLookup); ok {
+		srv.conversations.launchPrompts = newSessionLaunchPrompts(sessionStore, prompts)
+	}
 	srv.sessionNotifier.label = srv.sessionNoticeLabel
 	srv.managedCodex = newManagedCodexRegistry(sessionStore)
+	srv.managedCodex.intents = &codexRecoveryIntents{db: db.Primary(), boot: boot}
 	srv.managedCodex.setRegistrar(srv.registerManagedCodexOwner)
 	srv.managedCodex.setEventSink(srv.captureManagedCodexEvent)
 	if pruner, ok := srv.conversations.repository.(conversationEventPruner); ok {
@@ -387,6 +406,7 @@ func NewServer(db *database.RoutedDB) *Server {
 			func() int { return srv.sessions.GetConfig().ConversationMaxEventsPerSession },
 			internalContinuity.NewSQLLedger(db),
 		)
+		srv.conversationRetention.maintain = newConsoleSQLiteMaintenance(db.Primary())
 	}
 	if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
 		if credentials, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority}); clientErr == nil {
@@ -556,11 +576,7 @@ func NewServer(db *database.RoutedDB) *Server {
 	// the recovery goroutine above) so the watchdog and recovery never race to
 	// reattach the same session.
 	if srv.managedCodex != nil {
-		go func() {
-			if err := srv.managedCodex.Recover(context.Background()); err != nil {
-				log.Printf("managed Codex recovery: %v", err)
-			}
-		}()
+		srv.managedCodex.startRecovery()
 	}
 	srv.setupRoutes()
 
@@ -817,9 +833,18 @@ func getEnvOrDefault(key, fallback string) string {
 	return fallback
 }
 
-// resolveSQLiteDSN builds the SQLite DSN with performance pragmas.
-// Path is resolved via api-core/storage for cross-platform portability.
+// resolveSQLiteDSN builds the writer's SQLite DSN with performance pragmas.
 func resolveSQLiteDSN() string {
+	writer, err := storage.SQLiteDSNAt(resolveSQLitePath(), storage.SQLiteTuning{})
+	if err != nil {
+		log.Fatalf("build SQLite writer DSN: %v", err)
+	}
+	return writer
+}
+
+// resolveSQLitePath resolves the database file via api-core/storage for
+// cross-platform portability, after any legacy-location migration.
+func resolveSQLitePath() string {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
@@ -850,11 +875,7 @@ func resolveSQLiteDSN() string {
 	}
 
 	log.Printf("SQLite database: %s", dbPath)
-	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
-	if err != nil {
-		log.Fatalf("build sqlite dsn: %v", err)
-	}
-	return dsn
+	return dbPath
 }
 
 // migrateLegacyStateFiles adapts the application storage resolver to the
@@ -1214,16 +1235,7 @@ func main() {
 		return
 	}
 
-	dsn := resolveSQLiteDSN()
-	// database.Open (not Connect) returns a *RoutedDB: production requests see
-	// exactly the underlying pool until a test lease is installed, after which
-	// only requests carrying the test-mode marker are diverted.
-	db, err := database.Open(context.Background(), database.Config{
-		Driver:       "sqlite",
-		DSN:          dsn,
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
-	})
+	db, err := openConsoleDatabase(context.Background(), resolveSQLitePath())
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
@@ -1231,31 +1243,74 @@ func main() {
 	// Clear web-console identity and agent markers a long-lived tmux server
 	// inherited, before any pane is created or recovered.
 	reconcileTmuxGlobalEnvironment()
-	srv := NewServer(db)
+	boot := "unverified"
+	if runtime.GOOS == "linux" {
+		rawBoot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
+		if err != nil {
+			log.Fatalf("read kernel boot ID: %v", err)
+		}
+		boot = strings.TrimSpace(string(rawBoot))
+	}
+	srv := newServer(db, boot)
 	srv.StartNativeArchiveIndex()
+	srv.StartConversationClassificationBackfill()
 	stopContinuityPublisher := srv.startContinuityPublisher()
 
 	authConfig, err := authn.FromEnvironment(os.Getenv)
 	if err != nil {
 		log.Fatalf("authentication configuration failed: %v", err)
 	}
-	if err := server.Run(server.Config{
-		Authentication: pointerToManagedAuthentication(authConfig),
-		Handler:        srv.Handler(),
-		WriteTimeout:   httpWriteTimeout,
-		LifecycleHooks: lifecycle.Hooks{
-			Quiesce: func(context.Context) error {
-				srv.hub.CloseSubscribers()
-				srv.webSockets.CloseAll()
-				return nil
-			},
-			Resume: func(context.Context) error {
-				srv.hub.OpenSubscribers()
-				srv.webSockets.Open()
-				return nil
-			},
+	hooks := lifecycle.Hooks{
+		Snapshot: srv.maintenanceInventory,
+		Quiesce: func(context.Context) error {
+			srv.hub.CloseSubscribers()
+			srv.webSockets.CloseAll()
+			return nil
 		},
+		Resume: func(context.Context) error {
+			srv.hub.OpenSubscribers()
+			srv.webSockets.Open()
+			return nil
+		},
+	}
+	handler := srv.Handler()
+	stopHost := func(context.Context) error { return nil }
+	var host *hostMaintenance
+	if instance := hostMaintenanceInstance(runtime.GOOS, os.Getenv); instance != "" {
+		hostDB := dbx.ReadWrite{Writes: db.Primary(), Reads: db.Reader()}
+		host, err = newHostMaintenance(context.Background(), hostDB, boot, instance, hooks)
+		if err != nil {
+			log.Fatalf("restore host maintenance: %v", err)
+		}
+		handler = host.Mount(handler)
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			if err := lifecycle.ServeHostLifecycle(ctx, "web-console", host); err != nil {
+				log.Printf("host maintenance listener: %v", err)
+			}
+		}()
+		stopHost = func(ctx context.Context) error {
+			cancel()
+			select {
+			case <-done:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	if err := server.Run(server.Config{
+		Authentication:                pointerToManagedAuthentication(authConfig),
+		Handler:                       handler,
+		WriteTimeout:                  httpWriteTimeout,
+		LifecycleHooks:                hooks,
+		LifecycleConfiguredExternally: host != nil,
 		Cleanup: func(ctx context.Context) error {
+			hostErr := stopHost(ctx)
+			srv.webSockets.CloseAll()
+			codexErr := srv.managedCodex.Shutdown(ctx)
 			stopContinuityPublisher()
 			srv.sweeper.Stop()
 			if srv.conversationRetention != nil {
@@ -1281,7 +1336,7 @@ func main() {
 			// them for recovery) and kill standard sessions.
 			srv.sessions.Shutdown()
 			activePaidCodingSessions.Clear()
-			return db.Close()
+			return errors.Join(hostErr, codexErr, db.Close())
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

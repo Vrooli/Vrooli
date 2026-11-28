@@ -85,7 +85,7 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (artifacts.
 		}
 		return artifacts.TargetNode{}, err
 	}
-	return artifacts.TargetNode{ID: n.ID, Revoked: n.Revoked()}, nil
+	return artifacts.TargetNode{ID: n.ID, EnrollmentGeneration: n.EnrollmentGeneration, Revoked: n.Revoked()}, nil
 }
 
 // deviceSyncDelivery is the production DirectedDelivery. It streams the
@@ -270,6 +270,10 @@ type ArtifactPlacementEndpointPusher interface {
 	PushArtifactWithEndpoint(context.Context, string, string, string, string, string, string) (int, error)
 }
 
+type ClosureShipmentPusher interface {
+	PushClosureShipment(context.Context, string, *channelv1.ClosureShipmentCommand) (int, error)
+}
+
 type channelArtifactPusher struct {
 	hub    *presence.Hub
 	signer channelsign.Signer
@@ -285,6 +289,15 @@ func (p channelArtifactPusher) PushArtifact(_ context.Context, nodeID, distribut
 
 func (p channelArtifactPusher) PushArtifactWithEndpoint(_ context.Context, nodeID, distributionID, itemID, name, destinationPath, endpoint string) (int, error) {
 	return p.pushArtifact(nodeID, distributionID, itemID, name, destinationPath, endpoint)
+}
+
+func (p channelArtifactPusher) PushClosureShipment(_ context.Context, nodeID string, command *channelv1.ClosureShipmentCommand) (int, error) {
+	frame := &channelv1.ServerFrame{FrameId: uuid.NewString(), Payload: &channelv1.ServerFrame_ClosureShipment{ClosureShipment: command}}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return 0, err
+	}
+	return p.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }
 
 func (p channelArtifactPusher) pushArtifact(nodeID, distributionID, itemID, name, destinationPath, endpoint string) (int, error) {

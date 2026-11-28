@@ -1,6 +1,6 @@
 # Session Recovery
 
-Web-console persists every `backend=persistent` pane behind a tmux session. The
+Web Console persists traditional terminal panes with `backend=persistent` in tmux. Managed Codex app-server panes have a separate native owner. The
 session row is the normal recovery pointer, but it is not the only continuity
 source: the conversation catalog, aliases, checkpoints, workspace panes, and
 native agent history can outlive that row. If metadata is missing, use the
@@ -14,6 +14,43 @@ There are three continuity modes:
 - **Deliberate archive and reopen.** Closing a pane sets `archived_at`, stops its process, and preserves its row, pane identity, and conversation. The archive drawer searches retained messages and shows whether the entry is `Reopenable`, `Read-only`, or has `Nothing to restore`. Reopen uses the same recovery workflow and idempotency contract as crash recovery.
 
 This guide covers the supported (CLI-driven) flow. The legacy manual procedure lives in the appendix for the case where the API itself is broken.
+
+### Managed Codex app-server panes
+
+On shutdown, Web Console closes managed app-server transports and preserves
+their session metadata. At startup it reloads eligible live sessions using the
+exact stored native thread ID. The last observed turn activity is persisted
+separately from lifecycle status. A legacy row with no activity evidence is
+unknown.
+
+Reloading a thread restores access to its conversation. Codex can start a
+fresh turn for a persisted active goal. Preserve the exact native thread,
+its launch settings, the Codex home with its rollout and goal state, and
+the workspace or external work journal the goal uses to verify progress.
+Paused goals stay paused.
+
+An interrupted ordinary turn requires explicit continuation. The provider
+has no API for restoring its pending tool calls or execution cursor. A work
+owner needs durable outcomes or idempotency keys for any effects it may
+already have attempted. Launches created with an Agent Manager child
+identity require a fresh authorized handoff. Web Console claims the exact
+session and native thread durably before asking Codex to reopen it. A
+failed or unconfirmed handoff is left for explicit recovery. A confirmed
+owner can be replaced after its clean close or a verified change of boot.
+
+The shared maintenance fence drains API ingress, disconnects clients, and
+reports detached work. An ordinary running Codex turn or a turn waiting for
+native input delays drain. The inventory identifies native active goals,
+unknown provider state, Agent Manager handoffs, and tmux panes requiring
+explicit host recovery. The root-peer host lifecycle socket shares this
+admission gate and stores its receipt in Web Console’s database. It restores
+closed admission before HTTP serving after a process restart. Prepare and
+checkpoint require the current kernel boot ID. The matching operation may
+release the fence after a warm abort or a reboot.
+
+Host drain waits for ordinary running turns and blocks unsupported PTYs,
+input waits, and ambiguous recovery state. Eligible native goals retain
+their durable state and continue through Codex after restart.
 
 ## Quick Triage
 
@@ -43,9 +80,17 @@ web-console continuity inspect --thread-id THREAD_ID --json
 web-console continuity reconcile --json
 ```
 
-These commands include orphaned conversation evidence and are read-only by
-default. Apply reconciliation only after reviewing its generation, manifest,
-backup, and operation receipt.
+These commands include orphaned conversation evidence. The integrity output
+reports `uncataloged_conversations` for projections missing both a session
+row and a catalog entry. `integrity` also hashes every retained message body
+(`event_content_hash`), which takes minutes on a large archive the first time
+after a restart. The hash is combined from one hash per conversation, and later
+audits reread only the conversations whose events changed since the last one. For the drift counts alone, use
+`web-console continuity health --json`, which answers in milliseconds.
+`continuity search` matches whole words (the last word also as a prefix) and
+session or thread identifiers; it does not match fragments inside a word. Reconciliation preview reads evidence without writing
+a manifest. The first apply recomputes and verifies the reviewed hash before
+persisting the plan and progress.
 
 ## Recover Codex / Claude Panes
 
@@ -157,8 +202,40 @@ web-console continuity publish --json
 ```
 
 Reconciliation is dry-run by default. Apply requires a reviewed generation,
-manifest hash, operation ID, and explicit confirmation; rollback restores only
-the catalog projection preimage and never edits native transcripts.
+manifest hash, stable operation ID, and verified `continuity.reconcile`
+authority. Start with a dry run that sends no generation: it observes the
+current inventory generation, binds the manifest to it, and returns both. Send
+that generation and manifest hash on later pages and on the apply, with the
+same operation ID throughout. An apply is refused when the inventory has moved
+since the dry run; start a new dry run then.
+
+Do not take the generation from `continuity integrity`. That audit hashes
+every message body, which takes minutes on a large archive, and live capture
+moves the inventory in that time (the native archive indexer replaces
+checkpoints whose keys are content hashes, so even level counts do not mean an
+unchanged inventory). Its generation describes the snapshot it hashed, not the
+inventory when the reply arrives.
+
+A conversation projection without a live session row (a native archive
+import, or a Claude subagent transcript picked up by the archive indexer) is
+catalogued in the transaction that creates it, through the same record builder
+and the same missing-row predicate the repair uses. Its record carries the
+harness as `agent_type` but claims no agent-session alias, because an archive
+import often mirrors a conversation a pane already owns under that native id.
+Continuity health therefore reports uncataloged conversations only for rows
+written before that behaviour, or by a path that bypassed the conversation
+repository; the repair below is the recovery tool for those.
+
+For missing-catalog health repair, use the existing
+`/api/v1/conversations/catalog` endpoint with `scope=uncataloged`. Review GET
+pages using `batch_size` and `offset`, starting without `generation` and then
+sending the returned `generation` and `manifest_hash`. POST the reviewed
+`manifest_hash` and `generation` with `apply=true` and
+`X-Idempotency-Key`. The delegated authorization target is
+`web-console:continuity/uncataloged`. Each apply batch is capped at 500.
+A row qualifies only while its conversation projection exists and both the
+session and catalog entries are absent. The operation writes catalog records,
+aliases, and publication and reconciliation bookkeeping.
 
 Publication is a separate bounded operation. It imports native transcript
 sources into Agent Manager using stable Web Console/session provenance; an

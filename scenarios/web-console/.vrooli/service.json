@@ -17,6 +17,11 @@
         "subpath": "web-console.db",
         "format": "sqlite",
         "regenerable": false,
+        "sqlite_maintenance": {
+          "mode": "incremental",
+          "rationale": "New files use incremental auto-vacuum. The conversation retention loop returns already free pages through the scenario writer. Legacy files retain their mode because a full VACUUM can change the conversation rowids used by external-content FTS and the persisted classification cursor.",
+          "owner": "scenarios/web-console/api/sqlite_retention.go"
+        },
         "budget": {
           "max_bytes": "2GiB",
           "rationale": "Conversation history, workspace state, shortcuts, provider configuration, and sender-owned snippets share the scenario database; 2 GiB bounds unexpected growth without making durable operator data reclaimable."

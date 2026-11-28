@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,8 +28,9 @@ type browserStreamProxy struct {
 }
 
 type browserStreamAttach struct {
-	Type string `json:"type"`
-	Role string `json:"role"`
+	Type       string `json:"type"`
+	Role       string `json:"role"`
+	PaneHandle string `json:"pane_handle"`
 }
 
 func newBrowserStreamProxy(resolve desktopURLResolver, receipts ...browserPaneReceiptResolver) *browserStreamProxy {
@@ -80,11 +80,10 @@ func (p *browserStreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "browser stream unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	sessionID := mux.Vars(r)["sessionID"]
-	if !validBrowserPaneHandle(sessionID) {
-		http.Error(w, "browser session selector is invalid", http.StatusBadRequest)
-		return
-	}
+	// Keep the opaque selector out of the WebSocket URL. URLs commonly reach
+	// access logs and browser diagnostics; the first same-origin frame is not
+	// persisted in browser history and remains owner-checked below.
+	sessionID := ""
 	base, err := p.resolve(r.Context())
 	if err != nil {
 		http.Error(w, "browser session owner unavailable", http.StatusServiceUnavailable)
@@ -109,7 +108,7 @@ func (p *browserStreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var attach browserStreamAttach
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&attach); err != nil || attach.Type != "attach" || (attach.Role != "observe" && attach.Role != "control") {
+	if err := decoder.Decode(&attach); err != nil || attach.Type != "attach" || (attach.Role != "observe" && attach.Role != "control") || !validBrowserPaneHandle(attach.PaneHandle) {
 		writeBrowserProxyError(downstream, "attach_invalid")
 		return
 	}
@@ -121,6 +120,7 @@ func (p *browserStreamProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeBrowserProxyError(downstream, "owner_denied")
 		return
 	}
+	sessionID = attach.PaneHandle
 	grant, err := p.receipts.IssueHandle(r.Context(), sessionID, attach.Role)
 	if err != nil {
 		writeBrowserProxyError(downstream, "owner_denied")
@@ -377,6 +377,9 @@ func allowedBrowserHubOutput(messageType int, payload []byte, sessionID string) 
 	switch message.Type {
 	case "recording_subscribed", "recording_input_applied":
 		return true
+	case "session_access_revoked":
+		var fields map[string]json.RawMessage
+		return json.Unmarshal(payload, &fields) == nil && len(fields) == 2 && fields["type"] != nil && fields["session_id"] != nil && message.SessionID == sessionID
 	case "session_frame":
 		return message.Data != "" && len(message.Data) <= 8<<20 && (message.MediaType == "image/jpeg" || message.MediaType == "image/png" || message.MediaType == "image/webp") && message.Width > 0 && message.Height > 0
 	default:

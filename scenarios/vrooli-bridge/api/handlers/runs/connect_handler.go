@@ -10,8 +10,10 @@ import (
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/runs"
+	"vrooli-bridge/internal/targetreceipt"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
@@ -54,6 +56,27 @@ func (h *connectHandler) GetRun(ctx context.Context, req *connect.Request[runsv1
 		resp.Events = append(resp.Events, domainEventToProto(ev))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// GetLocalTargetReceipt reattaches a terminal local contract run through the
+// durable run/event repository. The projector pins its provenance and lane
+// eligibility to local-only values; this endpoint cannot certify a target.
+func (h *connectHandler) GetLocalTargetReceipt(ctx context.Context, req *connect.Request[runsv1.GetLocalTargetReceiptRequest]) (*connect.Response[runsv1.GetLocalTargetReceiptResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	receipt, err := targetreceipt.ReattachLocal(ctx, h.deps.Service, req.Msg.Id)
+	if err != nil {
+		return nil, h.mapErr("GetLocalTargetReceipt", req.Msg.Id, err)
+	}
+	return connect.NewResponse(&runsv1.GetLocalTargetReceiptResponse{
+		SchemaVersion: int32(receipt.SchemaVersion),
+		Lane:          receipt.Lane, TargetId: receipt.TargetID, TargetClass: receipt.TargetClass,
+		Provenance: receipt.Provenance, RunId: receipt.RunID, Scenario: receipt.Scenario,
+		Verb: receipt.Verb, Status: receipt.Status, ExitCode: receipt.ExitCode,
+		EvidenceRefs: receipt.EvidenceRefs, CapturedAt: timestamppb.New(receipt.CapturedAt),
+		LaneEligible: receipt.LaneEligible,
+	}), nil
 }
 
 func (h *connectHandler) ListRuns(ctx context.Context, req *connect.Request[runsv1.ListRunsRequest]) (*connect.Response[runsv1.ListRunsResponse], error) {

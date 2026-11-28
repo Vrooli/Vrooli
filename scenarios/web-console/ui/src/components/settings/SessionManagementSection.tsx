@@ -32,6 +32,7 @@ import { cn } from "../../lib/classnames";
 import { Button } from "../ui/button";
 
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
 
 interface SelectOption {
   value: string;
@@ -402,9 +403,9 @@ function ArchiveStorageSummary({ onRequestClose }: { onRequestClose: () => void 
                 {t(strings.settings.sessionsSection.archiveStorageTitle)}
               </div>
               {state.status === "loading" && (
-                <span
-                  aria-hidden
-                  className="mt-1 block h-3 w-2/3 max-w-[13rem] animate-pulse rounded-full bg-wc-surface-input"
+                <Skeleton
+                  aria-hidden="true"
+                  className="min-h-0 animate-pulse motion-reduce:animate-none mt-1 h-3 w-2/3 max-w-[13rem] rounded-full"
                 />
               )}
               {state.status === "error" && (

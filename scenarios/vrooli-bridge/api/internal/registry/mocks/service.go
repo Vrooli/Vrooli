@@ -12,6 +12,7 @@ import (
 type FakeService struct {
 	RegisterInputs []registry.RegisterInput
 	UpdateInputs   []registry.UpdateInput
+	CASInputs      []registry.UpdateCASInput
 	RevokeIDs      []string
 	RemoveIDs      []string
 	GetIDs         []string
@@ -23,7 +24,9 @@ type FakeService struct {
 	GetOut          registry.Node
 	GetErr          error
 	UpdateOut       registry.Node
+	CASOut          registry.UpdateCASResult
 	UpdateErr       error
+	CASErr          error
 	RevokeOut       registry.Node
 	RevokeErr       error
 	RemoveErr       error
@@ -31,6 +34,8 @@ type FakeService struct {
 	ArchitectureIDs []string
 	MachineArchs    []string
 	BinaryArchs     []string
+	GenerationIDs   []string
+	Generations     []int64
 
 	RegisterCalls atomic.Int64
 	RevokeCalls   atomic.Int64
@@ -62,6 +67,11 @@ func (f *FakeService) Update(_ context.Context, in registry.UpdateInput) (regist
 	return f.UpdateOut, f.UpdateErr
 }
 
+func (f *FakeService) UpdateCAS(_ context.Context, in registry.UpdateCASInput) (registry.UpdateCASResult, error) {
+	f.CASInputs = append(f.CASInputs, in)
+	return f.CASOut, f.CASErr
+}
+
 func (f *FakeService) Revoke(_ context.Context, id string) (registry.Node, error) {
 	f.RevokeCalls.Add(1)
 	f.RevokeIDs = append(f.RevokeIDs, id)
@@ -81,4 +91,13 @@ func (f *FakeService) UpdateArchitecture(_ context.Context, id, machineArch, bin
 	f.MachineArchs = append(f.MachineArchs, machineArch)
 	f.BinaryArchs = append(f.BinaryArchs, binaryArch)
 	return nil
+}
+
+func (f *FakeService) SetEnrollmentGeneration(_ context.Context, id string, generation int64) (registry.Node, error) {
+	f.GenerationIDs = append(f.GenerationIDs, id)
+	f.Generations = append(f.Generations, generation)
+	out := f.GetOut
+	out.ID = id
+	out.EnrollmentGeneration = generation
+	return out, f.GetErr
 }

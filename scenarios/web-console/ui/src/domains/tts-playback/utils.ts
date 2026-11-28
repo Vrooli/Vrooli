@@ -1,4 +1,5 @@
 import type { ConversationEvent } from "../../api/conversation";
+import { isAgentReply } from "../../lib/conversationRows";
 import type { PlaybackEventContext, PlaybackIntent, PlaybackQueueEntry, PlaybackTarget, PlaybackVersion, SessionPlaybackControllerState } from "./types";
 
 export function playbackEventKey(sessionId: string, eventId: string): string {
@@ -94,7 +95,7 @@ export function shouldQueueIncomingEvent(args: {
   return args.autoTtsEnabled
     && args.playbackIntent === "continuous"
     && args.activePaneId === args.sessionId
-    && args.event.role === "assistant";
+    && isAgentReply(args.event);
 }
 
 export function shouldAutoPlayIncomingEvent(args: {

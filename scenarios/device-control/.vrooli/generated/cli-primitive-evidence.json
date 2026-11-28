@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "c29720a5c62a817356f0b8c6f3212af8cec87c4ae86923a76220ffaa24a19056",
+  "manifest_hash": "39717cc03e057c20c6be4266562742f9ab84b82f52fe15951a688e697bbea981",
   "commands": [
     {
       "path": "agent abort",
@@ -245,6 +245,12 @@
       "group": "device",
       "command": "inspect",
       "binding": "DeviceService.InspectDevice"
+    },
+    {
+      "path": "device inspect-system",
+      "group": "device",
+      "command": "inspect-system",
+      "binding": "DeviceService.InspectSystemInventory"
     },
     {
       "path": "device install",

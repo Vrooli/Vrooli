@@ -43,7 +43,8 @@ import { useAgentUsage } from "./launcher/useAgentUsage";
 import { useBillingAccount } from "./launcher/useBillingAccount";
 import { useEffectiveShortcuts } from "./launcher/useEffectiveShortcuts";
 import { declaredWindowsFor, useHarnesses } from "./launcher/useHarnesses";
-import { choiceBlocked, limitOptions, modelLabel, useModelPolicy } from "./launcher/useModelPolicy";
+import { choiceBlocked, hasOwnerEnforcedLimit, limitOptions, modelLabel, useModelPolicy } from "./launcher/useModelPolicy";
+import { RouteKind } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
 import UsageModeSheet from "./launcher/UsageModeSheet";
 import { useUsageMode } from "./launcher/useUsageMode";
 import { reservedUsageRows } from "./launcher/usageWindows";
@@ -273,7 +274,9 @@ export default function TerminalLauncher({
 
   const [billingAccountId, setBillingAccountId] = useState("");
   const model = useModelPolicy(agentModeOpen, selectedAgentId, selected.id, selectedCard?.command ?? "", billingAccountId);
-  const billing = useBillingAccount(model.billingProbeReady, billingAccountId, setBillingAccountId);
+  const ownerCreditCapDefault = model.selectedChoice?.applicableLimit?.defaultValue;
+  const billing = useBillingAccount(model.billingProbeReady, billingAccountId, setBillingAccountId,
+    ownerCreditCapDefault === undefined ? undefined : Number(ownerCreditCapDefault));
   // Refresh stale catalogs as soon as the selected local harness is known. The
   // control plane admits this derived-data refresh through the same-origin UI;
   // failures leave cached choices visible and the explicit retry available.
@@ -323,6 +326,7 @@ export default function TerminalLauncher({
     if (!selectedCard) return t(strings.terminalLauncher.launchChooseAgent);
     if (model.loading) return t(strings.terminalLauncher.launchModelLoading);
     if (model.usesVrooliCredits && billing.blocked) return t(strings.terminalLauncher.launchBillingBlocked);
+    if (effectiveChoice && (effectiveChoice.routeKind === RouteKind.UNSPECIFIED || (effectiveChoice.metered && !hasOwnerEnforcedLimit(effectiveChoice)))) return t(strings.terminalLauncher.routeLimitMissingBlocksMetered);
     if (modelBlocked) return t(strings.terminalLauncher.launchModelBlocked);
     return undefined;
   })();

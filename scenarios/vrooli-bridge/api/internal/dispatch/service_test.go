@@ -116,6 +116,22 @@ func TestDispatch_NonAgentNodeRejected(t *testing.T) {
 	require.False(t, sink.Recorded()[0].Accepted)
 }
 
+func TestDispatch_DeploymentTierMismatchRejectedBeforeRunOrPush(t *testing.T) {
+	svc, nodes, _, runsCtl, sink, pusher := newSvc(t)
+	nodes.Nodes["n1"] = dispatch.TargetNode{ID: "n1", DeploymentTier: "vps", Scopes: []string{"vrooli-bridge:write", "vrooli:write"}}
+	job := job()
+	job.DeploymentTier = "local"
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "lpbs-admin", Job: job})
+	var mismatch dispatch.ErrDeploymentTierMismatch
+	require.ErrorAs(t, err, &mismatch)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(dispatch.ToConnectError(err)))
+	require.Empty(t, runsCtl.Created, "tier mismatch creates no durable run")
+	require.Empty(t, pusher.PushedJobs(), "tier mismatch pushes nothing")
+	recorded := sink.Recorded()
+	require.Len(t, recorded, 1)
+	require.False(t, recorded[0].Accepted, "tier mismatch is audited as rejected")
+}
+
 // [REQ:BRG-P0-004] An out-of-scope verb is rejected (PermissionDenied) and
 // audited as rejected BEFORE any run is created or anything is pushed.
 func TestDispatch_OutOfScope_RejectedAndAudited(t *testing.T) {
@@ -297,4 +313,25 @@ func TestDispatch_AcceptsCredentialInjectionWithActiveEphemeralGrant(t *testing.
 	require.Len(t, runsCtl.Created, 1)
 	require.True(t, sink.Recorded()[0].Accepted)
 	require.Len(t, pusher.PushedJobs()[0].CredentialInjections, 1)
+}
+
+func TestDispatch_IdempotentReplayReusesRunWithoutPushingAgain(t *testing.T) {
+	svc, _, _, runsCtl, sink, pusher := newSvc(t)
+	runsCtl.NextRunID = "durable-run-1"
+	in := dispatch.DispatchInput{Actor: "lpbs-service", Job: job()}
+	in.Job.RequestID = "lpbs-request-7"
+
+	first, err := svc.Dispatch(context.Background(), in)
+	require.NoError(t, err)
+	require.Equal(t, "durable-run-1", first.RunID)
+	require.False(t, first.Replayed)
+
+	runsCtl.ReplayNext = true
+	second, err := svc.Dispatch(context.Background(), in)
+	require.NoError(t, err)
+	require.Equal(t, first.RunID, second.RunID)
+	require.True(t, second.Replayed)
+	require.Len(t, runsCtl.Created, 1, "replay returns the original run instead of creating another")
+	require.Len(t, pusher.PushedJobs(), 1, "replay does not push another effect")
+	require.Len(t, sink.Recorded(), 1, "replay does not duplicate the accepted effect audit")
 }

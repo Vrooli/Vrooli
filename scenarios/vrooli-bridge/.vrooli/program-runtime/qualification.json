@@ -46,6 +46,11 @@
       "default": [],
       "description": "Existing cell observations. Each row has cell_id and a status of passed, failed, stale, unavailable, or pending."
     },
+    "local_run_ids": {
+      "type": "array",
+      "default": [],
+      "description": "Optional Bridge durable run IDs to re-read as explicitly local-only evidence; these can never qualify a remote/native lane."
+    },
     "plan_only": {
       "type": "boolean",
       "default": false,
@@ -61,11 +66,17 @@
     "Validate request and target authority before calling any binding.",
     "Never mutate a target; the only admitted effect is creating a Test Genie validation operation.",
     "Never convert pending, stale, unavailable, or failed cells into passed cells.",
-    "Return at most eight evidence-cell rows and one owner receipt.",
+    "Return at most eight evidence-cell rows, eight durable local receipt projections, and one owner receipt.",
+    "Caller-supplied evidence cell statuses are observations only; local Bridge receipts always have lane_eligible=false.",
     "Return one bounded envelope on every path.",
     "A receipt is not a passing result until its owner terminal evidence is read."
   ],
   "bindings": [
+    {
+      "id": "vrooli-bridge/runs/local-receipt",
+      "effect": "read",
+      "optional": true
+    },
     {
       "id": "test-genie/validation/create",
       "effect": "write"
@@ -91,6 +102,7 @@
       "request": "Normalized request identity, candidate digest, target count, and bounded phase selection.",
       "authority": "Whether every requested target is covered by the explicit authority input.",
       "cells": "Capped evidence-cell observations with their original status.",
+    "local_receipts": "Fresh owner-read Bridge receipt projections; every item is explicitly local-only and lane_eligible=false.",
       "intent": "Exact owner validation intent when admission is planned.",
       "receipt": "Owner receipt identity and terminal state when Test Genie admits the request.",
       "wait_command": "One server-owned wait command for a non-terminal receipt.",

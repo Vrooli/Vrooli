@@ -17,6 +17,7 @@ import (
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
@@ -30,7 +31,7 @@ import (
 // bootstrap exec), the pairing service (server-side code issue), and the
 // presence hub (ONLINE confirmation). main.go constructs it once and calls
 // ResumeInterrupted on it at boot to reconcile ops orphaned by a restart.
-func NewService(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, opts ...internalonboard.Option) internalonboard.Service {
+func NewService(db database.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, opts ...internalonboard.Option) internalonboard.Service {
 	return newService(db, clk, pairingSvc, hub, sshSvc, scriptPath, nil, opts...)
 }
 
@@ -38,11 +39,11 @@ func NewService(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *
 // can record configuration outcomes through the same grant authority used by
 // the rest of Bridge. A second unconfigured registry service would fail closed
 // on nodes carrying non-empty execution scopes.
-func NewServiceWithRegistry(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, registrySvc registry.Service, opts ...internalonboard.Option) internalonboard.Service {
+func NewServiceWithRegistry(db database.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, registrySvc registry.Service, opts ...internalonboard.Option) internalonboard.Service {
 	return newService(db, clk, pairingSvc, hub, sshSvc, scriptPath, registrySvc, opts...)
 }
 
-func newService(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, registrySvc registry.Service, opts ...internalonboard.Option) internalonboard.Service {
+func newService(db database.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, registrySvc registry.Service, opts ...internalonboard.Option) internalonboard.Service {
 	opts = append(opts, internalonboard.WithEnrollmentResolver(codeIssuerAdapter{svc: pairingSvc}))
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(internalonboard.AttemptStore)
 	if attempts != nil {
@@ -100,7 +101,7 @@ func (p protectionProvisioner) ProvisionProtection(ctx context.Context, in inter
 // Module returns the onboard domain's contribution to the API: the generated
 // Connect-RPC OnboardService handler. It owns its durable op tables, so it
 // re-exports Schema().
-func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk schedule.Clock, sshSvc *ssh.Service, registrySvc registry.Service, logger *log.Logger) module.Module {
+func Module(svc internalonboard.Service, db database.SQLExecutor, clk schedule.Clock, sshSvc *ssh.Service, registrySvc registry.Service, logger *log.Logger) module.Module {
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptLookup)
 	machineService := machines.NewService(machines.NewSQLiteRepository(db, clk))
 	path, handler := onboardconnect.NewOnboardServiceHandler(NewConnectHandler(Deps{

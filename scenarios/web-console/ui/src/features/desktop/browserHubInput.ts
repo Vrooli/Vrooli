@@ -7,10 +7,12 @@ export type BASHubInput =
   | { type: "pointer"; action: "move" | "down" | "up"; button: "left" | "middle" | "right"; x: number; y: number; modifiers?: string[] }
   | { type: "wheel"; x: number; y: number; delta_x: number; delta_y: number };
 
+export type BASHubInputWithID = BASHubInput & { input_id?: string };
+
 export interface BASHubRecordingInput {
   type: "recording_input";
   session_id: string;
-  input: BASHubInput;
+  input: BASHubInputWithID;
 }
 
 export interface BASHubInputSocket {
@@ -66,10 +68,18 @@ export function toBASHubRecordingInput(sessionId: string, surfaceInput: BrowserS
 
 /** Send through a socket that the owner has already admitted with its role cookie. */
 export function sendBASHubInput(socket: BASHubInputSocket, sessionId: string, surfaceInput: BrowserSurfaceInput): boolean {
-  const message = toBASHubRecordingInput(sessionId, surfaceInput);
-  if (!message || socket.readyState !== 1) return false;
-  socket.send(JSON.stringify(message));
+  const encoded = encodeBASHubInput(sessionId, surfaceInput);
+  if (!encoded || socket.readyState !== 1) return false;
+  socket.send(encoded);
   return true;
+}
+
+/** Encode one bounded input, adding only an in-memory correlation ID when supplied. */
+export function encodeBASHubInput(sessionId: string, surfaceInput: BrowserSurfaceInput, inputID?: string): string | undefined {
+  const message = toBASHubRecordingInput(sessionId, surfaceInput);
+  if (!message) return undefined;
+  if (inputID) message.input.input_id = inputID;
+  return JSON.stringify(message);
 }
 
 /** Adapter for BrowserPane's ordered input callback over a cookie-admitted Hub socket. */

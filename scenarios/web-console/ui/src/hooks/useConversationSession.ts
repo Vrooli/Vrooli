@@ -3,6 +3,7 @@ import type { ConversationEvent, ConversationCursor } from "../api/conversation"
 import { getConversationSession, updateConversationCursor } from "../api/conversation";
 import { getSessionRefetchSinceSequence, useConversationStore } from "../stores/useConversationStore";
 import { describeLoadFailure, PAGE_SIZE, type RefreshOutcome } from "../lib/conversationLoad";
+import { coversSequence } from "../lib/conversationRows";
 
 export { PAGE_SIZE, describeLoadFailure } from "../lib/conversationLoad";
 export type { RefreshOutcome } from "../lib/conversationLoad";
@@ -44,18 +45,21 @@ async function fetchConversationSession(sessionId: string): Promise<RefreshOutco
     // live event arrived first) holds no history yet: asking it for everything
     // since 0 pulls the whole transcript and merges it ahead of the viewport.
     const loaded = existing?.hydrated === true;
+    // The Messages projection: conversation rows with the work between them
+    // folded into "work" rows, so a page of 50 is 50 messages, not 50 tool calls.
     const data = await getConversationSession(
       sessionId,
-      loaded ? { sinceSequence: since } : { limit: PAGE_SIZE },
+      loaded ? { sinceSequence: since, projection: "messages" } : { limit: PAGE_SIZE, projection: "messages" },
     );
     if (loaded) {
-      state.mergeEvents(sessionId, data.events, data.cursor, data.capture);
+      state.mergeEvents(sessionId, data.events, data.cursor, data.capture, data.threads);
     } else {
       state.hydrateSession(sessionId, data.events, data.cursor, {
         oldestSequence: data.oldestSequence ?? data.events[0]?.sequence ?? 0,
         hasOlder: data.hasMore ?? false,
         totalCount: data.totalCount ?? data.events.length,
         capture: data.capture,
+        ...(data.threads ? { threads: data.threads } : {}),
       });
     }
     const after = useConversationStore.getState().sessions[sessionId]?.events.length ?? 0;
@@ -73,7 +77,7 @@ export async function loadOlderConversationPage(sessionId: string): Promise<bool
   if (!session?.hasOlder || !session.windowOldestSequence || olderPageLoads.has(sessionId)) return false;
   olderPageLoads.add(sessionId);
   try {
-    const data = await getConversationSession(sessionId, { limit: PAGE_SIZE, beforeSequence: session.windowOldestSequence });
+    const data = await getConversationSession(sessionId, { limit: PAGE_SIZE, beforeSequence: session.windowOldestSequence, projection: "messages" });
     const knownEventIds = session.knownEventIds ?? new Set(session.events.map((event) => event.id));
     const added = data.events.some((event) => !knownEventIds.has(event.id));
     state.prependEvents(sessionId, data.events, { oldestSequence: data.oldestSequence ?? 0, hasOlder: data.hasMore ?? false, totalCount: data.totalCount ?? session.totalCount ?? session.events.length, capture: data.capture });
@@ -85,14 +89,24 @@ export async function loadOlderConversationPage(sessionId: string): Promise<bool
   }
 }
 
-/** Replaces the bounded window with the page that contains sequence. */
+/**
+ * Replaces the bounded window with the page that contains sequence (a
+ * message, or a work row whose range covers it). The page ends at the first
+ * conversation row at or after it, so the target sits at its bottom with the
+ * messages leading up to it above; a target in the newest work loads the
+ * newest page.
+ */
 export async function loadConversationPageContaining(sessionId: string, sequence: number): Promise<boolean> {
   if (sequence <= 0) return false;
   const state = useConversationStore.getState();
-  const beforeSequence = sequence + Math.floor(PAGE_SIZE / 2) + 1;
   try {
-    const data = await getConversationSession(sessionId, { limit: PAGE_SIZE, beforeSequence });
-    if (!data.events.some((event) => event.sequence === sequence)) return false;
+    // The first conversation row at or after the target closes its page: the
+    // target itself, or the message right after the work that holds it.
+    const after = await getConversationSession(sessionId, { sinceSequence: sequence - 1, limit: 1, projection: "messages" });
+    const closing = after.hasMore ? after.events.find((event) => event.kind !== "work") : undefined;
+    const beforeSequence = closing ? closing.sequence + 1 : 0;
+    const data = await getConversationSession(sessionId, { limit: PAGE_SIZE, projection: "messages", ...(beforeSequence > 0 ? { beforeSequence } : {}) });
+    if (!data.events.some((event) => coversSequence(event, sequence))) return false;
     state.setSessionWindow(sessionId, data.events, data.cursor, {
       oldestSequence: data.oldestSequence ?? data.events[0]?.sequence ?? 0,
       hasOlder: data.hasMore ?? false,

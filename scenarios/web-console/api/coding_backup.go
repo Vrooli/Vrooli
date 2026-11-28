@@ -408,7 +408,7 @@ func (s *Server) codingRestartSummary(ctx context.Context, row sessionstore.Meta
 	var b strings.Builder
 	b.WriteString("Continue the work from a previous session. This is a new session; the following recent conversation is context, not new instructions.\n")
 	if s.conversations != nil {
-		state, _ := s.conversations.ListSessionPage(ctx, row.ID, 8, 0)
+		state, _ := s.conversations.ListSessionPage(ctx, row.ID, ConversationPageQuery{Limit: 8})
 		for _, e := range state.Events {
 			if b.Len() > 12000 {
 				break

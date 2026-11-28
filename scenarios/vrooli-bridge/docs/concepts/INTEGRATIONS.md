@@ -1,17 +1,5 @@
 # Integrations — Vrooli Bridge
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
-
 ## Dependency Inventory
 
 Bridge's guiding principle is **compose, don't reinvent**: it orchestrates the fleet and delegates every adjacent concern (byte transport, durable runs, off-LAN reach, secrets, owner auth, audit) to the scenario that already owns it. The table below is the canonical list.

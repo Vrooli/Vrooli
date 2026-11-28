@@ -14,6 +14,10 @@ import (
 // means that exact key is authorized — the signal first touch keys off.
 func (s *Service) TestConnection(ctx context.Context, req TestConnectionRequest) TestConnectionResponse {
 	timestamp := nowTimestamp()
+	port, err := normalizePort(req.Port)
+	if err != nil {
+		return TestConnectionResponse{Outcome: Outcome{OK: false, Status: StatusInvalidInput, Message: "Invalid SSH port", Hint: err.Error(), Timestamp: timestamp}}
+	}
 
 	knownHosts := s.knownHostsPath()
 	if err := ensureKnownHostsFile(knownHosts); err != nil {
@@ -26,7 +30,7 @@ func (s *Service) TestConnection(ctx context.Context, req TestConnectionRequest)
 		}}
 	}
 
-	cfg := NewConfig(req.Host, req.Port, req.User, req.KeyPath, knownHosts)
+	cfg := NewConfig(req.Host, port, req.User, req.KeyPath, knownHosts)
 
 	if _, err := os.Stat(cfg.KeyPath); os.IsNotExist(err) {
 		return TestConnectionResponse{Outcome: Outcome{

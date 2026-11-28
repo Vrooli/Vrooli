@@ -28,8 +28,9 @@ type Presence interface {
 // (on a delivery failure) abort it. The handler adapter wraps runs.Service.
 type RunController interface {
 	// CreateRun persists a new QUEUED run for the already-validated job and
-	// returns its server-owned id.
-	CreateRun(ctx context.Context, in CreateRunInput) (runID string, err error)
+	// returns its server-owned id. An idempotent replay returns Replayed=true
+	// with the original run id and must not cause another effect push.
+	CreateRun(ctx context.Context, in CreateRunInput) (CreateRunResult, error)
 	// AbortRun marks a run terminal-aborted (used when delivery fails after the
 	// run was created).
 	AbortRun(ctx context.Context, runID, reason string) error
@@ -37,11 +38,19 @@ type RunController interface {
 
 // CreateRunInput is the dispatch-local DTO for run creation.
 type CreateRunInput struct {
-	NodeID         string
-	Scenario       string
-	Verb           string
-	Args           []string
-	TimeoutSeconds int64
+	OwnerID            string
+	RequestID          string
+	RequestFingerprint string
+	NodeID             string
+	Scenario           string
+	Verb               string
+	Args               []string
+	TimeoutSeconds     int64
+}
+
+type CreateRunResult struct {
+	RunID    string
+	Replayed bool
 }
 
 // AuditSink is the append-only accountability seam (the audit store satisfies

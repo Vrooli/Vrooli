@@ -39,6 +39,9 @@ func TestNativeOwnerInvalidationClearsClaimPreservingRecoveryEvidence(t *testing
 			if err := store.Save(ctx, want); err != nil {
 				t.Fatal(err)
 			}
+			if err := store.UpdateAgentInfo(ctx, want.ID, AgentInfo{NativeTurnActivity: NativeTurnActive}); err != nil {
+				t.Fatal(err)
+			}
 			if err := store.UpdateAgentInfo(ctx, want.ID, AgentInfo{ControlMode: ControlModeRecoveryOnly, ClearNativeOwner: true}); err != nil {
 				t.Fatal(err)
 			}
@@ -46,7 +49,7 @@ func TestNativeOwnerInvalidationClearsClaimPreservingRecoveryEvidence(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.NativeOwner != "" || got.ControlMode != ControlModeRecoveryOnly || got.NativeThreadID != want.NativeThreadID || got.LaunchDescriptorJSON != want.LaunchDescriptorJSON {
+			if got.NativeTurnActivity != NativeTurnActive || got.NativeOwner != "" || got.ControlMode != ControlModeRecoveryOnly || got.NativeThreadID != want.NativeThreadID || got.LaunchDescriptorJSON != want.LaunchDescriptorJSON {
 				t.Fatalf("invalidation lost evidence or retained live claim: %+v", got)
 			}
 		})

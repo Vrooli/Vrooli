@@ -2,6 +2,7 @@ package x11
 
 import (
 	"device-control/internal/sessions"
+	"errors"
 	"github.com/jezek/xgb/xproto"
 	desktopv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -96,4 +97,84 @@ func (b *Backend) applyKey(command sessions.DesktopCommand) error {
 		delete(b.heldKeys, k.Key)
 	}
 	return nil
+}
+
+// The HTTPS console uses a password-style soft keyboard field for printable
+// characters. Use the server's actual keymap and its first two shift levels
+// instead of assuming US keycodes or rewriting the X11 keymap.
+func isExtendedPrintablePress(key *desktopv1.KeyAction) bool {
+	if key.Kind != desktopv1.KeyAction_KIND_PRESS || len(key.Key) != 1 {
+		return false
+	}
+	c := key.Key[0]
+	return c >= ' ' && c <= '~' && !(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9')
+}
+
+func (b *Backend) printableCodes(command sessions.DesktopCommand, key string) (code, shift byte, err error) {
+	_, _, revision, err := b.geometry()
+	if err != nil || b.revision == "" || command.GeometryRevision != b.revision || revision != b.revision {
+		return 0, 0, ErrUnavailable
+	}
+	pointer, err := xproto.QueryPointer(b.conn, b.root).Reply()
+	if err != nil || pointer == nil || pointer.Mask&(xproto.ModMaskShift|xproto.ModMaskLock|xproto.ModMaskControl|xproto.ModMask1|xproto.ModMask3|xproto.ModMask4|xproto.ModMask5) != 0 {
+		return 0, 0, ErrUnavailable
+	}
+	setup := xproto.Setup(b.conn)
+	mapping, err := xproto.GetKeyboardMapping(b.conn, setup.MinKeycode, byte(int(setup.MaxKeycode)-int(setup.MinKeycode)+1)).Reply()
+	if err != nil || mapping == nil || mapping.KeysymsPerKeycode < 2 {
+		return 0, 0, ErrUnavailable
+	}
+	state, err := xproto.QueryKeymap(b.conn).Reply()
+	if err != nil || state == nil {
+		return 0, 0, ErrUnavailable
+	}
+	available := func(code byte) bool {
+		return state.Keys[code/8]&(1<<(code%8)) == 0
+	}
+	var shifted byte
+	for i := 0; i < len(mapping.Keysyms); i += int(mapping.KeysymsPerKeycode) {
+		candidate := byte(int(setup.MinKeycode) + i/int(mapping.KeysymsPerKeycode))
+		if !available(candidate) {
+			continue
+		}
+		if mapping.Keysyms[i] == xproto.Keysym(key[0]) {
+			return candidate, 0, nil
+		}
+		if mapping.Keysyms[i] == namedKeys["ShiftLeft"] {
+			shift = candidate
+		}
+		if shifted == 0 && mapping.Keysyms[i+1] == xproto.Keysym(key[0]) {
+			shifted = candidate
+		}
+	}
+	if shifted == 0 || shift == 0 {
+		return 0, 0, ErrUnavailable
+	}
+	return shifted, shift, nil
+}
+
+func (b *Backend) applyPrintable(command sessions.DesktopCommand, key string) (result error) {
+	code, shift, err := b.printableCodes(command, key)
+	if err != nil {
+		return err
+	}
+	send := func(name string, code byte) error {
+		b.heldKeys[name] = code
+		return b.event(xproto.KeyPress, code, 0, 0)
+	}
+	release := func(name string, code byte) {
+		err := b.event(xproto.KeyRelease, code, 0, 0)
+		if err == nil {
+			delete(b.heldKeys, name)
+		}
+		result = errors.Join(result, err)
+	}
+	if shift != 0 {
+		defer release("soft-keyboard-shift", shift)
+		if err := send("soft-keyboard-shift", shift); err != nil {
+			return err
+		}
+	}
+	defer release("soft-keyboard-character", code)
+	return send("soft-keyboard-character", code)
 }

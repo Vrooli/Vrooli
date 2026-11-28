@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 
@@ -25,7 +26,7 @@ type Deps struct {
 	Logger   *log.Logger
 }
 
-func NewService(db internalcleanup.SQLExecutor, clock schedule.Clock, registrySvc registry.Service, keys sealingKeySource, hub *presence.Hub, auditSink audit.Sink, signer channelsign.Signer, sshSvc *onboardssh.Service) internalcleanup.Service {
+func NewService(db database.SQLExecutor, clock schedule.Clock, registrySvc registry.Service, keys sealingKeySource, hub *presence.Hub, auditSink audit.Sink, signer channelsign.Signer, sshSvc *onboardssh.Service) internalcleanup.Service {
 	repo := internalcleanup.NewSQLiteRepository(db, clock)
 	sshPusher := &typedSSHPusher{machines: internalmachines.NewService(internalmachines.NewSQLiteRepository(db, clock)), ssh: sshSvc}
 	service := internalcleanup.NewService(repo, nodeReader{svc: registrySvc, keys: keys}, hub, commandPusher{hub: hub, signer: signer, sshPusher: sshPusher}, auditSinkAdapter{sink: auditSink}, clock)

@@ -2,7 +2,9 @@ package continuity
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -181,5 +183,91 @@ func TestSearchLocalUsesCatalogMetadataWhenSessionRowIsMissing(t *testing.T) {
 	byTopic, _, total, _, err := SearchLocalWithOptions(context.Background(), db, SearchOptions{Query: "continuity", TopicSummary: "durable", State: "recoverable", AgentSessionID: "native-thread", Limit: 10})
 	if err != nil || total != 1 || len(byTopic) != 1 || byTopic[0].SessionID != paneID {
 		t.Fatalf("topic matches=%+v total=%d err=%v", byTopic, total, err)
+	}
+}
+
+// planCapture records the one-pass search statement so its query plan can be
+// inspected with the exact arguments it ran with.
+type planCapture struct {
+	*sql.DB
+	query string
+	args  []any
+}
+
+func (p *planCapture) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if strings.Contains(query, "WITH matched") {
+		p.query, p.args = query, args
+	}
+	return p.DB.QueryContext(ctx, query, args...)
+}
+
+// A text query must reach events through indexed sources only. Mixing the FTS
+// mirror, identity and catalog-title terms in one OR made SQLite scan every
+// retained event (26 s on a 650k-event archive) for every keystroke.
+func TestSearchLocalTextQueryNeverScansEveryEvent(t *testing.T) {
+	db := newContinuityTestDB(t, ":memory:")
+	execContinuitySQL(t, db, []string{
+		`CREATE TABLE sessions(id TEXT PRIMARY KEY, archived_at TEXT, status TEXT, agent_type TEXT, cwd TEXT)`,
+		`CREATE TABLE conversation_catalog(session_id TEXT PRIMARY KEY, agent_session_id TEXT, lifecycle_state TEXT, agent_type TEXT, cwd TEXT, original_title TEXT, current_title TEXT, topic_summary TEXT)`,
+		`CREATE TABLE conversation_events(id TEXT PRIMARY KEY, session_id TEXT, source TEXT, sequence INTEGER, role TEXT, created_at TEXT, occurred_at TEXT, text TEXT)`,
+		`CREATE INDEX idx_conversation_events_session_sequence ON conversation_events(session_id, sequence)`,
+		`CREATE VIRTUAL TABLE conversation_events_fts USING fts5(text, content='conversation_events', content_rowid='rowid')`,
+		`INSERT INTO sessions VALUES ('s1','','live','codex','/w')`,
+		`INSERT INTO conversation_catalog VALUES ('s2','thread-2','archived','claude','/w','Deploy notes','Deploy notes','release')`,
+		`INSERT INTO conversation_events(id,session_id,source,sequence,role,created_at,text) VALUES
+		 ('e1','s1','codex_tailer',1,'user','2026-01-01T00:00:00Z','deployment checklist'),
+		 ('e2','s1','codex_tailer',2,'assistant','2026-01-01T00:00:01Z','unrelated'),
+		 ('e3','s2','claude_archive',1,'assistant','2026-01-01T00:00:02Z','other words')`,
+		`INSERT INTO conversation_events_fts(rowid,text) SELECT rowid,text FROM conversation_events`,
+	})
+	capture := &planCapture{DB: db}
+	matches, _, total, distinct, err := SearchLocalWithOptions(context.Background(), capture, SearchOptions{Query: "deploy", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// "deploy" matches e1 as a word prefix and every event of s2 through its
+	// catalog title; e2 matches neither.
+	ids := map[string]bool{}
+	for _, match := range matches {
+		ids[match.EventID] = true
+	}
+	if total != 2 || distinct != 2 || !ids["e1"] || !ids["e3"] || ids["e2"] {
+		t.Fatalf("matches=%+v total=%d distinct=%d", matches, total, distinct)
+	}
+	rows, err := db.Query("EXPLAIN QUERY PLAN "+capture.query, capture.args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var plan []string
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		plan = append(plan, detail)
+	}
+	for _, step := range plan {
+		if step == "SCAN e" || strings.HasPrefix(step, "SCAN e ") {
+			t.Fatalf("search scans every event:\n%s", strings.Join(plan, "\n"))
+		}
+	}
+}
+
+// Substring matches inside a word are not part of the FTS contract; the final
+// term is still matched as a prefix so a word being typed finds itself.
+func TestPlainSearchQueryPhrasesTermsAndPrefixesTheLastWord(t *testing.T) {
+	for query, want := range map[string]string{
+		"plan-manager": `"plan-manager"*`,
+		"settle loop":  `"settle" AND "loop"*`,
+		"go":           `"go"`,
+		"-> deploy.":   `"deploy."`,
+		`say "hi" now`: `"say" AND """hi""" AND "now"*`,
+		"->":           ``,
+	} {
+		if got := plainSearchQuery(query); got != want {
+			t.Errorf("plainSearchQuery(%q) = %s, want %s", query, got, want)
+		}
 	}
 }

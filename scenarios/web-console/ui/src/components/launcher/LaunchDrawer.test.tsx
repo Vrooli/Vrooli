@@ -6,6 +6,7 @@ import { asMockedClient, renderWithProviders as render, setDesktopViewport, setM
 import { strings } from "../../consts/strings";
 import type { ShortcutEntry } from "../../consts/shortcuts";
 import type { TerminalTarget } from "../../api/targets";
+import { LimitKind, RouteKind } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
 import TerminalLauncher from "../TerminalLauncher";
 import { resetHarnessCacheForTests } from "./useHarnesses";
 
@@ -43,7 +44,20 @@ const target = (over: Partial<TerminalTarget> = {}): TerminalTarget => ({
   readiness: [fact("claude", "Claude Code"), fact("codex", "Codex"), fact("opencode", "OpenCode")], ...over,
 });
 const harness = (agentId: string, over: Record<string, unknown> = {}) => ({ agentId, resource: agentId, displayName: agentId, icon: agentId, usageWindows: [], supportsContextLimit: false, supportsUsageMode: false, supportsModelSelection: true, supportsProviderSelection: false, ...over });
-const choice = (model: string, over: Record<string, unknown> = {}) => ({ displayName: model, model, source: "sub", sourceLabel: "Subscription", provider: "p", launchModel: `m/${model}`, effort: "", isDefault: false, contextWindowTokens: 0n, contextLimitTokens: [], metered: false, ...over });
+const choice = (model: string, over: Record<string, unknown> = {}) => {
+  const source = String(over.source ?? "sub");
+  const credits = source === "vrooli-credits";
+  const defaultRouteKind = source === "ollama" ? RouteKind.LOCAL
+    : credits ? RouteKind.VROOLI_CREDITS
+      : source === "sub" ? RouteKind.HOSTED
+        : over.metered === true ? RouteKind.OWN_KEY : RouteKind.HOSTED;
+  const defaultLimit = credits
+    ? { kind: LimitKind.SELECTABLE_CREDITS_CAP, maxValue: 10000, unit: "credits", provenance: "fixture LPBS cap", options: [1000, 5000, 10000], defaultValue: 5000 }
+    : source === "ollama"
+      ? { kind: LimitKind.NO_MONETARY_SPEND, maxValue: 0, unit: "", provenance: "fixture local", options: [], defaultValue: 0 }
+      : { kind: LimitKind.NOT_REPORTED, maxValue: 0, unit: "", provenance: "fixture unknown", options: [], defaultValue: 0 };
+  return { displayName: model, model, source, sourceLabel: "Subscription", provider: "p", launchModel: `m/${model}`, effort: "", isDefault: false, contextWindowTokens: 0n, contextLimitTokens: [], metered: false, routeKind: defaultRouteKind, applicableLimit: defaultLimit, ...over };
+};
 const policy = (over: Record<string, unknown> = {}) => ({ sourceConfigurationSupported: ["opencode", "codex"].includes(String(over.runner)), operatorCommand: "", commandLiteral: false, policyStatus: "ready", availability: "unknown", runner: "", role: "", modelFlag: "-m", provenance: "", observedAt: "", detail: "", policyDigest: "", catalogStale: false, choices: [], ...over });
 const update = (agentId: string, over: Record<string, unknown> = {}) => ({ targetId: "local", agentId, resource: agentId, installed: "1.0.0", pinned: "0.9.0", latest: "1.0.0", status: "up-to-date", checkedAt: new Date().toISOString(), sourceKind: "", sourceId: "", probeVerified: true, note: "", state: "up_to_date", primaryAction: "", operatorCommand: "", reason: "", checks: [], installKind: "managed", installState: "managed", signInState: "unknown", updateState: "current", rollbackVersion: "", newerThanReviewed: false, ...over });
 const usage = (agentId: string, windows: { windowMinutes: number; usedPercent: number }[]) => ({ targetId: "local", agentId, match: "likely", reason: "", source: "provider", observedAt: new Date().toISOString(), windows: windows.map((window) => ({ pool: "primary", resetsAt: new Date(Date.now() + 86_400_000).toISOString(), observedAt: new Date().toISOString(), ...window, windowMinutes: BigInt(window.windowMinutes) })) });
@@ -670,7 +684,7 @@ describe("settings", () => {
     expect(screen.getByTestId("launcher-context-hint")).toHaveTextContent(strings.launcher.contextLimitBeatsMode);
   });
 
-  it("shows Provider only with descriptor support and more than one source", async () => {
+  it("discloses the selected provider when it is the only eligible source", async () => {
     const sources = [choice("a", { source: "one", sourceLabel: "One", isDefault: true }), choice("b", { source: "two", sourceLabel: "Two" })];
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: sources }) as never);
     capabilities.listHarnesses.mockResolvedValue({ targetId: "local", harnesses: [harness("claude", { supportsProviderSelection: true }), harness("codex"), harness("opencode", { supportsProviderSelection: true })] } as never);
@@ -682,7 +696,34 @@ describe("settings", () => {
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: [sources[0]] }) as never);
     fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
     await screen.findByTestId("launcher-model-choice");
-    expect(screen.queryByTestId("launcher-model-source")).toBeNull();
+    expect(screen.getByTestId("launcher-model-source")).toHaveTextContent("One");
+    expect(screen.queryByTestId("launcher-business-account")).toBeNull();
+    expect(getAccounts).not.toHaveBeenCalled();
+    fireEvent.click(launchButton());
+    expect(onLaunch.mock.lastCall?.[0]).toMatchObject({ command: "opencode", businessAccountId: undefined });
+  });
+
+  it.each([
+    ["local", choice("local-model", { source: "ollama", sourceLabel: "Local Ollama", isDefault: true }), strings.terminalLauncher.routeKindLocal, strings.terminalLauncher.routeLimitNoSpend, true],
+    ["own key", choice("key-model", { source: "openrouter", sourceLabel: "OpenRouter", routeKind: RouteKind.OWN_KEY, metered: true, isDefault: true }), strings.terminalLauncher.routeKindOwnKey, strings.terminalLauncher.routeLimitNotReported, false],
+    ["hosted", choice("hosted-model", { source: "sub", sourceLabel: "Provider subscription", routeKind: RouteKind.HOSTED, isDefault: true }), strings.terminalLauncher.routeKindHosted, strings.terminalLauncher.routeLimitQuotaUnknown, true],
+    ["unknown", choice("opaque-model", { source: "opaque", sourceLabel: "Unclassified provider", routeKind: RouteKind.UNSPECIFIED, metered: false, isDefault: true }), strings.terminalLauncher.routeKindUnknown, strings.terminalLauncher.routeLimitNotReported, false],
+  ] as const)("discloses the %s route and applicable limit before launch", async (_name, routeChoice, routeLabel, limitLabel, allowed) => {
+    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [routeChoice] }) as never);
+    drawer();
+    expect(await screen.findByTestId("launcher-route-kind")).toHaveTextContent(routeLabel);
+    expect(screen.getByTestId("launcher-applicable-limit")).toHaveTextContent(limitLabel);
+    if (allowed) {
+      expect(launchButton()).toBeEnabled();
+      fireEvent.click(launchButton());
+      expect(onLaunch).toHaveBeenCalled();
+    } else {
+      expect(launchButton()).toBeDisabled();
+      expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.routeLimitMissingBlocksMetered);
+      expect(getAccountUsage).not.toHaveBeenCalled();
+      fireEvent.click(launchButton());
+      expect(onLaunch).not.toHaveBeenCalled();
+    }
   });
 
 
@@ -739,7 +780,7 @@ describe("settings", () => {
     drawer();
     await screen.findByTestId("launcher-model-selection");
     expect(launchButton()).toBeDisabled();
-    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.launchModelBlocked);
+    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.routeLimitMissingBlocksMetered);
   });
 
   it("keeps a saved metered choice blocked instead of silently replacing it", async () => {
@@ -750,7 +791,7 @@ describe("settings", () => {
     drawer();
     await waitFor(() => { expect(nativeSelect("launcher-model-choice")).toHaveValue(JSON.stringify(["router", "paid"])); });
     expect(launchButton()).toBeDisabled();
-    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.launchModelBlocked);
+    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.routeLimitMissingBlocksMetered);
   });
 
   it.each([[false, "router"], [true, "router"], [false, "vrooli-credits"], [true, "vrooli-credits"]] as const)("keeps a stale saved metered choice visible and blocks click and Enter (desktop=%s, source=%s)", async (desktop, source) => {
@@ -775,7 +816,7 @@ describe("settings", () => {
   it.each([true, false])("uses the full-power model's own context data (catalogued=%s)", async (catalogued) => {
     supportsLimit();
     const usual = choice("usual", { contextWindowTokens: 500_000n, contextWindowSource: "claude-statusline/v1", contextLimitTokens: [300_000n, 150_000n] });
-    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [{ ...small, isDefault: true }, ...(catalogued ? [choice("usual", { source: "metered", metered: true, contextWindowTokens: 100_000n, contextLimitTokens: [100_000n] }), usual] : [])] }) as never);
+    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [{ ...small, isDefault: true }, ...(catalogued ? [choice("usual", { source: "metered", sourceLabel: "Bounded provider", routeKind: RouteKind.OWN_KEY, applicableLimit: { kind: LimitKind.OWNER_ENFORCED_VALUE, maxValue: 1000, unit: "credits", provenance: "fixture owner cap", options: [], defaultValue: 1000 }, metered: true, contextWindowTokens: 100_000n, contextLimitTokens: [100_000n] }), usual] : [])] }) as never);
     getUsageMode.mockResolvedValue({ modes: [{ id: "um", label: "", runner: "claude", startedAt: "", untilKind: "off", kind: "save" }], agents: [{ agentId: "claude", label: "Claude Code", runner: "claude", lowerModel: "small", usualModel: "usual", model: "small", modeId: "um", contextLimitTokens: 100_000, fullPowerArgs: "--model usual" }], canControl: true });
     drawer();
     fireEvent.click(await screen.findByTestId("launcher-full-power-claude"));
@@ -886,6 +927,21 @@ describe("credit route eligibility", () => {
     models.getRoleModelChoices.mockResolvedValue(policy({ runner: "opencode", choices: [choice("native", { isDefault: true }), paid] }) as never);
   });
 
+  it("shows the credit route and upgrade destination, and blocks launch when no account is eligible", async () => {
+    getAccounts.mockResolvedValue({ accounts: [] });
+    openCodeDrawer();
+    await screen.findByTestId("launcher-model-source");
+    fireEvent.change(nativeSelect("launcher-model-source"), { target: { value: "vrooli-credits" } });
+    expect(await screen.findByTestId("launcher-business-account-empty")).toHaveTextContent(strings.terminalLauncher.billingEmpty);
+    expect(screen.getByTestId("launcher-model-source")).toHaveTextContent("Vrooli credits");
+    expect(screen.getByTestId("launcher-business-account-upgrade")).toHaveAttribute("href", expect.stringMatching(/\/pricing$/));
+    expect(launchButton()).toBeDisabled();
+    expect(screen.getByTestId("launcher-disabled-reason")).toHaveTextContent(strings.terminalLauncher.launchBillingBlocked);
+    fireEvent.click(launchButton());
+    expect(onLaunch).not.toHaveBeenCalled();
+    expect(getAccountUsage).not.toHaveBeenCalled();
+  });
+
   it.each([["claude", "claude --model own"], ["opencode", "opencode -m ollama/foo"]])("keeps generic literal %s commands outside credit billing", async (agentId, command) => {
     window.localStorage.setItem(`wc-launcher-model-choice:local:${agentId}`, JSON.stringify(["vrooli-credits", "coding"]));
     models.getRoleModelChoices.mockResolvedValue(policy({ runner: agentId, commandLiteral: true, choices: [choice("native", { isDefault: true }), paid] }) as never);
@@ -903,6 +959,8 @@ describe("credit route eligibility", () => {
   it("retains the chosen account for the nonliteral local OpenCode proxy without model overrides", async () => {
     openCodeDrawer();
     await selectAccount();
+    expect(screen.getByTestId("launcher-route-kind")).toHaveTextContent(strings.terminalLauncher.routeKindCredits);
+    expect(screen.getByTestId("launcher-applicable-limit")).toHaveTextContent(strings.terminalLauncher.routeLimitCreditsCap);
     expect(models.getRoleModelChoices).toHaveBeenCalledWith({ agentId: "opencode", targetId: "local", launchCommand: "opencode", businessAccountId: account.id });
     expect(screen.getByTestId("launcher-model-choice")).toBeVisible();
     fireEvent.click(launchButton());

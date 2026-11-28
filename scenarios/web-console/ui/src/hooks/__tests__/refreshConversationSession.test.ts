@@ -54,7 +54,7 @@ describe("refreshConversationSession", () => {
 
     await refreshConversationSession("s1");
 
-    expect(spy).toHaveBeenCalledWith("s1", { limit: 500 });
+    expect(spy).toHaveBeenCalledWith("s1", { limit: 500, projection: "messages" });
     spy.mockRestore();
   });
 
@@ -73,7 +73,7 @@ describe("refreshConversationSession", () => {
 
     const outcome = await refreshConversationSession("s1");
     expect(outcome.ok).toBe(true);
-    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2 });
+    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2, projection: "messages" });
 
     const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
     expect(events.map((e) => e.id)).toEqual(["e1", "e2", "e3", "e4"]);
@@ -124,7 +124,7 @@ describe("refreshConversationSession", () => {
     expect(outcome.ok).toBe(true);
     // since_sequence must be 2 (the last contiguous sequence before the gap),
     // not 5 (the max), so the server returns the missing #3.
-    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2 });
+    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2, projection: "messages" });
 
     const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
     expect(events.map((e) => e.sequence)).toEqual([1, 2, 3, 4, 5, 6]);
@@ -144,7 +144,7 @@ describe("refreshConversationSession", () => {
     });
 
     await refreshConversationSession("s1");
-    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 0 });
+    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 0, projection: "messages" });
     const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
     expect(events.map((e) => e.sequence)).toEqual([1, 2, 3, 4]);
   });

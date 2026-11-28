@@ -13,6 +13,15 @@ describe("matchTerminalLinks", () => {
     expect(matchTerminalFilePaths("edit components/Button.tsx now")[0]?.text).toBe("components/Button.tsx");
   });
 
+  it("keeps the home anchor on a ~/ path", () => {
+    expect(matchTerminalFilePaths("run ~/.vrooli/portfolio/run.sh now")[0]?.value).toBe("~/.vrooli/portfolio/run.sh");
+  });
+
+  it("keeps path characters that are not shell separators", () => {
+    expect(matchTerminalFilePaths("see src/a+b.ts and tools/@scope/bin.ts")[0]?.value).toBe("src/a+b.ts");
+    expect(matchTerminalFilePaths("see src/a+b.ts and tools/@scope/bin.ts")[1]?.value).toBe("tools/@scope/bin.ts");
+  });
+
   it("does not turn ordinary prose into links", () => {
     expect(matchTerminalLinks("open the application and try again")).toEqual([]);
   });
@@ -151,6 +160,114 @@ describe("linkAtCell across a styled block that wraps short of the terminal edge
   });
 });
 
+describe("linkAtCell across a TUI bullet hanging wrap", () => {
+  // A message renderer wraps its content well short of term.cols and hangs the
+  // continuation under the bullet text. The first row ends on a path separator
+  // fragment ("-"), so there is no soft-wrap flag and no second row at the same
+  // width to corroborate the wrap column.
+  const COLS = 80;
+  const ROWS = [
+    "- scenarios/research-desk/docs/internal/proposals/UX-REDESIGN-",
+    "  20261126/index.html — visual study, phone-readable",
+  ];
+  const PATH = "scenarios/research-desk/docs/internal/proposals/UX-REDESIGN-20261126/index.html";
+
+  it("stitches a path split after a separator fragment", () => {
+    expect(linkAtCell(fakeTerminal(ROWS, COLS), 0, 20)).toEqual({ kind: "file", value: PATH, text: PATH });
+  });
+
+  it("stitches the same path when tapping its continuation", () => {
+    expect(linkAtCell(fakeTerminal(ROWS, COLS), 1, 6)).toEqual({ kind: "file", value: PATH, text: PATH });
+  });
+});
+
+describe("linkAtCell inside a TUI quote gutter", () => {
+  // OpenCode draws quoted user messages with a `┃` rule and spaces on every
+  // row. The rule is chrome: the path continues after it, and a tap on a
+  // continuation row must skip the gutter rather than treat it as content.
+  const ROWS = [
+    "  ┃  backdrop to close, and stop propagation /home/matthalloran8/.vrooli/",
+    "  ┃  cache/vrooli/web-console/uploads/8f70374f-c348-4dab-93da-",
+    "  ┃  3f2cb61d1ce9/IMG_2730.jpeg",
+  ];
+  const PATH = "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/8f70374f-c348-4dab-93da-3f2cb61d1ce9/IMG_2730.jpeg";
+
+  it.each([
+    [0, 50],
+    [1, 10],
+    [2, 8],
+  ])("skips the rule and stitches the full path from row %i", (row, col) => {
+    expect(linkAtCell(fakeTerminal(ROWS, 80), row, col)).toEqual({ kind: "file", value: PATH, text: PATH });
+  });
+
+  it("stitches a bullet continuation behind the same gutter", () => {
+    const rows = [
+      "  ┃  - scenarios/research-desk/docs/internal/proposals/UX-REDESIGN-",
+      "  ┃    20261126-v2/index.html",
+    ];
+    const path = "scenarios/research-desk/docs/internal/proposals/UX-REDESIGN-20261126-v2/index.html";
+    expect(linkAtCell(fakeTerminal(rows, 80), 1, 10)).toEqual({ kind: "file", value: path, text: path });
+  });
+
+  it("stitches an assistant bullet indented under the message margin", () => {
+    const rows = [
+      "     - scenarios/research-desk/docs/internal/proposals/UX-REDESIGN-",
+      "       20261126-v2/index.html",
+    ];
+    const path = "scenarios/research-desk/docs/internal/proposals/UX-REDESIGN-20261126-v2/index.html";
+    expect(linkAtCell(fakeTerminal(rows, 77), 0, 12)?.value).toBe(path);
+    expect(linkAtCell(fakeTerminal(rows, 77), 1, 12)?.value).toBe(path);
+  });
+
+  it("keeps two quoted paths on one row separate while stitching each wrap", () => {
+    const rows = [
+      "  ┃  Wrong again /home/matthalloran8/.vrooli/cache/vrooli/web-console/",
+      "  ┃  uploads/8f70374f-c348-4dab-93da-3f2cb61d1ce9/IMG_2739.jpeg /home/",
+      "  ┃  matthalloran8/.vrooli/cache/vrooli/web-console/uploads/8f70374f-",
+      "  ┃  c348-4dab-93da-3f2cb61d1ce9/IMG_2741.jpeg",
+    ];
+    const first = "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/8f70374f-c348-4dab-93da-3f2cb61d1ce9/IMG_2739.jpeg";
+    const second = "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/8f70374f-c348-4dab-93da-3f2cb61d1ce9/IMG_2741.jpeg";
+    expect(linkAtCell(fakeTerminal(rows, 77), 1, 10)?.value).toBe(first);
+    expect(linkAtCell(fakeTerminal(rows, 77), 1, 68)?.value).toBe(second);
+    expect(linkAtCell(fakeTerminal(rows, 77), 3, 10)?.value).toBe(second);
+  });
+});
+
+describe("linkAtCell across unindented prose wrapping", () => {
+  // A long path in running prose wraps at the message width. The continuation
+  // rows are flush left (no hanging indent), and the renderer breaks at path
+  // separators, so line lengths differ from row to row.
+  const ROWS = [
+    "backdrop to close, and stop propagation /home/matthalloran8/.vrooli/",
+    "cache/vrooli/web-console/uploads/8f70374f-c348-4dab-93da-",
+    "3f2cb61d1ce9/IMG_2730.jpeg",
+  ];
+  const PATH = "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/8f70374f-c348-4dab-93da-3f2cb61d1ce9/IMG_2730.jpeg";
+
+  it.each([
+    [0, 45],
+    [1, 10],
+    [2, 8],
+  ])("stitches the full path when tapping row %i", (row, col) => {
+    expect(linkAtCell(fakeTerminal(ROWS, 80), row, col)).toEqual({ kind: "file", value: PATH, text: PATH });
+  });
+});
+
+describe("linkAtCell across a short content width with an unremarkable seam", () => {
+  // Same hanging indent, but the break lands mid-word. The first row is the
+  // widest row in its block, which is the only remaining evidence of the wrap.
+  const ROWS = [
+    "see /home/user/project/src/components/ButtonComponent",
+    "  .tsx before shipping",
+  ];
+  const PATH = "/home/user/project/src/components/ButtonComponent.tsx";
+
+  it("uses the block's widest row as the wrap column", () => {
+    expect(linkAtCell(fakeTerminal(ROWS, 80), 0, 30)).toEqual({ kind: "file", value: PATH, text: PATH });
+  });
+});
+
 describe("linkAtCell does not over-join", () => {
   it.each([30, 59, 60, 62, 75, 76, 78, 80])("selects only a printed report path between shell prompts at %i columns", async (cols) => {
     const term = new Terminal({ cols, rows: 12, allowProposedApi: true });
@@ -170,6 +287,26 @@ describe("linkAtCell does not over-join", () => {
     // Neither row reaches cols - WRAP_MARGIN, so they must not be bridged.
     const term = fakeTerminal(["edit a/b.ts", "and c/d.ts"], 80);
     expect(linkAtCell(term, 0, 7)).toEqual({ kind: "file", value: "a/b.ts", text: "a/b.ts" });
+  });
+
+  it("does not fuse a short path into the next indented prose line", () => {
+    const term = fakeTerminal(["edit a/b.ts", "  and c/d.ts"], 80);
+    expect(linkAtCell(term, 0, 7)).toEqual({ kind: "file", value: "a/b.ts", text: "a/b.ts" });
+  });
+
+  it("does not fuse an incomplete line into the next list item", () => {
+    const term = fakeTerminal(["- see docs/foo-", "  - bar/baz.ts"], 80);
+    expect(linkAtCell(term, 0, 12)).toEqual({ kind: "file", value: "docs/foo-", text: "docs/foo-" });
+  });
+
+  it("does not fuse a short trailing-slash command into the output below it", () => {
+    const term = fakeTerminal(["cd /tmp/", "output text here"], 80);
+    expect(linkAtCell(term, 0, 4)).toEqual({ kind: "file", value: "/tmp/", text: "/tmp/" });
+  });
+
+  it("does not fuse a command that ended on a separator into the next shell prompt", () => {
+    const term = fakeTerminal(["cd /tmp/", "matthalloran8@swarminator:~/Vrooli$ ls"], 80);
+    expect(linkAtCell(term, 0, 4)).toEqual({ kind: "file", value: "/tmp/", text: "/tmp/" });
   });
 
   it("returns null when the tap is on whitespace away from any token", () => {

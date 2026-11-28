@@ -282,6 +282,19 @@ done
 
 # --- derived paths & validation ----------------------------------------------
 
+# Explicit machine-managed checkouts use a home-relative path so the control
+# plane does not reuse a developer's possibly dirty ~/Vrooli checkout. Expand
+# only a leading tilde; all other path bytes remain literal.
+expand_home_path() {
+  case "$1" in
+    "~") printf '%s' "$HOME" ;;
+    "~/"*) printf '%s/%s' "$HOME" "${1#\~/}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+CHECKOUT_DIR="$(expand_home_path "$CHECKOUT_DIR")"
+[ -n "$WORK_DIR" ] && WORK_DIR="$(expand_home_path "$WORK_DIR")"
+
 [ -n "$CONTROL_PLANE_URL" ] || [ "${BOOTSTRAP_SOURCE_ONLY:-0}" = "1" ] || { log "error: --control-plane-url (or \$BRIDGE_CONTROL_PLANE_URL) is required"; usage; exit 2; }
 [ -n "$NODE_NAME" ] || NODE_NAME="$(hostname)"
 

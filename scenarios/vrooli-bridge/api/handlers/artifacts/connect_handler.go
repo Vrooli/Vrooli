@@ -23,6 +23,7 @@ const dryRunHeader = "X-Dry-Run"
 // owner-gated via auth.RequireOwner.
 type Deps struct {
 	Service  artifacts.Service
+	ClosureShipments *artifacts.ClosureShipmentCoordinator
 	Verifier *nodeauth.Verifier
 	Logger   *log.Logger
 }

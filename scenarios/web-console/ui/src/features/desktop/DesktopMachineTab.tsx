@@ -3,7 +3,7 @@ import type { KeyboardEvent, MouseEvent, PointerEvent, WheelEvent } from "react"
 import type { DesktopReadiness, DesktopSession } from "@vrooli/proto-types/device-control/v1/desktop/desktop_pb";
 import { DesktopPane } from "./DesktopPane";
 import { canControlDesktop } from "./WorkspaceSurface";
-import { createBridgeInteractiveTransport, createDesktopPeer, createDesktopSessionTransport, type DesktopPeer } from "./desktopTransport";
+import { createBridgeInteractiveTransport, createDesktopPeer, desktopJSON, createDesktopSessionTransport, type DesktopPeer } from "./desktopTransport";
 import { boundedClipboardText, mapSurfacePoint, OrderedLeaseInput, SingleFlightSurfaceOperation } from "./remoteSurface";
 import { WorkspaceSurfaceHandoff } from "./workspaceSurfaceContract";
 
@@ -19,7 +19,8 @@ const SURFACE = (nodeId: string) => ({
   surfaceId: "desktop",
 });
 
-type DesktopInputEvent = MouseEvent<HTMLVideoElement> | PointerEvent<HTMLVideoElement> | KeyboardEvent<HTMLVideoElement> | WheelEvent<HTMLVideoElement>;
+type DesktopInputTarget = HTMLVideoElement | HTMLImageElement;
+type DesktopInputEvent = MouseEvent<DesktopInputTarget> | PointerEvent<DesktopInputTarget> | KeyboardEvent<DesktopInputTarget> | WheelEvent<DesktopInputTarget>;
 
 export async function cleanupDesktopOpenFailure(
   bridge: Pick<ReturnType<typeof createBridgeInteractiveTransport>, "close">,
@@ -57,6 +58,8 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
   const [readiness, setReadiness] = useState<DesktopReadiness>();
   const [session, setSession] = useState<DesktopSession>();
   const [mediaStream, setMediaStream] = useState<MediaStream>();
+  const [frame, setFrame] = useState<string>();
+  const frameControllerRef = useRef<AbortController>();
   const [error, setError] = useState("");
   const peerRef = useRef<DesktopPeer>();
   const channelGrantRef = useRef<JsonRecord>();
@@ -96,6 +99,9 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
   }, [bridgeTransport, nodeId, transport]);
 
   const closeOwner = useCallback(async (reason = "user_closed") => {
+    frameControllerRef.current?.abort();
+    frameControllerRef.current = undefined;
+    setFrame(undefined);
     const peer = peerRef.current;
     peerRef.current = undefined;
     peer?.close();
@@ -164,7 +170,7 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
         resolve(value);
       });
     });
-    const sent = await peer.sendData(JSON.stringify({ kind, request }));
+    const sent = await peer.sendData(desktopJSON({ kind, request }));
     if (!sent) {
       dataWaitersRef.current.delete(commandId);
       return { sent: false };
@@ -190,16 +196,47 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
     };
   }, [closeOwner, handoffRef, nodeId, refreshReadiness, transport]);
 
-  const openOwner = async (control = true, ready = readiness) => {
+  const openOwner = async (control = true, ready = readiness, preferWebRTC = false) => {
     if (!transport || !bridgeTransport || !nodeId) return;
     let openedSession: DesktopSession | undefined;
     let openedGrant: JsonRecord | undefined;
     const bridge = bridgeTransport;
     try {
       setError("");
-      const opened = await transport.open({ surface: SURFACE(nodeId), displayId: ready?.selectedDisplayId ?? "", ttlSeconds: 300, control, clipboard: control, requestId: requestId() });
+      const opened = await transport.open({ surface: SURFACE(nodeId), displayId: ready?.selectedDisplayId ?? "", ttlSeconds: 300, control, clipboard: control && Boolean(ready?.clipboardAllowed), requestId: requestId() });
       openedSession = opened;
       setSessionState(opened);
+      if (!preferWebRTC && ready?.httpsFramesAllowed && transport.readFrame) {
+        const capture = new AbortController();
+        frameControllerRef.current = capture;
+        const read = async () => {
+          const current = sessionRef.current;
+          if (!current || current.ref?.sessionId !== opened.ref?.sessionId) throw new Error("Desktop session closed.");
+          const result = await transport.readFrame?.({ session: current.ref, leaseId: current.leaseId, leaseEpoch: current.leaseEpoch }, capture.signal);
+          if (!result?.jpeg || result.jpeg.length > 122880) throw new Error("Desktop frame was invalid.");
+          if (!capture.signal.aborted) setFrame(`data:image/jpeg;base64,${result.jpeg}`);
+        };
+        await read();
+        setSessionState({ ...opened, codec: "JPEG over HTTPS", connectionState: "connected" });
+        void (async () => {
+          while (!capture.signal.aborted) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 220));
+            if (capture.signal.aborted) return;
+            try {
+              await read();
+            } catch (cause) {
+              if (capture.signal.aborted) return;
+              const current = sessionRef.current;
+              if (current?.ref?.sessionId !== opened.ref?.sessionId) return;
+              setError(cause instanceof Error ? cause.message : "Desktop frame stream disconnected.");
+              if (current) setSessionState({ ...current, connectionState: "disconnected" });
+              setFrame(undefined);
+              return;
+            }
+          }
+        })();
+        return;
+      }
       const sessionId = opened.ref?.sessionId ?? "";
       const channel = await bridge.open({ nodeId, surface: SURFACE(nodeId), sessionId, leaseId: opened.leaseId, leaseEpoch: opened.leaseEpoch, protocol: 1, role: control ? 1 : 2, takeover: false, ttlSeconds: 300, requestId: requestId() }) as JsonRecord;
       const grant = channel.grant;
@@ -236,6 +273,9 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
       });
       setSessionState({ ...opened, connectionState: "connected" });
     } catch (cause) {
+      frameControllerRef.current?.abort();
+      frameControllerRef.current = undefined;
+      setFrame(undefined);
       const peer = peerRef.current;
       peerRef.current = undefined;
       peer?.close();
@@ -247,11 +287,11 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
     }
   };
 
-  const open = async (control = true, ready = readiness) => {
+  const open = async (control = true, ready = readiness, preferWebRTC = false) => {
     const pending = handoffRef.dispatch({ type: "request", operation: "open" });
     if (pending.pending !== "open") return;
     await lifecycleRef.current.run("open", async () => {
-      await openOwner(control, ready);
+      await openOwner(control, ready, preferWebRTC);
       const active = sessionRef.current;
       if (active) handoffRef.dispatch({ type: "owner-opened", owner: "device-control", canControl: true, leaseHeld: active.controller });
       else handoffRef.dispatch({ type: "owner-failed", owner: "device-control", message: "Device owner failed to open a session." });
@@ -260,7 +300,7 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
 
   const sendDesktopInput = async (event: DesktopInputEvent) => {
     const activeSession = sessionRef.current;
-    if (!transport || !activeSession || !canControlDesktop(readiness, activeSession) || event.currentTarget.tagName !== "VIDEO") return;
+    if (!transport || !activeSession || !canControlDesktop(readiness, activeSession)) return;
     const video = event.currentTarget;
     const rect = video.getBoundingClientRect();
     const action = "key" in event
@@ -271,12 +311,15 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
       })()
       : (() => {
         const display = readiness?.displays.find((candidate) => candidate.id === activeSession.selectedDisplayId);
-        const viewport = { width: display?.width ?? video.videoWidth, height: display?.height ?? video.videoHeight };
+        const media = video instanceof HTMLVideoElement
+          ? { width: video.videoWidth, height: video.videoHeight }
+          : { width: video.naturalWidth, height: video.naturalHeight };
+        const viewport = { width: display?.width ?? media.width, height: display?.height ?? media.height };
         const pointerRelease = event.type === "pointerup" || event.type === "pointercancel";
-        const pointerEvent = "pointerId" in event ? event as PointerEvent<HTMLVideoElement> : undefined;
+        const pointerEvent = "pointerId" in event ? event as PointerEvent<DesktopInputTarget> : undefined;
         const heldPointer = heldPointerRef.current;
         if (pointerRelease && pointerEvent && heldPointer && pointerEvent.pointerId !== heldPointer.id) return undefined;
-        const point = mapSurfacePoint(event.clientX, event.clientY, rect, { width: video.videoWidth || viewport.width, height: video.videoHeight || viewport.height }, viewport, pointerRelease);
+        const point = mapSurfacePoint(event.clientX, event.clientY, rect, { width: media.width || viewport.width, height: media.height || viewport.height }, viewport, pointerRelease);
         if (!point) return undefined;
         const button = pointerRelease ? heldPointer?.button ?? event.button : event.button;
         if (event.type === "pointerdown" && pointerEvent) heldPointerRef.current = { id: pointerEvent.pointerId, button, point };
@@ -311,6 +354,37 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
         ? "Input release could not be queued; close or reconnect the remote session to clear held input."
         : "Desktop input was discarded because its bounded queue is full or the controller lease changed.");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Desktop input was rejected."); }
+  };
+
+  const typeDesktopText = async (text: string): Promise<boolean> => {
+    const active = sessionRef.current;
+    if (!transport || !active || !canControlDesktop(readiness, active)) return false;
+    if (!/^[ -~]{1,128}$/.test(text)) {
+      setError("Desktop typing supports printable ASCII characters.");
+      return false;
+    }
+    const lease = { id: active.leaseId, epoch: active.leaseEpoch, controller: active.controller };
+    try {
+      const queued = await inputQueueRef.current.enqueue(lease, async () => {
+        for (const key of text) {
+          const current = sessionRef.current;
+          if (!current || current.leaseId !== lease.id || current.leaseEpoch !== lease.epoch || !canControlDesktop(readiness, current)) {
+            throw new Error("Desktop control changed while typing.");
+          }
+          const receipt = await transport.input({
+            session: current.ref, leaseId: lease.id, leaseEpoch: lease.epoch, commandId: requestId(),
+            displayId: current.selectedDisplayId, geometryRevision: current.geometryRevision,
+            action: { key: { kind: 3, key } },
+          }) as { outcome?: unknown };
+          if (receipt.outcome !== "INPUT_OUTCOME_ACCEPTED" && receipt.outcome !== 1) throw new Error("A key was refused by the desktop.");
+        }
+      });
+      if (!queued) throw new Error("Desktop input is busy.");
+      return true;
+    } catch {
+      setError("Desktop typing stopped. Check the focused field before retrying.");
+      return false;
+    }
   };
 
   const releaseHeldInput = async () => {
@@ -426,9 +500,9 @@ export function DesktopMachineTab({ nodeId }: { nodeId?: string }) {
     });
   };
 
-  if (!nodeId) return <DesktopPane readiness={{ state: 1, reasonCode: "node_id_missing", recovery: "Select a Bridge agent with a desktop node identity." } as DesktopReadiness} />;
+  if (!nodeId) return <DesktopPane readiness={{ state: 1, reasonCode: "This entry has no linked desktop", recovery: "Go back to Devices and open Desktop on the linked machine." } as DesktopReadiness} />;
   return <div className="flex flex-col gap-2">
     {error && <p role="alert" className="rounded border border-rose-400/30 bg-rose-400/10 p-2 text-xs text-rose-100">{error}</p>}
-    <DesktopPane readiness={readiness} session={session} mediaStream={mediaStream} onOpen={() => { void open(true); }} onOpenViewer={() => { void open(false); }} onRefresh={() => { void refreshReadiness(); }} onReconnect={() => { void reconnect(); }} onClose={() => { void close("user_closed"); }} onTakeControl={() => { void takeControl(); }} onReleaseControl={() => { void releaseControl(); }} onRevoke={() => { void close("user_revoked"); }} onReleaseInput={() => { void releaseHeldInput(); }} onInput={(event) => { void sendDesktopInput(event); }} onClipboardToDesktop={() => { void sendClipboard(); }} onClipboardFromDesktop={() => { void readClipboard(); }} onSurfaceFocusChange={(focused) => { handoffRef.dispatch({ type: "focus", focused }); }} />
+    <DesktopPane readiness={readiness} session={session} mediaStream={mediaStream} frame={frame} onTypeText={readiness?.httpsFramesAllowed ? typeDesktopText : undefined} onOpenWebRTC={readiness?.httpsFramesAllowed ? () => { void open(true, readiness, true); } : undefined} onOpen={() => { void open(true); }} onOpenViewer={() => { void open(false); }} onRefresh={() => { void refreshReadiness(); }} onReconnect={() => { void reconnect(); }} onClose={() => { void close("user_closed"); }} onTakeControl={() => { void takeControl(); }} onReleaseControl={() => { void releaseControl(); }} onRevoke={() => { void close("user_revoked"); }} onReleaseInput={() => { void releaseHeldInput(); }} onInput={(event) => { void sendDesktopInput(event); }} onClipboardToDesktop={() => { void sendClipboard(); }} onClipboardFromDesktop={() => { void readClipboard(); }} onSurfaceFocusChange={(focused) => { handoffRef.dispatch({ type: "focus", focused }); }} />
   </div>;
 }

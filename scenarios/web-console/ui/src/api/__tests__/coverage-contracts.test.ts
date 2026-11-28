@@ -12,12 +12,12 @@ import * as roles from "../workspaceRoles";
 import * as workspace from "../workspace";
 
 describe("small API domain wrappers", () => {
-  it("decodes continuity integrity, receipts, and filtered search results", async () => {
-    vi.spyOn(continuity.continuityClient, "integrity").mockResolvedValue({ sessions: 2n, conversationSessions: 3n, conversationEvents: 4n, checkpoints: 5n, workspacePanes: 6n, orphanConversations: 7n, orphanCheckpoints: 8n, orphanWorkspacePanes: 9n, uncatalogedConversations: 10n, generation: "g", eventContentHash: "h" } as never);
+  it("decodes continuity health, receipts, and filtered search results", async () => {
+    vi.spyOn(continuity.continuityClient, "health").mockResolvedValue({ orphanConversations: 7n, orphanCheckpoints: 8n, orphanWorkspacePanes: 9n, uncatalogedConversations: 10n } as never);
     vi.spyOn(continuity.continuityClient, "getReceipt").mockResolvedValue({ operationId: "op", sessionId: "s", command: "run", fromState: "queued", toState: "done", status: "succeeded", errorCode: "", createdAt: "a", completedAt: "b" } as never);
     const search = vi.spyOn(continuity.continuityClient, "search").mockResolvedValue({ matches: [{ eventId: "e", sessionId: "s", sequence: 4n, role: "assistant", createdAt: "a", excerpt: "x", lifecycleState: "active" }], totalMatches: 1n, distinctSessions: 1n, truncated: false } as never);
 
-    await expect(continuity.getContinuityIntegrity()).resolves.toMatchObject({ sessions: 2, eventContentHash: "h" });
+    await expect(continuity.getContinuityHealth()).resolves.toEqual({ orphanConversations: 7, orphanCheckpoints: 8, orphanWorkspacePanes: 9, uncatalogedConversations: 10 });
     await expect(continuity.getContinuityReceipt("op")).resolves.toMatchObject({ operationId: "op", completedAt: "b" });
     await expect(continuity.searchLocalContinuity("x", { after: "a", agentType: "codex", cwd: "/tmp", state: "active", limit: 4, sessionId: "s", agentSessionId: "as", title: "t", topicSummary: "summary" })).resolves.toMatchObject({ matches: [{ sequence: 4 }], totalMatches: 1 });
     expect(search).toHaveBeenCalledWith(expect.objectContaining({ query: "x", createdAfter: "a", lifecycleState: "active", limit: 4, topicSummary: "summary" }));

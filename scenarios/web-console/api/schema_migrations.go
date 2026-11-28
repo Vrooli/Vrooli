@@ -29,6 +29,8 @@ func schemaProviders() ([]database.SchemaProvider, error) {
 	providers := []database.SchemaProvider{
 		database.SchemaProviderFunc(intsessions.Schema),
 		database.SchemaProviderFunc(intsessions.Seed),
+		database.SchemaProviderFunc(func() string { return hostMaintenanceSchema }),
+		database.SchemaProviderFunc(func() string { return codexRecoveryIntentSchema }),
 	}
 	providers = append(providers, modules.AllSchemas()...)
 	return providers, nil
@@ -250,6 +252,11 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE workspace_panes ADD COLUMN manually_unread INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE conversation_events ADD COLUMN native_provenance_json TEXT`,
 		`ALTER TABLE conversation_events ADD COLUMN occurred_at TEXT`,
+		`ALTER TABLE conversation_events ADD COLUMN kind TEXT NOT NULL DEFAULT 'message'`,
+		`ALTER TABLE conversation_events ADD COLUMN author TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE conversation_events ADD COLUMN author_name TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE conversation_events ADD COLUMN label TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE conversation_events ADD COLUMN thread_id TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS web_console_migrations (name TEXT PRIMARY KEY, last_rowid INTEGER NOT NULL DEFAULT 0, completed_at TEXT NOT NULL DEFAULT '')`,
 		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
 		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
@@ -272,6 +279,7 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE sessions ADD COLUMN provider_version TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN native_thread_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN last_verified_turn_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN native_turn_activity TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN forked_from_native_session TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN launch_descriptor_json TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN create_fingerprint TEXT NOT NULL DEFAULT ''`,

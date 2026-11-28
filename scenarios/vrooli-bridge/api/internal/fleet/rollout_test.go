@@ -2,6 +2,7 @@ package fleet_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -116,10 +117,54 @@ func TestRollFleet_SubsetOnlyRollsNamedNodes(t *testing.T) {
 	prov := &mocks.FakeProvisioner{}
 	svc, _ := newSqliteService(t, nodes, presence, prov)
 
-	dec, err := svc.Roll(context.Background(), fleet.RollInput{
+	_, err := svc.Roll(context.Background(), fleet.RollInput{
 		Actor: "owner", TargetRevision: "rev-E", NodeIDs: []string{"n2", "unknown"},
+	})
+	require.Error(t, err, "unknown subset members are unsupported and cannot be silently dropped")
+	require.Empty(t, prov.RequestedNodes(), "unsupported subset does not partially dispatch")
+	list, err := svc.ListRollouts(context.Background(), fleet.ListFilter{})
+	require.NoError(t, err)
+	require.Empty(t, list, "unsupported subset does not create a misleading rollout")
+
+	dec, err := svc.Roll(context.Background(), fleet.RollInput{
+		Actor: "owner", TargetRevision: "rev-E", NodeIDs: []string{"n2"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"n2"}, prov.RequestedNodes(), "only the known subset node is rolled")
 	require.Len(t, dec.Results, 1)
+}
+
+func TestRollFleet_ProviderLossRetainsPinnedIntentForRetry(t *testing.T) {
+	nodes := &mocks.FakeNodeLister{Nodes: []fleet.NodeRef{{ID: "node-a"}}}
+	presence := &mocks.FakePresence{Online: map[string]bool{"node-a": true}}
+	prov := &mocks.FakeProvisioner{FailNodes: map[string]error{"node-a": errors.New("provisioner unavailable")}}
+	svc, repo := newSqliteService(t, nodes, presence, prov)
+	input := fleet.RollInput{Actor: "owner", TargetRevision: "pinned-rev-42", NodeIDs: []string{"node-a"}}
+
+	failed, err := svc.Roll(context.Background(), input)
+	require.NoError(t, err)
+	require.Equal(t, fleet.StatusFailed, failed.Status)
+	firstRollout, firstResults, err := svc.GetRollout(context.Background(), failed.RolloutID)
+	require.NoError(t, err)
+	require.Equal(t, "pinned-rev-42", firstRollout.TargetRevision)
+	require.Equal(t, fleet.DispositionFailed, firstResults[0].Disposition)
+	require.Contains(t, firstResults[0].Detail, "provisioner unavailable")
+
+	delete(prov.FailNodes, "node-a")
+	recovered, err := svc.Roll(context.Background(), input)
+	require.NoError(t, err)
+	require.Equal(t, fleet.StatusDispatched, recovered.Status)
+	require.Equal(t, []string{"node-a", "node-a"}, prov.RequestedNodes())
+
+	retainedFailure, retainedResults, err := svc.GetRollout(context.Background(), failed.RolloutID)
+	require.NoError(t, err)
+	require.Equal(t, "pinned-rev-42", retainedFailure.TargetRevision)
+	require.Equal(t, fleet.DispositionFailed, retainedResults[0].Disposition)
+	retainedRecovery, recoveryResults, err := svc.GetRollout(context.Background(), recovered.RolloutID)
+	require.NoError(t, err)
+	require.Equal(t, "pinned-rev-42", retainedRecovery.TargetRevision)
+	require.Equal(t, fleet.DispositionDispatched, recoveryResults[0].Disposition)
+	list, err := repo.List(context.Background(), fleet.ListFilter{})
+	require.NoError(t, err)
+	require.Len(t, list, 2, "the outage record and same-target retry remain independently addressable")
 }

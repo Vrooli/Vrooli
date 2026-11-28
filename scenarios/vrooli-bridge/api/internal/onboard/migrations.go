@@ -3,6 +3,8 @@ package onboard
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Migrate brings a pre-existing onboarding_ops table up to the current column
@@ -20,7 +22,7 @@ import (
 // This is the onboard domain's column-evolution hook — the minimal,
 // data-preserving substrate (PRAGMA introspect → ALTER ADD COLUMN), matching the
 // execution domain's Migrate in test-genie.
-func Migrate(ctx context.Context, db SQLExecutor) error {
+func Migrate(ctx context.Context, db database.SQLExecutor) error {
 	exists, err := tableExists(ctx, db, "onboarding_ops")
 	if err != nil {
 		return fmt.Errorf("introspect onboarding_ops: %w", err)
@@ -75,7 +77,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 // tableExists reports whether a table is present, via sqlite_master (SQLite-
 // portable). PRAGMA table_info on a missing table returns zero rows with no
 // error, so it cannot distinguish "absent" from "empty" — sqlite_master can.
-func tableExists(ctx context.Context, db SQLExecutor, table string) (bool, error) {
+func tableExists(ctx context.Context, db database.SQLExecutor, table string) (bool, error) {
 	row := db.QueryRowContext(ctx,
 		"SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", table)
 	var one int
@@ -91,7 +93,7 @@ func tableExists(ctx context.Context, db SQLExecutor, table string) (bool, error
 
 // columnExists reports whether a table already has the named column, via PRAGMA
 // table_info introspection (SQLite-portable, no information_schema).
-func columnExists(ctx context.Context, db SQLExecutor, table, column string) (bool, error) {
+func columnExists(ctx context.Context, db database.SQLExecutor, table, column string) (bool, error) {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%q)", table))
 	if err != nil {
 		return false, err

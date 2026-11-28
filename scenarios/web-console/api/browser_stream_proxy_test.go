@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -17,6 +18,7 @@ import (
 
 type fixedBrowserPaneReceiptResolver struct {
 	receipt string
+	list     paneSessionListResponse
 	called  atomic.Int32
 }
 
@@ -28,7 +30,7 @@ func (r *fixedBrowserPaneReceiptResolver) Issue(_ context.Context, webSessionID,
 	return r.receipt, nil
 }
 func (r *fixedBrowserPaneReceiptResolver) List(context.Context, string) (paneSessionListResponse, error) {
-	return paneSessionListResponse{}, nil
+	return r.list, nil
 }
 func (r *fixedBrowserPaneReceiptResolver) IssueHandle(_ context.Context, handle, role string) (paneReceiptGrant, error) {
 	r.called.Add(1)
@@ -90,6 +92,7 @@ func TestBrowserStreamProxyExchangesReceiptForOwnerCookieAndRelaysFrames(t *test
 					_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"recording_subscribed","session_id":"session-42"}`))
 				} else {
 					_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"recording_input_applied","session_id":"session-42","input_id":"in-1"}`))
+					_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"session_access_revoked","session_id":"session-42"}`))
 				}
 			}
 		default:
@@ -102,16 +105,16 @@ func TestBrowserStreamProxyExchangesReceiptForOwnerCookieAndRelaysFrames(t *test
 	receipts := &fixedBrowserPaneReceiptResolver{receipt: "opaque-view"}
 	proxy := newBrowserStreamProxy(func(context.Context) (string, error) { return owner.URL, nil }, receipts)
 	router := mux.NewRouter()
-	router.Handle("/api/v1/browser/sessions/{sessionID}/stream", proxy).Methods(http.MethodGet)
+	router.Handle("/api/v1/browser/stream", proxy).Methods(http.MethodGet)
 	web := httptest.NewServer(router)
 	defer web.Close()
 	handle := strings.Repeat("a", 48)
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(web.URL, "http")+"/api/v1/browser/sessions/"+handle+"/stream", http.Header{"Origin": []string{web.URL}})
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(web.URL, "http")+"/api/v1/browser/stream", http.Header{"Origin": []string{web.URL}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	if err := conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "observe"}); err != nil {
+	if err := conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "observe", PaneHandle: strings.Repeat("a", 48)}); err != nil {
 		t.Fatal(err)
 	}
 	subscribe := `{"type":"subscribe_recording","session_id":"` + handle + `"}`
@@ -134,6 +137,15 @@ func TestBrowserStreamProxyExchangesReceiptForOwnerCookieAndRelaysFrames(t *test
 	}
 	if got := <-ownerMessages; !strings.Contains(got, `"session_id":"session-42"`) {
 		t.Fatalf("second owner message=%s", got)
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	_, got, err = conn.ReadMessage()
+	if err != nil || !strings.Contains(string(got), `"type":"recording_input_applied"`) {
+		t.Fatalf("input acknowledgement relay=%s err=%v", got, err)
+	}
+	_, got, err = conn.ReadMessage()
+	if err != nil || string(got) != `{"session_id":"`+handle+`","type":"session_access_revoked"}` {
+		t.Fatalf("revocation relay=%s err=%v", got, err)
 	}
 	if cookieCalls.Load() != 1 {
 		t.Fatalf("owner cookie calls=%d, want 1", cookieCalls.Load())
@@ -183,6 +195,18 @@ func TestBrowserHubProxyMessageAllowlistIsSessionBound(t *testing.T) {
 	if allowedBrowserHubOutput(websocket.BinaryMessage, packet, "s-2") {
 		t.Fatal("cross-session binary frame was allowed")
 	}
+	if !allowedBrowserHubOutput(websocket.TextMessage, []byte(`{"type":"session_access_revoked","session_id":"s-1"}`), "s-1") {
+		t.Fatal("owner revocation for the selected session was filtered")
+	}
+	for _, payload := range []string{
+		`{"type":"session_access_revoked","session_id":"s-2"}`,
+		`{"type":"session_access_revoked"}`,
+		`{"type":"session_access_revoked","session_id":"s-1","secret":"must-not-cross"}`,
+	} {
+		if allowedBrowserHubOutput(websocket.TextMessage, []byte(payload), "s-1") {
+			t.Fatalf("unbound owner revocation was allowed: %s", payload)
+		}
+	}
 }
 
 func browserFramePacket(t *testing.T, header string, image []byte) []byte {
@@ -203,15 +227,15 @@ func TestBrowserStreamProxyRejectsInvalidAttachBeforeOwnerCall(t *testing.T) {
 	defer owner.Close()
 	proxy := newBrowserStreamProxy(func(context.Context) (string, error) { return owner.URL, nil })
 	router := mux.NewRouter()
-	router.Handle("/api/v1/browser/sessions/{sessionID}/stream", proxy).Methods(http.MethodGet)
+	router.Handle("/api/v1/browser/stream", proxy).Methods(http.MethodGet)
 	web := httptest.NewServer(router)
 	defer web.Close()
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(web.URL, "http")+"/api/v1/browser/sessions/"+strings.Repeat("a", 48)+"/stream", http.Header{"Origin": []string{web.URL}})
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(web.URL, "http")+"/api/v1/browser/stream", http.Header{"Origin": []string{web.URL}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	if err := conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "invalid"}); err != nil {
+	if err := conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "invalid", PaneHandle: strings.Repeat("a", 48)}); err != nil {
 		t.Fatal(err)
 	}
 	_, payload, err := conn.ReadMessage()
@@ -238,15 +262,15 @@ func TestBrowserStreamProxyKeepsBASReceiptDenialFailClosed(t *testing.T) {
 	defer owner.Close()
 	proxy := newBrowserStreamProxy(func(context.Context) (string, error) { return owner.URL, nil }, &fixedBrowserPaneReceiptResolver{receipt: "opaque-but-invalid"})
 	router := mux.NewRouter()
-	router.Handle("/api/v1/browser/sessions/{sessionID}/stream", proxy).Methods(http.MethodGet)
+	router.Handle("/api/v1/browser/stream", proxy).Methods(http.MethodGet)
 	web := httptest.NewServer(router)
 	defer web.Close()
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(web.URL, "http")+"/api/v1/browser/sessions/"+strings.Repeat("a", 48)+"/stream", http.Header{"Origin": []string{web.URL}})
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(web.URL, "http")+"/api/v1/browser/stream", http.Header{"Origin": []string{web.URL}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	if err := conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "observe"}); err != nil {
+	if err := conn.WriteJSON(browserStreamAttach{Type: "attach", Role: "observe", PaneHandle: strings.Repeat("a", 48)}); err != nil {
 		t.Fatal(err)
 	}
 	_, payload, err := conn.ReadMessage()

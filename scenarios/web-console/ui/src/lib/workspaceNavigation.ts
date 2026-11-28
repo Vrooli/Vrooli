@@ -3,6 +3,7 @@ import type { SessionOriginName } from "../api/sessions";
 import { formatRelativeTime, stripMarkdown } from "../components/MessageJumpList.helpers";
 import type { PaneViewMode } from "../stores/useMessagesViewStore";
 import type { PaneMetadata, RoleMeta, SidebarOriginTab, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
+import { isAgentReply } from "./conversationRows";
 
 type ConversationSessionSnapshot = {
   events: ConversationEvent[];
@@ -211,7 +212,7 @@ export function sortPanesForView(
 function countUnreadMessages(pane: PaneMetadata, session: ConversationSessionSnapshot | undefined): number {
   if (!pane.supportsMessagesView || !session) return 0;
   return session.unreadCount
-    ?? session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastSeenSequence).length;
+    ?? session.events.filter((event) => isAgentReply(event) && event.sequence > session.cursor.lastSeenSequence).length;
 }
 
 export function countWorkspaceUnreadMessages(

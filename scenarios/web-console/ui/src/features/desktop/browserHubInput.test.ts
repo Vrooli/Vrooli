@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createBASHubInputHandler, sendBASHubInput, toBASHubRecordingInput } from "./browserHubInput";
+import { createBASHubInputHandler, encodeBASHubInput, sendBASHubInput, toBASHubRecordingInput } from "./browserHubInput";
 
 describe("BAS Hub input adapter", () => {
   it("normalizes text to the driver's atomic keyboard-text event", () => {
@@ -48,6 +48,18 @@ describe("BAS Hub input adapter", () => {
     expect(sendBASHubInput({ readyState: 0, send }, "bas-session", { type: "text", text: "hello" })).toBe(false);
     expect(sendBASHubInput({ readyState: 1, send }, "bas-session", { type: "key", phase: "up", key: "c", modifiers: [] })).toBe(false);
     expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("adds an ephemeral input correlation ID without exposing lease or owner identifiers", () => {
+    const encoded = encodeBASHubInput("opaque-pane-handle", { type: "text", text: "fixture" }, "wc-input-1");
+    expect(encoded).toBe(JSON.stringify({
+      type: "recording_input",
+      session_id: "opaque-pane-handle",
+      input: { type: "keyboard", text: "fixture", input_id: "wc-input-1" },
+    }));
+    expect(encoded).not.toContain("receipt");
+    expect(encoded).not.toContain("run_id");
+    expect(encodeBASHubInput("opaque-pane-handle", { type: "key", phase: "up", key: "x", modifiers: [] }, "wc-input-2")).toBeUndefined();
   });
 
   it("adapts BrowserPane's ordered callback without putting receipts in Hub messages", async () => {

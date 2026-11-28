@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.2
+	github.com/vrooli/api-core v0.0.0
 	github.com/creack/pty/v2 v2.0.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/cliresolve v0.0.0
@@ -31,6 +32,8 @@ require (
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
 

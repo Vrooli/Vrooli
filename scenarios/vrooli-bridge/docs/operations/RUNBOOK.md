@@ -180,13 +180,29 @@ visible as incomplete in both CLI output and fleet readiness.
 
 ## Remote desktop companion checkpoint
 
+On Linux, provision the same-user systemd service and owner socket through the
+[Device Control Linux runbook](../../../device-control/ops/desktop-companion/README.md).
+Bridge companion inspect, install, upgrade, and revoke operate on those
+provisioned units. The node agent keeps general execution disabled in
+presence-only mode and accepts the exact opt-in desktop routes. The owner UI
+shows ready only after Device Control verifies the bound graphical session.
+
+When a node is online but desktop calls time out, inspect its Bridge agent
+rejected-frame telemetry. A heartbeat proves the node can authenticate to the
+control plane. It does not prove the node trusts the control plane’s current
+signer. Repair a mismatched pin through the owner’s verified pairing authority.
+Keep signed frame verification enabled. The node reader also exits when a lifecycle
+fence closes admission, then reconnects through its normal backoff. A parked
+SSE connection can therefore release its ingress admission during restart.
+
+
 After the node is ONLINE, use the owner-gated CompanionService through Web
 Console to install or inspect the Device Control companion. The operation is
 target-gated to the registered, non-revoked, online node and records only the
 operation id, version, state, and recovery guidance:
 
 1. Install or upgrade the companion for the selected node and display.
-2. Inspect until the user LaunchAgent reports ready or degraded.
+2. Inspect until the user service reports ready or degraded.
 3. Ask the local Mac owner to approve Screen Recording and Accessibility once
    when the typed readiness state says `permission_required`.
 4. Re-run readiness from Web Console. `no_aqua_session`, `no_display`, locked,

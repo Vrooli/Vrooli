@@ -1,7 +1,16 @@
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
+import { DesktopReadinessSchema, DesktopSessionSchema } from "@vrooli/proto-types/device-control/v1/desktop/desktop_pb";
 import type { DesktopReadiness, DesktopSession } from "@vrooli/proto-types/device-control/v1/desktop/desktop_pb";
+
+// The plain Connect-JSON transport must serialize uint64 as decimal strings
+// and omit message-runtime metadata when a decoded session is echoed.
+export function desktopJSON(value: unknown): string {
+  return JSON.stringify(value, (key, item) => key === "$typeName" ? undefined : typeof item === "bigint" ? item.toString() : item);
+}
 
 export interface DesktopSessionTransport {
   readiness(request: unknown): Promise<DesktopReadiness>;
+  readFrame?(request: unknown, signal?: AbortSignal): Promise<{ jpeg: string }>;
   open(request: unknown): Promise<DesktopSession>;
   attachViewer(request: unknown): Promise<DesktopSession>;
   takeControl(request: unknown): Promise<DesktopSession>;
@@ -22,22 +31,30 @@ export interface BridgeInteractiveTransport {
 // plane; node URLs, credentials, SDP secrets, and clipboard contents are not
 // placed in durable client state or query strings.
 export function createDesktopSessionTransport(baseUrl = ""): DesktopSessionTransport {
-  const call = async <T>(method: string, request: unknown): Promise<T> => {
+  const call = async <T>(method: string, request: unknown, signal?: AbortSignal): Promise<T> => {
     const response = await fetch(`${baseUrl}/vrooli.device_control.v1.desktop.DesktopSessionService/${method}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify(request),
+      signal,
+      body: desktopJSON(request),
     });
-    if (!response.ok) throw new Error(`desktop ${method} failed (${String(response.status)})`);
+    if (!response.ok) {
+      if (method === "GetReadiness" && response.status === 503) {
+        throw new Error("Web Console could not reach this machine’s desktop service through Bridge.");
+      }
+      throw new Error(`Desktop ${method} failed (${String(response.status)}).`);
+    }
     return (await response.json()) as T;
   };
+  const session = async (method: string, request: unknown) => fromJson(DesktopSessionSchema, await call<JsonValue>(method, request), { ignoreUnknownFields: true });
   return {
-    readiness: (request) => call("GetReadiness", request),
-    open: (request) => call("OpenSession", request),
-    attachViewer: (request) => call("AttachViewer", request),
-    takeControl: (request) => call("TakeControl", request),
-    releaseControl: (request) => call("ReleaseControl", request),
+    readiness: async (request) => fromJson(DesktopReadinessSchema, await call<JsonValue>("GetReadiness", request), { ignoreUnknownFields: true }),
+    readFrame: (request, signal) => call("ReadFrame", request, signal),
+    open: (request) => session("OpenSession", request),
+    attachViewer: (request) => session("AttachViewer", request),
+    takeControl: (request) => session("TakeControl", request),
+    releaseControl: (request) => session("ReleaseControl", request),
     signal: (request) => call("Signal", request),
     input: (request) => call("Input", request),
     clipboard: (request) => call("Clipboard", request),
@@ -51,7 +68,7 @@ export function createBridgeInteractiveTransport(baseUrl = ""): BridgeInteractiv
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify(request),
+      body: desktopJSON(request),
     });
     if (!response.ok) throw new Error(`desktop channel ${method} failed (${String(response.status)})`);
     return (await response.json()) as T;

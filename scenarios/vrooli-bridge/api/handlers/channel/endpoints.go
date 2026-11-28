@@ -116,6 +116,17 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "presence_report_closure_shipment_receipt",
+		Path:        presenceconnect.PresenceServiceReportClosureShipmentReceiptProcedure,
+		Method:      "POST",
+		Summary:     "Report dependency closure shipment state",
+		Description: "Node-facing: persists an authenticated receipt bound to the selected closure, exact file inventory and prior/new target revision.",
+		Category:    "channel",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"receipt": "ClosureShipmentReceipt (shipment, target, graph+inventory digests, revisions, stage, state, actual files)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"accepted": "boolean"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Missing closure shipment identity or invalid state"}, {Status: 401, Code: "unauthenticated", Description: "Missing or invalid target node proof"}, {Status: 412, Code: "failed_precondition", Description: "Receipt binding, transition or actual inventory digest is invalid"}},
+	},
+	{
 		ID:          "presence_report_relay_response",
 		Path:        presenceconnect.PresenceServiceReportRelayResponseProcedure,
 		Method:      "POST",

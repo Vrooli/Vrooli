@@ -1,5 +1,14 @@
+import { readBrowserStorage, writeBrowserStorage } from "./browser_storage";
+
 const STORAGE_KEY = "vrooli-bridge.operator-session";
 const SESSION_TTL_SECONDS = 15 * 60;
+
+export class BrowserSessionRestoreError extends Error {
+  constructor() {
+    super("Saved browser enrollment could not be restored");
+    this.name = "BrowserSessionRestoreError";
+  }
+}
 
 export interface BrowserEnrollment {
   operatorId: string;
@@ -14,14 +23,6 @@ export interface BrowserEnrollment {
 export interface BrowserKeyMaterial {
   publicKey: Uint8Array;
   privateKeyPkcs8: string;
-}
-
-function storage(): Storage | null {
-  try {
-    return typeof window !== "undefined" ? window.localStorage : null;
-  } catch {
-    return null;
-  }
 }
 
 function toBase64Url(value: ArrayBuffer | Uint8Array): string {
@@ -58,15 +59,11 @@ export async function generateBrowserKeyMaterial(): Promise<BrowserKeyMaterial> 
 }
 
 export function saveBrowserEnrollment(enrollment: BrowserEnrollment): void {
-  const target = storage();
-  if (!target) throw new Error("browser enrollment storage is unavailable");
-  target.setItem(STORAGE_KEY, JSON.stringify(enrollment));
+  writeBrowserStorage(STORAGE_KEY, JSON.stringify(enrollment));
 }
 
 export function loadBrowserEnrollment(): BrowserEnrollment | null {
-  const target = storage();
-  if (!target) return null;
-  const raw = target.getItem(STORAGE_KEY);
+  const raw = readBrowserStorage(STORAGE_KEY);
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<BrowserEnrollment>;

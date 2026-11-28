@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Durable Machine intent, immutable enrollment recovery, trust, and capability-policy invariants.",
-    "last_validated_at": "2026-09-10T03:37:32-04:00",
+    "last_validated_at": "2026-11-21T21:02:29-05:00",
     "module": "machine-enrollment-recovery",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -80,21 +80,21 @@
           "type": "test",
           "ref": "api/internal/onboard/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Durable orchestration tests assert final key-only verification and fail-closed behavior; live restart evidence remains a final qualification step."
         },
         {
           "type": "test",
           "ref": "cli/domains/onboard/handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI tests assert first-touch prompting, trusted reconnect without prompting, and server-owned Machine resolution."
         },
         {
           "type": "test",
           "ref": "api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesPreservesCurrentApprovedGrants; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesDoesNotRestoreRevokedGrants; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesRejectsRegistryIdentityMismatch; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesFailsClosedWhenRegistryUnavailable; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesRejectsAmbiguousCurrentLineage; api/handlers/machines/connect_handler_test.go#TestMachineRepairerUsesPersistedSSHTrust; api/handlers/machines/connect_handler_test.go#TestMachineRepairerRejectsRegistryIdentityMismatchBeforePairing; agent/internal/config/config_test.go#TestLoad_RestoresPairedIdentityFromPersistentStateDirectory",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Connect and repair carry only exact current Registry grants, fail closed when lineage is ambiguous or Registry identity does not match, and never restore revoked Node scopes."
         },
         {
@@ -109,7 +109,7 @@
     {
       "id": "BRG-MEC-005",
       "title": "Connection identity and credential fail-closed behavior",
-      "status": "complete",
+      "status": "in_progress",
       "category": "security",
       "description": "Preflight returns explicit first-touch, reconnect, recovery-required, ambiguous, and host-key-review decisions. A no-password request cannot start first touch or recovery, and passwords never appear in durable records or process arguments.",
       "validation": [
@@ -124,7 +124,7 @@
           "type": "test",
           "ref": "cli/domains/onboard/handlers_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI request captures verify credential-safe intake and trusted reconnect behavior."
         }
       ]
@@ -132,7 +132,7 @@
     {
       "id": "BRG-MEC-006",
       "title": "Node capability inventory and configuration outcome",
-      "status": "complete",
+      "status": "in_progress",
       "category": "core",
       "description": "A Bridge agent reports one typed capability observation per declared coding agent, Bridge persists the inventory and probe time, and a terminal configuration attempt records its operation, state, time, and unmet items on the node.",
       "validation": [
@@ -140,26 +140,26 @@
           "type": "test",
           "ref": "api/internal/registry/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "agent/internal/channel/channel_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/internal/onboard/service_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "BRG-MEC-007",
       "title": "Per-machine desired configuration and drift",
-      "status": "complete",
+      "status": "in_progress",
       "category": "core",
       "description": "A machine profile carries desired scenarios, optional resources, required capabilities, and setup environment; the machine records the applied profile version and time; and drift is returned as typed differences.",
       "validation": [
@@ -167,13 +167,13 @@
           "type": "test",
           "ref": "api/internal/machines/sqlite_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/internal/onboard/service_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

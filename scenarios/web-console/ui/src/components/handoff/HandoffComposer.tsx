@@ -2,14 +2,13 @@ import { useActivityTime, useConversationNavigation } from "../../hooks/useConve
 import { handoffTargetSections } from "../../hooks/useHandoff";
 import { buildSessionActivity } from "../../lib/workspaceNavigation";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Loader2, Plus, Search, Send, X } from "lucide-react";
+import { Loader2, Plus, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { Input } from "@vrooli/react-component-library/Input/1";
-import { InputGroup } from "@vrooli/react-component-library/InputGroup";
+import { SearchField } from "../SearchField";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 
 import { strings } from "../../consts/strings";
@@ -185,34 +184,16 @@ export default function HandoffComposer({
         {t(strings.handoff.fromSource, { name: sourceLabel })}
       </p>
       {flatTargets.length > FILTER_THRESHOLD && (
-        <InputGroup className="min-w-0" size="md" shape="rounded" testId="handoff-filter-group">
-          <InputGroup.Adornment side="leading"><Search aria-hidden /></InputGroup.Adornment>
-          <InputGroup.Field>
-            <Input
-              type="search"
-              data-testid="handoff-filter"
-              aria-label={t(strings.handoff.filterAria)}
-              placeholder={t(strings.handoff.filterPlaceholder)}
-              value={filter}
-              onChange={(event) => { setFilter(event.target.value); }}
-            />
-          </InputGroup.Field>
-          {query.length > 0 && (
-            <InputGroup.Action>
-              <IconButton
-                type="button"
-                data-testid="handoff-filter-clear"
-                aria-label={t(strings.handoff.clearFilter)}
-                onClick={() => { setFilter(""); }}
-                shape="rounded"
-                surface="ghost"
-                size="sm"
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </IconButton>
-            </InputGroup.Action>
-          )}
-        </InputGroup>
+        <SearchField
+          testId="handoff-filter"
+          groupTestId="handoff-filter-group"
+          value={filter}
+          onValueChange={setFilter}
+          placeholder={t(strings.handoff.filterPlaceholder)}
+          label={t(strings.handoff.filterAria)}
+          clearLabel={t(strings.handoff.clearFilter)}
+          className="min-w-0"
+        />
       )}
     </div>
   );

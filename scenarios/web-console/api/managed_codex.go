@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,14 +29,23 @@ type managedCodexEntry struct {
 }
 
 type managedCodexRegistry struct {
-	mu        sync.RWMutex
-	store     sessionstore.Store
-	entries   map[string]managedCodexEntry
-	retired   map[string]bool
-	register  func(context.Context, string, *codex.ManagedOwner, string, string, string) error
-	eventSink func(string, codex.NativeEvent)
-	start     func(context.Context, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error)
-	resume    func(context.Context, string, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error)
+	mu           sync.RWMutex
+	lifecycleMu  sync.Mutex
+	stopping     atomic.Bool
+	stopRecovery context.CancelFunc
+	recoveryDone chan struct{}
+	shutdownDone chan struct{}
+	shutdownErr  error
+	launches     sync.WaitGroup
+	watchers     sync.WaitGroup
+	store        sessionstore.Store
+	intents      *codexRecoveryIntents
+	entries      map[string]managedCodexEntry
+	retired      map[string]bool
+	register     func(context.Context, string, *codex.ManagedOwner, string, string, string) error
+	eventSink    func(string, codex.NativeEvent)
+	start        func(context.Context, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error)
+	resume       func(context.Context, string, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error)
 }
 
 func newManagedCodexRegistry(store sessionstore.Store) *managedCodexRegistry {
@@ -135,7 +146,9 @@ func (r *managedCodexRegistry) watch(id string, owner *codex.ManagedOwner) {
 	if owner == nil || r.eventSink == nil {
 		return
 	}
+	r.watchers.Add(1)
 	go func() {
+		defer r.watchers.Done()
 		defer r.markUnavailable(id, owner)
 		notifications := owner.Notifications()
 		requests := owner.Requests()
@@ -148,11 +161,11 @@ func (r *managedCodexRegistry) watch(id string, owner *codex.ManagedOwner) {
 				}
 				event, mapped := codex.MapNotification(message)
 				if mapped {
-					if event.Kind == "turn/started" {
-						owner.MarkTurnStarted(event.ThreadID, event.TurnID)
-					}
-					if event.Kind == "turn/completed" && owner.MarkTurnCompleted(event.ThreadID, event.TurnID) && r.store != nil {
-						_ = r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{NativeThreadID: owner.ThreadID(), LastVerifiedTurnID: owner.LastVerifiedTurnID()})
+					switch {
+					case event.Kind == "turn/started" && owner.MarkTurnStarted(event.ThreadID, event.TurnID):
+						r.recordTurnActivity(id, sessionstore.NativeTurnActive, "")
+					case event.Kind == "turn/completed" && owner.MarkTurnCompleted(event.ThreadID, event.TurnID):
+						r.recordTurnActivity(id, sessionstore.NativeTurnIdle, owner.LastVerifiedTurnID())
 					}
 					r.eventSink(id, event)
 				}
@@ -170,7 +183,7 @@ func (r *managedCodexRegistry) watch(id string, owner *codex.ManagedOwner) {
 func (r *managedCodexRegistry) markUnavailable(id string, owner *codex.ManagedOwner) {
 	r.mu.Lock()
 	entry, ok := r.entries[id]
-	changed := ok && entry.owner == owner && !entry.retiring
+	changed := ok && entry.owner == owner && !entry.retiring && !r.stopping.Load()
 	if changed {
 		// Stream EOF is not process-exit proof. Keep its exact runtime owner for
 		// retirement while removing its ability to receive work or auto-recover.
@@ -181,11 +194,110 @@ func (r *managedCodexRegistry) markUnavailable(id string, owner *codex.ManagedOw
 	}
 	r.mu.Unlock()
 	if changed && r.store != nil {
-		_ = r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, ClearNativeOwner: true})
+		if err := r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, ClearNativeOwner: true}); err != nil {
+			log.Printf("persist unavailable managed Codex session %s: %v", id, err)
+		}
 	}
 }
 
+func (r *managedCodexRegistry) recordTurnActivity(id string, activity sessionstore.NativeTurnActivity, completedTurnID string) {
+	if r.store == nil {
+		return
+	}
+	if err := r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{
+		NativeTurnActivity: activity, LastVerifiedTurnID: completedTurnID,
+	}); err != nil {
+		log.Printf("persist managed Codex turn activity for %s: %v", id, err)
+	}
+}
+
+func (r *managedCodexRegistry) admitLaunch() bool {
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+	if r.stopping.Load() {
+		return false
+	}
+	r.launches.Add(1)
+	return true
+}
+
+func (r *managedCodexRegistry) startRecovery() {
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
+	if r.stopping.Load() || r.stopRecovery != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r.stopRecovery = cancel
+	done := make(chan struct{})
+	r.recoveryDone = done
+	go func() {
+		defer close(done)
+		defer cancel()
+		if err := r.Recover(ctx); err != nil && ctx.Err() == nil {
+			log.Printf("managed Codex recovery: %v", err)
+		}
+	}()
+}
+
+// Shutdown fences launch admission and drains managed transports before their
+// event sinks and session store are closed. Planned EOF preserves boot eligibility.
+func (r *managedCodexRegistry) Shutdown(ctx context.Context) error {
+	if r == nil {
+		return nil
+	}
+	r.lifecycleMu.Lock()
+	if r.shutdownDone == nil {
+		r.stopping.Store(true)
+		if r.stopRecovery != nil {
+			r.stopRecovery()
+		}
+		r.shutdownDone = make(chan struct{})
+		go r.closeOwners()
+	}
+	done := r.shutdownDone
+	r.lifecycleMu.Unlock()
+	select {
+	case <-done:
+		return r.shutdownErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (r *managedCodexRegistry) closeOwners() {
+	defer close(r.shutdownDone)
+	r.launches.Wait()
+	r.mu.Lock()
+	owners := make(map[string]*codex.ManagedOwner, len(r.entries))
+	for id, entry := range r.entries {
+		entry.retiring = true
+		r.entries[id] = entry
+		if entry.owner != nil {
+			owners[id] = entry.owner
+			entry.owner.BeginRetirement()
+		}
+	}
+	r.mu.Unlock()
+	for id, owner := range owners {
+		if err := owner.Close(); err != nil {
+			r.shutdownErr = errors.Join(r.shutdownErr, fmt.Errorf("close managed Codex %s: %w", id, err))
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		if err := r.intents.release(ctx, id, owner.OwnerID()); err != nil {
+			r.shutdownErr = errors.Join(r.shutdownErr, fmt.Errorf("release managed Codex %s recovery intent: %w", id, err))
+		}
+		cancel()
+	}
+	r.watchers.Wait()
+}
+
 func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateInput) (sessionsH.Session, error) {
+	if !r.admitLaunch() {
+		return sessionsH.Session{}, codex.ErrClosed
+	}
+	defer r.launches.Done()
 	if !strings.EqualFold(strings.TrimSpace(in.AgentType), string(sessionstore.AgentCodex)) {
 		return sessionsH.Session{}, fmt.Errorf("managed Codex launch requires agent_type codex")
 	}
@@ -252,7 +364,7 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 	}
 	createdAt := time.Now().UTC()
 	if r.store != nil {
-		if err := r.store.Save(ctx, sessionstore.Metadata{ID: id, Backend: backend.Persistent, Cols: uint16(in.Cols), Rows: uint16(in.Rows), Created: createdAt, Detached: true, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, ControlMode: sessionstore.ControlModeUnknown, LaunchDescriptorJSON: raw, CWD: cwd, CreateFingerprint: in.RequestFingerprint}); err != nil {
+		if err := r.store.Save(ctx, sessionstore.Metadata{ID: id, Backend: backend.Persistent, Cols: uint16(in.Cols), Rows: uint16(in.Rows), Created: createdAt, Detached: true, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, ControlMode: sessionstore.ControlModeUnknown, LaunchDescriptorJSON: raw, CWD: cwd, NativeTurnActivity: sessionstore.NativeTurnIdle, CreateFingerprint: in.RequestFingerprint}); err != nil {
 			_ = owner.Close()
 			return sessionsH.Session{}, err
 		}
@@ -368,7 +480,7 @@ func (r *managedCodexRegistry) SetGoal(ctx context.Context, sessionID, expectedO
 
 func (r *managedCodexRegistry) recordFork(ctx context.Context, id, originalThreadID, activeThreadID, turnID string) error {
 	if r.store != nil {
-		if err := r.store.UpdateAgentInfo(ctx, id, sessionstore.AgentInfo{NativeThreadID: activeThreadID, LastVerifiedTurnID: turnID, ForkedFromNativeSession: originalThreadID}); err != nil {
+		if err := r.store.UpdateAgentInfo(ctx, id, sessionstore.AgentInfo{NativeThreadID: activeThreadID, NativeTurnActivity: sessionstore.NativeTurnUnknown, LastVerifiedTurnID: turnID, ForkedFromNativeSession: originalThreadID}); err != nil {
 			return err
 		}
 	}
@@ -466,13 +578,18 @@ func (s *Server) captureManagedCodexEvent(sessionID string, native codex.NativeE
 	}
 }
 
+func managedCodexNeedsIdentityHandoff(owner string, descriptor sessionstore.LaunchDescriptor) bool {
+	return owner == "agent-manager" || strings.TrimSpace(descriptor.Environment["VROOLI_AGENT_MANAGER_STORE_ID"]) != ""
+}
+
 // Recover resumes only rows that contain an explicit managed mode and native
 // thread id. A failed resume is downgraded to recovery_only; no rollout scan
 // or newest-file heuristic is allowed to select a replacement thread.
 func (r *managedCodexRegistry) Recover(ctx context.Context) error {
-	if r.store == nil || r.resume == nil {
+	if r.store == nil || r.resume == nil || !r.admitLaunch() {
 		return nil
 	}
+	defer r.launches.Done()
 	rows, err := r.store.List(ctx)
 	if err != nil {
 		return err
@@ -482,12 +599,19 @@ func (r *managedCodexRegistry) Recover(ctx context.Context) error {
 		executable = "codex"
 	}
 	invalidate := func(id string, recoveryErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		log.Printf("managed Codex recovery: session %s unavailable: %v", id, recoveryErr)
 		if err := r.store.UpdateAgentInfo(ctx, id, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, ClearNativeOwner: true}); err != nil {
 			return fmt.Errorf("persist failed native recovery for %s: %w", id, errors.Join(recoveryErr, err))
 		}
 		return nil
 	}
 	for _, meta := range rows {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		// Runtime exits awaiting explicit recovery and deliberate retirement must
 		// never be undone by a service restart. Canonical stores normalize legacy
 		// blank statuses on read; an unclassified raw row is not authority.
@@ -508,13 +632,22 @@ func (r *managedCodexRegistry) Recover(ctx context.Context) error {
 		// exists, a restart cannot truthfully restore that agent identity.
 		// Owner is the verified service subject; the exact store marker also
 		// covers the service's human-labelled tunnel launches (AM phases/env.go).
-		if meta.Owner == "agent-manager" || strings.TrimSpace(descriptor.Environment["VROOLI_AGENT_MANAGER_STORE_ID"]) != "" {
+		if managedCodexNeedsIdentityHandoff(meta.Owner, descriptor) {
 			if err := invalidate(meta.ID, errors.New("managed child identity has no authorized recovery handshake")); err != nil {
 				return err
 			}
 			continue
 		}
 		ownerID := "web-console:" + meta.ID + ":" + uuid.NewString()
+		if err := r.intents.claim(ctx, meta.ID, meta.NativeThreadID, ownerID); err != nil {
+			if !errors.Is(err, errCodexReopenUnconfirmed) {
+				return fmt.Errorf("persist native reopen claim for %s: %w", meta.ID, err)
+			}
+			// Another in-process recovery may already own this exact row.
+			// Leave its metadata alone and withhold any second provider call.
+			log.Printf("managed Codex recovery: session %s: %v", meta.ID, err)
+			continue
+		}
 		owner, resumeErr := r.resume(ctx, executable, ownerID, "web-console", meta.ProviderVersion, meta.NativeThreadID, meta.CWD, codexLaunchEnv(descriptor), codexLaunchArgs(descriptor))
 		if resumeErr != nil {
 			if err := invalidate(meta.ID, resumeErr); err != nil {
@@ -550,11 +683,21 @@ func (r *managedCodexRegistry) Recover(ctx context.Context) error {
 				continue
 			}
 		}
+		if err := r.intents.confirm(ctx, meta.ID, meta.NativeThreadID, ownerID); err != nil {
+			_ = owner.Close()
+			if invalidationErr := invalidate(meta.ID, err); invalidationErr != nil {
+				return invalidationErr
+			}
+			continue
+		}
 		s := sessionsH.Session{ID: meta.ID, CreateFingerprint: meta.CreateFingerprint, CreatedAt: meta.Created.UTC().Format(time.RFC3339), Cols: int(meta.Cols), Rows: int(meta.Rows), Backend: string(backend.Persistent), SurvivesRestart: true, Origin: string(meta.Origin), Owner: meta.Owner, DisplayLabel: meta.DisplayLabel, LaunchMode: string(meta.LaunchMode), ControlMode: string(sessionstore.ControlModeNativeCapable), NativeOwner: owner.OwnerID(), NativeTransport: meta.NativeTransport, ProviderVersion: version, NativeThreadID: owner.ThreadID()}
 		r.mu.Lock()
 		r.entries[meta.ID] = managedCodexEntry{session: s, owner: owner}
 		r.mu.Unlock()
 		r.watch(meta.ID, owner)
+		if meta.NativeTurnActivity == sessionstore.NativeTurnActive {
+			log.Printf("managed Codex recovery: native thread reloaded for %s after an active observation; provider goals may continue, interrupted ordinary turns require explicit continuation", meta.ID)
+		}
 	}
 	return nil
 }

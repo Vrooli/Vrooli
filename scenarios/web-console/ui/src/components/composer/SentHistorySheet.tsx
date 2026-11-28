@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SendHorizontal, TextCursorInput, Trash2 } from "lucide-react";
-import { Button } from "@vrooli/react-component-library/Button/2";
+import { SendHorizontal, TextCursorInput, Trash2 } from "lucide-react";import { Button } from "@vrooli/react-component-library/Button/2";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { strings } from "../../consts/strings";
+import { SearchField } from "../SearchField";
 import type { SentHistoryEntry } from "../../hooks/useCommandHistory";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#echo-rows-and-history
@@ -58,13 +58,15 @@ export function SentHistorySheet({ open, entries, onClose, onInsert, onSend, onC
       contentPadding="none"
       subheader={entries.length > 0 ? (
         <div style={{ paddingInline: "var(--space-md)", paddingBlock: "var(--space-sm)" }}>
-          <input
-            data-testid="sent-history-filter"
-            aria-label={t(strings.sentHistory.filterLabel)}
-            placeholder={t(strings.sentHistory.filterPlaceholder)}
+          <SearchField
+            testId="sent-history-filter"
+            groupTestId="sent-history-filter-group"
             value={filter}
-            onChange={(event) => { setFilter(event.target.value); }}
-            className="w-full rounded-md border border-wc-default bg-wc-surface-input px-3 py-2 text-base text-wc-text-primary outline-none focus:border-wc-accent"
+            onValueChange={setFilter}
+            placeholder={t(strings.sentHistory.filterPlaceholder)}
+            label={t(strings.sentHistory.filterLabel)}
+            clearLabel={t(strings.sentHistory.filterLabel)}
+            className="w-full"
           />
         </div>
       ) : undefined}

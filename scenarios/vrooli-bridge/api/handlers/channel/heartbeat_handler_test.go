@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
@@ -36,6 +37,16 @@ type fakeDeliveryAckRecorder struct{ acks []runs.DeliveryAck }
 
 type fakeArtifactReceiptRecorder struct {
 	receipts []internalartifacts.DeliveryReceipt
+}
+
+type fakeClosureReceiptRecorder struct {
+	receipts []internalartifacts.ClosureNodeReceipt
+	err      error
+}
+
+func (f *fakeClosureReceiptRecorder) RecordNodeReceipt(_ context.Context, r internalartifacts.ClosureNodeReceipt) error {
+	f.receipts = append(f.receipts, r)
+	return f.err
 }
 
 type fakeRelayResponseSink struct {
@@ -224,6 +235,81 @@ func TestReportArtifactReceiptBindsToAuthenticatedNode(t *testing.T) {
 	require.Equal(t, "dist-1", recorder.receipts[0].DistributionID)
 	require.Equal(t, "n1", recorder.receipts[0].NodeID)
 	require.True(t, recorder.receipts[0].Accepted)
+}
+
+func TestReportClosureShipmentReceiptBindsTargetAndPersistsTypedReceipt(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	now := time.Unix(1_700_000_000, 0)
+	recorder := &fakeClosureReceiptRecorder{}
+	var validated internalartifacts.ClosureNodeReceipt
+	h := NewHeartbeatHandler(HeartbeatDeps{
+		Hub: newHub(), ClosureShipmentReceipts: recorder,
+		Verifier: nodeauth.NewVerifier(fakeCredStore{keys: map[string]ed25519.PublicKey{"node-1": pub}}, nodeauth.WithClock(func() time.Time { return now })),
+		ClosureShipmentReceiptTargetValidator: func(_ context.Context, receipt internalartifacts.ClosureNodeReceipt) error {
+			validated = receipt
+			return nil
+		},
+	})
+	receipt := &channelv1.ClosureShipmentReceipt{
+		ShipmentId: "ship-1", IdempotencyKey: "key-1", TargetId: "node-1", SourceRef: "source", Destination: "app",
+		ClosureDigest: "sha256:graph", InventoryDigest: "sha256:files", ActualInventoryDigest: "sha256:files",
+		PriorRevision: "r0", NewRevision: "r1", ActiveRevision: "r1", StageRef: "stage",
+		MachineId: "machine-1", NodeId: "node-1", EnrollmentGeneration: 7, DeploymentId: "deployment-1", DesiredRevision: 1,
+		State: channelv1.ClosureShipmentReceiptState_CLOSURE_SHIPMENT_RECEIPT_STATE_ACTIVATED, Result: "activated",
+		ActualFiles: []*channelv1.ClosureFile{{Path: "app/main", Sha256: "hash", Mode: 0o644, SizeBytes: 7}},
+	}
+	req := connect.NewRequest(&presencev1.ReportClosureShipmentReceiptRequest{Receipt: receipt})
+	req.Header().Set(nodeauth.HeaderNode, "node-1")
+	req.Header().Set(nodeauth.HeaderTS, strconv.FormatInt(now.Unix(), 10))
+	req.Header().Set(nodeauth.HeaderSig, base64.StdEncoding.EncodeToString(ed25519.Sign(priv, nodeauth.SigningPayload("node-1", now))))
+	resp, err := h.ReportClosureShipmentReceipt(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, resp.Msg.GetAccepted())
+	require.Equal(t, uint64(7), validated.EnrollmentGeneration)
+	require.Equal(t, "machine-1", validated.MachineID)
+	require.Len(t, recorder.receipts, 1)
+	require.Equal(t, "node-1", recorder.receipts[0].TargetID)
+	require.Equal(t, internalartifacts.ShipmentActivated, recorder.receipts[0].State)
+	require.Len(t, recorder.receipts[0].ActualFiles, 1)
+}
+
+func TestReportClosureShipmentReceiptRefusesStaleCurrentTarget(t *testing.T) {
+	recorder := &fakeClosureReceiptRecorder{}
+	h := NewHeartbeatHandler(HeartbeatDeps{
+		Hub: newHub(), ClosureShipmentReceipts: recorder,
+		ClosureShipmentReceiptTargetValidator: func(context.Context, internalartifacts.ClosureNodeReceipt) error {
+			return errors.New("current enrollment generation changed")
+		},
+	})
+	receipt := &channelv1.ClosureShipmentReceipt{ShipmentId: "ship-1", IdempotencyKey: "key", TargetId: "node-1", SourceRef: "source", Destination: "app", MachineId: "machine-1", NodeId: "node-1", EnrollmentGeneration: 7, State: channelv1.ClosureShipmentReceiptState_CLOSURE_SHIPMENT_RECEIPT_STATE_STAGED}
+	req := connect.NewRequest(&presencev1.ReportClosureShipmentReceiptRequest{Receipt: receipt})
+	req.Header().Set(nodeauth.HeaderNode, "node-1")
+	_, err := h.ReportClosureShipmentReceipt(context.Background(), req)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.Empty(t, recorder.receipts)
+}
+
+func TestReportClosureShipmentReceiptFailsClosedWithoutTargetValidator(t *testing.T) {
+	recorder := &fakeClosureReceiptRecorder{}
+	h := NewHeartbeatHandler(HeartbeatDeps{Hub: newHub(), ClosureShipmentReceipts: recorder})
+	req := connect.NewRequest(&presencev1.ReportClosureShipmentReceiptRequest{Receipt: &channelv1.ClosureShipmentReceipt{
+		ShipmentId: "ship-1", IdempotencyKey: "key", TargetId: "node-1", SourceRef: "source", Destination: "app",
+	}})
+	req.Header().Set(nodeauth.HeaderNode, "node-1")
+	_, err := h.ReportClosureShipmentReceipt(context.Background(), req)
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	require.Empty(t, recorder.receipts)
+}
+
+func TestReportClosureShipmentReceiptRejectsTargetMismatch(t *testing.T) {
+	recorder := &fakeClosureReceiptRecorder{}
+	h := NewHeartbeatHandler(HeartbeatDeps{Hub: newHub(), ClosureShipmentReceipts: recorder})
+	req := connect.NewRequest(&presencev1.ReportClosureShipmentReceiptRequest{Receipt: &channelv1.ClosureShipmentReceipt{ShipmentId: "ship-1", IdempotencyKey: "key", TargetId: "node-other", SourceRef: "src", Destination: "dest"}})
+	req.Header().Set(nodeauth.HeaderNode, "node-1")
+	_, err := h.ReportClosureShipmentReceipt(context.Background(), req)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Empty(t, recorder.receipts)
 }
 
 // [REQ:BRG-P1-004] A relay response signed before revocation is still refused

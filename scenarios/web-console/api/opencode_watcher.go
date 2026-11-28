@@ -21,6 +21,8 @@ import (
 	"web-console/backends/opencode"
 	"web-console/internal/config"
 	"web-console/internal/sessionstore"
+
+	opencodeversion "github.com/vrooli/vrooli/packages/opencode-version"
 )
 
 var errOpenCodeServeTimeout = errors.New("opencode serve did not report a listening URL in time")
@@ -41,10 +43,12 @@ const (
 // high-water-mark cursor (persisted in agent_transcript_checkpoints) makes
 // restart and SSE reconnect idempotent.
 //
-// Attribution is by directory + creation time + mutual uniqueness against live
-// web-console panes that were launched as opencode. Ambiguous matches are
-// skipped, never guessed, so one project's sessions never bleed into another
-// pane.
+// Attribution is by identity first: the launcher preselects an OpenCode 2
+// session id and records it per pane (opencodeversion.PaneBinding), and the
+// pane binds when that session appears. Panes without a binding fall back to
+// directory + creation time + mutual uniqueness over root sessions only.
+// Ambiguous matches are skipped, never guessed, so one project's sessions
+// never bleed into another pane.
 //
 // DOC: docs/guides/CONVERSATION_TRACKING.md
 // DOC: docs/internal/TEMPORAL-FLOWS.md
@@ -56,6 +60,10 @@ type OpenCodeWatcher struct {
 	// newClient builds the matching API client.
 	startServer func() (opencode.Server, func(), error)
 	newClient   func(server opencode.Server) opencode.Client
+
+	// bindingRoot resolves the Web Console session state root that holds the
+	// launcher's per-pane native session bindings. Nil disables bindings.
+	bindingRoot func() string
 
 	reconcileInterval time.Duration
 	reconnectBackoff  time.Duration
@@ -70,6 +78,8 @@ type OpenCodeWatcher struct {
 	client       opencode.Client
 	claimed      map[string]string // opencode session id -> web-console session id
 	contextUsage map[string]openCodeContextUsage
+	// badBindings remembers panes whose unreadable binding was already logged.
+	badBindings map[string]bool
 	// pendingPermission is the permission request each pane is waiting on:
 	// web-console session id -> OpenCode request id.
 	pendingPermission map[string]string
@@ -82,6 +92,7 @@ func NewOpenCodeWatcher(server *Server) *OpenCodeWatcher {
 		contextUsage:      make(map[string]openCodeContextUsage),
 		startServer:       spawnOpenCodeServe,
 		newClient:         opencode.NewClient,
+		bindingRoot:       resolveSessionStateRoot,
 		reconcileInterval: opencodeReconcileInterval,
 		reconnectBackoff:  opencodeReconnectBackoff,
 		stopCh:            make(chan struct{}),
@@ -250,12 +261,13 @@ func (w *OpenCodeWatcher) loadExistingClaimsForClient(client opencode.Client) {
 }
 
 func (w *OpenCodeWatcher) reconcileAll(ctx context.Context, client opencode.Client) {
-	sessions, err := w.listCandidateSessions(ctx, client)
+	panes := w.attributionPanes(ctx)
+	sessions, err := w.listCandidateSessions(ctx, client, panes)
 	if err != nil {
 		log.Printf("opencode-watcher: list sessions: %v", err)
 		return
 	}
-	w.attribute(sessions)
+	w.attribute(panes, sessions)
 
 	w.mu.Lock()
 	pairs := make(map[string]string, len(w.claimed))
@@ -278,13 +290,13 @@ func (w *OpenCodeWatcher) reconcileAll(ctx context.Context, client opencode.Clie
 	}
 }
 
-// listCandidateSessions fetches sessions for every directory a live opencode
-// pane might occupy. A managed `opencode serve` scopes GET /session to its own
-// working directory, so one unscoped list only ever exposes panes that share
-// that directory and silently hides the rest. Listing each pane cwd closes that
-// gap; the unscoped list stays as a fallback for panes whose cwd is unknown.
-func (w *OpenCodeWatcher) listCandidateSessions(ctx context.Context, client opencode.Client) ([]opencode.Session, error) {
-	queries := append([]string{""}, w.opencodePaneDirectories(ctx)...)
+// listCandidateSessions fetches sessions for every directory a pane awaiting
+// attribution might occupy. A managed `opencode serve` scopes GET /session to
+// its own working directory, so one unscoped list only ever exposes panes that
+// share that directory and silently hides the rest. Listing each pane cwd closes
+// that gap; the unscoped list stays as a fallback for panes whose cwd is unknown.
+func (w *OpenCodeWatcher) listCandidateSessions(ctx context.Context, client opencode.Client, panes []openCodeAttributionPane) ([]opencode.Session, error) {
+	queries := append([]string{""}, opencodePaneDirectories(panes)...)
 	seen := make(map[string]bool)
 	var sessions []opencode.Session
 	var firstErr error
@@ -327,10 +339,21 @@ func (w *OpenCodeWatcher) paneIsLive(meta sessionstore.Metadata) bool {
 	return meta.ArchivedAt.IsZero() && meta.OrphanedAt.IsZero()
 }
 
-// opencodePaneDirectories returns the distinct cwds of opencode panes that are
-// still awaiting attribution — the directories a session could be started in.
-// Claimed panes reconcile through the claim map, so they need no listing.
-func (w *OpenCodeWatcher) opencodePaneDirectories(ctx context.Context) []string {
+// openCodeAttributionPane is a live opencode pane that still needs a native
+// session: either it has none yet, or its launch binding names a newer one
+// (OpenCode was started again in the same pane).
+type openCodeAttributionPane struct {
+	meta sessionstore.Metadata
+	// binding is the launch-time session the pane recorded; bound reports
+	// whether one exists for this capture's major.
+	binding opencodeversion.PaneBinding
+	bound   bool
+}
+
+// attributionPanes returns the panes that are waiting for a native session.
+// The pane's resolved cwd is filled in so listing and the directory fallback
+// see the launch directory rather than "anywhere".
+func (w *OpenCodeWatcher) attributionPanes(ctx context.Context) []openCodeAttributionPane {
 	if w.server == nil || w.server.sessionStore == nil {
 		return nil
 	}
@@ -338,42 +361,10 @@ func (w *OpenCodeWatcher) opencodePaneDirectories(ctx context.Context) []string 
 	if err != nil {
 		return nil
 	}
-	seen := make(map[string]bool)
-	var directories []string
-	for _, m := range metas {
-		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || !m.ArchivedAt.IsZero() || !w.paneIsLive(m) {
-			continue
-		}
-		directory := m.CWD
-		if strings.TrimSpace(directory) == "" {
-			// Older rows could lose the resolved launch directory after the
-			// adapter overwrote the manager's value. An empty value means the
-			// default launch directory, not "every directory".
-			directory = config.ResolveWorkingDir()
-		}
-		if directory == "" || seen[directory] {
-			continue
-		}
-		seen[directory] = true
-		directories = append(directories, directory)
+	root := ""
+	if w.bindingRoot != nil {
+		root = w.bindingRoot()
 	}
-	return directories
-}
-
-// attribute binds unclaimed opencode sessions to live web-console panes that
-// were launched as opencode but have no agent session id yet. A pair is claimed
-// only when it is mutually unique — the session matches exactly one candidate
-// pane and that pane matches exactly one session — so concurrent same-directory
-// sessions are skipped rather than misrouted.
-func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
-	if w.server == nil || w.server.sessionStore == nil {
-		return
-	}
-	metas, err := w.server.sessionStore.List(context.Background())
-	if err != nil {
-		return
-	}
-
 	w.mu.Lock()
 	claimedSession := make(map[string]bool, len(w.claimed))
 	claimedPane := make(map[string]bool, len(w.claimed))
@@ -383,32 +374,130 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 	}
 	w.mu.Unlock()
 
-	var panes []sessionstore.Metadata
+	var panes []openCodeAttributionPane
 	for _, m := range metas {
-		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && m.ArchivedAt.IsZero() && !claimedPane[m.ID] && w.paneIsLive(m) {
-			if w.major > 0 && providerMajor(m.ProviderVersion) != 0 && providerMajor(m.ProviderVersion) != w.major {
-				continue // a pane explicitly recorded on another major
-			}
-			if strings.TrimSpace(m.CWD) == "" {
-				m.CWD = config.ResolveWorkingDir()
-			}
-			panes = append(panes, m)
+		if m.AgentType != sessionstore.AgentOpenCode || !m.ArchivedAt.IsZero() || !w.paneIsLive(m) {
+			continue
 		}
+		if w.major > 0 && providerMajor(m.ProviderVersion) != 0 && providerMajor(m.ProviderVersion) != w.major {
+			continue // a pane explicitly recorded on another major
+		}
+		binding, bound := w.paneLaunchBinding(root, m.ID)
+		if bound && w.major > 0 && binding.ProviderMajor > 0 && binding.ProviderMajor != w.major {
+			continue // launched on the other major; that capture binds it
+		}
+		switch {
+		case bound && binding.NativeSessionID != m.AgentSessionID && !claimedSession[binding.NativeSessionID]:
+			// A launch binding the pane has not adopted yet.
+		case !bound && m.AgentSessionID == "" && !claimedPane[m.ID]:
+			// An unbound pane left to the directory fallback.
+		default:
+			continue
+		}
+		if strings.TrimSpace(m.CWD) == "" {
+			// Older rows could lose the resolved launch directory after the
+			// adapter overwrote the manager's value. An empty value means the
+			// default launch directory, not "every directory".
+			m.CWD = config.ResolveWorkingDir()
+		}
+		panes = append(panes, openCodeAttributionPane{meta: m, binding: binding, bound: bound})
 	}
-	if len(panes) == 0 {
+	return panes
+}
+
+// paneLaunchBinding reads the session the launcher preselected for this pane.
+func (w *OpenCodeWatcher) paneLaunchBinding(root, paneID string) (opencodeversion.PaneBinding, bool) {
+	if strings.TrimSpace(root) == "" {
+		return opencodeversion.PaneBinding{}, false
+	}
+	binding, ok, err := opencodeversion.ReadPaneBinding(root, paneID)
+	if err != nil {
+		w.mu.Lock()
+		if w.badBindings == nil {
+			w.badBindings = make(map[string]bool)
+		}
+		first := !w.badBindings[paneID]
+		w.badBindings[paneID] = true
+		w.mu.Unlock()
+		if first {
+			log.Printf("opencode-watcher: ignoring unreadable launch binding for pane %s: %v", paneID, err)
+		}
+		return opencodeversion.PaneBinding{}, false
+	}
+	return binding, ok
+}
+
+// opencodePaneDirectories returns the distinct cwds of panes awaiting a
+// session — the directories a session could be started in. Claimed panes
+// reconcile through the claim map, so they need no listing.
+func opencodePaneDirectories(panes []openCodeAttributionPane) []string {
+	seen := make(map[string]bool)
+	var directories []string
+	for _, p := range panes {
+		directory := p.meta.CWD
+		if directory == "" || seen[directory] {
+			continue
+		}
+		seen[directory] = true
+		directories = append(directories, directory)
+	}
+	return directories
+}
+
+// attribute binds native sessions to panes.
+//
+// A pane whose launcher preselected its session is bound by identity as soon as
+// that session exists (OpenCode creates it on the first prompt). Such a pane
+// never takes part in the directory fallback, so it can neither be misrouted
+// nor make another pane ambiguous.
+//
+// The directory fallback covers panes without a binding (OpenCode 1, or
+// `--continue`). It considers only root sessions — a subagent child belongs to
+// its parent's conversation — and claims a pair only when it is mutually unique:
+// the session matches exactly one candidate pane and that pane matches exactly
+// one session. Concurrent same-directory sessions are skipped, never guessed.
+func (w *OpenCodeWatcher) attribute(panes []openCodeAttributionPane, sessions []opencode.Session) {
+	if w.server == nil || w.server.sessionStore == nil || len(panes) == 0 {
 		return
 	}
 
-	// Candidate edges between panes and unclaimed sessions.
-	paneMatches := make(map[string][]string)    // pane id -> session ids
-	sessionMatches := make(map[string][]string) // session id -> pane ids
-	sessionByID := make(map[string]opencode.Session)
+	w.mu.Lock()
+	claimedSession := make(map[string]bool, len(w.claimed))
+	for ocID := range w.claimed {
+		claimedSession[ocID] = true
+	}
+	w.mu.Unlock()
+
+	sessionByID := make(map[string]opencode.Session, len(sessions))
 	for _, s := range sessions {
-		if claimedSession[s.ID] {
+		sessionByID[s.ID] = s
+	}
+	reserved := make(map[string]bool)
+	var fallback []sessionstore.Metadata
+	for _, p := range panes {
+		if !p.bound {
+			fallback = append(fallback, p.meta)
 			continue
 		}
-		sessionByID[s.ID] = s
-		for _, p := range panes {
+		id := p.binding.NativeSessionID
+		reserved[id] = true
+		if s, ok := sessionByID[id]; ok && !claimedSession[id] {
+			w.claim(p.meta.ID, s, "launch binding")
+			claimedSession[id] = true
+		}
+	}
+	if len(fallback) == 0 {
+		return
+	}
+
+	// Candidate edges between fallback panes and unclaimed root sessions.
+	paneMatches := make(map[string][]string)    // pane id -> session ids
+	sessionMatches := make(map[string][]string) // session id -> pane ids
+	for _, s := range sessions {
+		if claimedSession[s.ID] || reserved[s.ID] || s.ParentID != "" {
+			continue
+		}
+		for _, p := range fallback {
 			if !opencodeSessionMatchesPane(s, p) {
 				continue
 			}
@@ -425,7 +514,7 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 		if len(sessionMatches[sID]) != 1 {
 			continue // session is ambiguous across panes
 		}
-		w.claim(paneID, sessionByID[sID])
+		w.claim(paneID, sessionByID[sID], "directory match")
 	}
 }
 
@@ -448,7 +537,7 @@ func opencodeSessionMatchesPane(s opencode.Session, p sessionstore.Metadata) boo
 	return true
 }
 
-func (w *OpenCodeWatcher) claim(paneID string, s opencode.Session) {
+func (w *OpenCodeWatcher) claim(paneID string, s opencode.Session, how string) {
 	w.mu.Lock()
 	if _, exists := w.claimed[s.ID]; exists {
 		w.mu.Unlock()
@@ -474,7 +563,7 @@ func (w *OpenCodeWatcher) claim(paneID string, s opencode.Session) {
 			return
 		}
 	}
-	log.Printf("opencode-watcher: attributed session %s -> pane %s", s.ID, paneID)
+	log.Printf("opencode-watcher: attributed session %s -> pane %s (%s)", s.ID, paneID, how)
 }
 
 func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.Client, ocID, wcID string) {

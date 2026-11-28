@@ -5,18 +5,12 @@ import { transport } from "./client";
 
 export const continuityClient = createClient(ContinuityService, transport);
 
-export interface ContinuityIntegrity {
-  sessions: number;
-  conversationSessions: number;
-  conversationEvents: number;
-  checkpoints: number;
-  workspacePanes: number;
+/** Catalog-link drift counts; answered from indexes without reading bodies. */
+export interface ContinuityHealth {
   orphanConversations: number;
   orphanCheckpoints: number;
   orphanWorkspacePanes: number;
   uncatalogedConversations: number;
-  generation: string;
-  eventContentHash: string;
 }
 
 export interface ContinuitySearchMatch {
@@ -42,20 +36,18 @@ export interface ContinuityReceipt {
   completedAt?: string;
 }
 
-export async function getContinuityIntegrity(): Promise<ContinuityIntegrity> {
-  const report = await continuityClient.integrity({});
+/**
+ * Fast drift observation for warnings. The full integrity audit (CLI
+ * `continuity integrity`) also hashes every message body; the UI never needs
+ * that conservation receipt.
+ */
+export async function getContinuityHealth(): Promise<ContinuityHealth> {
+  const report = await continuityClient.health({});
   return {
-    sessions: Number(report.sessions),
-    conversationSessions: Number(report.conversationSessions),
-    conversationEvents: Number(report.conversationEvents),
-    checkpoints: Number(report.checkpoints),
-    workspacePanes: Number(report.workspacePanes),
     orphanConversations: Number(report.orphanConversations),
     orphanCheckpoints: Number(report.orphanCheckpoints),
     orphanWorkspacePanes: Number(report.orphanWorkspacePanes),
     uncatalogedConversations: Number(report.uncatalogedConversations),
-    generation: report.generation,
-    eventContentHash: report.eventContentHash,
   };
 }
 

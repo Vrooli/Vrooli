@@ -67,6 +67,21 @@ type ReconcileItem struct {
 	Reason string
 }
 
+// ReconcileOutcome is one page of a reconciliation preview or apply.
+// Generation is the inventory generation the manifest is bound to: an apply
+// presents it together with ManifestHash, and the apply is refused when the
+// inventory has moved since.
+type ReconcileOutcome struct {
+	Items        []ReconcileItem
+	Observations int
+	Mutations    int
+	Receipt      Receipt
+	ManifestHash string
+	Generation   string
+	NextOffset   int
+	Complete     bool
+}
+
 // PublicRecord removes host filesystem locators from transport-facing
 // catalog views. Publication uses the private model inside this package; UI
 // and API callers receive stable identities without a filesystem reader.

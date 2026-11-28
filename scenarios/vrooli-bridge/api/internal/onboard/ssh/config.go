@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -10,6 +11,19 @@ const (
 	DefaultPort = 22
 	DefaultUser = "root"
 )
+
+// normalizePort applies the protocol default and rejects values that cannot be
+// represented by a TCP port. Request boundaries call it before local or remote
+// work so invalid input is reported as such rather than as a connection error.
+func normalizePort(port int) (int, error) {
+	if port == 0 {
+		port = DefaultPort
+	}
+	if port < 1 || port > 65535 {
+		return 0, fmt.Errorf("SSH port must be between 1 and 65535, got %d", port)
+	}
+	return port, nil
+}
 
 // ConnectionConfig holds SSH connection parameters. KnownHostsFile is the bridge-owned
 // known_hosts path threaded into the system ssh/scp invocations so their TOFU

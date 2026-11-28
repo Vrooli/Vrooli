@@ -1,6 +1,6 @@
 import { useDeferredValue, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AArrowDown, AArrowUp, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CornerDownLeft, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, CornerDownLeft, MoreHorizontal } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
@@ -13,14 +13,33 @@ import { sessionPreviewSource } from "../../api/filePreview";
 import { FIND_HIGHLIGHT_CSS, paintMatches, rangesInElement } from "./findInText";
 import { MessageActionList, useMessageActions } from "./MessageActionList";
 import type { MessageActionContext } from "./messageActions";
-import { eventTime, speakerKey, voiceReceiptKey } from "./speaker";
-import { clampReaderFontSize, useTypographyPinch } from "@vrooli/file-viewer";
+import { eventTime, speakerKey, speakerParams, voiceReceiptKey } from "./speaker";
+import { clampReaderFontSize, READER_FONT_DEFAULT, useTypographyPinch } from "@vrooli/file-viewer";
+import { ReaderStepper } from "./ReaderStepper";
+import type { ReplyPosition } from "./replyTrack";
 import type { OutboxState, SentEcho } from "../../lib/echoMatch";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-reader
 
-/** The reader's text size range and step, in px. */
+/** The text size step for Ctrl/⌘ + and −, in px; the range is the library's. */
 const READER_FONT_STEP = 2;
+
+/** Ctrl/⌘ +, − and 0 size the reader's text instead of zooming the page. */
+function fontSizeForShortcut(event: React.KeyboardEvent, current: number): number | null {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+  switch (event.key) {
+    case "+":
+    case "=":
+      return clampReaderFontSize(current + READER_FONT_STEP);
+    case "-":
+    case "_":
+      return clampReaderFontSize(current - READER_FONT_STEP);
+    case "0":
+      return READER_FONT_DEFAULT;
+    default:
+      return null;
+  }
+}
 
 /** What the pending-send pill says for each outbox state. */
 const READER_PENDING_LABEL: Readonly<Record<OutboxState, string>> = {
@@ -39,9 +58,12 @@ interface MessagesReaderProps {
   /** The phone keyboard is up: the footer gives its room to the text. */
   hideFooter: boolean;
   onClose: () => void;
-  /** Open the neighbouring reply; absent at either end. */
-  onPrev?: () => void;
-  onNext?: () => void;
+  /** Move `delta` replies (negative for back); returns how many it moved. */
+  onSeek: (delta: number) => number;
+  canPrev: boolean;
+  canNext: boolean;
+  /** Where the shown message sits among the replies. */
+  position: ReplyPosition;
   /** Replies that arrived after everything this reader has shown. */
   newReplyCount: number;
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
@@ -56,7 +78,8 @@ interface MessagesReaderProps {
 /**
  * A reply in full, in place of the list inside the pane, so the composer
  * below stays in reach: its own scroll, find-in-message as the header, copy,
- * the message's full action list, stepping between replies, and a text size.
+ * the message's full action list, and a footer that steps (or, held, scrubs)
+ * between replies around a wide Return. Text size is a pinch or Ctrl/⌘ ±.
  * The list stays laid out and live underneath, out of reach until it returns.
  */
 export function MessagesReader({
@@ -67,8 +90,10 @@ export function MessagesReader({
   coarsePointer,
   hideFooter,
   onClose,
-  onPrev,
-  onNext,
+  onSeek,
+  canPrev,
+  canNext,
+  position,
   newReplyCount,
   onLinkClick,
   onFileReferenceClick,
@@ -128,7 +153,7 @@ export function MessagesReader({
     setActiveMatch({ eventId: event.id, text: event.text, isPlaintext, query: deferredQuery, index: (activeIndex + delta + matchCount) % matchCount });
   };
   const hasQuery = query.trim() !== "";
-  const speaker: string = t(speakerKey(event) as never);
+  const speaker: string = t(speakerKey(event) as never, speakerParams(event));
   const voiceReceipt = voiceReceiptKey(event);
 
   return (
@@ -138,6 +163,12 @@ export function MessagesReader({
       aria-label={speaker}
       tabIndex={-1}
       onKeyDown={(keyEvent) => {
+        const size = fontSizeForShortcut(keyEvent, fontSize);
+        if (size != null) {
+          keyEvent.preventDefault();
+          if (size !== fontSize) onFontSizeChange(size);
+          return;
+        }
         // An open action list closes on its own Escape; the reader waits for the next.
         if (keyEvent.key !== "Escape" || keyEvent.defaultPrevented || actionsOpen) return;
         keyEvent.preventDefault();
@@ -263,57 +294,16 @@ export function MessagesReader({
         <footer
           data-testid="reader-footer"
           style={{ blockSize: "var(--wc-reader-footer-h)" }}
-          className="flex shrink-0 items-center justify-between gap-2 border-t border-wc-default px-3"
+          className="relative flex shrink-0 items-center gap-3 border-t border-wc-default px-3"
         >
-          <IconButton data-testid="reader-prev-reply" aria-label={t(strings.reader.prevReply)} title={t(strings.reader.prevReply)} surface="soft" size="sm" disabled={!onPrev} onClick={onPrev}>
-            <ChevronLeft />
-          </IconButton>
-          <div className="flex items-center gap-1">
-            <IconButton
-              data-testid="reader-font-smaller"
-              aria-label={t(strings.reader.smaller)}
-              title={t(strings.reader.smaller)}
-              surface="soft"
-              size="sm"
-              disabled={fontSize <= 12}
-              onClick={() => { onFontSizeChange(clampReaderFontSize(fontSize - READER_FONT_STEP)); }}
-            >
-              <AArrowDown />
-            </IconButton>
-            <IconButton
-              data-testid="reader-font-larger"
-              aria-label={t(strings.reader.larger)}
-              title={t(strings.reader.larger)}
-              surface="soft"
-              size="sm"
-              disabled={fontSize >= 32}
-              onClick={() => { onFontSizeChange(clampReaderFontSize(fontSize + READER_FONT_STEP)); }}
-            >
-              <AArrowUp />
-            </IconButton>
-          </div>
-          <span className="relative inline-flex">
-            <IconButton
-              data-testid="reader-next-reply"
-              data-new-count={newReplyCount > 0 ? newReplyCount : undefined}
-              aria-label={newReplyCount > 0 ? t(strings.reader.nextReplyNew, { count: newReplyCount }) : t(strings.reader.nextReply)}
-              title={newReplyCount > 0 ? t(strings.reader.nextReplyNew, { count: newReplyCount }) : t(strings.reader.nextReply)}
-              surface={newReplyCount > 0 ? "solid" : "soft"}
-              size="sm"
-              disabled={!onNext}
-              onClick={onNext}
-            >
-              <ChevronRight />
-            </IconButton>
-            {newReplyCount > 0 && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-center text-[10px] font-semibold leading-4 text-wc-accent-fg"
-              >
-                {newReplyCount}
-              </span>
-            )}
-          </span>
+          <ReaderStepper
+            onSeek={onSeek}
+            canPrev={canPrev}
+            canNext={canNext}
+            position={position}
+            newReplyCount={newReplyCount}
+            onReturn={onClose}
+          />
         </footer>
       )}
       {actionsOpen && (

@@ -74,7 +74,7 @@ describe("DesktopPane", () => {
     render(<DesktopPane readiness={ready} session={connectedViewer} onInput={onInput} onClipboardToDesktop={vi.fn()} onClipboardFromDesktop={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Send text" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Read text" })).toBeDisabled();
-    expect(screen.getByText(/Viewer mode/)).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-pane-state")).toHaveAttribute("data-pane-state", "observe");
     expect(screen.getByTestId("workspace-surface-pane")).toHaveAttribute("data-state", "observe");
     expect(screen.getByRole("toolbar", { name: "Desktop controls" })).toHaveAttribute("data-pane-state", "observe");
     fireEvent.pointerDown(screen.getByLabelText("Selected desktop display"));

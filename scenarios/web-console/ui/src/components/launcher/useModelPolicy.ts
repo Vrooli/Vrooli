@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GetRoleModelChoicesResponse, RoleModelChoice } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
+import { LimitKind, RouteKind } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
 import { modelSelectionClient } from "../../api/modelSelection";
 import { contextLimitRecord } from "../../api/usageMode";
 
@@ -10,9 +11,22 @@ export function roleChoiceKey(choice: RoleModelChoice): string {
   return JSON.stringify([choice.source, choice.model]);
 }
 
+export function hasOwnerEnforcedLimit(choice: RoleModelChoice): boolean {
+  const limit = choice.applicableLimit;
+  if (!limit) return false;
+  if (limit.kind === LimitKind.SELECTABLE_CREDITS_CAP) return limit.maxValue > 0 && limit.options.length > 0 && limit.options.includes(limit.defaultValue);
+  if (limit.kind === LimitKind.OWNER_ENFORCED_VALUE) return limit.maxValue > 0 && Boolean(limit.unit.trim());
+  return !choice.metered && limit.kind === LimitKind.NO_MONETARY_SPEND;
+}
+
 /** A metered choice bills per use, so it cannot be chosen from a list past its freshness budget. */
 export function choiceBlocked(choice: RoleModelChoice, stale: boolean): boolean {
-  return stale && choice.metered && !choice.policyCurrent;
+  // An unclassified source is not safe to launch even when the catalog failed
+  // to mark it metered: absence of owner metadata is not a no-cost route.
+  if (choice.routeKind === RouteKind.UNSPECIFIED) return true;
+  if (!choice.metered) return false;
+  if (!hasOwnerEnforcedLimit(choice)) return true;
+  return stale && !choice.policyCurrent;
 }
 
 /** The options a model offers, largest first. None may exceed its window. */

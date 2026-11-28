@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/cli-core/agenttranscript"
 
 	"web-console/internal/audioports"
 	"web-console/terminal"
@@ -74,6 +77,18 @@ type ConversationEvent struct {
 	TTSState                 ConversationTTSState         `json:"ttsState"`
 	ConsumptionState         ConversationConsumptionState `json:"consumptionState"`
 	NativeProvenance         *NativeProvenance            `json:"nativeProvenance,omitempty"`
+	// Kind, Author, AuthorName, Label and ThreadID classify the row; see
+	// agenttranscript.Classification. Kind is "work" only on projection rows
+	// that summarise the hidden rows between two conversation rows.
+	Kind       string `json:"kind"`
+	Author     string `json:"author"`
+	AuthorName string `json:"authorName,omitempty"`
+	Label      string `json:"label,omitempty"`
+	ThreadID   string `json:"threadId,omitempty"`
+	// Work is set on projection "work" rows only; it is never persisted.
+	Work *ConversationWorkSpan `json:"work,omitempty"`
+	// TextTruncated marks a work-detail row whose text is a preview.
+	TextTruncated bool `json:"textTruncated,omitempty"`
 	// IsUpdate is a transient flag (not persisted) indicating this event is an
 	// async update to a previously delivered event (e.g. summarization result).
 	// The WS forwarder uses this to send a conversation_event_update message.
@@ -192,6 +207,9 @@ type ConversationStore struct {
 	// constructor don't have to wire it explicitly. Production wires the
 	// audioports.RemoteSpeechTextProcessor backed by audio-tools.
 	processor audioports.SpeechTextProcessor
+	// launchPrompts attributes a programmatic session's first prompt to the
+	// program that launched it. Nil leaves every typed prompt the human's.
+	launchPrompts launchPromptAttributor
 }
 
 // SetSpeechProcessor lets package main inject the active port. The passthrough
@@ -241,6 +259,14 @@ func (s *ConversationStore) AppendAssistantEvent(ctx context.Context, sessionID,
 // AppendAssistantEventAt stores a transcript source's occurrence time without
 // changing CreatedAt, which remains the local ingestion time.
 func (s *ConversationStore) AppendAssistantEventAt(ctx context.Context, sessionID, source, text string, occurredAt time.Time) (ConversationEvent, ConversationAppendResult) {
+	return s.AppendClassifiedEvent(ctx, sessionID, source, ConversationRoleAssistant, text, occurredAt, nil)
+}
+
+// AppendClassifiedEvent appends one transcript row with the classification
+// its parser derived from native structure. A nil classification is derived
+// from the text (agenttranscript.ClassifyText), so every capture path stores
+// what a row is and who wrote it.
+func (s *ConversationStore) AppendClassifiedEvent(ctx context.Context, sessionID, source string, role ConversationRole, text string, occurredAt time.Time, class *agenttranscript.Classification) (ConversationEvent, ConversationAppendResult) {
 	cleanText := normalizeConversationText(text)
 	if strings.TrimSpace(sessionID) == "" {
 		return ConversationEvent{}, ConversationAppendResult{
@@ -251,16 +277,25 @@ func (s *ConversationStore) AppendAssistantEventAt(ctx context.Context, sessionI
 		}
 	}
 	if cleanText == "" {
+		reason := "Conversation event did not include assistant response text"
+		if role == ConversationRoleUser {
+			reason = "Conversation event did not include user prompt text"
+		}
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  false,
 			Code:      "conversation_input_required",
-			Reason:    "Conversation event did not include assistant response text",
+			Reason:    reason,
 			Source:    source,
 			SessionID: sessionID,
 		}
 	}
 
-	dedupKey := conversationDedupKey(sessionID, ConversationRoleAssistant, cleanText)
+	dedupKey := conversationDedupKey(sessionID, role, cleanText)
+	// A confirmed voice handoff is a distinct delivery fact. A matching typed
+	// prompt must not swallow its receipt through cross-transport deduplication.
+	if source == codexVoiceHandoffSource {
+		dedupKey += "\nvoice_handoff"
+	}
 	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  true,
@@ -277,15 +312,15 @@ func (s *ConversationStore) AppendAssistantEventAt(ctx context.Context, sessionI
 		ID:               newConversationEventID(),
 		SessionID:        sessionID,
 		Source:           source,
-		Role:             ConversationRoleAssistant,
+		Role:             role,
 		Text:             cleanText,
-		SpeechParagraphs: s.speechProcessor().SplitIntoParagraphs(cleanText),
 		CreatedAt:        time.Now().UTC(),
 		OccurredAt:       occurredAt.UTC(),
 		DeliveryState:    ConversationDeliveryPending,
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
 	}
+	thread := s.classifyEvent(ctx, &event, class)
 	persisted, err := s.repository.AppendEvent(ctx, event)
 	if err != nil {
 		return ConversationEvent{}, ConversationAppendResult{
@@ -297,15 +332,65 @@ func (s *ConversationStore) AppendAssistantEventAt(ctx context.Context, sessionI
 		}
 	}
 	s.dedup.remember(dedupKey, persisted.ID)
-
+	s.registerThread(ctx, persisted, thread)
+	reason := "Conversation event was appended to the owning terminal session"
+	if role == ConversationRoleUser {
+		reason = "User conversation event was appended to the owning terminal session"
+	}
 	return persisted, ConversationAppendResult{
 		Appended:  true,
 		Code:      "conversation_event_appended",
-		Reason:    "Conversation event was appended to the owning terminal session",
+		Reason:    reason,
 		Source:    source,
 		SessionID: sessionID,
 		EventID:   persisted.ID,
 		Sequence:  persisted.Sequence,
+	}
+}
+
+// classifyEvent records what the row is, who wrote it and which agent thread
+// it belongs to, and prepares speech only for the agent's own messages
+// (playback never reads tool calls or context). It returns the thread for
+// registerThread once the row is persisted.
+func (s *ConversationStore) classifyEvent(ctx context.Context, event *ConversationEvent, class *agenttranscript.Classification) agenttranscript.ThreadRef {
+	resolved := classifyConversationRow(event.Source, string(event.Role), event.Text)
+	if class != nil && class.Kind != "" {
+		resolved = *class
+	}
+	if resolved.Author == "" {
+		resolved.Author = agenttranscript.ClassifyText("", string(event.Role), "").Author
+	}
+	event.Kind = string(resolved.Kind)
+	event.Author = string(resolved.Author)
+	event.AuthorName = resolved.AuthorName
+	event.Label = resolved.Label
+	event.ThreadID = resolved.Thread.Key()
+	if s.launchPrompts != nil && event.Role == ConversationRoleUser && event.ThreadID == "" &&
+		event.Kind == string(agenttranscript.KindMessage) && event.Author == string(agenttranscript.AuthorHuman) {
+		if owner, ok := s.launchPrompts.LaunchPromptOwner(ctx, event.SessionID); ok {
+			event.Author = string(agenttranscript.AuthorAutomation)
+			event.AuthorName = owner
+			event.Label = "launch_prompt"
+		}
+	}
+	if event.Role == ConversationRoleAssistant && event.Kind == string(agenttranscript.KindMessage) && event.SpeechParagraphs == nil {
+		event.SpeechParagraphs = s.speechProcessor().SplitIntoParagraphs(event.Text)
+	}
+	return resolved.Thread
+}
+
+// registerThread records the agent thread a persisted row belongs to, so the
+// projection can name it. A failure only loses the name, never the row.
+func (s *ConversationStore) registerThread(ctx context.Context, event ConversationEvent, thread agenttranscript.ThreadRef) {
+	if event.ThreadID == "" {
+		return
+	}
+	threads, ok := s.repository.(conversationThreadStore)
+	if !ok {
+		return
+	}
+	if err := threads.UpsertThread(ctx, event.SessionID, conversationThreadFromRef(thread, event.CreatedAt)); err != nil {
+		log.Printf("conversation: register thread %s for %s: %v", sanitizeID(event.ThreadID), sanitizeID(event.SessionID), err)
 	}
 }
 
@@ -351,13 +436,12 @@ func (s *ConversationStore) AppendNativeEventAt(ctx context.Context, sessionID, 
 	}
 	event := ConversationEvent{ID: newConversationEventID(), SessionID: sessionID, Source: source, Role: conversationRole, Text: cleanText, CreatedAt: time.Now().UTC(), NativeProvenance: provenance, DeliveryState: ConversationDeliveryPending, TTSState: ConversationTTSIdle, ConsumptionState: ConversationConsumptionUnseen}
 	event.OccurredAt = occurredAt.UTC()
-	if conversationRole == ConversationRoleAssistant {
-		event.SpeechParagraphs = s.speechProcessor().SplitIntoParagraphs(cleanText)
-	}
+	thread := s.classifyEvent(ctx, &event, nil)
 	persisted, err := s.repository.AppendEvent(ctx, event)
 	if err != nil {
 		return ConversationEvent{}, ConversationAppendResult{Appended: false, Code: "conversation_store_failed", Source: source, SessionID: sessionID}
 	}
+	s.registerThread(ctx, persisted, thread)
 	return persisted, ConversationAppendResult{Appended: true, Code: "conversation_event_appended", Source: source, SessionID: sessionID, EventID: persisted.ID, Sequence: persisted.Sequence}
 }
 
@@ -399,77 +483,7 @@ func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, sour
 // AppendUserEventAt stores a transcript source's occurrence time without
 // changing CreatedAt, which remains the local ingestion time.
 func (s *ConversationStore) AppendUserEventAt(ctx context.Context, sessionID, source, text string, occurredAt time.Time) (ConversationEvent, ConversationAppendResult) {
-	cleanText := normalizeConversationText(text)
-	if strings.TrimSpace(sessionID) == "" {
-		return ConversationEvent{}, ConversationAppendResult{
-			Appended: false,
-			Code:     "conversation_target_missing",
-			Reason:   "No terminal session was identified for this conversation event",
-			Source:   source,
-		}
-	}
-	if cleanText == "" {
-		return ConversationEvent{}, ConversationAppendResult{
-			Appended:  false,
-			Code:      "conversation_input_required",
-			Reason:    "Conversation event did not include user prompt text",
-			Source:    source,
-			SessionID: sessionID,
-		}
-	}
-
-	dedupKey := conversationDedupKey(sessionID, ConversationRoleUser, cleanText)
-	// A confirmed voice handoff is a distinct delivery fact. A matching typed
-	// prompt must not swallow its receipt through cross-transport deduplication.
-	if source == codexVoiceHandoffSource {
-		dedupKey += "\nvoice_handoff"
-	}
-	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
-		return ConversationEvent{}, ConversationAppendResult{
-			Appended:  true,
-			Code:      "conversation_duplicate",
-			Reason:    "Conversation event was already appended recently",
-			Source:    source,
-			SessionID: sessionID,
-			EventID:   eventID,
-			Duplicate: true,
-		}
-	}
-
-	event := ConversationEvent{
-		ID:               newConversationEventID(),
-		SessionID:        sessionID,
-		Source:           source,
-		Role:             ConversationRoleUser,
-		Text:             cleanText,
-		SpeechParagraphs: nil,
-		CreatedAt:        time.Now().UTC(),
-		OccurredAt:       occurredAt.UTC(),
-		DeliveryState:    ConversationDeliveryPending,
-		TTSState:         ConversationTTSIdle,
-		ConsumptionState: ConversationConsumptionUnseen,
-	}
-	persisted, err := s.repository.AppendEvent(ctx, event)
-	if err != nil {
-		return ConversationEvent{}, ConversationAppendResult{
-			Appended:  false,
-			Code:      "conversation_store_failed",
-			Reason:    "Conversation event could not be persisted",
-			Source:    source,
-			SessionID: sessionID,
-		}
-	}
-	s.dedup.remember(dedupKey, persisted.ID)
-
-	return persisted, ConversationAppendResult{
-		Appended:  true,
-		Code:      "conversation_event_appended",
-		Reason:    "User conversation event was appended to the owning terminal session",
-		Source:    source,
-		SessionID: sessionID,
-		EventID:   persisted.ID,
-		Sequence:  persisted.Sequence,
-	}
+	return s.AppendClassifiedEvent(ctx, sessionID, source, ConversationRoleUser, text, occurredAt, nil)
 }
 
 // UpdateSpeechParagraphs replaces the SpeechParagraphs field for a stored event
@@ -529,12 +543,30 @@ func (s *ConversationStore) ListSession(ctx context.Context, sessionID string) C
 	return state
 }
 
-func (s *ConversationStore) ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool) {
-	state, hasMore, err := s.repository.ListSessionPage(ctx, sessionID, limit, beforeSequence)
+func (s *ConversationStore) ListSessionPage(ctx context.Context, sessionID string, page ConversationPageQuery) (ConversationSessionState, bool) {
+	state, hasMore, err := s.repository.ListSessionPage(ctx, sessionID, page)
 	if err != nil {
 		return ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}, false
 	}
 	return state, hasMore
+}
+
+// SessionCursor reads a session's cursor without loading its events.
+func (s *ConversationStore) SessionCursor(ctx context.Context, sessionID string) ConversationCursor {
+	cursor, err := s.repository.SessionCursor(ctx, sessionID)
+	if err != nil {
+		return ConversationCursor{}
+	}
+	return cursor
+}
+
+// LatestEventCreatedAt is the ingestion time of the session's newest event.
+func (s *ConversationStore) LatestEventCreatedAt(ctx context.Context, sessionID string) (time.Time, bool) {
+	createdAt, found, err := s.repository.LatestEventCreatedAt(ctx, sessionID)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return createdAt, found
 }
 
 func (s *ConversationStore) CountSessionEvents(ctx context.Context, sessionID string) int64 {
@@ -566,14 +598,11 @@ func (s *ConversationStore) ListSessionRange(ctx context.Context, sessionID stri
 }
 
 // HasConversationAfter reports whether tracking recorded an event after the
-// supplied instant. It is used by the recovered-session health signal.
+// supplied instant. It is used by the recovered-session health signal, once
+// per recovered session in a session list, so it reads only the newest event.
 func (s *ConversationStore) HasConversationAfter(ctx context.Context, sessionID string, after time.Time) bool {
-	for _, event := range s.ListSession(ctx, sessionID).Events {
-		if event.CreatedAt.After(after) {
-			return true
-		}
-	}
-	return false
+	latest, found := s.LatestEventCreatedAt(ctx, sessionID)
+	return found && latest.After(after)
 }
 
 func (s *ConversationStore) UpdateCursor(ctx context.Context, sessionID string, patch conversationCursorPatch) ConversationCursor {

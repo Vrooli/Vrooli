@@ -177,7 +177,7 @@ func (s *sqliteRepository) machineForEvidence(ctx context.Context, evidence, val
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) {
 	var m Machine
 	var created, updated, arch, removed, appliedAt string
-	e := s.db.QueryRowContext(ctx, "SELECT id,lifecycle,version,desired_profile_id,desired_profile_version,desired_selection_json,applied_profile_id,applied_profile_version,applied_selection_json,applied_at,trust_ref,created_at,updated_at,archived_at,removed_at FROM machines WHERE id=?", id).Scan(&m.ID, &m.Lifecycle, &m.Version, &m.DesiredProfileID, &m.DesiredProfileVersion, &m.DesiredSelectionJSON, &m.AppliedProfileID, &m.AppliedProfileVersion, &m.AppliedSelectionJSON, &appliedAt, &m.TrustRef, &created, &updated, &arch, &removed)
+	e := s.db.QueryRowContext(ctx, "SELECT id,lifecycle,version,enrollment_generation,desired_profile_id,desired_profile_version,desired_selection_json,applied_profile_id,applied_profile_version,applied_selection_json,applied_at,trust_ref,created_at,updated_at,archived_at,removed_at FROM machines WHERE id=?", id).Scan(&m.ID, &m.Lifecycle, &m.Version, &m.EnrollmentGeneration, &m.DesiredProfileID, &m.DesiredProfileVersion, &m.DesiredSelectionJSON, &m.AppliedProfileID, &m.AppliedProfileVersion, &m.AppliedSelectionJSON, &appliedAt, &m.TrustRef, &created, &updated, &arch, &removed)
 	if errors.Is(e, sql.ErrNoRows) {
 		return Machine{}, ErrNotFound{id}
 	}
@@ -215,7 +215,7 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) 
 	if e = rows.Err(); e != nil {
 		return Machine{}, e
 	}
-	lines, e := s.db.QueryContext(ctx, "SELECT node_id,is_current,linked_at,superseded_at,source_correlation_id FROM machine_node_lineage WHERE machine_id=? ORDER BY linked_at", id)
+	lines, e := s.db.QueryContext(ctx, "SELECT node_id,is_current,enrollment_generation,linked_at,superseded_at,source_correlation_id FROM machine_node_lineage WHERE machine_id=? ORDER BY linked_at", id)
 	if e != nil {
 		return Machine{}, e
 	}
@@ -224,7 +224,7 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) 
 		var n NodeLineage
 		var cur int
 		var linked, sup string
-		if e = lines.Scan(&n.NodeID, &cur, &linked, &sup, &n.CorrelationID); e != nil {
+		if e = lines.Scan(&n.NodeID, &cur, &n.EnrollmentGeneration, &linked, &sup, &n.CorrelationID); e != nil {
 			return Machine{}, e
 		}
 		n.Current = cur == 1
@@ -330,6 +330,10 @@ func (s *sqliteRepository) Remove(ctx context.Context, id string, version int64)
 }
 
 func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation string) (Machine, error) {
+	id, node, correlation = strings.TrimSpace(id), strings.TrimSpace(node), strings.TrimSpace(correlation)
+	if id == "" || node == "" || correlation == "" {
+		return Machine{}, ErrInvalid{"node_lineage", "machine id, node id, and enrollment correlation are required"}
+	}
 	if _, e := s.Get(ctx, id); e != nil {
 		return Machine{}, e
 	}
@@ -343,6 +347,41 @@ func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation s
 		return Machine{}, fmt.Errorf("begin machine lineage transaction: %w", e)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// A durable onboarding correlation is the retry identity. Once it has
+	// bound a different/current historical node, replay cannot roll lineage
+	// back to that old node. Same-correlation retries return the same counter.
+	var currentGeneration int64
+	var lifecycle Lifecycle
+	if e = tx.QueryRowContext(ctx, "SELECT lifecycle,enrollment_generation FROM machines WHERE id=?", id).Scan(&lifecycle, &currentGeneration); e != nil {
+		return Machine{}, fmt.Errorf("read machine enrollment generation: %w", e)
+	}
+	if lifecycle != LifecycleActive {
+		return Machine{}, ErrInvalid{"machine_id", "only an active machine can bind an enrollment"}
+	}
+	var priorNode string
+	var priorGeneration int64
+	err := tx.QueryRowContext(ctx, `SELECT node_id,enrollment_generation FROM machine_enrollment_generations WHERE machine_id=? AND correlation_id=?`, id, correlation).Scan(&priorNode, &priorGeneration)
+	if err == nil {
+		if priorNode != node || priorGeneration != currentGeneration {
+			return Machine{}, fmt.Errorf("enrollment correlation %q was already consumed by a different lineage", correlation)
+		}
+		var currentNode string
+		var current int
+		if err := tx.QueryRowContext(ctx, "SELECT node_id,is_current FROM machine_node_lineage WHERE machine_id=? AND node_id=?", id, node).Scan(&currentNode, &current); err != nil || currentNode != node || current != 1 {
+			return Machine{}, fmt.Errorf("enrollment correlation %q no longer names the current node", correlation)
+		}
+		if err := tx.Commit(); err != nil {
+			return Machine{}, fmt.Errorf("commit idempotent machine lineage retry: %w", err)
+		}
+		return s.Get(ctx, id)
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return Machine{}, fmt.Errorf("check enrollment generation replay: %w", err)
+	}
+	if currentGeneration < 0 || currentGeneration == int64(^uint64(0)>>1) {
+		return Machine{}, fmt.Errorf("machine enrollment generation cannot advance")
+	}
+	nextGeneration := currentGeneration + 1
 	// A retry may encounter a stale current lineage left on an archived or
 	// removed Machine by an older enrollment attempt. It is safe to supersede
 	// that historical row while linking the node to the active target. Never
@@ -368,8 +407,21 @@ func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation s
 	if _, e = tx.ExecContext(ctx, "UPDATE machine_node_lineage SET is_current=0,superseded_at=? WHERE machine_id=? AND is_current=1", now.Format(machineTimeFormat), id); e != nil {
 		return Machine{}, fmt.Errorf("supersede current node: %w", e)
 	}
-	if _, e = tx.ExecContext(ctx, "INSERT INTO machine_node_lineage (id,machine_id,node_id,is_current,linked_at,source_correlation_id) VALUES (?,?,?,?,?,?) ON CONFLICT(machine_id,node_id) DO UPDATE SET is_current=1,superseded_at='',source_correlation_id=excluded.source_correlation_id", uuid.NewString(), id, node, 1, now.Format(machineTimeFormat), correlation); e != nil {
+	if _, e = tx.ExecContext(ctx, "INSERT INTO machine_node_lineage (id,machine_id,node_id,is_current,linked_at,source_correlation_id,enrollment_generation) VALUES (?,?,?,?,?,?,?) ON CONFLICT(machine_id,node_id) DO UPDATE SET is_current=1,superseded_at='',source_correlation_id=excluded.source_correlation_id,enrollment_generation=excluded.enrollment_generation", uuid.NewString(), id, node, 1, now.Format(machineTimeFormat), correlation, nextGeneration); e != nil {
 		return Machine{}, fmt.Errorf("upsert node lineage: %w", e)
+	}
+	if _, e = tx.ExecContext(ctx, `INSERT INTO machine_enrollment_generations (machine_id,enrollment_generation,node_id,correlation_id,created_at) VALUES (?,?,?,?,?)`, id, nextGeneration, node, correlation, now.Format(machineTimeFormat)); e != nil {
+		return Machine{}, fmt.Errorf("record machine enrollment generation: %w", e)
+	}
+	updatedMachine, e := tx.ExecContext(ctx, "UPDATE machines SET enrollment_generation=?,version=version+1,updated_at=? WHERE id=? AND enrollment_generation=?", nextGeneration, now.Format(machineTimeFormat), id, currentGeneration)
+	if e != nil {
+		return Machine{}, fmt.Errorf("advance machine enrollment generation: %w", e)
+	}
+	if changed, err := updatedMachine.RowsAffected(); err != nil || changed != 1 {
+		if err != nil {
+			return Machine{}, fmt.Errorf("check machine enrollment generation update: %w", err)
+		}
+		return Machine{}, ErrConflict{ID: id, Version: currentGeneration}
 	}
 	if e = tx.Commit(); e != nil {
 		return Machine{}, fmt.Errorf("commit machine lineage: %w", e)

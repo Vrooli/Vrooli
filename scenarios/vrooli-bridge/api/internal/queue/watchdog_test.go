@@ -58,7 +58,7 @@ func TestWatchdog_ExpiredLeaseDoesNotRedeliverStartedWork(t *testing.T) {
 	w, store, scheduler, now := watchdog(t, queue.DurableEntry{
 		Job: job("started-unacked", "n1"), State: queue.StateRunning,
 		StartedAt: time.Unix(1, 0), LeaseExpiresAt: time.Unix(1, 0), DeliveryAttempts: 1,
-	})
+	}, aborter)
 	store.entries[0].LeaseExpiresAt = now.Add(-time.Second)
 
 	require.NoError(t, w.Sweep(context.Background()))

@@ -55,6 +55,28 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 	require.Equal(t, int64(600), got.TimeoutSeconds)
 }
 
+func TestSQLiteRepository_IdempotentCreateReusesRunAndRejectsConflictingReplay(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := runs.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	in := runs.Run{
+		OwnerID: "lpbs-service", RequestID: "request-7", RequestFingerprint: "sha256:job-a",
+		NodeID: "n1", Scenario: "web-search", Verb: "scenario test", Args: []string{"web-search"},
+	}
+	first, err := repo.Create(ctx, in)
+	require.NoError(t, err)
+
+	replayed, err := repo.Create(ctx, in)
+	require.NoError(t, err)
+	require.Equal(t, first.ID, replayed.ID)
+	require.True(t, replayed.IdempotentReplay)
+
+	in.RequestFingerprint = "sha256:different-job"
+	_, err = repo.Create(ctx, in)
+	var conflict runs.ErrIdempotencyConflict
+	require.ErrorAs(t, err, &conflict)
+}
+
 func TestSQLiteRepository_CancellationStateRoundTrips(t *testing.T) {
 	d, clk := newSchemaDB(t)
 	repo := runs.NewSQLiteRepository(d, clk)

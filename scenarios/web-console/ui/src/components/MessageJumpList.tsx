@@ -65,6 +65,8 @@ export interface SearchOptionsState {
   caseSensitive: boolean;
   wholeWord: boolean;
   role?: "user" | "assistant";
+  /** Search tool calls, results and injected context too, not only the conversation. */
+  includeWork?: boolean;
 }
 
 /** Whole-history server search, owned by MessagesPane. */

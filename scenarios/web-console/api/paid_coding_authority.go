@@ -93,6 +93,12 @@ func (a codingAuthority) models(ctx context.Context, access, harness string) ([]
 
 const codingSessionCap int64 = 5000
 
+// codingCreditCapOptions are the bounded per-session ceilings enforced by the
+// paid coding session owner. The selected value is carried in AgentLaunch.
+var codingCreditCapOptions = []int64{1000, 5000, 10000}
+
+const codingCreditCapDefault int64 = 5000
+
 func (s *Server) codingAuthorityDevice(ctx context.Context, account string, cap int64) (codingAuthority, codingKey, error) {
 	if s == nil || s.subscriptionResolver == nil || strings.TrimSpace(account) == "" || cap <= 0 {
 		return codingAuthority{}, codingKey{}, errors.New("choose a linked billing account to use Vrooli credits")
@@ -152,6 +158,8 @@ func (s *Server) GetAccountRoleModelChoices(ctx context.Context, agent, target, 
 			// LPBS currently gives a number without identifying the reader or
 			// provenance contract. Keep it unknown until that source is verifiable.
 			LaunchModel: model.ID, SourceLabel: "Vrooli credits", Metered: true, PolicyCurrent: true,
+			RouteKind:       modelselection.RouteKindVrooliCredit,
+			ApplicableLimit: modelselection.ApplicableLimit{Kind: modelselection.LimitKindSelectableCredits, MaxValue: codingCreditCapOptions[len(codingCreditCapOptions)-1], Unit: "credits", Provenance: "Web Console paid-session cap enforced by LPBS-issued session credentials", Options: append([]int64(nil), codingCreditCapOptions...), DefaultValue: codingCreditCapDefault},
 		})
 	}
 	return result

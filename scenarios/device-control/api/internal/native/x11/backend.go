@@ -226,7 +226,11 @@ func (b *Backend) Validate(ctx context.Context, command sessions.DesktopCommand)
 			_, err := b.wheel(command)
 			return err
 		}
-		if action.GetKey() != nil {
+		if key := action.GetKey(); key != nil {
+			if isExtendedPrintablePress(key) {
+				_, _, err := b.printableCodes(command, key.Key)
+				return err
+			}
 			_, _, err := b.key(command)
 			return err
 		}
@@ -252,7 +256,10 @@ func (b *Backend) Apply(ctx context.Context, command sessions.DesktopCommand) er
 		if action.GetWheel() != nil {
 			return b.applyWheel(command)
 		}
-		if action.GetKey() != nil {
+		if key := action.GetKey(); key != nil {
+			if isExtendedPrintablePress(key) {
+				return b.applyPrintable(command, key.Key)
+			}
 			return b.applyKey(command)
 		}
 		p, err := b.pointer(command)

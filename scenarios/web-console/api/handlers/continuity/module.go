@@ -4,6 +4,7 @@ package continuity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/connectx"
 	continuityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/continuity"
 	continuityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/continuity/continuity_v1connect"
@@ -20,7 +22,8 @@ import (
 
 type Service interface {
 	Integrity(context.Context) (model.IntegrityReport, error)
-	Reconcile(context.Context, bool, string, string, string, int, int) ([]model.ReconcileItem, int, int, model.Receipt, string, int, bool, error)
+	Health(context.Context) (model.HealthObservation, error)
+	Reconcile(context.Context, bool, string, string, string, int, int) (model.ReconcileOutcome, error)
 	Catalog(context.Context, string, int) ([]model.CatalogRecord, bool, error)
 	Search(context.Context, string, string, string, string, string, string, string, string, string, int) ([]model.SearchMatch, bool, int64, int64, error)
 	Receipt(context.Context, string) (model.Receipt, error)
@@ -123,6 +126,9 @@ func Module(deps ModuleDeps) module.Module {
 func (h *handler) Integrity(ctx context.Context, _ *connect.Request[continuityv1.IntegrityRequest]) (*connect.Response[continuityv1.IntegrityResponse], error) {
 	report, err := h.service.Integrity(ctx)
 	if err != nil {
+		if errors.Is(err, authn.ErrCapability) || errors.Is(err, authn.ErrOperation) {
+			return nil, connect.NewError(connect.CodePermissionDenied, err)
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&continuityv1.IntegrityResponse{
@@ -136,15 +142,29 @@ func (h *handler) Integrity(ctx context.Context, _ *connect.Request[continuityv1
 	}), nil
 }
 
-func (h *handler) Reconcile(ctx context.Context, req *connect.Request[continuityv1.ReconcileRequest]) (*connect.Response[continuityv1.ReconcileResponse], error) {
-	items, observations, mutations, receipt, manifestHash, nextOffset, complete, err := h.service.Reconcile(ctx, req.Msg.GetApply(), req.Msg.GetGeneration(), req.Msg.GetOperationId(), req.Msg.GetManifestHash(), int(req.Msg.GetOffset()), int(req.Msg.GetBatchSize()))
+func (h *handler) Health(ctx context.Context, _ *connect.Request[continuityv1.HealthRequest]) (*connect.Response[continuityv1.HealthResponse], error) {
+	observation, err := h.service.Health(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := make([]*continuityv1.ReconcileItem, 0, len(items))
-	for _, item := range items {
+	return connect.NewResponse(&continuityv1.HealthResponse{
+		OrphanConversations: observation.OrphanConversations, OrphanCheckpoints: observation.OrphanCheckpoints,
+		OrphanWorkspacePanes: observation.OrphanWorkspacePanes, UncatalogedConversations: observation.UncatalogedConversations,
+	}), nil
+}
+
+func (h *handler) Reconcile(ctx context.Context, req *connect.Request[continuityv1.ReconcileRequest]) (*connect.Response[continuityv1.ReconcileResponse], error) {
+	outcome, err := h.service.Reconcile(ctx, req.Msg.GetApply(), req.Msg.GetGeneration(), req.Msg.GetOperationId(), req.Msg.GetManifestHash(), int(req.Msg.GetOffset()), int(req.Msg.GetBatchSize()))
+	if err != nil {
+		if errors.Is(err, authn.ErrCapability) || errors.Is(err, authn.ErrOperation) {
+			return nil, connect.NewError(connect.CodePermissionDenied, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := make([]*continuityv1.ReconcileItem, 0, len(outcome.Items))
+	for _, item := range outcome.Items {
 		item = model.PublicReconcileItem(item)
 		out = append(out, &continuityv1.ReconcileItem{Action: string(item.Action), SessionId: item.Record.SessionID, Reason: item.Reason, LifecycleState: string(item.Record.LifecycleState), SourceFingerprint: item.Record.SourceFingerprint})
 	}
-	return connect.NewResponse(&continuityv1.ReconcileResponse{Applied: req.Msg.GetApply(), Observations: int32(observations), Mutations: int32(mutations), Items: out, ReceiptId: receipt.OperationID, ReceiptStatus: receipt.Status, ManifestHash: manifestHash, NextOffset: int32(nextOffset), Complete: complete}), nil
+	return connect.NewResponse(&continuityv1.ReconcileResponse{Applied: req.Msg.GetApply(), Observations: int32(outcome.Observations), Mutations: int32(outcome.Mutations), Items: out, ReceiptId: outcome.Receipt.OperationID, ReceiptStatus: outcome.Receipt.Status, ManifestHash: outcome.ManifestHash, Generation: outcome.Generation, NextOffset: int32(outcome.NextOffset), Complete: outcome.Complete}), nil
 }

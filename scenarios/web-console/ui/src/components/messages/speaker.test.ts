@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { strings } from "../../consts/strings";
-import { eventTime, speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
+import { eventTime, speakerKey, speakerParams, timeLabel, voiceReceiptKey } from "./speaker";
 
 describe("speakerKey", () => {
   it("[REQ:P0-017c] names the user 'You' whatever the capture source", () => {
@@ -19,6 +19,16 @@ describe("speakerKey", () => {
     ["", strings.messagesPane.speaker.agent],
   ])("[REQ:P0-017c] names an assistant captured by %s", (source, key) => {
     expect(speakerKey({ role: "assistant", source })).toBe(key);
+  });
+
+  it("names who wrote a row on the user channel from its author, never 'You' for another writer", () => {
+    expect(speakerKey({ role: "user", source: "claude_archive", author: "peer", authorName: "serving-fabric" })).toBe(strings.messagesPane.speaker.peerNamed);
+    expect(speakerParams({ role: "user", source: "claude_archive", author: "peer", authorName: "serving-fabric" })).toEqual({ name: "serving-fabric" });
+    expect(speakerKey({ role: "user", source: "codex_tailer", author: "automation", authorName: "agent-manager" })).toBe(strings.messagesPane.speaker.automationNamed);
+    expect(speakerKey({ role: "user", source: "codex_tailer", author: "automation" })).toBe(strings.messagesPane.speaker.automation);
+    expect(speakerKey({ role: "user", source: "prompt_submit_hook", author: "harness" })).toBe(strings.messagesPane.speaker.harness);
+    expect(speakerKey({ role: "user", source: "prompt_submit_hook", author: "human" })).toBe(strings.messagesPane.speaker.you);
+    expect(speakerParams({ role: "user", source: "prompt_submit_hook", author: "human" })).toBeUndefined();
   });
 });
 

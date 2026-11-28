@@ -45,7 +45,7 @@ export function rewriteLocalhostUrlForProxy(value: string, origin: string): stri
 // Keep path matching intentionally conservative. A token must look like a path
 // and have either a separator, a dot-prefixed segment, or a known file
 // extension; ordinary shell prose should never become interactive by accident.
-const FILE_TOKEN = /(?:\/[^\s"'`]+|(?:\.\.?[\\/]\s*)?[A-Za-z0-9_.-]+(?:[\\/][A-Za-z0-9_.-]+)+|(?:\.\.?[\\/]\s*)?[A-Za-z0-9_.-]+\.[A-Za-z][A-Za-z0-9_-]{0,31})(?:[:(]\d+(?::\d+)?\)?)?/g;
+const FILE_TOKEN = /(?:\/[^\s"'`]+|(?:\.\.?[\\/]\s*)?[A-Za-z0-9_.~@+%-]+(?:[\\/][A-Za-z0-9_.~@+%-]+)+|(?:\.\.?[\\/]\s*)?[A-Za-z0-9_.~@+%-]+\.[A-Za-z][A-Za-z0-9_-]{0,31})(?:[:(]\d+(?::\d+)?\)?)?/g;
 
 // URLs are matched explicitly so a path embedded in a URL (e.g. the pathname of
 // an https:// link) does not become a second, competing file link.
@@ -123,6 +123,45 @@ function isRunChar(ch: string): boolean {
   return ch !== "" && !/[\s"'`]/.test(ch);
 }
 
+/** Characters that cannot end a path token: a row that stops on one was cut
+ *  mid-token by the renderer, not finished. Excludes "." and ":" because those
+ *  are ordinary sentence punctuation at a line end. */
+function endsIncompleteToken(text: string): boolean {
+  return /[\\/_\-#~@=+]$/.test(text);
+}
+
+/**
+ * The column where a row's content begins, skipping a TUI gutter. Quoted
+ * messages and boxed panels draw a vertical rule (`┃`, `│`, or `|`) plus
+ * spaces before the text. That gutter is chrome, not part of a path: joining it
+ * would leave a rule glued to the token, and treating it as the continuation
+ * start would strand the actual fragment behind it.
+ */
+function continuationContentStart(text: string): number {
+  const firstNonSpace = text.search(/\S/);
+  if (firstNonSpace < 0) return -1;
+  const rule = text.charAt(firstNonSpace);
+  if ((rule === "┃" || rule === "│" || rule === "|") && /\s/.test(text.charAt(firstNonSpace + 1))) {
+    const afterRule = text.slice(firstNonSpace + 1).search(/\S/);
+    return afterRule < 0 ? -1 : firstNonSpace + 1 + afterRule;
+  }
+  return firstNonSpace;
+}
+
+/** Whether `row` begins with the continuation of a run rather than with a new
+ *  list item, heading, or quote. Continuations may be indented (a hanging
+ *  indent); markers with a following space are new lines. */
+function startsRunContinuation(text: string, firstNonSpace: number): boolean {
+  if (!isRunChar(text.charAt(firstNonSpace))) return false;
+  const line = text.slice(firstNonSpace);
+  // A new list item, heading, or quote starts a line of its own; only a line
+  // that resumes the run (possibly after an indent) continues the token.
+  if (/^(?:[-*+>]\s|#{1,6}\s|\d+[.)]\s)/.test(line)) return false;
+  // A fresh shell prompt is output starting over, never the tail of the
+  // command on the row above (`user@host:path$` or a bare `$ `).
+  return !/^(?:[^\s@]+@[^\s:]+[:$]|[$%>]\s)/.test(line);
+}
+
 /** The row's content, trailing whitespace trimmed (leading indent preserved),
  *  so its length is the column just past the last glyph. */
 function rowText(term: Terminal, row: number): string {
@@ -130,17 +169,17 @@ function rowText(term: Terminal, row: number): string {
   return line ? line.translateToString(true) : "";
 }
 
+/** Short rows are prose, never a wrapped message line. Without this floor, two
+ *  adjacent short lines that happen to share a run-character seam can be fused. */
+const MIN_BLOCK_WRAP_COLUMN = 32;
+
 /**
- * Whether `row` ends at this block's own wrap column rather than the terminal
- * edge. A styled TUI panel (e.g. Claude Code's queued-input box) fills each line
- * to the box width — many columns shy of term.cols — before wrapping, so the
- * geometric "near term.cols" gate misses it. A real hard wrap leaves evidence:
- * another contiguous row of the same block ends at the *same* column. A lone
- * short line has no such corroborator, so it is not mistaken for a wrap. We scan
- * outward over contiguous non-blank rows; a blank line bounds the block, and a
- * longer neighbour proves `row` was itself short (its end is not the wrap width).
+ * Whether another contiguous row of the same block ends at exactly `row`'s
+ * column. A real hard wrap leaves this evidence; a lone short line has no such
+ * corroborator, so it is not mistaken for a wrap. Used for continuations that
+ * are not indented, where the seam alone is too weak a signal.
  */
-function endsAtBlockWrapColumn(term: Terminal, row: number): boolean {
+function hasCorroboratingWrapRow(term: Terminal, row: number): boolean {
   const target = rowText(term, row).length;
   if (target === 0) return false;
   for (const dir of [-1, 1]) {
@@ -151,6 +190,28 @@ function endsAtBlockWrapColumn(term: Terminal, row: number): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Whether `row` is long enough to be one of its block's wrapped lines. A styled
+ * TUI panel (e.g. Claude Code's queued-input box) fills each line to the box
+ * width — often many columns shy of term.cols — before wrapping, so the wrap
+ * column is the widest row in the contiguous block rather than the terminal
+ * edge. Only applied to indented continuations: without an indent the same
+ * evidence would also fuse a long command line into the output below it.
+ */
+function endsAtBlockWrapColumn(term: Terminal, row: number): boolean {
+  const target = rowText(term, row).length;
+  if (target < MIN_BLOCK_WRAP_COLUMN) return false;
+  let widest = target;
+  for (const dir of [-1, 1]) {
+    for (let step = 1; step < BLOCK_SCAN_BUDGET; step++) {
+      const len = rowText(term, row + dir * step).length;
+      if (len === 0) break; // block boundary
+      if (len > widest) widest = len;
+    }
+  }
+  return target >= widest - WRAP_MARGIN;
 }
 
 /**
@@ -165,12 +226,22 @@ function wrapsIntoNext(term: Terminal, row: number): boolean {
   const nextLine = term.buffer.active.getLine(row + 1);
   if (!nextLine) return false;
   const next = nextLine.translateToString(true);
-  if (nextLine.isWrapped) return isRunChar(next.charAt(0));
-  const firstNonSpace = next.search(/\S/);
-  if (firstNonSpace < 0 || !isRunChar(next.charAt(firstNonSpace))) return false;
+  const nextStart = continuationContentStart(next);
+  if (nextStart < 0) return false;
+  if (nextLine.isWrapped) return isRunChar(next.charAt(nextStart));
+  if (!startsRunContinuation(next, nextStart)) return false;
+  const indented = nextStart > 0;
   const reachedEdge = text.length >= term.cols - WRAP_MARGIN;
-  return (reachedEdge && firstNonSpace > 0) ||
-    (text.length < term.cols && endsAtBlockWrapColumn(term, row));
+  if (reachedEdge && indented) return true;
+  if (text.length < term.cols) {
+    if (indented ? endsAtBlockWrapColumn(term, row) : hasCorroboratingWrapRow(term, row)) return true;
+  }
+  // The seam itself can prove continuation. A row that stops on a separator
+  // cannot be a complete token, so a row that resumes the run continues it even
+  // without an indent — prose wrapping breaks a long path at "/" and "-" and
+  // leaves the following fragment flush left. The width floor keeps a short
+  // command such as `cd /tmp/` from reaching into the output below it.
+  return endsIncompleteToken(text) && (indented || text.length >= MIN_BLOCK_WRAP_COLUMN);
 }
 
 /**
@@ -195,8 +266,8 @@ export function linkAtCell(term: Terminal, bufferRow: number, col: number, margi
   for (let guard = 0; guard < BLOCK_SCAN_BUDGET; guard++) {
     const text = rowText(term, sRow);
     while (sCol - 1 >= 0 && isRunChar(text.charAt(sCol - 1))) sCol--;
-    const firstNonSpace = text.search(/\S/);
-    if (sCol === firstNonSpace && sRow > 0 && wrapsIntoNext(term, sRow - 1)) {
+    const contentStart = continuationContentStart(text);
+    if (sCol === contentStart && sRow > 0 && wrapsIntoNext(term, sRow - 1)) {
       sRow -= 1;
       sCol = rowText(term, sRow).length; // one past end; next pass walks left into it
       continue;
@@ -222,8 +293,8 @@ export function linkAtCell(term: Terminal, bufferRow: number, col: number, margi
     assembled += c - eCol;
     if (c >= text.length && wrapsIntoNext(term, eRow)) {
       eRow += 1;
-      const nextFirst = rowText(term, eRow).search(/\S/);
-      eCol = nextFirst < 0 ? 0 : nextFirst;
+      const nextStart = continuationContentStart(rowText(term, eRow));
+      eCol = nextStart < 0 ? 0 : nextStart;
       continue;
     }
     break;

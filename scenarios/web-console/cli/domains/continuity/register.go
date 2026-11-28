@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := &handlers{client: continuityconnect.NewContinuityServiceClient(httpClient, "")}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ContinuityService.Integrity":   h.integrity,
+		"ContinuityService.Health":      h.health,
 		"ContinuityService.Reconcile":   h.reconcile,
 		"ContinuityService.ListCatalog": h.listCatalog,
 		"ContinuityService.Search":      h.search,
@@ -162,7 +163,23 @@ func (h *handlers) integrity(ctx cliapp.RunContext) error {
 	}
 	r := cliapp.ListReport{Summary: []string{fmt.Sprintf("Continuity generation: %s", resp.Msg.GetGeneration())}, ResultsHeading: "Integrity", Results: []string{
 		fmt.Sprintf("sessions: %d", resp.Msg.GetSessions()), fmt.Sprintf("conversation_sessions: %d", resp.Msg.GetConversationSessions()), fmt.Sprintf("conversation_events: %d", resp.Msg.GetConversationEvents()), fmt.Sprintf("checkpoints: %d", resp.Msg.GetCheckpoints()), fmt.Sprintf("workspace_panes: %d", resp.Msg.GetWorkspacePanes()), fmt.Sprintf("orphans: conversations=%d checkpoints=%d panes=%d", resp.Msg.GetOrphanConversations(), resp.Msg.GetOrphanCheckpoints(), resp.Msg.GetOrphanWorkspacePanes()),
+		fmt.Sprintf("uncataloged_conversations: %d", resp.Msg.GetUncatalogedConversations()),
 		fmt.Sprintf("event_content_hash: %s", resp.Msg.GetEventContentHash()),
+	}}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), r)
+	}
+	return cliapp.RenderListReport(ctx.Stdout(), r)
+}
+
+func (h *handlers) health(ctx cliapp.RunContext) error {
+	resp, err := h.client.Health(context.Background(), connect.NewRequest(&continuityv1.HealthRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("continuity health", err, nil)
+	}
+	r := cliapp.ListReport{Summary: []string{"Continuity catalog-link health (not a conservation receipt; use integrity for the content hash)"}, ResultsHeading: "Health", Results: []string{
+		fmt.Sprintf("orphans: conversations=%d checkpoints=%d panes=%d", resp.Msg.GetOrphanConversations(), resp.Msg.GetOrphanCheckpoints(), resp.Msg.GetOrphanWorkspacePanes()),
+		fmt.Sprintf("uncataloged_conversations: %d", resp.Msg.GetUncatalogedConversations()),
 	}}
 	if ctx.JSON() {
 		return cliapp.PrintReportJSON(ctx.Stdout(), r)
@@ -188,7 +205,7 @@ func (h *handlers) reconcile(ctx cliapp.RunContext) error {
 	for _, item := range resp.Msg.GetItems() {
 		rows = append(rows, fmt.Sprintf("%s %s (%s)", item.GetAction(), item.GetSessionId(), item.GetReason()))
 	}
-	r := cliapp.ListReport{Summary: []string{fmt.Sprintf("observations=%d mutations=%d applied=%t manifest=%s next_offset=%d complete=%t", resp.Msg.GetObservations(), resp.Msg.GetMutations(), resp.Msg.GetApplied(), resp.Msg.GetManifestHash(), resp.Msg.GetNextOffset(), resp.Msg.GetComplete())}, ResultsHeading: "Reconciliation", Results: rows}
+	r := cliapp.ListReport{Summary: []string{fmt.Sprintf("observations=%d mutations=%d applied=%t manifest=%s generation=%s next_offset=%d complete=%t", resp.Msg.GetObservations(), resp.Msg.GetMutations(), resp.Msg.GetApplied(), resp.Msg.GetManifestHash(), resp.Msg.GetGeneration(), resp.Msg.GetNextOffset(), resp.Msg.GetComplete())}, ResultsHeading: "Reconciliation", Results: rows}
 	if ctx.JSON() {
 		return cliapp.PrintReportJSON(ctx.Stdout(), r)
 	}

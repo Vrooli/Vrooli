@@ -498,6 +498,27 @@ func TestResolveDetailedAmbiguousReportsAllCandidates(t *testing.T) {
 	}
 }
 
+func TestResolveDetailedDeduplicatesBasesThatAreTheSameFolder(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "shared.txt"), "only")
+
+	// The terminal's cwd is the project root, so both bases resolve to the same
+	// file. The picker must not offer that file twice.
+	res, err := newResolver(root).ResolveDetailed(root, nil, "shared.txt")
+	if err != nil {
+		t.Fatalf("resolve detailed: %v", err)
+	}
+	if res.Unresolved {
+		t.Fatalf("unexpected unresolved")
+	}
+	if len(res.Candidates) != 1 {
+		t.Fatalf("candidates=%d want 1", len(res.Candidates))
+	}
+	if res.Selected == nil {
+		t.Fatalf("selected is nil")
+	}
+}
+
 func TestResolveDetailedUnresolvedRelativeOffersSearchBases(t *testing.T) {
 	root := t.TempDir()
 	cwd := t.TempDir()

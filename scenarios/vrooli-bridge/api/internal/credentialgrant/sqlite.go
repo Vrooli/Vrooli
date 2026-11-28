@@ -34,7 +34,10 @@ func (r *SQLiteRepository) Create(ctx context.Context, grant Grant) (Grant, erro
 	if grant.GrantedAt.IsZero() {
 		grant.GrantedAt = r.now().UTC()
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO credential_grants (id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason,purge_state,purge_receipt_at,purge_accepted,purge_reason) VALUES (?,?,?,?,?,?,?,?,'',?,'',?,?,?,'',?,?)`, grant.ID, grant.NodeID, grant.LogicalID, grant.Field, grant.Class, grant.Retention, grant.Generation, grant.GrantedAt.UTC().Format(time.RFC3339Nano), grant.AckedGeneration, grant.ReceiptAccepted, grant.ReceiptReason, grant.PurgeState, grant.PurgeAccepted, grant.PurgeReason)
+	if grant.Revision <= 0 {
+		grant.Revision = 1
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO credential_grants (id,node_id,logical_id,field,class,retention,generation,revision,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason,purge_state,purge_receipt_at,purge_accepted,purge_reason) VALUES (?,?,?,?,?,?,?,?,?,'',?,'',?,?,?,'',?,?)`, grant.ID, grant.NodeID, grant.LogicalID, grant.Field, grant.Class, grant.Retention, grant.Generation, grant.Revision, grant.GrantedAt.UTC().Format(time.RFC3339Nano), grant.AckedGeneration, grant.ReceiptAccepted, grant.ReceiptReason, grant.PurgeState, grant.PurgeAccepted, grant.PurgeReason)
 	if err != nil {
 		return Grant{}, fmt.Errorf("create credential grant: %w", err)
 	}
@@ -42,7 +45,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, grant Grant) (Grant, erro
 }
 
 func (r *SQLiteRepository) List(ctx context.Context, nodeID string) ([]Grant, error) {
-	query := `SELECT id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason,purge_state,purge_receipt_at,purge_accepted,purge_reason FROM credential_grants WHERE COALESCE(revoked_at,'')=''`
+	query := `SELECT id,node_id,logical_id,field,class,retention,generation,revision,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason,purge_state,purge_receipt_at,purge_accepted,purge_reason FROM credential_grants WHERE COALESCE(revoked_at,'')=''`
 	args := []any{}
 	if nodeID != "" {
 		query += ` AND node_id=?`
@@ -58,7 +61,7 @@ func (r *SQLiteRepository) List(ctx context.Context, nodeID string) ([]Grant, er
 	for rows.Next() {
 		var grant Grant
 		var class, retention, grantedAt, revokedAt, receiptAt, purgeReceiptAt string
-		if err := rows.Scan(&grant.ID, &grant.NodeID, &grant.LogicalID, &grant.Field, &class, &retention, &grant.Generation, &grantedAt, &revokedAt, &grant.AckedGeneration, &receiptAt, &grant.ReceiptAccepted, &grant.ReceiptReason, &grant.PurgeState, &purgeReceiptAt, &grant.PurgeAccepted, &grant.PurgeReason); err != nil {
+		if err := rows.Scan(&grant.ID, &grant.NodeID, &grant.LogicalID, &grant.Field, &class, &retention, &grant.Generation, &grant.Revision, &grantedAt, &revokedAt, &grant.AckedGeneration, &receiptAt, &grant.ReceiptAccepted, &grant.ReceiptReason, &grant.PurgeState, &purgeReceiptAt, &grant.PurgeAccepted, &grant.PurgeReason); err != nil {
 			return nil, err
 		}
 		grant.Class, grant.Retention = Class(class), Retention(retention)
@@ -90,7 +93,7 @@ func (r *SQLiteRepository) List(ctx context.Context, nodeID string) ([]Grant, er
 }
 
 func (r *SQLiteRepository) ListRevoked(ctx context.Context, nodeID string) ([]Grant, error) {
-	query := `SELECT id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason,purge_state,purge_receipt_at,purge_accepted,purge_reason FROM credential_grants WHERE COALESCE(revoked_at,'')<>''`
+	query := `SELECT id,node_id,logical_id,field,class,retention,generation,revision,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason,purge_state,purge_receipt_at,purge_accepted,purge_reason FROM credential_grants WHERE COALESCE(revoked_at,'')<>''`
 	args := []any{}
 	if nodeID != "" {
 		query += ` AND node_id=?`
@@ -106,7 +109,7 @@ func (r *SQLiteRepository) ListRevoked(ctx context.Context, nodeID string) ([]Gr
 	for rows.Next() {
 		var grant Grant
 		var class, retention, grantedAt, revokedAt, receiptAt, purgeReceiptAt string
-		if err := rows.Scan(&grant.ID, &grant.NodeID, &grant.LogicalID, &grant.Field, &class, &retention, &grant.Generation, &grantedAt, &revokedAt, &grant.AckedGeneration, &receiptAt, &grant.ReceiptAccepted, &grant.ReceiptReason, &grant.PurgeState, &purgeReceiptAt, &grant.PurgeAccepted, &grant.PurgeReason); err != nil {
+		if err := rows.Scan(&grant.ID, &grant.NodeID, &grant.LogicalID, &grant.Field, &class, &retention, &grant.Generation, &grant.Revision, &grantedAt, &revokedAt, &grant.AckedGeneration, &receiptAt, &grant.ReceiptAccepted, &grant.ReceiptReason, &grant.PurgeState, &purgeReceiptAt, &grant.PurgeAccepted, &grant.PurgeReason); err != nil {
 			return nil, err
 		}
 		grant.Class, grant.Retention = Class(class), Retention(retention)
@@ -137,22 +140,37 @@ func (r *SQLiteRepository) ListRevoked(ctx context.Context, nodeID string) ([]Gr
 }
 
 func (r *SQLiteRepository) RecordReceipt(ctx context.Context, id string, generation int64, accepted bool, reason string, at time.Time) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET receipt_at=?, receipt_accepted=?, receipt_reason=? WHERE id=? AND COALESCE(revoked_at,'')=''`, at.UTC().Format(time.RFC3339Nano), accepted, reason, id)
+	tx, err := r.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE credential_grants SET receipt_at=?, receipt_accepted=?, receipt_reason=?, acked_generation=CASE WHEN ? AND acked_generation<? THEN ? ELSE acked_generation END, revision=revision+1 WHERE id=? AND generation=? AND COALESCE(revoked_at,'')=''`, at.UTC().Format(time.RFC3339Nano), accepted, reason, accepted, generation, generation, id, generation)
 	if err != nil {
 		return fmt.Errorf("record credential receipt: %w", err)
 	}
-	if accepted {
-		_, err = r.db.ExecContext(ctx, `UPDATE credential_grants SET acked_generation=CASE WHEN acked_generation<? THEN ? ELSE acked_generation END WHERE id=? AND COALESCE(revoked_at,'')=''`, generation, generation, id)
-	}
+	count, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("ack credential receipt: %w", err)
+		return err
 	}
-	_ = result
+	if count == 0 {
+		return sql.ErrNoRows
+	}
+	state := "refused"
+	if accepted {
+		state = "confirmed"
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE credential_grant_mutation_receipts SET delivery_state=? WHERE grant_id=? AND operation=? AND delivery_state IN ('pending','dispatched','retryable')`, state, id, CreateGrantSubject); err != nil {
+		return fmt.Errorf("attach credential receipt to owner mutation: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit credential receipt: %w", err)
+	}
 	return nil
 }
 
 func (r *SQLiteRepository) Revoke(ctx context.Context, id string) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET revoked_at=?, purge_state='pending' WHERE id=? AND COALESCE(revoked_at,'')=''`, r.now().UTC().Format(time.RFC3339Nano), id)
+	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET revoked_at=?, purge_state='pending', revision=revision+1 WHERE id=? AND COALESCE(revoked_at,'')=''`, r.now().UTC().Format(time.RFC3339Nano), id)
 	if err != nil {
 		return err
 	}
@@ -167,11 +185,16 @@ func (r *SQLiteRepository) Revoke(ctx context.Context, id string) error {
 }
 
 func (r *SQLiteRepository) RecordPurgeReceipt(ctx context.Context, id, nodeID string, generation int64, accepted bool, reason string, at time.Time) error {
+	tx, err := r.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 	state := "rejected"
 	if accepted {
 		state = "acknowledged"
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET purge_state=?, purge_receipt_at=?, purge_accepted=?, purge_reason=? WHERE id=? AND node_id=? AND COALESCE(revoked_at,'')<>'' AND generation<=?`, state, at.UTC().Format(time.RFC3339Nano), accepted, reason, id, nodeID, generation)
+	result, err := tx.ExecContext(ctx, `UPDATE credential_grants SET purge_state=?, purge_receipt_at=?, purge_accepted=?, purge_reason=?, revision=revision+1 WHERE id=? AND node_id=? AND COALESCE(revoked_at,'')<>'' AND generation<=?`, state, at.UTC().Format(time.RFC3339Nano), accepted, reason, id, nodeID, generation)
 	if err != nil {
 		return fmt.Errorf("record credential purge receipt: %w", err)
 	}
@@ -182,11 +205,21 @@ func (r *SQLiteRepository) RecordPurgeReceipt(ctx context.Context, id, nodeID st
 	if count == 0 {
 		return sql.ErrNoRows
 	}
+	deliveryState := "refused"
+	if accepted {
+		deliveryState = "confirmed"
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE credential_grant_mutation_receipts SET delivery_state=? WHERE grant_id=? AND operation=? AND delivery_state IN ('pending','dispatched','retryable')`, deliveryState, id, RevokeGrantSubject); err != nil {
+		return fmt.Errorf("attach purge receipt to owner mutation: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit credential purge receipt: %w", err)
+	}
 	return nil
 }
 
 func (r *SQLiteRepository) Ack(ctx context.Context, id string, generation int64) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET acked_generation=? WHERE id=? AND COALESCE(revoked_at,'')='' AND acked_generation<?`, generation, id, generation)
+	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET acked_generation=?, revision=revision+1 WHERE id=? AND COALESCE(revoked_at,'')='' AND acked_generation<?`, generation, id, generation)
 	if err != nil {
 		return err
 	}
@@ -219,7 +252,7 @@ func (r *SQLiteRepository) BumpGeneration(ctx context.Context, logicalID, field 
 }
 
 func (r *SQLiteRepository) SetGrantGeneration(ctx context.Context, id, nodeID string, generation int64) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET generation=?, acked_generation=0 WHERE id=? AND node_id=? AND COALESCE(revoked_at,'')=''`, generation, id, nodeID)
+	_, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET generation=?, acked_generation=0, revision=revision+1 WHERE id=? AND node_id=? AND COALESCE(revoked_at,'')=''`, generation, id, nodeID)
 	if err != nil {
 		return fmt.Errorf("set grant generation: %w", err)
 	}
@@ -227,7 +260,7 @@ func (r *SQLiteRepository) SetGrantGeneration(ctx context.Context, id, nodeID st
 }
 
 func (r *SQLiteRepository) ReactivateGrant(ctx context.Context, id, nodeID string, generation int64) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET revoked_at='', purge_state='', purge_receipt_at='', purge_accepted=0, purge_reason='', generation=?, acked_generation=0 WHERE id=? AND node_id=? AND COALESCE(revoked_at,'')<>''`, generation, id, nodeID)
+	_, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET revoked_at='', purge_state='', purge_receipt_at='', purge_accepted=0, purge_reason='', generation=?, acked_generation=0, revision=revision+1 WHERE id=? AND node_id=? AND COALESCE(revoked_at,'')<>''`, generation, id, nodeID)
 	if err != nil {
 		return fmt.Errorf("reactivate credential grant: %w", err)
 	}

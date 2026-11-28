@@ -44,12 +44,13 @@ const runTimeFormat = time.RFC3339Nano
 
 const (
 	insertRunSQL = `
-INSERT INTO runs (id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at, cancel_requested_at, cancellation_confirmed, status_reason)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO runs (id, owner_id, request_id, request_fingerprint, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at, cancel_requested_at, cancellation_confirmed, status_reason)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (owner_id, request_id) WHERE request_id <> '' DO NOTHING
 `
 
 	selectRunColumns = `
-SELECT id, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at, cancel_requested_at, cancellation_confirmed, status_reason
+SELECT id, owner_id, request_id, request_fingerprint, node_id, scenario, verb, args, status, exit_code, timeout_seconds, created_at, started_at, finished_at, artifact_refs, queued_since, pushed_at, acked_at, delivery_attempts, last_delivery_error, delivery_lease_expires_at, cancel_requested_at, cancellation_confirmed, status_reason
 FROM runs
 `
 
@@ -104,13 +105,29 @@ func (s *sqliteRepository) Create(ctx context.Context, r Run) (Run, error) {
 	if err != nil {
 		return Run{}, fmt.Errorf("encode artifact_refs: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, insertRunSQL,
-		r.ID, r.NodeID, r.Scenario, r.Verb, args, int(r.Status), r.ExitCode, r.TimeoutSeconds,
+	result, err := s.db.ExecContext(ctx, insertRunSQL,
+		r.ID, r.OwnerID, r.RequestID, r.RequestFingerprint, r.NodeID, r.Scenario, r.Verb, args, int(r.Status), r.ExitCode, r.TimeoutSeconds,
 		r.CreatedAt.Format(runTimeFormat), formatNullableTime(r.StartedAt), formatNullableTime(r.FinishedAt), refs,
 		formatNullableTime(r.QueuedSince), formatNullableTime(r.PushedAt), formatNullableTime(r.AckedAt), r.DeliveryAttempts,
 		r.LastDeliveryError, formatNullableTime(r.DeliveryLeaseExpiresAt), formatNullableTime(r.CancelRequestedAt), r.CancellationConfirmed, r.StatusReason,
-	); err != nil {
+	)
+	if err != nil {
 		return Run{}, fmt.Errorf("insert run %q: %w", r.ID, err)
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return Run{}, fmt.Errorf("inspect run insert %q: %w", r.ID, err)
+	}
+	if inserted == 0 && r.RequestID != "" {
+		existing, err := scanRun(s.db.QueryRowContext(ctx, selectRunColumns+`WHERE owner_id = ? AND request_id = ?`, r.OwnerID, r.RequestID))
+		if err != nil {
+			return Run{}, fmt.Errorf("read idempotent run for request %q: %w", r.RequestID, err)
+		}
+		if existing.RequestFingerprint != r.RequestFingerprint {
+			return Run{}, ErrIdempotencyConflict{OwnerID: r.OwnerID, RequestID: r.RequestID}
+		}
+		existing.IdempotentReplay = true
+		return existing, nil
 	}
 	return r, nil
 }
@@ -294,7 +311,7 @@ func scanRun(sc rowScanner) (Run, error) {
 		cancelled   bool
 		reason      string
 	)
-	if err := sc.Scan(&r.ID, &r.NodeID, &r.Scenario, &r.Verb, &argsRaw, &status, &r.ExitCode,
+	if err := sc.Scan(&r.ID, &r.OwnerID, &r.RequestID, &r.RequestFingerprint, &r.NodeID, &r.Scenario, &r.Verb, &argsRaw, &status, &r.ExitCode,
 		&r.TimeoutSeconds, &createdRaw, &startedRaw, &finishedRaw, &refsRaw, &queuedRaw, &pushedRaw, &ackedRaw,
 		&r.DeliveryAttempts, &r.LastDeliveryError, &leaseRaw, &cancelRaw, &cancelled, &reason); err != nil {
 		return Run{}, err

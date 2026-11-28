@@ -89,17 +89,63 @@ func (s claudeTranscriptSource) DiscoverFiles(ctx context.Context) ([]tailer.Fil
 		}
 		s.tailer.noteDiscovered(row.ID)
 		files = append(files, tailer.FileRef{Path: path, SessionID: row.ID})
+		// Subagents and in-process teammates write their own transcripts
+		// beside the session's; their rows land in the session under their
+		// own thread so the Messages view can group them.
+		for _, subagent := range agenttranscript.ClaudeSubagentFiles(path) {
+			files = append(files, tailer.FileRef{Path: subagent, SessionID: row.ID})
+		}
 	}
 	return files, nil
 }
 
-func (claudeTranscriptSource) DecodeLine(_ string, line []byte) ([]tailer.Event, error) {
+func (s claudeTranscriptSource) DecodeLine(path string, line []byte) ([]tailer.Event, error) {
+	var thread agenttranscript.ThreadRef
+	if s.tailer != nil {
+		thread = s.tailer.threads.lookup(path, agenttranscript.ClaudeSubagentThread)
+	}
 	messages := agenttranscript.ParseMessages(agenttranscript.HarnessClaude, line)
 	events := make([]tailer.Event, 0, len(messages))
 	for _, message := range messages {
-		events = append(events, tailer.Event{Role: message.Role, Text: message.Text, OccurredAt: message.OccurredAt, Commit: true})
+		message.InThread(thread)
+		events = append(events, tailer.Event{Role: message.Role, Text: message.Text, OccurredAt: message.OccurredAt, Class: messageClassification(message), Commit: true})
 	}
 	return events, nil
+}
+
+// messageClassification carries a parsed message's native classification to
+// the store.
+func messageClassification(message agenttranscript.Message) *agenttranscript.Classification {
+	return &agenttranscript.Classification{
+		Kind: message.Kind, Author: message.Author, AuthorName: message.AuthorName, Label: message.Label, Thread: message.Thread,
+	}
+}
+
+// transcriptThreads caches the agent thread each transcript file records (read
+// once from the file's own metadata), so decoding a line never re-reads it.
+type transcriptThreads struct {
+	mu    sync.Mutex
+	paths map[string]agenttranscript.ThreadRef
+}
+
+func (t *transcriptThreads) lookup(path string, read func(string) (agenttranscript.ThreadRef, bool)) agenttranscript.ThreadRef {
+	if t == nil {
+		return agenttranscript.ThreadRef{}
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if thread, ok := t.paths[path]; ok {
+		return thread
+	}
+	thread, ok := read(path)
+	if !ok {
+		return agenttranscript.ThreadRef{}
+	}
+	if t.paths == nil {
+		t.paths = make(map[string]agenttranscript.ThreadRef)
+	}
+	t.paths[path] = thread
+	return thread
 }
 
 func (claudeTranscriptSource) CaptureAgentInfo(string, string) {}
@@ -132,28 +178,32 @@ func (s codexTranscriptSource) DiscoverFiles(context.Context) ([]tailer.FileRef,
 	return files, nil
 }
 
-func (s codexTranscriptSource) DecodeLine(_ string, line []byte) ([]tailer.Event, error) {
+func (s codexTranscriptSource) DecodeLine(path string, line []byte) ([]tailer.Event, error) {
 	messages := agenttranscript.ParseMessages(agenttranscript.HarnessCodex, line)
 	if len(messages) == 0 {
 		return nil, nil
 	}
+	// Every rollout in a session's Codex home is tailed into the session;
+	// subagent and approval-review rollouts are filed under their thread.
+	var thread agenttranscript.ThreadRef
+	if s.tailer != nil {
+		thread = s.tailer.threads.lookup(path, agenttranscript.CodexRolloutThread)
+	}
 	events := make([]tailer.Event, 0, len(messages))
 	for _, message := range messages {
-		text := message.Text
-		role := message.Role
-		if role == "user" {
-			input := codex.ParseUserInput(text)
-			text = input.Text
-			if text == "" {
+		message.InThread(thread)
+		if message.Role == "user" {
+			input := codex.ParseUserInput(message.Text)
+			if input.Text == "" {
 				continue
 			}
 			source := codexTailerSource
 			if input.VoiceHandoff {
 				source = codexVoiceHandoffSource
 			}
-			events = append(events, tailer.Event{Role: role, Text: text, Source: source, OccurredAt: message.OccurredAt, Commit: true})
+			events = append(events, tailer.Event{Role: message.Role, Text: input.Text, Source: source, OccurredAt: message.OccurredAt, Class: messageClassification(message), Commit: true})
 		} else {
-			events = append(events, tailer.Event{Role: role, Text: text, OccurredAt: message.OccurredAt, Commit: true})
+			events = append(events, tailer.Event{Role: message.Role, Text: message.Text, OccurredAt: message.OccurredAt, Class: messageClassification(message), Commit: true})
 		}
 	}
 	return events, nil
@@ -235,11 +285,7 @@ func newClaudeTranscriptEngine(ct *ClaudeTailer) *tailer.Engine {
 		PollInterval:     claudeTailerPollInterval,
 		TailInterval:     500 * time.Millisecond,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
-			if event.Role == "user" {
-				return ct.server.AppendUserAt(context.Background(), event.Text, sessionID, claudeTailerSource, event.OccurredAt).Appended
-			} else {
-				return ct.server.AppendAssistantAt(context.Background(), event.Text, sessionID, claudeTailerSource, event.OccurredAt).Appended
-			}
+			return ct.server.AppendTranscriptAt(context.Background(), transcriptRole(event.Role), event.Text, sessionID, claudeTailerSource, event.OccurredAt, event.Class).Appended
 		},
 	})
 }
@@ -253,17 +299,20 @@ func newCodexTranscriptEngine(ct *CodexTailer, staleTimeout time.Duration) *tail
 		TailInterval: codexTailInterval,
 		StaleTimeout: staleTimeout,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
-			if event.Role == "user" {
-				source := codexTailerSource
-				if event.Source == codexVoiceHandoffSource {
-					source = codexVoiceHandoffSource
-				}
-				return ct.server.AppendUserAt(context.Background(), event.Text, sessionID, source, event.OccurredAt).Appended
-			} else {
-				return ct.server.AppendAssistantAt(context.Background(), event.Text, sessionID, codexTailerSource, event.OccurredAt).Appended
+			source := codexTailerSource
+			if event.Role == "user" && event.Source == codexVoiceHandoffSource {
+				source = codexVoiceHandoffSource
 			}
+			return ct.server.AppendTranscriptAt(context.Background(), transcriptRole(event.Role), event.Text, sessionID, source, event.OccurredAt, event.Class).Appended
 		},
 	})
+}
+
+func transcriptRole(role string) ConversationRole {
+	if role == "user" {
+		return ConversationRoleUser
+	}
+	return ConversationRoleAssistant
 }
 
 func newGrokTranscriptEngine(gt *GrokTailer) *tailer.Engine {

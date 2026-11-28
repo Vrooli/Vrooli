@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -1108,13 +1109,32 @@ func DiscoverTmuxSessions() ([]string, error) {
 		// tmux not running or no sessions — not an error
 		return nil, nil
 	}
+	return parseTmuxSessionNames(out), nil
+}
+
+// discoverHostTmuxSessions distinguishes absent tmux from an unreadable
+// executor inventory. An existing socket must answer before host drain.
+func discoverHostTmuxSessions(ctx context.Context) ([]string, error) {
+	if _, err := os.Lstat(resolveTmuxSocket()); errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	out, err := tmuxCmdContext(ctx, "list-sessions", "-F", "#{session_name}").Output()
+	if err != nil {
+		return nil, fmt.Errorf("inspect Web Console tmux for host drain: %w", err)
+	}
+	return parseTmuxSessionNames(out), nil
+}
+
+func parseTmuxSessionNames(out []byte) []string {
 	var sessions []string
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if strings.HasPrefix(line, tmuxSessionPrefix) {
 			sessions = append(sessions, strings.TrimPrefix(line, tmuxSessionPrefix))
 		}
 	}
-	return sessions, nil
+	return sessions
 }
 
 func tmuxPaneCurrentCommand(ctx context.Context, id string) ([]byte, error) {

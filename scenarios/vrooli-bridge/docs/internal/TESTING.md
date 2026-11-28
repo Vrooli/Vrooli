@@ -163,6 +163,16 @@ operation, missing receipt artifact, and an unapproved destructive target.
 Every negative control must leave the controlled target at its recorded restore
 state before another case begins.
 
+Local contract exercises use the existing durable Bridge runs and append-only
+run-event history. `internal/targetreceipt.ReattachLocal` reads that persisted
+record and returns a typed `local-contract` receipt with `local-fixture`
+provenance and `lane_eligible: false`. It requires a terminal run plus a
+matching persisted exit event, and refuses contradictory status/exit facts.
+Such a receipt proves only that the local adapter and durable receipt/readback
+contract ran; it never fills M01 or any QEMU, VPS, Windows, macOS, Android or
+iOS lane. Real lane verdicts require a fresh receipt from the authenticated
+target and its operation-specific producer evidence.
+
 ### Generic shared-dependency fixtures
 
 Fixture-alpha and fixture-beta are intentionally generic scenario identities

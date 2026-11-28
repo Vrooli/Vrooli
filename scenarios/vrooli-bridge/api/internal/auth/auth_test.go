@@ -12,6 +12,7 @@ import (
 	localenrollment "vrooli-bridge/internal/operatorsession"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/identity"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/trustposture"
 )
@@ -66,6 +67,25 @@ func TestRequireOwner_FailsClosedWithoutIdentity(t *testing.T) {
 	id, err := RequireOwner(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "owner-1", id.OwnerID)
+
+	serviceCtx := WithIdentity(context.Background(), Identity{OwnerID: "lpbs-dispatch", Kind: identity.ActorService, Scopes: []string{DispatchServiceScope}})
+	_, err = RequireOwner(serviceCtx)
+	require.ErrorIs(t, err, ErrUnauthenticated, "a service principal must not inherit owner-only APIs")
+}
+
+func TestRequireDispatchCallerAllowsOnlyScopedServicePrincipal(t *testing.T) {
+	service := Identity{OwnerID: "lpbs-dispatch", Kind: identity.ActorService}
+	_, err := RequireDispatchCaller(WithIdentity(context.Background(), service))
+	require.ErrorIs(t, err, ErrDispatchServiceScope)
+
+	service.Scopes = []string{DispatchServiceScope}
+	got, err := RequireDispatchCaller(WithIdentity(context.Background(), service))
+	require.NoError(t, err)
+	require.Equal(t, "lpbs-dispatch", got.OwnerID)
+
+	owner, err := RequireDispatchCaller(WithIdentity(context.Background(), Identity{OwnerID: "human", Kind: identity.ActorHuman}))
+	require.NoError(t, err)
+	require.Equal(t, "human", owner.OwnerID)
 }
 
 func TestBearerToken(t *testing.T) {

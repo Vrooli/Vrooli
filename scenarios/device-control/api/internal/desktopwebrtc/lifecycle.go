@@ -2,6 +2,7 @@ package desktopwebrtc
 
 import (
 	"context"
+	"time"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
@@ -67,5 +68,37 @@ func captureRunning(done <-chan struct{}) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+// Maintain retires leases even when the last browser tab disappears without
+// making a close request. The companion owns the maintenance goroutine.
+func (m *Manager) Maintain(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			m.mu.Lock()
+			m.reapExpiredLocked("")
+			now := m.now()
+			var pending []string
+			for id, s := range m.sessions {
+				if !s.revoked || s.releasing || s.inFlight > 0 || captureRunning(s.captureDone) {
+					continue
+				}
+				if s.cleanupPending {
+					pending = append(pending, id)
+				} else if !s.session.GetExpiresAt().AsTime().After(now) {
+					delete(m.sessions, id)
+				}
+			}
+			m.mu.Unlock()
+			for _, id := range pending {
+				m.Revoke(id)
+			}
+		}
 	}
 }

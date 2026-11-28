@@ -16,6 +16,17 @@ import (
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 )
 
+func TestMachineResponseExposesBridgeOwnedEnrollmentGeneration(t *testing.T) {
+	machine := internalmachines.Machine{ID: "m1", EnrollmentGeneration: 4, Lineage: []internalmachines.NodeLineage{{NodeID: "n4", Current: true, EnrollmentGeneration: 4}}}
+	wire := domainToProto(machine)
+	require.EqualValues(t, 4, wire.GetEnrollmentGeneration())
+	require.Len(t, wire.GetNodeLineage(), 1)
+	require.EqualValues(t, 4, wire.GetNodeLineage()[0].GetEnrollmentGeneration())
+
+	projection := projectionToProto(internalmachines.Projection{HasNode: true, Node: internalmachines.NodeSnapshot{ID: "n4", EnrollmentGeneration: 4}})
+	require.EqualValues(t, 4, projection.GetEnrollmentGeneration())
+}
+
 type fakeService struct {
 	createInput internalmachines.CreateInput
 	createOut   internalmachines.Machine
@@ -118,6 +129,7 @@ func TestMachineRepairerUsesPersistedSSHTrust(t *testing.T) {
 	require.Equal(t, "mini.local", starter.in.Host)
 	require.Equal(t, 2222, starter.in.Port)
 	require.Equal(t, "matthalloran8", starter.in.User)
+	require.Equal(t, "~/.vrooli/fleet/machines/m1", starter.in.CheckoutDir)
 	require.True(t, starter.in.PairingScopesSet)
 	require.Equal(t, []string{"vrooli-bridge:read", "scenario-to-cloud:read"}, starter.in.PairingScopes)
 }

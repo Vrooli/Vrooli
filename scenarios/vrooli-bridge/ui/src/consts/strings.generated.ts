@@ -387,11 +387,15 @@ export const strings = {
     login: {
       emailLabel: "session.login.emailLabel",
       emailPlaceholder: "session.login.emailPlaceholder",
+      enrollmentRecovery: "session.login.enrollmentRecovery",
+      enrollmentRecoveryRetry: "session.login.enrollmentRecoveryRetry",
       intro: "session.login.intro",
       invalidCredentials: "session.login.invalidCredentials",
       missingFields: "session.login.missingFields",
       passwordLabel: "session.login.passwordLabel",
       passwordPlaceholder: "session.login.passwordPlaceholder",
+      retryEnrollmentSave: "session.login.retryEnrollmentSave",
+      retryingEnrollmentSave: "session.login.retryingEnrollmentSave",
       submit: "session.login.submit",
       submitting: "session.login.submitting",
       tabCreate: "session.login.tabCreate",
@@ -412,6 +416,11 @@ export const strings = {
     signOut: "session.signOut",
     signedIn: "session.signedIn",
     signedInAs: "session.signedInAs",
+    restore: {
+      checking: "session.restore.checking",
+      unavailable: "session.restore.unavailable",
+      retry: "session.restore.retry",
+    },
   },
   theme: {
     choice: {

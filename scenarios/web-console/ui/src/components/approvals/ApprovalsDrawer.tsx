@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Check, X, Search, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Check, X, AlertTriangle, ShieldCheck } from "lucide-react";
 import { SwipeActions } from "@vrooli/react-component-library/SwipeActions";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { ErrorState } from "@vrooli/react-component-library/ErrorState/1";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
+import { SearchField } from "../SearchField";
 
 import { Button } from "../ui/button";
 import { cn } from "../../lib/classnames";
@@ -48,7 +50,7 @@ interface ApprovalsDrawerProps {
  * The approvals inbox.
  *
  * Container is RCL FullPageDrawer (like SettingsModal / ArchiveDrawer); the
- * structure — search + filters in headerExtra, a list that drills into a detail
+ * structure — search + filters in the subheader band, a list that drills into a detail
  * — is templated on ArchiveDrawer. It composes EXISTING RCL primitives only
  * (FullPageDrawer, SwipeActions, AlertDialog, EmptyState, ErrorState) plus the
  * app's Button; no new shared RCL primitive is introduced (the answer-options
@@ -221,18 +223,17 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
     }
   }, [submitAnswer, answering]);
 
-  const headerExtra = (
-    <div className="mt-3 space-y-2">
-      <label className="flex items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2">
-        <Search className="h-4 w-4 shrink-0 text-wc-text-muted" aria-hidden="true" />
-        <input
-          data-testid="approvals-search"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); }}
-          className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary outline-none"
-          placeholder={t(strings.approvals.searchPlaceholder)}
-        />
-      </label>
+  const headerFilters = (
+    <div className="space-y-2 px-4 py-3">
+      <SearchField
+        testId="approvals-search"
+        groupTestId="approvals-search-group"
+        value={query}
+        onValueChange={setQuery}
+        placeholder={t(strings.approvals.searchPlaceholder)}
+        label={t(strings.approvals.searchPlaceholder)}
+        className="w-full"
+      />
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {(["pending", "all", "resolved", "expired"] as FilterMode[]).map((mode) => (
           <button
@@ -270,7 +271,7 @@ export default function ApprovalsDrawer({ open, onClose }: ApprovalsDrawerProps)
         closeLabel={t(strings.approvals.close)}
         testId="approvals-drawer"
         avoidKeyboard
-        headerExtra={headerExtra}
+        subheader={headerFilters}
       >
         <div className="flex h-full min-h-0 flex-col md:flex-row">
           {/* ── List ───────────────────────────────────────────────── */}
@@ -698,15 +699,16 @@ function isRejectLike(key: string, label: string): boolean {
 // ── Loading skeleton ─────────────────────────────────────────────────────────
 
 function ListSkeleton() {
+  const { t } = useTranslation();
   return (
-    <div className="space-y-3 p-3" data-testid="approvals-loading">
+    <div className="space-y-3 p-3" data-testid="approvals-loading" role="status" aria-live="polite" aria-label={t(strings.approvals.loading)}>
       {[0, 1, 2, 3].map((i) => (
         <div key={i} className="flex gap-3">
-          <div className="h-16 w-1 shrink-0 animate-pulse rounded bg-wc-surface-input" />
+          <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-16 w-1 shrink-0 rounded" />
           <div className="flex-1 space-y-2">
-            <div className="h-3 w-2/5 animate-pulse rounded bg-wc-surface-input" />
-            <div className="h-4 w-4/5 animate-pulse rounded bg-wc-surface-input" />
-            <div className="h-3 w-3/5 animate-pulse rounded bg-wc-surface-input" />
+            <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-3 w-2/5 rounded" />
+            <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-4 w-4/5 rounded" />
+            <Skeleton aria-hidden="true" className="min-h-0 animate-pulse motion-reduce:animate-none h-3 w-3/5 rounded" />
           </div>
         </div>
       ))}

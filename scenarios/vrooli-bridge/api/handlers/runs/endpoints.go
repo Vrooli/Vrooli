@@ -13,6 +13,24 @@ import (
 // one entry here once runs is listed in AllProtoFiles().
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "runs_get_local_target_receipt",
+		Path:        runsconnect.RunsServiceGetLocalTargetReceiptProcedure,
+		Method:      "POST",
+		Summary:     "Reattach an explicitly local target receipt",
+		Description: "Projects a terminal durable Bridge run and persisted exit event into a local-fixture receipt. The response is always lane_eligible=false and cannot certify a QEMU, VPS, desktop, or mobile target. Owner-gated.",
+		Category:    "runs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "string (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"lane": "string", "target_id": "string", "provenance": "string", "run_id": "string", "status": "string", "lane_eligible": "bool"}},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 404, Code: "not_found", Description: "No run with that id"},
+			{Status: 500, Code: "internal", Description: "Repository read failure or incomplete terminal history"},
+		},
+		Examples: []module.Example{
+			{Name: "Reattach local receipt", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.runs.RunsService/GetLocalTargetReceipt -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"run-123\"}'"},
+		},
+	},
+	{
 		ID:          "runs_get_run",
 		Path:        runsconnect.RunsServiceGetRunProcedure,
 		Method:      "POST",

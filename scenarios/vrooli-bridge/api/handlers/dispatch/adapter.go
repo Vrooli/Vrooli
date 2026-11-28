@@ -31,12 +31,13 @@ func (a nodeReaderAdapter) GetTarget(ctx context.Context, id string) (dispatch.T
 		return dispatch.TargetNode{}, err
 	}
 	return dispatch.TargetNode{
-		ID:      n.ID,
-		Kind:    n.Kind,
-		OS:      n.OS,
-		Arch:    n.Arch,
-		Scopes:  append([]string(nil), n.Scopes...),
-		Revoked: n.Revoked(),
+		ID:             n.ID,
+		Kind:           n.Kind,
+		OS:             n.OS,
+		Arch:           n.Arch,
+		Scopes:         append([]string(nil), n.Scopes...),
+		Revoked:        n.Revoked(),
+		DeploymentTier: n.DeploymentTier,
 	}, nil
 }
 
@@ -45,18 +46,25 @@ type runControllerAdapter struct {
 	svc runs.Service
 }
 
-func (a runControllerAdapter) CreateRun(ctx context.Context, in dispatch.CreateRunInput) (string, error) {
+func (a runControllerAdapter) CreateRun(ctx context.Context, in dispatch.CreateRunInput) (dispatch.CreateRunResult, error) {
 	run, err := a.svc.Create(ctx, runs.CreateInput{
-		NodeID:         in.NodeID,
-		Scenario:       in.Scenario,
-		Verb:           in.Verb,
-		Args:           in.Args,
-		TimeoutSeconds: in.TimeoutSeconds,
+		OwnerID:            in.OwnerID,
+		RequestID:          in.RequestID,
+		RequestFingerprint: in.RequestFingerprint,
+		NodeID:             in.NodeID,
+		Scenario:           in.Scenario,
+		Verb:               in.Verb,
+		Args:               in.Args,
+		TimeoutSeconds:     in.TimeoutSeconds,
 	})
 	if err != nil {
-		return "", err
+		var conflict runs.ErrIdempotencyConflict
+		if errors.As(err, &conflict) {
+			return dispatch.CreateRunResult{}, dispatch.ErrIdempotencyConflict{RequestID: in.RequestID}
+		}
+		return dispatch.CreateRunResult{}, err
 	}
-	return run.ID, nil
+	return dispatch.CreateRunResult{RunID: run.ID, Replayed: run.IdempotentReplay}, nil
 }
 
 func (a runControllerAdapter) AbortRun(ctx context.Context, runID, reason string) error {

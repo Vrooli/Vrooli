@@ -1,7 +1,10 @@
 package channel
 
 import (
+	"connectrpc.com/connect"
 	"context"
+	"github.com/vrooli/api-core/lifecycle"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -94,5 +97,35 @@ func TestSSEHandler_RegistersPresenceBeforeAcknowledgingStream(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("SSE handler did not stop after request cancellation")
+	}
+}
+
+func TestSSEHandlerReleasesAdmissionWhenMaintenanceBegins(t *testing.T) {
+	hub := presence.NewHub(scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
+	h := newSSEHandler(sseDeps{Hub: hub})
+	provider, err := lifecycle.NewProvider("vrooli-bridge", "sse-test", lifecycle.Hooks{})
+	require.NoError(t, err)
+	admitted := provider.Middleware(http.HandlerFunc(h.handleEvents))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/channel/events?node=n1", nil)
+	started, done := make(chan struct{}), make(chan struct{})
+	w := &presenceProbeWriter{header: make(http.Header), onHeader: func() { close(started) }}
+	go func() {
+		admitted.ServeHTTP(w, req)
+		close(done)
+	}()
+	select {
+	case <-started:
+		require.True(t, hub.IsOnline("n1"))
+	case <-time.After(time.Second):
+		t.Fatal("SSE stream did not open")
+	}
+	_, err = provider.Prepare(ctx, connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "restart", Reason: "test"}))
+	require.NoError(t, err)
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("maintenance could not drain the parked SSE stream")
 	}
 }

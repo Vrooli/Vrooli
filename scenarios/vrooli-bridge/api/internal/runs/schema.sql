@@ -8,6 +8,9 @@
 -- forward scale.
 CREATE TABLE IF NOT EXISTS runs (
   id              TEXT PRIMARY KEY,
+  owner_id        TEXT NOT NULL DEFAULT '',
+  request_id      TEXT NOT NULL DEFAULT '',
+  request_fingerprint TEXT NOT NULL DEFAULT '',
   node_id         TEXT NOT NULL,
   scenario        TEXT NOT NULL DEFAULT '',
   verb            TEXT NOT NULL DEFAULT '',
@@ -33,6 +36,7 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_runs_node_id ON runs(node_id);
 CREATE INDEX IF NOT EXISTS idx_runs_status_created_at ON runs(status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_owner_request ON runs(owner_id, request_id) WHERE request_id <> '';
 
 -- run_events is append-only: rows are only ever INSERTed and SELECTed (there is
 -- no UPDATE/DELETE in sqlite.go). The (run_id, sequence) pair is unique so a

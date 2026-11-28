@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"web-console/internal/dbx"
 )
@@ -52,8 +54,7 @@ func SearchLocal(ctx context.Context, db dbx.Handle, query, state, agent, cwd st
 
 func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOptions) ([]SearchMatch, bool, int64, int64, error) {
 	query := strings.TrimSpace(options.Query)
-	fts := plainSearchQuery(query)
-	if fts == "" && strings.TrimSpace(options.SessionID) == "" && strings.TrimSpace(options.AgentSessionID) == "" && strings.TrimSpace(options.Title) == "" && strings.TrimSpace(options.TopicSummary) == "" {
+	if query == "" && strings.TrimSpace(options.SessionID) == "" && strings.TrimSpace(options.AgentSessionID) == "" && strings.TrimSpace(options.Title) == "" && strings.TrimSpace(options.TopicSummary) == "" {
 		return []SearchMatch{}, false, 0, 0, nil
 	}
 	limit := options.Limit
@@ -63,45 +64,41 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 	where := make([]string, 0, 8)
 	args := make([]any, 0, 16)
 	catalogAvailable := tableExists(ctx, db, "conversation_catalog")
+	catalogIdentityAvailable := catalogAvailable && tableHasColumns(ctx, db, "conversation_catalog", "session_id", "agent_session_id")
 	catalogTitlesAvailable := catalogAvailable && tableHasColumns(ctx, db, "conversation_catalog", "current_title", "original_title", "topic_summary")
-	textTerms := make([]string, 0, 3)
-	if fts != "" {
-		// FTS is a rebuildable projection. Keep the durable event text as a
-		// correctness fallback so a stale or interrupted index cannot make an
-		// otherwise retained conversation undiscoverable.
-		textTerms = append(textTerms, "(e.rowid IN (SELECT rowid FROM conversation_events_fts WHERE conversation_events_fts MATCH ?) OR e.text LIKE ? ESCAPE '\\')")
-		args = append(args, fts, "%"+escapeLike(query)+"%")
-	}
-	// Identity lookup is deliberately additive to FTS. A recovered pane can
-	// have no live session row, and its thread identity is metadata rather than
-	// conversation text; both must remain discoverable without an LLM.
-	identityIDs := catalogSessionIDs(ctx, db, query)
-	identity := make([]string, 0, 4+len(identityIDs))
-	identityArgs := make([]any, 0, 4+len(identityIDs))
 	if query != "" {
-		identity = append(identity, "e.session_id = ?", "e.id = ?")
-		identityArgs = append(identityArgs, query, query)
-		if catalogAvailable {
-			identity = append(identity, "c.session_id = ?", "c.agent_session_id = ?")
-			identityArgs = append(identityArgs, query, query)
+		// Every way a query can name an event is an indexed rowid source, and
+		// the candidates are their union. An OR across these terms in the outer
+		// WHERE would instead force a scan of every retained event (tens of
+		// seconds on a production archive) because SQLite cannot index an OR
+		// that mixes the full-text mirror with joined catalog columns.
+		//
+		// There is no LIKE scan over event text. The FTS mirror is maintained by
+		// triggers in the same transaction as every insert, delete and text
+		// update, and is rebuilt during schema initialisation before the server
+		// serves, so it cannot lag the durable rows it indexes.
+		candidates := make([]string, 0, 4)
+		if fts := plainSearchQuery(query); fts != "" {
+			candidates = append(candidates, "SELECT rowid FROM conversation_events_fts WHERE conversation_events_fts MATCH ?")
+			args = append(args, fts)
 		}
+		// Identity lookup is deliberately additive to FTS. A recovered pane can
+		// have no live session row, and its thread identity is metadata rather
+		// than conversation text; both must remain discoverable without an LLM.
+		candidates = append(candidates, "SELECT rowid FROM conversation_events WHERE id = ?", "SELECT rowid FROM conversation_events WHERE session_id = ?")
+		args = append(args, query, query)
+		if catalogIdentityAvailable {
+			like := "%" + escapeLike(query) + "%"
+			catalogTerms := []string{"session_id LIKE ? ESCAPE '\\'", "agent_session_id LIKE ? ESCAPE '\\'"}
+			args = append(args, like, like)
+			if catalogTitlesAvailable {
+				catalogTerms = append(catalogTerms, "current_title LIKE ? ESCAPE '\\'", "original_title LIKE ? ESCAPE '\\'", "topic_summary LIKE ? ESCAPE '\\'")
+				args = append(args, like, like, like)
+			}
+			candidates = append(candidates, "SELECT rowid FROM conversation_events WHERE session_id IN (SELECT session_id FROM conversation_catalog WHERE "+strings.Join(catalogTerms, " OR ")+")")
+		}
+		where = append(where, "e.rowid IN ("+strings.Join(candidates, " UNION ")+")")
 	}
-	for _, id := range identityIDs {
-		identity = append(identity, "e.session_id = ?")
-		identityArgs = append(identityArgs, id)
-	}
-	if len(identity) > 0 {
-		textTerms = append(textTerms, strings.Join(identity, " OR "))
-	}
-	if query != "" && catalogTitlesAvailable {
-		textTerms = append(textTerms, "c.current_title LIKE ? ESCAPE '\\'", "c.original_title LIKE ? ESCAPE '\\'", "c.topic_summary LIKE ? ESCAPE '\\'")
-		like := "%" + escapeLike(query) + "%"
-		identityArgs = append(identityArgs, like, like, like)
-	}
-	if len(textTerms) > 0 {
-		where = append(where, "("+strings.Join(textTerms, " OR ")+")")
-	}
-	args = append(args, identityArgs...)
 	if options.AgentType != "" {
 		agentTypeMatch := "s.agent_type = ?"
 		if catalogTitlesAvailable {
@@ -127,8 +124,11 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 		where = append(where, "e.session_id = ?")
 		args = append(args, options.SessionID)
 	}
-	if options.AgentSessionID != "" && catalogAvailable {
-		where = append(where, "c.agent_session_id = ?")
+	// Catalog filters select sessions, so they are stated as session-id sets
+	// the (session_id, sequence) index can serve rather than as per-event
+	// predicates on the joined catalog row, which only a full scan can test.
+	if options.AgentSessionID != "" && catalogIdentityAvailable {
+		where = append(where, "e.session_id IN (SELECT session_id FROM conversation_catalog WHERE agent_session_id = ?)")
 		args = append(args, options.AgentSessionID)
 	} else if options.AgentSessionID != "" {
 		return []SearchMatch{}, false, 0, 0, nil
@@ -137,7 +137,7 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 		if !catalogTitlesAvailable {
 			return []SearchMatch{}, false, 0, 0, nil
 		}
-		where = append(where, "(c.current_title LIKE ? ESCAPE '\\' OR c.original_title LIKE ? ESCAPE '\\')")
+		where = append(where, "e.session_id IN (SELECT session_id FROM conversation_catalog WHERE current_title LIKE ? ESCAPE '\\' OR original_title LIKE ? ESCAPE '\\')")
 		like := "%" + escapeLike(options.Title) + "%"
 		args = append(args, like, like)
 	}
@@ -145,7 +145,7 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 		if !catalogTitlesAvailable {
 			return []SearchMatch{}, false, 0, 0, nil
 		}
-		where = append(where, "c.topic_summary LIKE ? ESCAPE '\\'")
+		where = append(where, "e.session_id IN (SELECT session_id FROM conversation_catalog WHERE topic_summary LIKE ? ESCAPE '\\')")
 		args = append(args, "%"+escapeLike(options.TopicSummary)+"%")
 	}
 	if !options.CreatedAfter.IsZero() {
@@ -202,24 +202,31 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 	if catalogAvailable {
 		catalogJoin = " LEFT JOIN conversation_catalog c ON c.session_id=e.session_id"
 	}
-	from := " FROM conversation_events e LEFT JOIN sessions s ON s.id=e.session_id" + catalogJoin + " WHERE " + strings.Join(where, " AND ")
-	var total, distinct int64
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*)"+from, args...).Scan(&total); err != nil {
-		return nil, false, 0, 0, err
-	}
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT e.session_id)"+from, args...).Scan(&distinct); err != nil {
-		return nil, false, 0, 0, err
-	}
-	rows, err := db.QueryContext(ctx, "SELECT e.id,e.session_id,e.sequence,e.role,e.created_at,COALESCE(e.occurred_at,''),e.text,COALESCE(s.id,''),COALESCE(s.archived_at,''),COALESCE(s.status,'')"+from+" ORDER BY COALESCE(e.occurred_at,e.created_at) DESC, e.sequence DESC LIMIT ?", append(args, limit+1)...)
+	// One pass: the matched set is materialised once, and the totals and the
+	// newest page are read from it. Only the page rows load their text.
+	statement := `WITH matched AS MATERIALIZED (
+		SELECT e.rowid AS rid, e.session_id AS sid, COALESCE(e.occurred_at, e.created_at) AS at, e.sequence AS seq
+		FROM conversation_events e LEFT JOIN sessions s ON s.id=e.session_id` + catalogJoin + `
+		WHERE ` + strings.Join(where, " AND ") + `
+	), page AS (
+		SELECT rid, at, seq FROM matched ORDER BY at DESC, seq DESC LIMIT ?
+	)
+	SELECT (SELECT COUNT(*) FROM matched), (SELECT COUNT(DISTINCT sid) FROM matched),
+		e.id, e.session_id, e.sequence, e.role, e.created_at, COALESCE(e.occurred_at, ''), e.text,
+		COALESCE(s.id, ''), COALESCE(s.archived_at, ''), COALESCE(s.status, '')
+	FROM page JOIN conversation_events e ON e.rowid = page.rid LEFT JOIN sessions s ON s.id = e.session_id
+	ORDER BY page.at DESC, page.seq DESC`
+	rows, err := db.QueryContext(ctx, statement, append(args, limit+1)...)
 	if err != nil {
 		return nil, false, 0, 0, err
 	}
 	defer rows.Close()
+	var total, distinct int64
 	out := make([]SearchMatch, 0, limit)
 	for rows.Next() {
 		var m SearchMatch
 		var text, sessionMetadataID, archivedAt, status string
-		if err := rows.Scan(&m.EventID, &m.SessionID, &m.Sequence, &m.Role, &m.CreatedAt, &m.OccurredAt, &text, &sessionMetadataID, &archivedAt, &status); err != nil {
+		if err := rows.Scan(&total, &distinct, &m.EventID, &m.SessionID, &m.Sequence, &m.Role, &m.CreatedAt, &m.OccurredAt, &text, &sessionMetadataID, &archivedAt, &status); err != nil {
 			return nil, false, 0, 0, err
 		}
 		m.Excerpt = excerpt(text, query)
@@ -309,36 +316,36 @@ func sessionIDsForState(states map[string]string, state string) []string {
 	return ids
 }
 
-func catalogSessionIDs(ctx context.Context, db dbx.Handle, query string) []string {
-	if strings.TrimSpace(query) == "" {
-		return nil
-	}
-	pattern := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(query, "\\", "\\\\"), "%", "\\%"), "_", "\\_")
-	rows, err := db.QueryContext(ctx, "SELECT session_id FROM conversation_catalog WHERE agent_session_id LIKE ? ESCAPE '\\' OR session_id LIKE ? ESCAPE '\\'", "%"+pattern+"%", "%"+pattern+"%")
-	if err != nil {
-		// Older disposable fixtures may not include the optional catalog table.
-		// Native event identity search still works in that case.
-		return nil
-	}
-	defer rows.Close()
-	ids := make([]string, 0, 4)
-	for rows.Next() {
-		var id string
-		if rows.Scan(&id) == nil && id != "" {
-			ids = append(ids, id)
-		}
-	}
-	return ids
-}
-
+// plainSearchQuery turns a typed query into an FTS5 expression: each
+// whitespace-separated term is a phrase (so "plan-manager" matches the token
+// pair plan, manager), and all terms must match. The final term also matches
+// as a prefix once it is long enough to stay selective, so a word still being
+// typed finds its completions. Terms without a letter or digit cannot match
+// the unicode61 tokenizer and are dropped; such a query is served by the
+// identity and catalog sources alone.
 func plainSearchQuery(query string) string {
 	terms := strings.Fields(strings.TrimSpace(query))
 	out := make([]string, 0, len(terms))
-	for _, term := range terms {
-		out = append(out, `"`+strings.ReplaceAll(term, `"`, `""`)+`"`)
+	for index, term := range terms {
+		tokens := strings.FieldsFunc(term, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+		if len(tokens) == 0 {
+			continue
+		}
+		phrase := `"` + strings.ReplaceAll(term, `"`, `""`) + `"`
+		if index == len(terms)-1 && utf8.RuneCountInString(tokens[len(tokens)-1]) >= minPrefixTokenRunes {
+			last, _ := utf8.DecodeLastRuneInString(term)
+			if unicode.IsLetter(last) || unicode.IsDigit(last) {
+				phrase += "*"
+			}
+		}
+		out = append(out, phrase)
 	}
 	return strings.Join(out, " AND ")
 }
+
+// minPrefixTokenRunes keeps prefix expansion selective: a one- or two-letter
+// prefix expands to most of the vocabulary and costs seconds on a large index.
+const minPrefixTokenRunes = 3
 
 func excerpt(text, query string) string {
 	start := strings.Index(strings.ToLower(text), strings.ToLower(query))

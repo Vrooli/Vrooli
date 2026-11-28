@@ -46,6 +46,8 @@ type ConversationSearchQuery struct {
 	Role          string // "user" | "assistant" | "" for both
 	Limit         int
 	AfterSequence int64
+	// Kinds restricts the search to these row kinds; empty searches all.
+	Kinds []string
 }
 
 // TextRange is a match inside an excerpt, in UTF-16 code units (what browser
@@ -75,8 +77,15 @@ type ArchivedConversationSearchResult struct {
 	Error            string
 }
 
-// searchMatcher finds a query's byte ranges in a text; nil ranges mean no match.
+// searchMatcher finds a query's byte ranges in a text, in order and at most
+// maxSearchRangesPerHit of them; nil ranges mean no match.
 type searchMatcher func(text string) [][2]int
+
+// maxSearchRangesPerHit bounds the highlight ranges one hit carries. The
+// matcher alone still decides whether an event matches; the bound only stops a
+// pattern such as "." from returning a range per character (a 2 MB answer)
+// and from allocating one per character of a long event while deciding.
+const maxSearchRangesPerHit = 20
 
 // searchPlan is how a query runs: the FTS query that narrows candidates (empty
 // when the index cannot narrow it) and the exact matcher applied to them.
@@ -105,7 +114,7 @@ func planSearch(q ConversationSearchQuery) (searchPlan, string) {
 			reason := strings.TrimPrefix(err.Error(), "error parsing regexp: ")
 			return searchPlan{}, "invalid regular expression: " + strings.Replace(reason, "`"+flags, "`", 1)
 		}
-		return searchPlan{fts: prefixQuery(regexAnchoredTokens(query)), match: wordFiltered(regexMatcher(re), q.WholeWord)}, ""
+		return searchPlan{fts: prefixQuery(regexAnchoredTokens(query)), match: regexMatcher(re, q.WholeWord)}, ""
 	case ConversationSearchFuzzy:
 		tokens := searchTokens(query)
 		if len(tokens) == 0 {
@@ -120,36 +129,38 @@ func planSearch(q ConversationSearchQuery) (searchPlan, string) {
 		re := regexp.MustCompile(flags + regexp.QuoteMeta(query))
 		// Words narrow the index as prefixes; the literal (punctuation and
 		// all) decides. A query with no words scans a bounded window.
-		return searchPlan{fts: prefixQuery(searchTokens(query)), match: wordFiltered(regexMatcher(re), q.WholeWord)}, ""
+		return searchPlan{fts: prefixQuery(searchTokens(query)), match: regexMatcher(re, q.WholeWord)}, ""
 	}
 }
 
-func regexMatcher(re *regexp.Regexp) searchMatcher {
-	return func(text string) [][2]int {
-		found := re.FindAllStringIndex(text, -1)
-		out := make([][2]int, 0, len(found))
-		for _, r := range found {
-			if r[1] > r[0] {
-				out = append(out, [2]int{r[0], r[1]})
-			}
-		}
-		return out
-	}
-}
-
-// wordFiltered keeps only matches that start and end at word boundaries.
-func wordFiltered(match searchMatcher, wholeWord bool) searchMatcher {
+// regexMatcher matches re, keeping only whole-word matches when asked.
+func regexMatcher(re *regexp.Regexp, wholeWord bool) searchMatcher {
 	if !wholeWord {
-		return match
+		return func(text string) [][2]int { return boundedMatches(re, text, nil) }
 	}
 	return func(text string) [][2]int {
-		kept := [][2]int{}
-		for _, r := range match(text) {
-			if isWordStart(text, r[0]) && isWordEnd(text, r[1]) {
-				kept = append(kept, r)
+		return boundedMatches(re, text, func(start, end int) bool { return isWordStart(text, start) && isWordEnd(text, end) })
+	}
+}
+
+// boundedMatches returns the first maxSearchRangesPerHit non-empty matches
+// that keep accepts. It asks the regexp for a few more matches at a time
+// rather than all of them, so the work stops once the bound is reached.
+func boundedMatches(re *regexp.Regexp, text string, keep func(start, end int) bool) [][2]int {
+	for want := maxSearchRangesPerHit; ; want *= 4 {
+		found := re.FindAllStringIndex(text, want)
+		out := make([][2]int, 0, min(len(found), maxSearchRangesPerHit))
+		for _, r := range found {
+			if r[1] > r[0] && (keep == nil || keep(r[0], r[1])) {
+				out = append(out, [2]int{r[0], r[1]})
+				if len(out) == maxSearchRangesPerHit {
+					return out
+				}
 			}
 		}
-		return kept
+		if len(found) < want {
+			return out
+		}
 	}
 }
 
@@ -162,19 +173,14 @@ func fuzzyMatcher(tokens []string) searchMatcher {
 	return func(text string) [][2]int {
 		var ranges [][2]int
 		for _, re := range patterns {
-			found := false
-			for _, r := range re.FindAllStringIndex(text, -1) {
-				if isWordStart(text, r[0]) {
-					ranges = append(ranges, [2]int{r[0], r[1]})
-					found = true
-				}
-			}
-			if !found {
+			found := boundedMatches(re, text, func(start, _ int) bool { return isWordStart(text, start) })
+			if len(found) == 0 {
 				return nil
 			}
+			ranges = append(ranges, found...)
 		}
 		slices.SortFunc(ranges, func(a, b [2]int) int { return a[0] - b[0] })
-		return ranges
+		return ranges[:min(len(ranges), maxSearchRangesPerHit)]
 	}
 }
 
@@ -345,6 +351,11 @@ type searchScope struct {
 	args      []any
 	ftsOrder  string
 	scanOrder string
+	// ftsDriven makes the full-text mirror drive the read, for a scope with no
+	// narrower index (the whole archive) that ranks by bm25. Otherwise the
+	// scope's own index drives (one session's rows) and FTS membership only
+	// filters: probing the mirror once per session row costs seconds.
+	ftsDriven bool
 }
 
 type searchHit struct {
@@ -352,10 +363,39 @@ type searchHit struct {
 	sessionID  string
 	sequence   int64
 	role       string
+	kind       string
+	threadID   string
 	createdAt  string
 	occurredAt string
 	excerpt    string
 	ranges     []TextRange
+}
+
+// searchKindsClause restricts a search to the requested row kinds.
+func searchKindsClause(kinds []string) (string, []any) {
+	if len(kinds) == 0 {
+		return "", nil
+	}
+	args := make([]any, len(kinds))
+	for index, kind := range kinds {
+		args[index] = kind
+	}
+	return "e.kind IN (" + strings.TrimSuffix(strings.Repeat("?,", len(kinds)), ",") + ")", args
+}
+
+func searchKindAllowed(kinds []string, kind string) bool {
+	if len(kinds) == 0 {
+		return true
+	}
+	if kind == "" {
+		kind = "message"
+	}
+	for _, allowed := range kinds {
+		if allowed == kind {
+			return true
+		}
+	}
+	return false
 }
 
 // searchEvents is the one search path: the FTS mirror narrows candidates when
@@ -375,6 +415,10 @@ func (r *SQLConversationRepository) searchEvents(ctx context.Context, scope sear
 		where = append(where, "e.role = ?")
 		args = append(args, q.Role)
 	}
+	if clause, kindArgs := searchKindsClause(q.Kinds); clause != "" {
+		where = append(where, clause)
+		args = append(args, kindArgs...)
+	}
 	// Text mode's FTS query is deliberately a prefix-token superset so exact
 	// substring and whole-word semantics can be applied in Go. Filter those
 	// candidates by the literal substring in SQL before LIMIT; otherwise a
@@ -391,14 +435,24 @@ func (r *SQLConversationRepository) searchEvents(ctx context.Context, scope sear
 		args = append(args, literal)
 	}
 	var query string
-	if plan.fts != "" {
-		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, COALESCE(e.occurred_at, ''), e.text
+	switch {
+	case plan.fts != "" && scope.ftsDriven:
+		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.kind, e.thread_id, e.created_at, COALESCE(e.occurred_at, ''), e.text
 			FROM conversation_events_fts JOIN conversation_events e ON e.rowid = conversation_events_fts.rowid ` + scope.joins + `
 			WHERE conversation_events_fts MATCH ?` + andWhere(where) + `
 			ORDER BY ` + scope.ftsOrder + ` LIMIT ?`
 		args = append([]any{plan.fts}, args...)
-	} else {
-		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, COALESCE(e.occurred_at, ''), e.text
+	case plan.fts != "":
+		// The unary + keeps the planner from driving the read by rowid from
+		// the FTS matches (which, once statistics exist, it prefers): a common
+		// word matches tens of thousands of rows across every session.
+		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.kind, e.thread_id, e.created_at, COALESCE(e.occurred_at, ''), e.text
+			FROM conversation_events e ` + scope.joins + `
+			WHERE +e.rowid IN (SELECT rowid FROM conversation_events_fts WHERE conversation_events_fts MATCH ?)` + andWhere(where) + `
+			ORDER BY ` + scope.scanOrder + ` LIMIT ?`
+		args = append([]any{plan.fts}, args...)
+	default:
+		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.kind, e.thread_id, e.created_at, COALESCE(e.occurred_at, ''), e.text
 			FROM conversation_events e ` + scope.joins + `
 			WHERE 1 = 1` + andWhere(where) + `
 			ORDER BY ` + scope.scanOrder + ` LIMIT ?`
@@ -418,7 +472,7 @@ func (r *SQLConversationRepository) searchEvents(ctx context.Context, scope sear
 		}
 		var hit searchHit
 		var text string
-		if err := rows.Scan(&hit.id, &hit.sessionID, &hit.sequence, &hit.role, &hit.createdAt, &hit.occurredAt, &text); err != nil {
+		if err := rows.Scan(&hit.id, &hit.sessionID, &hit.sequence, &hit.role, &hit.kind, &hit.threadID, &hit.createdAt, &hit.occurredAt, &text); err != nil {
 			return nil, false, "", err
 		}
 		ranges := plan.match(text)

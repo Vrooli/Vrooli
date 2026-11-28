@@ -25,11 +25,18 @@ import (
 // proto wire type at packages/proto/.../v1/registry.Node — the handler
 // translates at the boundary so the domain never imports proto.
 type Node struct {
-	ID   string
-	Name string
-	Kind string
-	OS   string
-	Arch string
+	ID             string
+	Name           string
+	Kind           string
+	DeploymentTier string
+	// EnrollmentGeneration is assigned by Machine lineage binding, never by a
+	// RegisterNode or UpdateNode caller. Zero is legacy/unbound and fail-closed.
+	EnrollmentGeneration int64
+	// OwnerRevision advances for owner-editable registry state and fences
+	// UpdateNode compare-and-set writes.
+	OwnerRevision int64
+	OS            string
+	Arch          string
 	// MachineArch is the physical/OS-reported architecture (for example arm64
 	// on an Apple Silicon host). Arch remains the legacy wire field.
 	MachineArch string
@@ -99,6 +106,7 @@ type RegisterInput struct {
 	Arch                 string
 	MachineArch          string
 	BinaryArch           string
+	DeploymentTier       string
 	Endpoint             string
 	Capabilities         []string
 	Scopes               []string
@@ -114,10 +122,46 @@ type UpdateInput struct {
 	Scopes             []string
 	Revision           string
 	Kind               string
+	DeploymentTier     string
 	ConfigurationOpID  string
 	ConfigurationState string
 	ConfigurationAt    time.Time
 	ConfigurationUnmet []string
+}
+
+type UpdateCASInput struct {
+	ActorID          string
+	RequestID        string
+	ExpectedRevision int64
+	Update           UpdateInput
+}
+
+type NodeUpdateReceipt struct {
+	RequestID        string
+	ActorID          string
+	TargetID         string
+	Subject          string
+	ExpectedRevision int64
+	NewRevision      int64
+	PayloadDigest    string
+	CreatedAt        time.Time
+}
+
+type UpdateCASResult struct {
+	Node    Node
+	Receipt NodeUpdateReceipt
+}
+
+// CASMutation is the normalized, Bridge-authorized write sent to the durable
+// repository. Actor and subject are never sourced from the wire request.
+type CASMutation struct {
+	ActorID          string
+	RequestID        string
+	TargetID         string
+	Subject          string
+	ExpectedRevision int64
+	PayloadDigest    string
+	Node             Node
 }
 
 // ErrNodeNotFound is the typed sentinel returned when no row matches an id.
@@ -140,6 +184,36 @@ type ErrInvalidNode struct {
 func (e ErrInvalidNode) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
+
+type ErrEnrollmentGenerationConflict struct {
+	ID        string
+	Current   int64
+	Attempted int64
+}
+
+func (e ErrEnrollmentGenerationConflict) Error() string {
+	return fmt.Sprintf("node %q enrollment generation cannot move from %d to %d", e.ID, e.Current, e.Attempted)
+}
+
+type ErrRevisionConflict struct {
+	ID       string
+	Expected int64
+	Current  int64
+}
+
+func (e ErrRevisionConflict) Error() string {
+	return fmt.Sprintf("node %q owner revision changed: expected %d, current %d", e.ID, e.Expected, e.Current)
+}
+
+type ErrRequestIdentityConflict struct{ RequestID string }
+
+func (e ErrRequestIdentityConflict) Error() string {
+	return fmt.Sprintf("node update request %q was already used for a different authority or payload", e.RequestID)
+}
+
+type ErrNodeRevoked struct{ ID string }
+
+func (e ErrNodeRevoked) Error() string { return fmt.Sprintf("node %q is revoked", e.ID) }
 
 // ErrInvalidGrant is the typed refusal returned when an owner attempts to
 // persist a node grant outside the derived catalog vocabulary.

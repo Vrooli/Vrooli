@@ -37,7 +37,7 @@ describe("workspace conversation hydration", () => {
     const { unmount } = renderHook(() => { useConversationHydration(ids, "active"); });
     const foreground = refreshConversationSession("active");
     expect(api.getConversationSession).toHaveBeenCalledTimes(1);
-    expect(api.getConversationSession).toHaveBeenCalledWith("active", { limit: 500 });
+    expect(api.getConversationSession).toHaveBeenCalledWith("active", { limit: 500, projection: "messages" });
     await finish("active");
     await expect(foreground).resolves.toMatchObject({ ok: true });
     await act(async () => { await vi.advanceTimersByTimeAsync(50); });

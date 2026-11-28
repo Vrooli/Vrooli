@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"device-control/internal/desktopvideo"
 	"encoding/base64"
 	"errors"
 	"image"
@@ -33,7 +34,7 @@ func TestEncodePNGToVP8ProducesBoundedFrame(t *testing.T) {
 	}
 	var input bytes.Buffer
 	require.NoError(t, png.Encode(&input, image.NewRGBA(image.Rect(0, 0, 4, 4))))
-	frame, err := encodePNGToVP8(context.Background(), input.Bytes())
+	frame, err := desktopvideo.EncodePNG(context.Background(), input.Bytes())
 	require.NoError(t, err)
 	require.NotEmpty(t, frame)
 	require.LessOrEqual(t, len(frame), maxCaptureBytes)

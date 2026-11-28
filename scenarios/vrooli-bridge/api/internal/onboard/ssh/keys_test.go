@@ -1,10 +1,56 @@
 package ssh
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestNormalizePortAppliesDefaultAndEnforcesTCPRange(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		input   int
+		want    int
+		wantErr bool
+	}{
+		{name: "default", input: 0, want: DefaultPort},
+		{name: "minimum", input: 1, want: 1},
+		{name: "maximum", input: 65535, want: 65535},
+		{name: "negative", input: -1, wantErr: true},
+		{name: "too large", input: 65536, wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := normalizePort(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("normalizePort(%d) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if err == nil && got != tt.want {
+				t.Fatalf("normalizePort(%d) = %d, want %d", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestInvalidPortStopsConnectionAndKeyCopyBeforeSideEffects(t *testing.T) {
+	runner := &scriptedRunner{}
+	svc := NewService(t.TempDir(), WithRunner(runner))
+	for _, port := range []int{-1, 65536} {
+		got := svc.TestConnection(context.Background(), TestConnectionRequest{Host: "example.test", Port: port})
+		if got.Status != StatusInvalidInput {
+			t.Errorf("TestConnection port %d status = %q, want %q", port, got.Status, StatusInvalidInput)
+		}
+	}
+	if runner.calls != 0 {
+		t.Fatalf("invalid ports reached connection runner %d times", runner.calls)
+	}
+	for _, port := range []int{-1, 65536} {
+		got := (ExecKeyCopier{}).CopyKey(context.Background(), CopyKeyRequest{Host: "example.test", Port: port})
+		if got.Status != StatusInvalidInput {
+			t.Errorf("CopyKey port %d status = %q, want %q", port, got.Status, StatusInvalidInput)
+		}
+	}
+}
 
 func TestGenerateKeyWritesSecurePermsAndFingerprint(t *testing.T) {
 	requireSSHTools(t)

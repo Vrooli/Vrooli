@@ -218,6 +218,24 @@ func (r *Resolver) ResolveDetailed(sessionCwd string, cwdErr error, rawPath stri
 		matches = append(matches, match{resolvedPath: resolvedPath, basis: c.basis, warning: c.warning, info: info})
 	}
 
+	// A session working directory and a project root are often the same folder
+	// (the common case: the terminal was opened at the repo root). Joining the
+	// same relative path against both then produces one file twice, and the
+	// ambiguity picker offers the person no actual choice. Keep the first
+	// match per resolved path; the bases are ordered by preference already.
+	if len(matches) > 1 {
+		seenMatches := make(map[string]bool, len(matches))
+		deduped := matches[:0]
+		for _, m := range matches {
+			if seenMatches[m.resolvedPath] {
+				continue
+			}
+			seenMatches[m.resolvedPath] = true
+			deduped = append(deduped, m)
+		}
+		matches = deduped
+	}
+
 	if len(matches) == 0 {
 		// A relative path that matched nowhere is offered to the client as a
 		// manual browse rooted at the directories we tried. An absolute miss
@@ -226,14 +244,20 @@ func (r *Resolver) ResolveDetailed(sessionCwd string, cwdErr error, rawPath stri
 			return nil, newError(CodeNotFound, "Referenced file was not found")
 		}
 		bases := make([]ResolveCandidate, 0, 2)
+		seenBases := make(map[string]bool, 2)
 		for _, b := range []struct{ path, basis string }{{sessionCwd, "session_cwd"}, {projectRoot, "project_root"}} {
 			if b.path == "" {
 				continue
 			}
-			if info, e := os.Stat(b.path); e == nil && info.IsDir() {
+			clean := filepath.Clean(b.path)
+			if seenBases[clean] {
+				continue
+			}
+			if info, e := os.Stat(clean); e == nil && info.IsDir() {
+				seenBases[clean] = true
 				bases = append(bases, ResolveCandidate{
-					ResolvedPath: b.path, ResolutionBasis: b.basis, Kind: KindDirectory,
-					CanPreview: true, Basename: filepath.Base(b.path),
+					ResolvedPath: clean, ResolutionBasis: b.basis, Kind: KindDirectory,
+					CanPreview: true, Basename: filepath.Base(clean),
 				})
 			}
 		}

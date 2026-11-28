@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   testOpenRouterKey: vi.fn(),
   removeOpenRouterKey: vi.fn(),
   fetchScenarioLink: vi.fn(),
-  getWebAccessToken: vi.fn(),
+  getAccessToken: vi.fn(),
 }));
 
 vi.mock("../api/capabilities", () => ({
@@ -43,7 +43,7 @@ vi.mock("../api/monetization", async (importOriginal) => {
 });
 
 vi.mock("../api/notifications", () => ({ fetchScenarioLink: mocks.fetchScenarioLink }));
-vi.mock("../lib/auth", () => ({ getWebAccessToken: mocks.getWebAccessToken }));
+vi.mock("../lib/auth", () => ({ getAccessToken: mocks.getAccessToken }));
 
 function cap(overrides: Partial<CapabilityState> & Pick<CapabilityState, "id">): CapabilityState {
   return {
@@ -132,7 +132,7 @@ beforeEach(async () => {
   mocks.getSubscriptionSummary.mockResolvedValue({configured:false});
   mocks.getConnections.mockResolvedValue({ connections: [] });
   mocks.fetchScenarioLink.mockResolvedValue("");
-  mocks.getWebAccessToken.mockReturnValue(null);
+  mocks.getAccessToken.mockResolvedValue(null);
 });
 
 describe("IntegrationsPanel", () => {
@@ -146,6 +146,18 @@ describe("IntegrationsPanel", () => {
     mocks.fetchCapabilities.mockReturnValue(new Promise(() => undefined));
     renderWithProviders(<IntegrationsPanel open />);
     expect(summary()).toBe("Checking…");
+  });
+
+  it("reacquires the ephemeral account token before loading account-backed integration data", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.getAccessToken.mockResolvedValue("reacquired-web-token");
+    mocks.getSubscriptionSummary.mockResolvedValue({ configured: true });
+    mocks.getCommercialContext.mockResolvedValue({ capabilities: [] });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    await waitFor(() => expect(mocks.getSubscriptionSummary).toHaveBeenCalled());
+    expect(mocks.getAccessToken).toHaveBeenCalled();
+    expect(mocks.getCommercialContext).toHaveBeenCalled();
   });
 
   it("summarises what is ready and groups everything by what it is for", async () => {
@@ -412,7 +424,7 @@ describe("IntegrationsPanel", () => {
   });
 
   it("shows an account recommendation and lets it be dismissed", async () => {
-    mocks.getWebAccessToken.mockReturnValue("token");
+    mocks.getAccessToken.mockResolvedValue("token");
     mocks.fetchCapabilities.mockResolvedValue(catalogue);
     mocks.getCommercialContext.mockResolvedValue({
       stale: false,
